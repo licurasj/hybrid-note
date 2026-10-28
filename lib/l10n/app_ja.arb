@@ -297,5 +297,7 @@
   "listFilterAll": "すべて",
   "listDoneGroup": "完了",
   "listOpenDoneCount": "未完了 {open} · 完了 {done}",
-  "listItemCount": "{count, plural, other{{count} 件}}"
+  "listItemCount": "{count, plural, other{{count} 件}}",
+  "itemSheetNew": "新しい項目",
+  "itemSheetEdit": "項目を編集"
 }

@@ -523,7 +523,7 @@ abstract class AppLocalizations {
   /// No description provided for @addSubtask.
   ///
   /// In en, this message translates to:
-  /// **'Add Subtask'**
+  /// **'Add subtask'**
   String get addSubtask;
 
   /// No description provided for @editSubtask.
@@ -1513,6 +1513,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 item} other{{count} items}}'**
   String listItemCount(int count);
+
+  /// No description provided for @itemSheetNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New item'**
+  String get itemSheetNew;
+
+  /// No description provided for @itemSheetEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit item'**
+  String get itemSheetEdit;
 }
 
 class _AppLocalizationsDelegate

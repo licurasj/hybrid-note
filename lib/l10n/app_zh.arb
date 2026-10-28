@@ -297,5 +297,7 @@
   "listFilterAll": "全部",
   "listDoneGroup": "已完成",
   "listOpenDoneCount": "{open} 项未完成 · {done} 项已完成",
-  "listItemCount": "{count, plural, other{{count} 项}}"
+  "listItemCount": "{count, plural, other{{count} 项}}",
+  "itemSheetNew": "新建项目",
+  "itemSheetEdit": "编辑项目"
 }

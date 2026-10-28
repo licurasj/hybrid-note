@@ -222,7 +222,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get addSubtask => 'Add Subtask';
+  String get addSubtask => 'Add subtask';
 
   @override
   String get editSubtask => 'Edit Subtask';
@@ -828,4 +828,10 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get itemSheetNew => 'New item';
+
+  @override
+  String get itemSheetEdit => 'Edit item';
 }

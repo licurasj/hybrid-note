@@ -103,19 +103,15 @@ class _GenericListScreenState extends State<GenericListScreen> {
 
   Future<void> _showItemDialog({ListItem? item}) async {
     final FieldDefinition? filterField = _filterField;
-    final ListItem? result = await showDialog<ListItem>(
+    final ListItem? result = await showItemSheet(
       context: context,
-      builder: (_) {
-        return GenericItemDialog(
-          definition: _definition,
-          item: item,
-          title: item == null
-              ? widget.texts.addDialogTitle
-              : widget.texts.editDialogTitle,
-          initialValues: {
-            if (filterField != null && _filter != null) filterField.key: _filter,
-          },
-        );
+      definition: _definition,
+      item: item,
+      title: item == null
+          ? widget.texts.addDialogTitle
+          : widget.texts.editDialogTitle,
+      initialValues: {
+        if (filterField != null && _filter != null) filterField.key: _filter,
       },
     );
 

@@ -1,17 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:uuid/uuid.dart';
 
+import '../app/app_theme.dart';
+import '../app_colors.dart';
 import '../l10n/generated/app_localizations.dart';
 import 'list_definition.dart';
 import 'list_error.dart';
+import 'list_icons.dart';
 import 'list_item.dart';
 import 'list_labels.dart';
 import 'list_rules.dart';
 import 'list_vocabulary.dart';
 
-// Add/edit dialog generated from a definition's fields. Pops the edited item,
-// or nothing when cancelled. Values of fields it does not show are kept.
+// Add/edit sheet generated from a definition's fields, in direction A
+// "Eclipse" (docs/AESTHETICS.md): a large title field, the description, label
+// and value rows, subtasks, and Save in the list's colour. Open it with
+// showItemSheet. Pops the edited item, or nothing when cancelled. Values of
+// fields it does not show are kept.
 class GenericItemDialog extends StatefulWidget {
   const GenericItemDialog({
     super.key,
@@ -44,6 +50,7 @@ class _SubItemDraft {
   final String id;
   bool done;
   final TextEditingController controller;
+  final FocusNode focus = FocusNode();
   final Map<String, dynamic>? original;
 }
 
@@ -124,6 +131,11 @@ class _GenericItemDialogState extends State<GenericItemDialog> {
         for (final _SubItemDraft draft in drafts) draft.controller,
     ]) {
       controller.dispose();
+    }
+    for (final List<_SubItemDraft> drafts in _subItems.values) {
+      for (final _SubItemDraft draft in drafts) {
+        draft.focus.dispose();
+      }
     }
     super.dispose();
   }
@@ -306,150 +318,423 @@ class _GenericItemDialogState extends State<GenericItemDialog> {
     }
   }
 
-  Widget? _editor(ListLabels labels, FieldDefinition field) {
-    final String label = labels.field(field) + (field.required ? ' *' : '');
-    final TextEditingController? controller = _controllers[field.key];
-    final Key key = ValueKey('field-${field.key}');
-
+  static IconData _icon(FieldDefinition field) {
     switch (field.type) {
       case FieldType.text:
       case FieldType.longText:
+        return Icons.short_text;
       case FieldType.url:
-        return TextField(
-          key: key,
-          controller: controller,
-          maxLines: field.type == FieldType.longText ? 3 : 1,
-          keyboardType:
-              field.type == FieldType.url ? TextInputType.url : TextInputType.text,
-          onChanged: (_) => setState(() {}),
-          decoration: InputDecoration(labelText: label),
+        return Icons.link;
+      case FieldType.tags:
+        return Icons.tag;
+      case FieldType.counter:
+      case FieldType.number:
+        return Icons.numbers;
+      case FieldType.rating:
+        return Icons.star_outline;
+      case FieldType.choice:
+        return Icons.radio_button_checked;
+      case FieldType.category:
+        return Icons.sell_outlined;
+      case FieldType.checkbox:
+        return Icons.check_circle_outline;
+      case FieldType.toggle:
+        return Icons.toggle_on_outlined;
+      case FieldType.date:
+      case FieldType.dateTime:
+        return field.role == FieldRole.reminder
+            ? Icons.notifications_none
+            : Icons.event_outlined;
+      case FieldType.recurrence:
+        return Icons.repeat;
+      case FieldType.checklist:
+        return Icons.checklist;
+    }
+  }
+
+  // An icon, a label and the value on the right, over a hairline.
+  Widget _row(
+    _Look look, {
+    Key? key,
+    required IconData icon,
+    required String label,
+    required Widget value,
+    VoidCallback? onTap,
+    // The value has its own width (a check or a switch): the label takes
+    // the rest of the row.
+    bool compact = false,
+  }) {
+    final Text text = Text(label, style: look.label);
+    return InkWell(
+      key: key,
+      onTap: onTap,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 52),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: look.neutrals.line)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: look.neutrals.muted),
+            const SizedBox(width: 12),
+            if (compact) ...[
+              Expanded(child: text),
+              const SizedBox(width: 12),
+              value,
+            ] else
+              // Long labels wrap at half the row instead of pushing the value
+              // off it.
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) => Row(
+                    children: [
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: constraints.maxWidth / 2,
+                        ),
+                        child: text,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Align(
+                          alignment: AlignmentDirectional.centerEnd,
+                          child: value,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // No box and no line: the theme's outlined fields would otherwise show.
+  static InputDecoration _bare(String? hint, TextStyle hintStyle) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: hintStyle,
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(vertical: 8),
+      border: InputBorder.none,
+      enabledBorder: InputBorder.none,
+      focusedBorder: InputBorder.none,
+    );
+  }
+
+  // A typed value on the right of a row.
+  Widget _inlineField(
+    _Look look, {
+    required Key key,
+    required TextEditingController? controller,
+    TextInputType? keyboardType,
+    String? hint,
+    ValueChanged<String>? onChanged,
+  }) {
+    return TextField(
+      key: key,
+      controller: controller,
+      keyboardType: keyboardType,
+      textAlign: TextAlign.end,
+      style: look.label,
+      onChanged: onChanged,
+      decoration: _bare(hint, look.value),
+    );
+  }
+
+  // A picked value on the right of a row, with a chevron.
+  Widget _dropdown<T>(
+    _Look look, {
+    required Key key,
+    required T? value,
+    required List<(T, String)> options,
+    required ValueChanged<T?> onChanged,
+  }) {
+    return DropdownButtonHideUnderline(
+      child: DropdownButton<T>(
+        key: key,
+        value: value,
+        isExpanded: true,
+        isDense: true,
+        icon: Icon(Icons.chevron_right, size: 18, color: look.neutrals.muted),
+        style: look.label,
+        dropdownColor: look.neutrals.ground,
+        borderRadius: BorderRadius.circular(AppShapes.fieldRadius),
+        selectedItemBuilder: (_) => [
+          for (final (T _, String text) in options)
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: Text(
+                text,
+                style: look.value,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+        ],
+        items: [
+          for (final (T option, String text) in options)
+            DropdownMenuItem(value: option, child: Text(text)),
+        ],
+        onChanged: onChanged,
+      ),
+    );
+  }
+
+  // A round check in the list colour, as on the list screen.
+  Widget _check(_Look look, bool value, ValueChanged<bool> onChanged) {
+    const double scale = 1.15;
+    return Transform.scale(
+      scale: scale,
+      child: Checkbox(
+        value: value,
+        onChanged: (value) => onChanged(value ?? false),
+        shape: const CircleBorder(),
+        fillColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? look.color
+              : Colors.transparent,
+        ),
+        checkColor: look.onColor,
+        side: WidgetStateBorderSide.resolveWith(
+          (states) => BorderSide(
+            color: states.contains(WidgetState.selected)
+                ? look.color
+                : look.neutrals.text,
+            width: 1.75 / scale,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // The large title field with a hairline under it.
+  Widget _headline(_Look look, FieldDefinition field, String label) {
+    final OutlineInputBorder none = OutlineInputBorder(
+      borderSide: BorderSide.none,
+      borderRadius: BorderRadius.zero,
+    );
+    return TextField(
+      key: ValueKey('field-${field.key}'),
+      controller: _controllers[field.key],
+      style: look.headline,
+      onChanged: (_) => setState(() {}),
+      decoration: InputDecoration(
+        hintText: label,
+        hintStyle: look.headline.copyWith(color: look.neutrals.muted),
+        isDense: true,
+        contentPadding: const EdgeInsets.only(top: 4, bottom: 10),
+        border: none,
+        enabledBorder: UnderlineInputBorder(
+          borderSide: BorderSide(color: look.neutrals.line),
+        ),
+        focusedBorder: UnderlineInputBorder(
+          borderSide: BorderSide(color: look.neutrals.text),
+        ),
+      ),
+    );
+  }
+
+  // Long text under the title, without a box.
+  Widget _description(_Look look, FieldDefinition field, String label) {
+    return TextField(
+      key: ValueKey('field-${field.key}'),
+      controller: _controllers[field.key],
+      minLines: 1,
+      maxLines: 4,
+      style: look.body,
+      onChanged: (_) => setState(() {}),
+      decoration: _bare(label, look.body.copyWith(color: look.neutrals.muted)),
+    );
+  }
+
+  Widget _editor(_Look look, ListLabels labels, FieldDefinition field) {
+    final String label = labels.field(field) + (field.required ? ' *' : '');
+    final TextEditingController? controller = _controllers[field.key];
+    final Key key = ValueKey('field-${field.key}');
+    final IconData icon = _icon(field);
+
+    switch (field.type) {
+      case FieldType.text:
+      case FieldType.url:
+        return _row(
+          look,
+          icon: icon,
+          label: label,
+          value: _inlineField(
+            look,
+            key: key,
+            controller: controller,
+            keyboardType: field.type == FieldType.url
+                ? TextInputType.url
+                : TextInputType.text,
+            onChanged: (_) => setState(() {}),
+          ),
+        );
+      case FieldType.longText:
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: _description(look, field, label),
         );
       case FieldType.counter:
       case FieldType.number:
       case FieldType.rating:
-        return TextField(
-          key: key,
-          controller: controller,
-          keyboardType: TextInputType.numberWithOptions(
-            decimal: field.type == FieldType.number,
+        return _row(
+          look,
+          icon: icon,
+          label: label,
+          value: _inlineField(
+            look,
+            key: key,
+            controller: controller,
+            hint: '0',
+            keyboardType: TextInputType.numberWithOptions(
+              decimal: field.type == FieldType.number,
+            ),
           ),
-          decoration: InputDecoration(labelText: label),
         );
       case FieldType.tags:
-        return TextField(
-          key: key,
-          controller: controller,
-          decoration: InputDecoration(labelText: label, hintText: 'a, b, c'),
+        return _row(
+          look,
+          icon: icon,
+          label: label,
+          value: _inlineField(
+            look,
+            key: key,
+            controller: controller,
+            hint: 'a, b, c',
+          ),
         );
       case FieldType.choice:
         final Object? current = _values[field.key];
-        return DropdownButtonFormField<String>(
-          key: key,
-          initialValue: field.hasOption(current) ? current as String : null,
-          isExpanded: true,
-          decoration: InputDecoration(labelText: label),
-          items: [
-            for (final FieldOption option in field.options)
-              DropdownMenuItem(
-                value: option.value,
-                child: Text(labels.option(option)),
-              ),
-          ],
-          onChanged: (value) {
-            setState(() {
-              _values[field.key] = value;
-            });
-          },
+        return _row(
+          look,
+          icon: icon,
+          label: label,
+          value: _dropdown<String>(
+            look,
+            key: key,
+            value: field.hasOption(current) ? current as String : null,
+            options: [
+              for (final FieldOption option in field.options)
+                (option.value, labels.option(option)),
+            ],
+            onChanged: (value) {
+              setState(() {
+                _values[field.key] = value;
+              });
+            },
+          ),
         );
       case FieldType.category:
         final Object? current = _values[field.key];
         final List<String> choices = [
           for (final FieldOption option in field.options) option.value,
-          if (current is String && current.isNotEmpty && !field.hasOption(current))
+          if (current is String &&
+              current.isNotEmpty &&
+              !field.hasOption(current))
             current,
         ];
-        return Row(
-          children: [
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                // Rebuild when a new category is typed in.
-                key: ValueKey('field-${field.key}-$current'),
-                initialValue: current is String && current.isNotEmpty ? current : '',
-                isExpanded: true,
-                decoration: InputDecoration(labelText: label),
-                items: [
-                  const DropdownMenuItem(value: '', child: Text('—')),
-                  for (final String choice in choices)
-                    DropdownMenuItem(value: choice, child: Text(choice)),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    if (value == null || value.isEmpty) {
-                      _values.remove(field.key);
-                    } else {
-                      _values[field.key] = value;
-                    }
-                  });
-                },
+        return _row(
+          look,
+          icon: icon,
+          label: label,
+          value: Row(
+            children: [
+              Expanded(
+                child: _dropdown<String>(
+                  look,
+                  // Rebuild when a new category is typed in.
+                  key: ValueKey('field-${field.key}-$current'),
+                  value: current is String && current.isNotEmpty ? current : '',
+                  options: [
+                    ('', labels.loc.none),
+                    for (final String choice in choices) (choice, choice),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      if (value == null || value.isEmpty) {
+                        _values.remove(field.key);
+                      } else {
+                        _values[field.key] = value;
+                      }
+                    });
+                  },
+                ),
               ),
-            ),
-            IconButton(
-              tooltip: labels.loc.createCategory,
-              icon: const Icon(Icons.add),
-              onPressed: () => _newCategory(field, labels),
-            ),
-          ],
+              IconButton(
+                tooltip: labels.loc.createCategory,
+                icon: Icon(Icons.add, size: 20, color: look.neutrals.muted),
+                onPressed: () => _newCategory(field, labels),
+              ),
+            ],
+          ),
         );
       case FieldType.checkbox:
-        return CheckboxListTile(
+        final bool checked = _values[field.key] == true;
+        void flip(bool value) {
+          setState(() {
+            _values[field.key] = value;
+          });
+        }
+        return _row(
+          look,
           key: key,
-          contentPadding: EdgeInsets.zero,
-          title: Text(label),
-          value: _values[field.key] == true,
-          onChanged: (value) {
-            setState(() {
-              _values[field.key] = value ?? false;
-            });
-          },
+          icon: icon,
+          label: label,
+          onTap: () => flip(!checked),
+          compact: true,
+          value: _check(look, checked, flip),
         );
       case FieldType.toggle:
-        return SwitchListTile(
+        final bool on = _values[field.key] == true;
+        void flip(bool value) {
+          setState(() {
+            _values[field.key] = value;
+          });
+        }
+        return _row(
+          look,
           key: key,
-          contentPadding: EdgeInsets.zero,
-          title: Text(label),
-          value: _values[field.key] == true,
-          onChanged: (value) {
-            setState(() {
-              _values[field.key] = value;
-            });
-          },
+          icon: icon,
+          label: label,
+          onTap: () => flip(!on),
+          compact: true,
+          value: Switch(value: on, onChanged: flip),
         );
       case FieldType.date:
       case FieldType.dateTime:
         final Object? raw = _values[field.key];
-        final DateTime? date =
-            raw is String ? DateTime.tryParse(raw)?.toLocal() : null;
+        final DateTime? date = raw is String
+            ? DateTime.tryParse(raw)?.toLocal()
+            : null;
         final String locale = Localizations.localeOf(context).toLanguageTag();
         final DateFormat format = field.type == FieldType.dateTime
             ? DateFormat.yMMMd(locale).add_jm()
             : DateFormat.yMMMd(locale);
-        return InputDecorator(
+        return _row(
+          look,
           key: key,
-          decoration: InputDecoration(labelText: label),
-          child: Row(
+          icon: icon,
+          label: label,
+          onTap: () => _pickDate(field),
+          value: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: TextButton.icon(
-                  style: TextButton.styleFrom(alignment: Alignment.centerLeft),
-                  icon: const Icon(Icons.event),
-                  label: Text(date == null ? labels.loc.setReminder : format.format(date)),
-                  onPressed: () => _pickDate(field),
+              Flexible(
+                child: Text(
+                  date == null ? labels.loc.none : format.format(date),
+                  style: look.value,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (date != null)
+              if (date == null)
+                Icon(Icons.chevron_right, size: 18, color: look.neutrals.muted)
+              else
                 IconButton(
                   tooltip: labels.loc.clear,
-                  icon: const Icon(Icons.close),
+                  icon: Icon(Icons.close, size: 18, color: look.neutrals.muted),
                   onPressed: () {
                     setState(() {
                       _values.remove(field.key);
@@ -461,7 +746,8 @@ class _GenericItemDialogState extends State<GenericItemDialog> {
         );
       case FieldType.recurrence:
         final Object? current = _values[field.key];
-        final RecurrenceFrequency frequency = enumFromWire(
+        final RecurrenceFrequency frequency =
+            enumFromWire(
               RecurrenceFrequency.values,
               current is Map ? current['frequency'] : null,
             ) ??
@@ -469,36 +755,41 @@ class _GenericItemDialogState extends State<GenericItemDialog> {
         return Column(
           key: key,
           children: [
-            DropdownButtonFormField<RecurrenceFrequency>(
-              initialValue: frequency,
-              isExpanded: true,
-              decoration: InputDecoration(labelText: label),
-              items: [
-                for (final RecurrenceFrequency value in RecurrenceFrequency.values)
-                  DropdownMenuItem(
-                    value: value,
-                    child: Text(labels.recurrence(value)),
-                  ),
-              ],
-              onChanged: (value) {
-                setState(() {
-                  _values[field.key] = {
-                    'frequency': (value ?? RecurrenceFrequency.none).wire,
-                  };
-                });
-              },
+            _row(
+              look,
+              icon: icon,
+              label: label,
+              value: _dropdown<RecurrenceFrequency>(
+                look,
+                key: ValueKey('field-${field.key}-frequency'),
+                value: frequency,
+                options: [
+                  for (final RecurrenceFrequency value
+                      in RecurrenceFrequency.values)
+                    (value, labels.recurrence(value)),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _values[field.key] = {
+                      'frequency': (value ?? RecurrenceFrequency.none).wire,
+                    };
+                  });
+                },
+              ),
             ),
-            if (frequency == RecurrenceFrequency.custom) ...[
-              const SizedBox(height: 12),
-              TextField(
-                key: ValueKey('field-${field.key}-days'),
-                controller: _customDays[field.key],
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: labels.loc.repeatEveryHowManyDays,
+            if (frequency == RecurrenceFrequency.custom)
+              _row(
+                look,
+                icon: Icons.calendar_view_day_outlined,
+                label: labels.loc.repeatEveryHowManyDays,
+                value: _inlineField(
+                  look,
+                  key: ValueKey('field-${field.key}-days'),
+                  controller: _customDays[field.key],
+                  hint: '0',
+                  keyboardType: TextInputType.number,
                 ),
               ),
-            ],
           ],
         );
       case FieldType.checklist:
@@ -508,45 +799,80 @@ class _GenericItemDialogState extends State<GenericItemDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              width: double.infinity,
-              child: Text(label, style: Theme.of(context).textTheme.labelLarge),
+            Padding(
+              padding: const EdgeInsets.only(top: 22, bottom: 4),
+              child: Text(label.toUpperCase(), style: look.type.sectionLabel),
             ),
             for (final _SubItemDraft draft in drafts)
-              Row(
+              // The row sits 12 px outside the margin, so the circle lines up
+              // with it, as on the list screen.
+              Transform.translate(
                 key: ValueKey('sub-${draft.id}'),
-                children: [
-                  Checkbox(
-                    value: draft.done,
-                    onChanged: (value) {
+                offset: Offset(
+                  Directionality.of(context) == TextDirection.rtl ? 12 : -12,
+                  0,
+                ),
+                child: Row(
+                  children: [
+                    _check(look, draft.done, (value) {
                       setState(() {
-                        draft.done = value ?? false;
+                        draft.done = value;
                       });
-                    },
-                  ),
-                  Expanded(
-                    child: TextField(controller: draft.controller),
-                  ),
-                  IconButton(
-                    tooltip: labels.loc.delete,
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: () {
-                      setState(() {
-                        drafts.remove(draft);
-                      });
-                    },
-                  ),
-                ],
+                    }),
+                    Expanded(
+                      child: TextField(
+                        controller: draft.controller,
+                        focusNode: draft.focus,
+                        style: draft.done
+                            ? look.label.copyWith(
+                                color: look.neutrals.muted,
+                                decoration: TextDecoration.lineThrough,
+                              )
+                            : look.label,
+                        decoration: _bare(null, look.value),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: labels.loc.delete,
+                      icon: Icon(
+                        Icons.close,
+                        size: 18,
+                        color: look.neutrals.muted,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          drafts.remove(draft);
+                        });
+                      },
+                    ),
+                  ],
+                ),
               ),
             TextButton.icon(
               key: ValueKey('field-${field.key}-add'),
-              icon: const Icon(Icons.add),
+              style: TextButton.styleFrom(
+                foregroundColor: look.neutrals.muted,
+                textStyle: look.body,
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(0, 44),
+              ),
+              icon: const Icon(Icons.add, size: 18),
               label: Text(labels.loc.addSubtask),
               onPressed: () {
+                final _SubItemDraft draft = _SubItemDraft(
+                  id: const Uuid().v4(),
+                  done: false,
+                  title: '',
+                );
                 setState(() {
-                  drafts.add(
-                    _SubItemDraft(id: const Uuid().v4(), done: false, title: ''),
-                  );
+                  drafts.add(draft);
+                });
+                // The new subtask gets the cursor, even while another field
+                // has it.
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    draft.focus.requestFocus();
+                  }
                 });
               },
             ),
@@ -559,19 +885,42 @@ class _GenericItemDialogState extends State<GenericItemDialog> {
   Widget build(BuildContext context) {
     final AppLocalizations loc = AppLocalizations.of(context);
     final ListLabels labels = ListLabels(loc);
+    final _Look look = _Look.of(context, widget.definition);
     final List<Widget> editors = [];
 
-    for (final FieldDefinition field in widget.definition.fields) {
-      if (!field.isVisibleFor(_values)) {
-        continue;
+    // The headline is the primary text field; long text follows it as the
+    // description, then the rows, then the subtask sections.
+    final List<FieldDefinition> visible = [
+      for (final FieldDefinition field in widget.definition.fields)
+        if (field.isVisibleFor(_values)) field,
+    ];
+    final FieldDefinition? headline = visible
+        .where((field) => field.primary && _isTextType(field.type))
+        .firstOrNull;
+    int rank(FieldDefinition field) {
+      if (field == headline) {
+        return 0;
       }
+      switch (field.type) {
+        case FieldType.longText:
+          return 1;
+        case FieldType.checklist:
+          return 3;
+        default:
+          return 2;
+      }
+    }
 
-      final Widget? editor = _editor(labels, field);
-      if (editor != null) {
-        if (editors.isNotEmpty) {
-          editors.add(const SizedBox(height: 12));
-        }
-        editors.add(editor);
+    final List<FieldDefinition> ordered = [
+      for (int r = 0; r < 4; r++)
+        for (final FieldDefinition field in visible)
+          if (rank(field) == r) field,
+    ];
+    for (final FieldDefinition field in ordered) {
+      if (field == headline) {
+        editors.add(_headline(look, field, labels.field(field)));
+      } else {
+        editors.add(_editor(look, labels, field));
       }
     }
 
@@ -581,39 +930,291 @@ class _GenericItemDialogState extends State<GenericItemDialog> {
           padding: const EdgeInsets.only(top: 12),
           child: Text(
             _error!,
-            style: TextStyle(color: Theme.of(context).colorScheme.error),
+            style: look.body.copyWith(
+              color: Theme.of(context).colorScheme.error,
+            ),
           ),
         ),
       );
     }
 
-    return AlertDialog(
-      title: Text(
-        widget.title,
-        overflow: TextOverflow.ellipsis,
-        maxLines: 1,
-      ),
-      content: SizedBox(
-        width: 420,
-        child: SingleChildScrollView(
+    final String heading = [
+      labels.listName(widget.definition),
+      widget.item == null ? loc.itemSheetNew : loc.itemSheetEdit,
+    ].join(' · ');
+
+    return Semantics(
+      label: widget.title,
+      explicitChildNodes: true,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: look.neutrals.ground,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(AppShapes.sheetRadius),
+          ),
+          boxShadow: look.shadow,
+        ),
+        child: Material(
+          type: MaterialType.transparency,
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: editors,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(top: 10, bottom: 12),
+                  decoration: BoxDecoration(
+                    color: look.neutrals.line,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppShapes.sideMargin,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Text(heading, style: look.type.meta),
+                      ),
+                      ...editors,
+                    ],
+                  ),
+                ),
+              ),
+              // Cancel and Save stay at the bottom, within thumb reach.
+              SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppShapes.sideMargin - 8,
+                    12,
+                    AppShapes.sideMargin,
+                    16,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          foregroundColor: look.neutrals.text,
+                          minimumSize: const Size(0, 48),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        child: Text(loc.cancel),
+                      ),
+                      FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: look.color,
+                          foregroundColor: look.onColor,
+                          disabledBackgroundColor: look.neutrals.surface,
+                          disabledForegroundColor: look.neutrals.muted,
+                          minimumSize: const Size(0, 52),
+                          padding: const EdgeInsets.symmetric(horizontal: 30),
+                          textStyle: look.label.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                          shape: AppShapes.pill,
+                        ),
+                        onPressed: _requiredFieldsFilled ? _save : null,
+                        child: Text(loc.save),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
-          child: Text(loc.cancel),
-        ),
-        FilledButton(
-          onPressed: _requiredFieldsFilled ? _save : null,
-          child: Text(loc.save),
-        ),
-      ],
     );
   }
+}
+
+// The colours and styles the sheet uses for the current theme: the neutrals
+// and the list's colour (docs/AESTHETICS.md).
+class _Look {
+  const _Look._({
+    required this.neutrals,
+    required this.type,
+    required this.color,
+    required this.onColor,
+    required this.shadow,
+  });
+
+  factory _Look.of(BuildContext context, ListDefinition definition) {
+    final Brightness brightness = Theme.of(context).brightness;
+    final Color color = listColor(definition.color, brightness: brightness);
+    return _Look._(
+      neutrals: AppColors.neutrals(brightness),
+      type: AppTypography.of(context),
+      color: color,
+      onColor: AppColors.onColor(color),
+      shadow: AppShadows.floating(brightness),
+    );
+  }
+
+  final AppNeutrals neutrals;
+  final AppTypography type;
+  final Color color;
+  final Color onColor;
+  final List<BoxShadow> shadow;
+
+  TextStyle get headline =>
+      type.row.copyWith(fontSize: 22, fontWeight: FontWeight.w500);
+  TextStyle get label =>
+      type.row.copyWith(fontSize: 15, fontWeight: FontWeight.w400);
+  TextStyle get value => label.copyWith(color: neutrals.muted);
+  TextStyle get body =>
+      type.row.copyWith(fontSize: 15, fontWeight: FontWeight.w400, height: 1.4);
+}
+
+// Slides the item sheet up from the bottom edge. Only the sheet moves: the
+// scrim appears and goes at once, and with reduced motion nothing animates.
+// The sheet can be dragged down to close it.
+class _ItemSheetRoute<T> extends PopupRoute<T> {
+  _ItemSheetRoute({
+    required this.builder,
+    required this.reduceMotion,
+    required this.barrierLabel,
+  });
+
+  final WidgetBuilder builder;
+  final bool reduceMotion;
+
+  // Once the sheet is dragged it follows the finger, without the ease-out.
+  bool _dragged = false;
+
+  @override
+  final String barrierLabel;
+
+  // The barrier only catches taps; the scrim is drawn in buildTransitions.
+  @override
+  Color? get barrierColor => null;
+
+  @override
+  bool get barrierDismissible => true;
+
+  @override
+  Duration get transitionDuration =>
+      reduceMotion ? Duration.zero : AppMotion.slow;
+
+  @override
+  Duration get reverseTransitionDuration =>
+      reduceMotion ? Duration.zero : AppMotion.standard;
+
+  @override
+  Widget buildPage(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+  ) {
+    final MediaQueryData media = MediaQuery.of(context);
+    final double bottomInset = media.viewInsets.bottom;
+    final Animation<double> curved = CurvedAnimation(
+      parent: animation,
+      curve: AppMotion.curve,
+    );
+    final Widget sheet = BottomSheet(
+      animationController: controller,
+      onDragStart: (_) => _dragged = true,
+      onClosing: () {
+        if (isCurrent) {
+          Navigator.of(context).pop();
+        }
+      },
+      backgroundColor: Colors.transparent,
+      shadowColor: Colors.transparent,
+      elevation: 0,
+      showDragHandle: false,
+      shape: AppShapes.sheet,
+      builder: builder,
+    );
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: media.size.height - bottomInset - media.padding.top - 24,
+          ),
+          child: AnimatedBuilder(
+            animation: animation,
+            child: sheet,
+            builder: (context, child) {
+              final double shown = _dragged ? animation.value : curved.value;
+              return FractionalTranslation(
+                translation: Offset(0, 1 - shown),
+                child: child,
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget buildTransitions(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return AnimatedBuilder(
+      animation: animation,
+      child: child,
+      builder: (context, child) {
+        final AnimationStatus status = animation.status;
+        final bool showScrim =
+            status == AnimationStatus.forward ||
+            status == AnimationStatus.completed;
+        return Stack(
+          children: [
+            if (showScrim)
+              const Positioned.fill(
+                child: IgnorePointer(child: ColoredBox(color: AppColors.scrim)),
+              ),
+            child!,
+          ],
+        );
+      },
+    );
+  }
+}
+
+// Opens the item editor as a bottom sheet. Completes with the saved item, or
+// null when cancelled.
+Future<ListItem?> showItemSheet({
+  required BuildContext context,
+  required ListDefinition definition,
+  required String title,
+  ListItem? item,
+  Map<String, dynamic> initialValues = const {},
+}) {
+  return Navigator.of(context).push(
+    _ItemSheetRoute<ListItem>(
+      reduceMotion: MediaQuery.disableAnimationsOf(context),
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      builder: (_) {
+        return GenericItemDialog(
+          definition: definition,
+          item: item,
+          title: title,
+          initialValues: initialValues,
+        );
+      },
+    ),
+  );
 }

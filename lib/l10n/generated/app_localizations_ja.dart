@@ -823,4 +823,10 @@ class AppLocalizationsJa extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get itemSheetNew => '新しい項目';
+
+  @override
+  String get itemSheetEdit => '項目を編集';
 }

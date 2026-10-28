@@ -821,4 +821,10 @@ class AppLocalizationsZh extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get itemSheetNew => '新建项目';
+
+  @override
+  String get itemSheetEdit => '编辑项目';
 }

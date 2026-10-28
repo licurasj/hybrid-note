@@ -830,4 +830,10 @@ class AppLocalizationsDe extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get itemSheetNew => 'Neuer Eintrag';
+
+  @override
+  String get itemSheetEdit => 'Eintrag bearbeiten';
 }

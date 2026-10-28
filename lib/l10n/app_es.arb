@@ -297,5 +297,7 @@
   "listFilterAll": "Todo",
   "listDoneGroup": "Hecho",
   "listOpenDoneCount": "{open} pendientes · {done} hechos",
-  "listItemCount": "{count, plural, =1{1 elemento} other{{count} elementos}}"
+  "listItemCount": "{count, plural, =1{1 elemento} other{{count} elementos}}",
+  "itemSheetNew": "Nuevo elemento",
+  "itemSheetEdit": "Editar elemento"
 }

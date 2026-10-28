@@ -297,5 +297,7 @@
   "listFilterAll": "Tout",
   "listDoneGroup": "Terminé",
   "listOpenDoneCount": "{open} en cours · {done} terminés",
-  "listItemCount": "{count, plural, =1{1 élément} other{{count} éléments}}"
+  "listItemCount": "{count, plural, =1{1 élément} other{{count} éléments}}",
+  "itemSheetNew": "Nouvel élément",
+  "itemSheetEdit": "Modifier l’élément"
 }

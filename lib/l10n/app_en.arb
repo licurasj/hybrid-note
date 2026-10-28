@@ -90,7 +90,7 @@
       }
     }
   },
-  "addSubtask": "Add Subtask",
+  "addSubtask": "Add subtask",
   "editSubtask": "Edit Subtask",
   "subtaskTitleRequired": "Subtask title *",
   "subtasks": "Subtasks",
@@ -681,5 +681,7 @@
         "type": "int"
       }
     }
-  }
+  },
+  "itemSheetNew": "New item",
+  "itemSheetEdit": "Edit item"
 }

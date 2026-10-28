@@ -14,6 +14,9 @@ class AppColors {
   static const Color onColorLight = Color(0xFFFFFFFF);
   static const Color onColorDark = Color(0xFF111111);
 
+  // Behind a sheet, in both themes. It appears and goes at once, without a fade.
+  static const Color scrim = Color(0x57000000);
+
   static Color onColor(Color background) {
     final double luminance = background.computeLuminance();
     final double withLight =
