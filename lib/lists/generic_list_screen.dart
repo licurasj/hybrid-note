@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../app_colors.dart';
 import '../l10n/generated/app_localizations.dart';
 import 'generic_item_dialog.dart';
 import 'list_definition.dart';
@@ -795,9 +794,6 @@ class _GenericListScreenState extends State<GenericListScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        shape: const CircleBorder(),
-        backgroundColor: AppColors.logoBlue,
-        foregroundColor: Colors.white,
         onPressed: () {
           _showItemDialog();
         },

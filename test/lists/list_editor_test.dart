@@ -160,12 +160,12 @@ void main() {
     expect(find.byKey(const ValueKey('delete-list')), findsNothing);
 
     await tester.enterText(find.byKey(const ValueKey('list-name')), 'Shopping');
-    await tester.tap(find.byKey(const ValueKey('color-#E53935')));
+    await tester.tap(find.byKey(const ValueKey('color-#FF2D55')));
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('save-list')));
     await tester.pumpAndSettle();
 
-    expect(custom.state.builtinInfo['builtin.grocery'], {'name': 'Shopping', 'color': '#E53935'});
+    expect(custom.state.builtinInfo['builtin.grocery'], {'name': 'Shopping', 'color': '#FF2D55'});
     await _openLauncher(tester);
     expect(find.text('Shopping'), findsOneWidget);
   });

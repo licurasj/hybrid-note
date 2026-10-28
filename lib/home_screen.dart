@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'app_cubit.dart';
 import 'app_state.dart';
-import 'app_colors.dart';
 import 'l10n/generated/app_localizations.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -261,9 +260,6 @@ class HomeScreen extends StatelessWidget {
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: state.isDarkMode
-                                    ? AppColors.darkText
-                                    : AppColors.darkBlue,
                               ),
                         ),
                         const SizedBox(height: 8),

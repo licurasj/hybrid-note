@@ -24,8 +24,8 @@ class HybridNoteApp extends StatelessWidget {
               : Locale(state.selectedLocaleCode!),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          theme: AppTheme.light(),
-          darkTheme: AppTheme.dark(),
+          theme: AppTheme.light(languageCode: state.selectedLocaleCode),
+          darkTheme: AppTheme.dark(languageCode: state.selectedLocaleCode),
           themeMode: state.isDarkMode ? ThemeMode.dark : ThemeMode.light,
           home: const MainShell(),
         );
