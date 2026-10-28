@@ -164,6 +164,9 @@ void main() {
     await _openLauncher(tester);
     await tester.longPress(find.byKey(tab));
     await tester.pumpAndSettle();
+    // Delete list is at the end of the editor.
+    await tester.ensureVisible(find.byKey(const ValueKey('delete-list')));
+    await tester.pump();
     await tester.tap(find.byKey(const ValueKey('delete-list')));
     await settle(tester);
     expect(store.current.definition(BuiltinTemplates.groceryId), isNull);

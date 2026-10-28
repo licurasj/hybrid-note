@@ -1203,18 +1203,31 @@ Future<ListItem?> showItemSheet({
   ListItem? item,
   Map<String, dynamic> initialValues = const {},
 }) {
+  return showSlideUpSheet<ListItem>(
+    context: context,
+    builder: (_) {
+      return GenericItemDialog(
+        definition: definition,
+        item: item,
+        title: title,
+        initialValues: initialValues,
+      );
+    },
+  );
+}
+
+// Opens [builder]'s content as a sheet the way the item sheet opens: it slides
+// up, the scrim appears at once, and it can be dragged down to close. The
+// content draws its own background (top corners AppShapes.sheetRadius).
+Future<T?> showSlideUpSheet<T>({
+  required BuildContext context,
+  required WidgetBuilder builder,
+}) {
   return Navigator.of(context).push(
-    _ItemSheetRoute<ListItem>(
+    _ItemSheetRoute<T>(
       reduceMotion: MediaQuery.disableAnimationsOf(context),
       barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
-      builder: (_) {
-        return GenericItemDialog(
-          definition: definition,
-          item: item,
-          title: title,
-          initialValues: initialValues,
-        );
-      },
+      builder: builder,
     ),
   );
 }
