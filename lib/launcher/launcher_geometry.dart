@@ -33,6 +33,8 @@ class LauncherConfig {
     this.endZoneFraction = 0.15,
     this.maxScrollSpeed = 4,
     this.tapMaxDuration = const Duration(milliseconds: 250),
+    this.selectedTabScale = 1.22,
+    this.neighbourTabScale = 1.08,
   });
 
   final double hubRadius;
@@ -54,7 +56,7 @@ class LauncherConfig {
   // How long a finger must rest (on a tab, or on the hub) before the Edit or
   // Move prompt appears (interaction law, coordination/docs/INTERACTIONS.md).
   final Duration promptDelay;
-  // How long a prompt takes to fade and slide out from under its element.
+  // How long a prompt takes to slide out from under its element.
   final Duration revealDuration;
   // Distance from the element's edge to the prompt's centre.
   final double promptGap;
@@ -72,6 +74,10 @@ class LauncherConfig {
   final double maxScrollSpeed;
   // A press released on the hub faster than this opens tap mode.
   final Duration tapMaxDuration;
+  // The tab under the finger is the biggest and its neighbours grow a little,
+  // scaled from their hub end (docs/AESTHETICS.md, Motion).
+  final double selectedTabScale;
+  final double neighbourTabScale;
 
   double get outerRadius => innerRadius + tabLength;
 }
@@ -164,9 +170,16 @@ class LauncherGeometry {
             Offset(config.hubRadius + config.addGap + config.addRadius, 0),
       );
 
-  // Edit prompt: just past the outer end of a tab, along its spoke.
+  // Outer end of the selected tab, which is scaled up from its hub end.
+  double get selectedOuterRadius =>
+      config.innerRadius + config.tabLength * config.selectedTabScale;
+
+  // Edit prompt: just past the outer end of the (selected, enlarged) tab,
+  // along its spoke.
   Offset editPromptCenter(double angle) {
-    return _keepOnScreen(pointAt(angle, config.outerRadius + config.promptGap));
+    return _keepOnScreen(
+      pointAt(angle, selectedOuterRadius + config.promptGap),
+    );
   }
 
   // Move prompt: below the hub in the corner frame (towards the near edge).

@@ -859,4 +859,21 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get startEmpty => '空で始める';
+
+  @override
+  String get settings => '設定';
+
+  @override
+  String get darkMode => 'ダークモード';
+
+  @override
+  String homeThingsToday(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '今日 $count 件',
+      zero: '今日の予定はありません',
+    );
+    return '$_temp0';
+  }
 }

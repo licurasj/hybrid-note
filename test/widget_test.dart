@@ -43,6 +43,27 @@ Future<FirestoreListStore> _pumpApp(
 
 final Finder _hub = find.byKey(const ValueKey('launcher-hub'));
 
+// The account row (email, Log out) is in the settings sheet behind the home's
+// settings button (T-16 unit 5).
+Future<void> _openSettings(WidgetTester tester) async {
+  await tester.tap(find.byKey(const ValueKey('settings')));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _closeSettings(WidgetTester tester) async {
+  Navigator.of(tester.element(find.byKey(const ValueKey('settings-account')))).pop();
+  await tester.pumpAndSettle();
+}
+
+// The home no longer lists every list; the launcher (tap mode) does.
+Future<void> _expectLauncherShows(WidgetTester tester, String label) async {
+  await tester.tap(_hub);
+  await tester.pump();
+  expect(find.text(label), findsOneWidget);
+  await tester.tap(_hub);
+  await tester.pump();
+}
+
 void main() {
   testWidgets('signed in, the app starts on the home screen with the lists', (
     WidgetTester tester,
@@ -51,7 +72,9 @@ void main() {
 
     expect(find.byType(MaterialApp), findsOneWidget);
     expect(find.byKey(const ValueKey('sign-in')), findsNothing);
+    await _openSettings(tester);
     expect(find.text('owner@example.com'), findsOneWidget);
+    await _closeSettings(tester);
     expect(_hub, findsOneWidget);
 
     // Tap mode: open the hub and pick Grocery; the list opens as a page.
@@ -80,8 +103,9 @@ void main() {
     await settle(tester);
     expect(find.byKey(const ValueKey('sign-in')), findsNothing);
     expect(_hub, findsOneWidget);
-    expect(find.text('Grocery'), findsOneWidget);
+    await _expectLauncherShows(tester, 'Grocery');
 
+    await _openSettings(tester);
     await tester.tap(find.byKey(const ValueKey('sign-out')));
     await settle(tester);
     expect(auth.calls, ['signIn', 'signOut', 'clearCache']);
@@ -102,6 +126,7 @@ void main() {
     bool signInEnabled() =>
         tester.widget<ButtonStyleButton>(signIn).onPressed != null;
 
+    await _openSettings(tester);
     await tester.tap(find.byKey(const ValueKey('sign-out')));
     await settle(tester);
     // Signed out, but the lists are still on the device: no reload (on web)
@@ -147,6 +172,7 @@ void main() {
     bool signInEnabled() =>
         tester.widget<ButtonStyleButton>(signIn).onPressed != null;
 
+    await _openSettings(tester);
     await tester.tap(find.byKey(const ValueKey('sign-out')));
     await settle(tester);
     // The cache is still being cleared: sign-in waits (T-17 R2).
@@ -168,7 +194,9 @@ void main() {
       'clearCache',
       'open user-2',
     ]);
+    await _openSettings(tester);
     expect(find.text('other@example.com'), findsOneWidget);
+    await _closeSettings(tester);
     expect(_hub, findsOneWidget);
   });
 
@@ -199,7 +227,7 @@ void main() {
 
     expect(find.byKey(const ValueKey('sign-in')), findsNothing);
     expect(_hub, findsOneWidget);
-    expect(find.text('Grocery'), findsOneWidget);
+    await _expectLauncherShows(tester, 'Grocery');
   });
 
   testWidgets('settings come from this device: dark mode and language', (

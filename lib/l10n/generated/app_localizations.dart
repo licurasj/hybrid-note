@@ -1585,6 +1585,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Start empty'**
   String get startEmpty;
+
+  /// No description provided for @settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settings;
+
+  /// No description provided for @darkMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark mode'**
+  String get darkMode;
+
+  /// No description provided for @homeThingsToday.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{Nothing due today} =1{1 thing today} other{{count} things today}}'**
+  String homeThingsToday(int count);
 }
 
 class _AppLocalizationsDelegate

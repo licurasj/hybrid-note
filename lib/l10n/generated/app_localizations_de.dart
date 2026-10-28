@@ -872,4 +872,22 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get startEmpty => 'Leer beginnen';
+
+  @override
+  String get settings => 'Einstellungen';
+
+  @override
+  String get darkMode => 'Dunkler Modus';
+
+  @override
+  String homeThingsToday(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Sachen heute',
+      one: '1 Sache heute',
+      zero: 'Heute nichts fällig',
+    );
+    return '$_temp0';
+  }
 }

@@ -309,5 +309,8 @@
   "tryAgain": "重试",
   "listChangeNotSaved": "列表更改无法保存，已撤销。",
   "starterListsFailed": "无法创建初始列表。",
-  "startEmpty": "从空白开始"
+  "startEmpty": "从空白开始",
+  "settings": "设置",
+  "darkMode": "深色模式",
+  "homeThingsToday": "{count, plural, =0{今天没有待办} other{今天 {count} 件事}}"
 }

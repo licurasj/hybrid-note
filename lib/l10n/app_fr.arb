@@ -309,5 +309,8 @@
   "tryAgain": "Réessayer",
   "listChangeNotSaved": "Une modification de liste n'a pas pu être enregistrée et a été annulée.",
   "starterListsFailed": "Les listes de départ n'ont pas pu être créées.",
-  "startEmpty": "Commencer sans listes"
+  "startEmpty": "Commencer sans listes",
+  "settings": "Réglages",
+  "darkMode": "Mode sombre",
+  "homeThingsToday": "{count, plural, =0{Rien pour aujourd'hui} =1{1 chose aujourd'hui} other{{count} choses aujourd'hui}}"
 }

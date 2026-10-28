@@ -309,5 +309,8 @@
   "tryAgain": "Reintentar",
   "listChangeNotSaved": "No se pudo guardar un cambio en una lista y se ha deshecho.",
   "starterListsFailed": "No se pudieron crear las listas iniciales.",
-  "startEmpty": "Empezar sin listas"
+  "startEmpty": "Empezar sin listas",
+  "settings": "Ajustes",
+  "darkMode": "Modo oscuro",
+  "homeThingsToday": "{count, plural, =0{Nada para hoy} =1{1 cosa hoy} other{{count} cosas hoy}}"
 }

@@ -309,5 +309,8 @@
   "tryAgain": "再試行",
   "listChangeNotSaved": "リストの変更を保存できなかったため、元に戻しました。",
   "starterListsFailed": "初期リストを作成できませんでした。",
-  "startEmpty": "空で始める"
+  "startEmpty": "空で始める",
+  "settings": "設定",
+  "darkMode": "ダークモード",
+  "homeThingsToday": "{count, plural, =0{今日の予定はありません} other{今日 {count} 件}}"
 }

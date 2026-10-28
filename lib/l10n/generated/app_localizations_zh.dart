@@ -857,4 +857,21 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get startEmpty => '从空白开始';
+
+  @override
+  String get settings => '设置';
+
+  @override
+  String get darkMode => '深色模式';
+
+  @override
+  String homeThingsToday(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '今天 $count 件事',
+      zero: '今天没有待办',
+    );
+    return '$_temp0';
+  }
 }

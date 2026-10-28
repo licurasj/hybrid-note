@@ -188,10 +188,11 @@ void main() {
     }
   }
 
-  Opacity promptOpacity(WidgetTester tester, String key) {
-    return tester.widget<Opacity>(
-      find.descendant(of: find.byKey(ValueKey(key)), matching: find.byType(Opacity)).first,
-    );
+  // How far a prompt has slid from behind its element towards its place,
+  // 0 to 1 (prompts slide out; nothing fades, Q-17 A).
+  double promptOut(WidgetTester tester, String key, Offset from, Offset to) {
+    final Offset now = tester.getCenter(find.byKey(ValueKey(key)));
+    return 1 - (now - to).distance / (from - to).distance;
   }
 
   group('hold mode', () {
@@ -226,19 +227,22 @@ void main() {
       await gesture.up();
     });
 
-    testWidgets('the Edit prompt fades in from under the tab and is painted below it', (tester) async {
+    testWidgets('the Edit prompt slides out from under the tab and is painted below it', (tester) async {
       await _pump(tester);
       final LauncherGeometry geometry = _geometry(4);
+      final Offset from = geometry.pointAt(geometry.slotAngle(2), geometry.selectedOuterRadius - 30);
+      final Offset to = geometry.editPromptCenter(geometry.slotAngle(2));
 
       final TestGesture gesture = await tester.startGesture(geometry.hubCenter);
       await tester.pump(const Duration(milliseconds: 50));
       await gesture.moveTo(_tab(geometry, 2));
       await rest(tester, 1300);
-      final double early = promptOpacity(tester, 'launcher-edit-prompt').opacity;
+      final double early = promptOut(tester, 'launcher-edit-prompt', from, to);
       await rest(tester, 300);
-      final double later = promptOpacity(tester, 'launcher-edit-prompt').opacity;
+      final double later = promptOut(tester, 'launcher-edit-prompt', from, to);
       expect(early, lessThan(later));
-      expect(later, 1);
+      expect(later, closeTo(1, 1e-6));
+      expect(find.byType(Opacity), findsNothing);
 
       final Stack stack = tester.widget<Stack>(
         find.ancestor(of: find.byKey(const ValueKey('launcher-tab-n2')), matching: find.byType(Stack)).first,
@@ -347,15 +351,19 @@ void main() {
       expect(log.events, ['open n0']);
     });
 
-    testWidgets('"+" comes out from under the hub and lights up as the finger nears', (tester) async {
+    testWidgets('"+" comes out from under the hub and fills as the finger nears', (tester) async {
       final _Log log = await _pump(tester);
       final LauncherGeometry geometry = _geometry(4);
 
       TestGesture gesture = await tester.startGesture(geometry.hubCenter);
       await tester.pump(const Duration(milliseconds: 10));
-      final double early = promptOpacity(tester, 'launcher-add-prompt').opacity;
+      final double early =
+          promptOut(tester, 'launcher-add-prompt', geometry.hubCenter, geometry.addCenter);
       await tester.pump(const Duration(milliseconds: 300));
-      expect(early, lessThan(promptOpacity(tester, 'launcher-add-prompt').opacity));
+      expect(
+        early,
+        lessThan(promptOut(tester, 'launcher-add-prompt', geometry.hubCenter, geometry.addCenter)),
+      );
       await moveInSteps(gesture, tester, geometry.hubCenter, geometry.addCenter);
       await gesture.up();
       await tester.pump();
@@ -516,10 +524,8 @@ void main() {
       final Finder add = find.byKey(const ValueKey('launcher-add'));
       final Finder icon = find.descendant(of: add, matching: find.byIcon(Icons.add));
       expect(icon, findsOneWidget);
-      final Opacity opacity = tester.widget<Opacity>(
-        find.ancestor(of: icon, matching: find.byType(Opacity)).first,
-      );
-      expect(opacity.opacity, 1);
+      expect(tester.getCenter(icon), _geometry(4).addCenter);
+      expect(find.byType(Opacity), findsNothing);
       expect(tester.getSize(find.ancestor(of: icon, matching: find.byType(Container)).first).width,
           greaterThan(0));
 

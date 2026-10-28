@@ -868,4 +868,22 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get startEmpty => 'Empezar sin listas';
+
+  @override
+  String get settings => 'Ajustes';
+
+  @override
+  String get darkMode => 'Modo oscuro';
+
+  @override
+  String homeThingsToday(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count cosas hoy',
+      one: '1 cosa hoy',
+      zero: 'Nada para hoy',
+    );
+    return '$_temp0';
+  }
 }
