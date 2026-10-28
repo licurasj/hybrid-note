@@ -1,41 +1,30 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:hybrid_note/app_cubit.dart';
-import 'package:hybrid_note/lists/custom_lists.dart';
+import 'package:hybrid_note/backend/firestore_list_store.dart';
+import 'package:hybrid_note/lists/builtin_templates.dart';
 import 'package:hybrid_note/lists/list_definition.dart';
 import 'package:hybrid_note/lists/list_item.dart';
 import 'package:hybrid_note/lists/list_rules.dart';
-import 'package:hybrid_note/lists/local_list_store.dart';
-import 'package:hybrid_note/app/hybrid_note_app.dart';
 
-import '../support/fakes.dart';
+import '../support/fake_auth.dart';
+import '../support/firestore_store.dart';
 
-Future<CustomListsCubit> _pumpApp(WidgetTester tester) async {
+// The app on a store holding [lists]; none unless given, so the user's own
+// list is the only one.
+Future<FirestoreListStore> _pumpApp(WidgetTester tester, {List<ListDefinition> lists = const []}) async {
   tester.view.physicalSize = const Size(800, 1600);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
 
-  final CustomListsCubit custom = CustomListsCubit(FakeCustomListsStorage())..load();
+  final FirestoreListStore store = await widgetTestStore(tester, lists: lists);
+  SharedPreferences.setMockInitialValues({});
   await tester.pumpWidget(
-    MultiBlocProvider(
-      providers: [
-        BlocProvider(
-          create: (_) => AppCubit(
-            storage: FakeAppStorage(),
-            driveSyncService: FakeDriveSyncService(),
-            deviceId: 'd',
-          )..loadData(),
-        ),
-        BlocProvider.value(value: custom),
-        LocalListStore.provider(),
-      ],
-      child: const HybridNoteApp(),
-    ),
+    await testApp(auth: FakeAuthService(user: testUser), openStore: (_) => store),
   );
-  await tester.pumpAndSettle();
-  return custom;
+  await settle(tester);
+  return store;
 }
 
 Future<void> _openLauncher(WidgetTester tester) async {
@@ -45,10 +34,12 @@ Future<void> _openLauncher(WidgetTester tester) async {
 
 void main() {
   testWidgets('"+" creates a list in the editor, which then opens', (tester) async {
-    final CustomListsCubit custom = await _pumpApp(tester);
+    final FirestoreListStore store = await _pumpApp(tester);
 
     await _openLauncher(tester);
     await tester.tap(find.byKey(const ValueKey('launcher-add')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('template-blank')));
     await tester.pumpAndSettle();
     expect(find.text('New list'), findsOneWidget);
 
@@ -69,9 +60,9 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('save-list')));
-    await tester.pumpAndSettle();
+    await settle(tester);
 
-    final ListDefinition created = custom.state.definitions.single;
+    final ListDefinition created = store.current.definitions.single;
     expect(created.name, 'Plants');
     expect(created.fields.map((f) => f.key), ['title', 'done', 'light']);
     expect(created.validate(), isEmpty);
@@ -81,8 +72,8 @@ void main() {
   });
 
   testWidgets('long-press a tab to edit; delete shows Undo, which restores it', (tester) async {
-    final CustomListsCubit custom = await _pumpApp(tester);
-    await custom.createList(
+    final FirestoreListStore store = await _pumpApp(tester);
+    await tester.runAsync(() => store.createList(
       ListDefinition.fromJson({
         'id': 'list-plants',
         'name': 'Plants',
@@ -95,8 +86,8 @@ void main() {
         'view': {'kind': 'cards'},
         'updatedAt': DateTime.utc(2026).toIso8601String(),
       }),
-    );
-    await custom.apply(
+    ));
+    await tester.runAsync(() => store.apply(
       ListChanges(saved: [
         ListItem(
           id: 'cactus',
@@ -106,8 +97,8 @@ void main() {
           updatedAt: DateTime.utc(2026),
         ),
       ]),
-    );
-    await tester.pump();
+    ));
+    await settle(tester);
 
     // Change "water" to a number: the old text cannot convert and is kept hidden.
     await _openLauncher(tester);
@@ -119,61 +110,69 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('kept hidden'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('save-list')));
-    await tester.pumpAndSettle();
+    await settle(tester);
 
-    expect(custom.state.definitions.single.field('water')!.type.wire, 'number');
-    expect(custom.state.items.single['_legacy'], {'water': ['rarely']});
+    expect(store.current.definitions.single.field('water')!.type.wire, 'number');
+    expect(store.current.items.single['_legacy'], {'water': ['rarely']});
 
     // Delete, then undo.
     await _openLauncher(tester);
     await tester.longPress(find.byKey(const ValueKey('launcher-note-list-plants')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('delete-list')));
-    await tester.pumpAndSettle();
-    expect(custom.state.definitions, isEmpty);
+    await settle(tester);
+    expect(store.current.definitions, isEmpty);
     expect(find.text('List deleted'), findsOneWidget);
 
     await tester.tap(find.text('Undo'));
-    await tester.pumpAndSettle();
-    expect(custom.state.definitions.single.id, 'list-plants');
-    expect(custom.state.items.single.id, 'cactus');
+    await settle(tester);
+    expect(store.current.definitions.single.id, 'list-plants');
+    expect(store.current.items.single.id, 'cactus');
 
     // The Undo offer times out by itself, so it never blocks the hub.
     await _openLauncher(tester);
     await tester.longPress(find.byKey(const ValueKey('launcher-note-list-plants')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('delete-list')));
-    await tester.pumpAndSettle();
+    await settle(tester);
     expect(find.text('List deleted'), findsOneWidget);
     await tester.pump(const Duration(seconds: 7));
     await tester.pumpAndSettle();
     expect(find.text('List deleted'), findsNothing);
   });
 
-  testWidgets('built-in lists: name and colour change, fields stay', (tester) async {
-    final CustomListsCubit custom = await _pumpApp(tester);
+  testWidgets('a starter list edits like any list: fields, rename, delete', (tester) async {
+    final FirestoreListStore store = await _pumpApp(tester, lists: starterLists());
+    const ValueKey<String> tab = ValueKey('launcher-note-${BuiltinTemplates.groceryId}');
 
     await _openLauncher(tester);
-    await tester.longPress(find.byKey(const ValueKey('launcher-note-builtin.grocery')));
+    await tester.longPress(find.byKey(tab));
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('add-field')), findsNothing);
-    expect(find.byKey(const ValueKey('delete-list')), findsNothing);
+    expect(find.byKey(const ValueKey('add-field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('delete-list')), findsOneWidget);
 
     await tester.enterText(find.byKey(const ValueKey('list-name')), 'Shopping');
     await tester.tap(find.byKey(const ValueKey('color-#FF2D55')));
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('save-list')));
-    await tester.pumpAndSettle();
+    await settle(tester);
 
-    expect(custom.state.builtinInfo['builtin.grocery'], {'name': 'Shopping', 'color': '#FF2D55'});
+    final ListDefinition grocery = store.current.definition(BuiltinTemplates.groceryId)!;
+    expect(grocery.name, 'Shopping');
+    expect(grocery.color, '#FF2D55');
+
     await _openLauncher(tester);
-    expect(find.text('Shopping'), findsOneWidget);
+    await tester.longPress(find.byKey(tab));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('delete-list')));
+    await settle(tester);
+    expect(store.current.definition(BuiltinTemplates.groceryId), isNull);
   });
 
   group('a view that names a removed or retyped field', () {
-    Future<CustomListsCubit> pumpWithFilter(WidgetTester tester) async {
-      final CustomListsCubit custom = await _pumpApp(tester);
-      await custom.createList(
+    Future<FirestoreListStore> pumpWithFilter(WidgetTester tester) async {
+      final FirestoreListStore store = await _pumpApp(tester);
+      await tester.runAsync(() => store.createList(
         ListDefinition.fromJson({
           'id': 'list-plants',
           'name': 'Plants',
@@ -194,8 +193,8 @@ void main() {
           'view': {'kind': 'cards'},
           'updatedAt': DateTime.utc(2026).toIso8601String(),
         }),
-      );
-      await tester.pump();
+      ));
+      await settle(tester);
 
       await _openLauncher(tester);
       await tester.longPress(find.byKey(const ValueKey('launcher-note-list-plants')));
@@ -206,7 +205,7 @@ void main() {
       await tester.tap(find.text('Kind').last);
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('filter-kind-1')), findsOneWidget);
-      return custom;
+      return store;
     }
 
     void expectEditorStillWorks(WidgetTester tester) {

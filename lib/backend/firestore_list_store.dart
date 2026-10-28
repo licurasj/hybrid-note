@@ -3,7 +3,6 @@ import 'dart:developer' as developer;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../lists/builtin_templates.dart';
 import '../lists/list_catalog.dart';
 import '../lists/list_definition.dart';
 import '../lists/list_error.dart';
@@ -14,8 +13,11 @@ import '../lists/list_store.dart';
 
 // ListStore over Firestore (Q-5 A): users/{uid}/lists/{listId} holds a
 // definition and users/{uid}/lists/{listId}/items/{itemId} an item, each as
-// its toJson(). The built-ins are ordinary definition documents with their
-// fixed ids; writing them for a new user is the Block B switch-over's job.
+// its toJson(). There are no built-in lists (Q-22 D): the starter copies of
+// the templates are ordinary lists, written once per account by
+// starter_lists.dart. Lists come in the order they were created: each
+// definition document carries the store's `_createdAt` (an ISO date, not
+// part of the definition's JSON), then the id breaks ties.
 //
 // Reads come from one listener on the lists and one per list on its items.
 // watch() emits nothing until the lists and every list's items have loaded
@@ -24,6 +26,11 @@ import '../lists/list_store.dart';
 //
 // Writes go out as batched writes of at most [batchLimit] documents, all
 // committed at once so that offline they all queue in the local cache.
+// createList, deleteList and restoreList complete once the local cache has
+// the change, not when the server acknowledges it, which offline would wait
+// until the device is back online (T-17 R3, D-5). If the server later
+// rejects the write, Firestore undoes it locally and [writeFailures] reports
+// it.
 //
 // Patches (Q-16 B with C as the offline fallback): online, patchList runs a
 // transaction over the list document as stored and every item the cache
@@ -72,6 +79,9 @@ class FirestoreListStore implements ListStore {
   // the item was written for. Not part of the item's JSON.
   static const String _revKey = '_rev';
 
+  // The store-owned key on definition documents: when the list was created.
+  static const String createdAtKey = '_createdAt';
+
   // Firestore rejects an array directly inside an array, which a hidden
   // tags or checklist value in `_legacy` is (D-10). Such an inner list is
   // stored as {"__array": [...]}.
@@ -89,6 +99,9 @@ class FirestoreListStore implements ListStore {
   late final StreamSubscription<Object?> _listsSubscription;
   // Each item's `_rev`, by list and item id.
   final Map<String, Map<String, int>> _revs = {};
+  // Each list's `_createdAt`, kept after a delete so an undone delete puts
+  // the list back in its place.
+  final Map<String, DateTime> _createdAts = {};
   // The ids of every item document under each list, including the ones
   // skipped as malformed, so a list delete removes them all (T-14 R3).
   final Map<String, Set<String>> _docIds = {};
@@ -105,6 +118,12 @@ class FirestoreListStore implements ListStore {
   ListCatalog? _catalog;
   final StreamController<ListCatalog> _changes =
       StreamController<ListCatalog>.broadcast();
+  final StreamController<Object> _writeFailures =
+      StreamController<Object>.broadcast();
+
+  // List writes the server rejected after they completed for the caller
+  // (createList, deleteList, restoreList); the app shows a snackbar.
+  Stream<Object> get writeFailures => _writeFailures.stream;
 
   static const ListCatalog _empty = ListCatalog(definitions: [], items: []);
 
@@ -130,13 +149,15 @@ class FirestoreListStore implements ListStore {
     for (final QueryDocumentSnapshot<Map<String, dynamic>> doc
         in snapshot.docs) {
       try {
-        final ListDefinition definition = ListDefinition.fromJson(
-          _decode(doc.data()),
-        );
+        final ListDefinition definition = _definitionFrom(doc.data());
         if (definition.id != doc.id) {
           throw FormatException('id "${definition.id}" is not the document id');
         }
         _definitions[doc.id] = definition;
+        final DateTime? createdAt = _createdAtOf(doc.data());
+        if (createdAt != null) {
+          _createdAts[doc.id] = createdAt;
+        }
         _reported.remove(doc.reference.path);
       } on Object catch (error) {
         _skip(doc.reference.path, error);
@@ -192,6 +213,15 @@ class FirestoreListStore implements ListStore {
     _revs[listId] = revs;
     _docIds[listId] = {for (final doc in snapshot.docs) doc.id};
     _update();
+  }
+
+  static ListDefinition _definitionFrom(Map<String, dynamic> data) {
+    return ListDefinition.fromJson(_decode(data)..remove(createdAtKey));
+  }
+
+  static DateTime? _createdAtOf(Map<String, dynamic> data) {
+    final Object? raw = data[createdAtKey];
+    return raw is String ? DateTime.tryParse(raw) : null;
   }
 
   static ListItem _itemFrom(Map<String, dynamic> data) {
@@ -292,9 +322,7 @@ class FirestoreListStore implements ListStore {
         if (listData == null) {
           return;
         }
-        final ListDefinition definition = ListDefinition.fromJson(
-          _decode(listData),
-        );
+        final ListDefinition definition = _definitionFrom(listData);
         final int revision = definition.schemaRevision;
         final List<ListItem> fitted = [];
         for (final String itemId in chunk) {
@@ -320,7 +348,7 @@ class FirestoreListStore implements ListStore {
         for (final ListItem item in fitted) {
           transaction.set(
             _itemsOf(listId).doc(item.id),
-            _itemData(
+            itemData(
               touchedAt == null ? item : _touched(item, touchedAt),
               revision,
             ),
@@ -383,22 +411,19 @@ class FirestoreListStore implements ListStore {
     );
   }
 
-  // The built-ins first, in their usual order, then the user's lists.
+  // The lists by creation time, then id; a list without `_createdAt` comes
+  // first.
   ListCatalog _build() {
-    const List<String> builtinOrder = [
-      BuiltinTemplates.tasksId,
-      BuiltinTemplates.groceryId,
-      BuiltinTemplates.journalId,
-      BuiltinTemplates.watchReadId,
-    ];
-    final List<String> userIds =
-        _definitions.keys
-            .where((id) => !BuiltinTemplates.isBuiltin(id))
-            .toList()
-          ..sort();
+    final DateTime unknown = DateTime.utc(0);
+    final List<String> ids = _definitions.keys.toList()
+      ..sort((a, b) {
+        final int byTime = (_createdAts[a] ?? unknown).compareTo(
+          _createdAts[b] ?? unknown,
+        );
+        return byTime != 0 ? byTime : a.compareTo(b);
+      });
     final List<ListDefinition> definitions = [
-      for (final String id in [...builtinOrder, ...userIds])
-        if (_definitions[id] != null) _definitions[id]!,
+      for (final String id in ids) _definitions[id]!,
     ];
     return ListCatalog(
       definitions: definitions,
@@ -409,7 +434,16 @@ class FirestoreListStore implements ListStore {
     );
   }
 
+  // Only the first call closes; a later one (also while the first is still
+  // running) returns at once. The app closes a store when its user changes,
+  // and tests close it again at tear-down.
+  bool _closed = false;
+
   Future<void> close() async {
+    if (_closed) {
+      return;
+    }
+    _closed = true;
     await _listsSubscription.cancel();
     for (final StreamSubscription<Object?> subscription
         in _itemSubscriptions.values) {
@@ -417,6 +451,7 @@ class FirestoreListStore implements ListStore {
     }
     _itemSubscriptions.clear();
     await _changes.close();
+    await _writeFailures.close();
   }
 
   // Empty until the initial load is complete.
@@ -469,16 +504,52 @@ class FirestoreListStore implements ListStore {
     await Future.wait(commits);
   }
 
+  // Commits [writes] and completes once the catalog shows them ([accepted]),
+  // or once the commit settles if that comes first. A failed commit is
+  // logged and reported on [writeFailures], also after this has completed.
+  Future<void> _writeAccepted(
+    String what,
+    List<void Function(WriteBatch batch)> writes,
+    bool Function(ListCatalog catalog) accepted,
+  ) async {
+    // Listening before the commit, so the local snapshot is not missed. It
+    // ends without a match when the store closes.
+    final Future<void> seen = _changes.stream
+        .firstWhere(accepted)
+        .then<void>((_) {}, onError: (Object _) {});
+    final Future<void> acknowledged = _write(writes).catchError((
+      Object error,
+    ) {
+      _log(what, error);
+      if (!_writeFailures.isClosed) {
+        _writeFailures.add(error);
+      }
+    });
+    await Future.any([seen, acknowledged]);
+  }
+
   void Function(WriteBatch batch) _setDefinition(ListDefinition definition) {
     return (batch) => batch.set(
       _lists.doc(definition.id),
-      _encode(definition.toJson()) as Map<String, dynamic>,
+      definitionData(definition, createdAt: _createdAts[definition.id]),
     );
+  }
+
+  // A definition document: the definition's JSON plus `_createdAt` when it
+  // is known (a document written without one keeps having none).
+  static Map<String, dynamic> definitionData(
+    ListDefinition definition, {
+    DateTime? createdAt,
+  }) {
+    return {
+      ...(_encode(definition.toJson()) as Map<String, dynamic>),
+      if (createdAt != null) createdAtKey: createdAt.toUtc().toIso8601String(),
+    };
   }
 
   // An item document: the item's JSON plus `_rev`, the revision of the list
   // definition it was written for.
-  Map<String, dynamic> _itemData(ListItem item, int revision) {
+  static Map<String, dynamic> itemData(ListItem item, int revision) {
     return {
       ...(_encode(item.toJson()) as Map<String, dynamic>),
       _revKey: revision,
@@ -488,7 +559,7 @@ class FirestoreListStore implements ListStore {
   void Function(WriteBatch batch) _setItem(ListItem item, int revision) {
     return (batch) => batch.set(
       _itemsOf(item.listId).doc(item.id),
-      _itemData(item, revision),
+      itemData(item, revision),
     );
   }
 
@@ -576,8 +647,7 @@ class FirestoreListStore implements ListStore {
     List<ListItem> items = const [],
   }) async {
     await _ready.future;
-    if (_definitions.containsKey(definition.id) ||
-        BuiltinTemplates.isBuiltin(definition.id)) {
+    if (_definitions.containsKey(definition.id)) {
       return [ListError(ListErrorCode.listExists, {'list': definition.id})];
     }
     // Item ids are unique across every list, since item deletes go by id.
@@ -597,11 +667,16 @@ class FirestoreListStore implements ListStore {
             error.forItem(item.id),
     ];
     if (errors.isEmpty) {
-      await _write([
-        _setDefinition(definition),
-        for (final ListItem item in items)
-          _setItem(item, definition.schemaRevision),
-      ]);
+      _createdAts[definition.id] = DateTime.now().toUtc();
+      await _writeAccepted(
+        'create ${definition.id}',
+        [
+          _setDefinition(definition),
+          for (final ListItem item in items)
+            _setItem(item, definition.schemaRevision),
+        ],
+        (catalog) => catalog.definition(definition.id) != null,
+      );
     }
     return errors;
   }
@@ -660,62 +735,92 @@ class FirestoreListStore implements ListStore {
     final List<String> itemIds = _items[listId]?.keys.toList() ?? const [];
     final DateTime now = DateTime.now().toUtc();
     List<String> later = const [];
-    final ListPatchResult? result = await firestore.runTransaction((
-      transaction,
+    // On web, a read that fails inside the transaction (offline) reaches
+    // the caller as a JavaScript error instead of the FirebaseException it
+    // was, so the offline fallback would not see its code (T-17 F1). The
+    // failed read of the last attempt is kept and thrown instead.
+    FirebaseException? readError;
+    Future<DocumentSnapshot<Map<String, dynamic>>> read(
+      Transaction transaction,
+      DocumentReference<Map<String, dynamic>> ref,
     ) async {
-      later = const [];
-      final DocumentSnapshot<Map<String, dynamic>> stored = await transaction
-          .get(_lists.doc(listId));
-      final Map<String, dynamic>? data = stored.data();
-      if (data == null) {
-        return null;
+      try {
+        return await transaction.get(ref);
+      } on FirebaseException catch (error) {
+        readError = error;
+        rethrow;
       }
-      final ListDefinition definition = ListDefinition.fromJson(_decode(data));
-      final List<ListItem> items = [];
-      for (final String itemId in itemIds) {
-        final Map<String, dynamic>? itemData = (await transaction.get(
-          _itemsOf(listId).doc(itemId),
-        )).data();
-        if (itemData == null) {
-          continue;
+    }
+
+    final ListPatchResult? result;
+    try {
+      result = await firestore.runTransaction((transaction) async {
+        later = const [];
+        readError = null;
+        final DocumentSnapshot<Map<String, dynamic>> stored = await read(
+          transaction,
+          _lists.doc(listId),
+        );
+        final Map<String, dynamic>? data = stored.data();
+        if (data == null) {
+          return null;
         }
-        try {
-          items.add(_itemFrom(itemData));
-        } on Object {
-          // Skipped and reported by the read side.
+        final ListDefinition definition = _definitionFrom(data);
+        final List<ListItem> items = [];
+        for (final String itemId in itemIds) {
+          final Map<String, dynamic>? itemData = (await read(
+            transaction,
+            _itemsOf(listId).doc(itemId),
+          )).data();
+          if (itemData == null) {
+            continue;
+          }
+          try {
+            items.add(_itemFrom(itemData));
+          } on Object {
+            // Skipped and reported by the read side.
+          }
         }
-      }
-      final ListPatchResult result = ListPatch.apply(
-        definition,
-        items,
-        opsFor(definition),
-        now,
-      );
-      // Checked after the last read, with no await before the writes.
-      if (!result.isValid || abandoned()) {
+        final ListPatchResult result = ListPatch.apply(
+          definition,
+          items,
+          opsFor(definition),
+          now,
+        );
+        // Checked after the last read, with no await before the writes.
+        if (!result.isValid || abandoned()) {
+          return result;
+        }
+        final int revision = result.definition.schemaRevision;
+        final List<ListItem> changed = [
+          for (final ListItem item in result.items)
+            if (result.changedItemIds.contains(item.id)) item,
+        ];
+        transaction.set(
+          _lists.doc(listId),
+          definitionData(result.definition, createdAt: _createdAtOf(data)),
+        );
+        if (changed.length < batchLimit) {
+          for (final ListItem item in changed) {
+            transaction.set(
+              _itemsOf(listId).doc(item.id),
+              itemData(item, revision),
+            );
+          }
+        } else {
+          later = [for (final ListItem item in changed) item.id];
+        }
         return result;
+      });
+    } on FirebaseException {
+      rethrow;
+    } on Object {
+      final FirebaseException? cause = readError;
+      if (cause == null) {
+        rethrow;
       }
-      final int revision = result.definition.schemaRevision;
-      final List<ListItem> changed = [
-        for (final ListItem item in result.items)
-          if (result.changedItemIds.contains(item.id)) item,
-      ];
-      transaction.set(
-        _lists.doc(listId),
-        _encode(result.definition.toJson()) as Map<String, dynamic>,
-      );
-      if (changed.length < batchLimit) {
-        for (final ListItem item in changed) {
-          transaction.set(
-            _itemsOf(listId).doc(item.id),
-            _itemData(item, revision),
-          );
-        }
-      } else {
-        later = [for (final ListItem item in changed) item.id];
-      }
-      return result;
-    });
+      throw cause;
+    }
     if (result != null && later.isNotEmpty && !abandoned()) {
       await _refit(listId, later, touchedAt: now);
     }
@@ -765,25 +870,34 @@ class FirestoreListStore implements ListStore {
     // the malformed ones as well (T-14 R3). An item another device adds
     // meanwhile, before this device has seen it, stays behind unseen.
     final List<ListItem> items = _items[listId]?.values.toList() ?? const [];
-    await _write([
-      for (final String itemId in {
-        ...?_docIds[listId],
-        for (final ListItem item in items) item.id,
-      })
-        _deleteItem(listId, itemId),
-      (batch) => batch.delete(_lists.doc(listId)),
-    ]);
+    await _writeAccepted(
+      'delete $listId',
+      [
+        for (final String itemId in {
+          ...?_docIds[listId],
+          for (final ListItem item in items) item.id,
+        })
+          _deleteItem(listId, itemId),
+        (batch) => batch.delete(_lists.doc(listId)),
+      ],
+      (catalog) => catalog.definition(listId) == null,
+    );
     return DeletedList(definition: definition, items: items);
   }
 
   @override
   Future<void> restoreList(DeletedList deleted) async {
     await _ready.future;
-    await _write([
-      _setDefinition(deleted.definition),
-      for (final ListItem item in deleted.items)
-        _setItem(item, deleted.definition.schemaRevision),
-    ]);
+    final String listId = deleted.definition.id;
+    await _writeAccepted(
+      'restore $listId',
+      [
+        _setDefinition(deleted.definition),
+        for (final ListItem item in deleted.items)
+          _setItem(item, deleted.definition.schemaRevision),
+      ],
+      (catalog) => catalog.definition(listId) != null,
+    );
   }
 
   static Object? _encode(Object? value, {bool inList = false}) {

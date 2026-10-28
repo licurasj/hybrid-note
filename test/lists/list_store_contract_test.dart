@@ -2,9 +2,8 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:hybrid_note/app_cubit.dart';
+import 'package:hybrid_note/backend/firestore_list_store.dart';
 import 'package:hybrid_note/lists/builtin_templates.dart';
-import 'package:hybrid_note/lists/custom_lists.dart';
 import 'package:hybrid_note/lists/list_catalog.dart';
 import 'package:hybrid_note/lists/list_definition.dart';
 import 'package:hybrid_note/lists/list_error.dart';
@@ -13,16 +12,17 @@ import 'package:hybrid_note/lists/list_patch.dart';
 import 'package:hybrid_note/lists/list_rules.dart';
 import 'package:hybrid_note/lists/list_store.dart';
 import 'package:hybrid_note/lists/list_vocabulary.dart';
-import 'package:hybrid_note/lists/local_list_store.dart';
 
-import '../support/fakes.dart';
+import '../support/firestore_store.dart';
 
-// The ListStore contract, written against the interface only. Every store
-// runs it: LocalListStore below, FirestoreListStore in Backend's tests
-// (import this file with `show listStoreContract`).
+// The ListStore contract, written against the interface only. It runs
+// against FirestoreListStore on fake_cloud_firestore below; other files can
+// run it too (import this file with `show listStoreContract`).
 //
-// `create` returns an empty store that holds the four built-in lists and no
-// lists of the user; `dispose` releases it after each test. Each test first
+// `create` returns a store that holds one starter copy of each template
+// (Q-22 D) and no other list; `dispose` releases it after each test. The
+// starter lists are ordinary lists, found by their templateId, since their
+// list ids are the seeding's choice. Each test first
 // waits for the initial load (watch() emits nothing before it, D-12). Writes
 // may reach the read side later than they finish and in steps (a list before
 // its items), so the tests wait on watch() for all of the state they assert.
@@ -47,10 +47,15 @@ void listStoreContract(
       return store.watch().firstWhere(test).timeout(const Duration(seconds: 10));
     }
 
-    test('the initial load holds the built-ins and no lists of the user', () async {
+    // The starter copy of [templateId].
+    ListDefinition starter(ListCatalog catalog, String templateId) {
+      return catalog.definitions.singleWhere((d) => d.templateId == templateId);
+    }
+
+    test('the initial load holds the starter lists and no other list', () async {
       final ListCatalog first = await store.watch().first.timeout(const Duration(seconds: 10));
-      expect(first.definitions.map((d) => d.id), containsAll(_builtinIds));
-      expect(store.current.definitions.map((d) => d.id), containsAll(_builtinIds));
+      expect(first.definitions.map((d) => d.templateId), unorderedEquals(_templateIds));
+      expect(store.current.definitions.map((d) => d.templateId), unorderedEquals(_templateIds));
       expect(first.definition(_plantsId), isNull);
     });
 
@@ -63,8 +68,6 @@ void listStoreContract(
       );
       expect(catalog.definition(_plantsId)!.toJson(), _plants().toJson());
       expect(catalog.itemsOf(_plantsId).single.toJson(), _plant('fern', 'fern').toJson());
-      // The user's lists come after the built-ins.
-      expect(catalog.definitions.last.id, _plantsId);
       expect(store.current.definition(_plantsId), isNotNull);
     });
 
@@ -101,11 +104,6 @@ void listStoreContract(
       expect(await store.createList(_plants()), isEmpty);
       await until((c) => c.definition(_plantsId) != null);
       expect(await codesOf(store.createList(_plants())), contains(ListErrorCode.listExists));
-      final ListDefinition builtin = ListDefinition.fromJson({
-        ..._plantsJson(),
-        'id': BuiltinTemplates.tasksId,
-      });
-      expect(await codesOf(store.createList(builtin)), contains(ListErrorCode.listExists));
     });
 
     test('item save, edit and delete', () async {
@@ -204,34 +202,57 @@ void listStoreContract(
       expect(await store.deleteList('list-missing'), isNull);
     });
 
-    test('built-in lists take name, icon, colour and AI changes through patchList', () async {
-      final ListDefinition before = store.current.definition(BuiltinTemplates.groceryId)!;
-      final ListPatchResult? result = await store.patchList(BuiltinTemplates.groceryId, const [
+    test('a starter list is an ordinary list: any patch, delete and restore', () async {
+      final ListDefinition before = starter(store.current, BuiltinTemplates.groceryId);
+      final String groceryId = before.id;
+      final ListPatchResult? result = await store.patchList(groceryId, const [
         ListPatchOp(PatchOpKind.setListInfo, {
           'name': 'Shopping',
           'icon': 'local_florist',
           'color': '#E53935',
           'aiAllowed': false,
         }),
+        ListPatchOp(PatchOpKind.addField, {
+          'field': {'key': 'shop', 'type': 'text', 'label': 'Shop'},
+        }),
       ]);
       expect(result?.errors, isEmpty);
 
-      final ListCatalog catalog = await until((c) {
-        final ListDefinition grocery = c.definition(BuiltinTemplates.groceryId)!;
-        return grocery.name == 'Shopping' &&
+      ListCatalog catalog = await until((c) {
+        final ListDefinition? grocery = c.definition(groceryId);
+        return grocery != null &&
+            grocery.name == 'Shopping' &&
             grocery.icon == 'local_florist' &&
             grocery.color == '#E53935' &&
-            !grocery.aiAllowed;
+            !grocery.aiAllowed &&
+            grocery.field('shop') != null;
       });
-      final ListDefinition after = catalog.definition(BuiltinTemplates.groceryId)!;
-      expect(before.icon, isNot('local_florist'));
-      expect(before.aiAllowed, isTrue);
-      expect(after.fields.map((f) => f.key), before.fields.map((f) => f.key));
-      // The built-ins keep their place at the front.
+      expect(catalog.definition(groceryId)!.templateId, BuiltinTemplates.groceryId);
+      // A patched list keeps its place.
       expect(
-        catalog.definitions.map((d) => d.id).toList().indexOf(BuiltinTemplates.groceryId),
-        store.current.definitions.map((d) => d.id).toList().indexOf(BuiltinTemplates.groceryId),
+        catalog.definitions.map((d) => d.id).toList().indexOf(groceryId),
+        store.current.definitions.map((d) => d.id).toList().indexOf(groceryId),
       );
+
+      await store.apply(ListChanges(saved: [
+        ListItem(
+          id: 'milk',
+          listId: groceryId,
+          values: const {'title': 'Milk', 'section': 'current'},
+          createdAt: _t0,
+          updatedAt: _t0,
+        ),
+      ]));
+      await until((c) => c.itemsOf(groceryId).length == 1);
+
+      final DeletedList? deleted = await store.deleteList(groceryId);
+      expect(deleted, isNotNull);
+      catalog = await until((c) => c.definition(groceryId) == null && c.itemsOf(groceryId).isEmpty);
+      expect(catalog.definitions.map((d) => d.templateId), isNot(contains(BuiltinTemplates.groceryId)));
+
+      await store.restoreList(deleted!);
+      catalog = await until((c) => c.definition(groceryId) != null && c.itemsOf(groceryId).length == 1);
+      expect(catalog.definition(groceryId)!.name, 'Shopping');
     });
 
     test('add and remove a user option', () async {
@@ -286,11 +307,12 @@ void listStoreContract(
         ]),
         (c) => c.definition(_plantsId)!.name == 'House plants',
       );
+      final String tasksId = starter(store.current, BuiltinTemplates.tasksId).id;
       await expectEmit(
-        () => store.patchList(BuiltinTemplates.tasksId, const [
+        () => store.patchList(tasksId, const [
           ListPatchOp(PatchOpKind.setListInfo, {'name': 'To do'}),
         ]),
-        (c) => c.definition(BuiltinTemplates.tasksId)!.name == 'To do',
+        (c) => c.definition(tasksId)!.name == 'To do',
       );
       late DeletedList deleted;
       await expectEmit(() async => deleted = (await store.deleteList(_plantsId))!, (c) => c.definition(_plantsId) == null && c.itemsOf(_plantsId).isEmpty);
@@ -299,7 +321,7 @@ void listStoreContract(
   });
 }
 
-const List<String> _builtinIds = [
+const List<String> _templateIds = [
   BuiltinTemplates.tasksId,
   BuiltinTemplates.groceryId,
   BuiltinTemplates.journalId,
@@ -431,116 +453,24 @@ class StaggeredListStore implements ListStore {
   Future<void> restoreList(DeletedList deleted) => inner.restoreList(deleted);
 }
 
-// A LocalListStore over in-memory storage, loaded; `close` releases it and
-// its cubits.
-Future<(LocalListStore, Future<void> Function())> _localStore() async {
-  final AppCubit app = AppCubit(
-    storage: FakeAppStorage(),
-    driveSyncService: FakeDriveSyncService(),
-    deviceId: 'd',
-  );
-  final CustomListsCubit custom = CustomListsCubit(FakeCustomListsStorage());
-  await app.loadData();
-  await custom.load();
-  final LocalListStore store = LocalListStore(app, custom);
-  return (
-    store,
-    () async {
-      await store.close();
-      await app.close();
-      await custom.close();
-    },
-  );
-}
-
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   final Map<ListStore, Future<void> Function()> closers = {};
   Future<void> dispose(ListStore store) => closers.remove(store)!();
 
-  listStoreContract(
-    'LocalListStore',
-    () async {
-      final (LocalListStore store, Future<void> Function() close) = await _localStore();
-      closers[store] = close;
-      return store;
-    },
-    dispose: dispose,
-  );
+  listStoreContract('FirestoreListStore', fakeFirestoreStore);
 
   listStoreContract(
-    'LocalListStore with staggered updates',
+    'FirestoreListStore with staggered updates',
     () async {
-      final (LocalListStore local, Future<void> Function() close) = await _localStore();
-      final StaggeredListStore store = StaggeredListStore(local);
-      closers[store] = () async {
-        await store.close();
-        await close();
-      };
+      final FirestoreListStore inner = await fakeFirestoreStore();
+      final StaggeredListStore store = StaggeredListStore(inner);
+      closers[store] = store.close;
       // The initial catalog arrives whole before the store is handed out.
       await store.watch().first;
       return store;
     },
     dispose: dispose,
   );
-
-  group('LocalListStore', () {
-    test('emits nothing until AppData and the custom-lists file are both loaded (D-12)', () async {
-      final FakeCustomListsStorage files = FakeCustomListsStorage()
-        ..data = CustomListsData(definitions: [_plants()], items: [_plant('fern', 'fern')]);
-      final AppCubit app = AppCubit(
-        storage: FakeAppStorage(),
-        driveSyncService: FakeDriveSyncService(),
-        deviceId: 'd',
-      );
-      final CustomListsCubit custom = CustomListsCubit(files);
-      final LocalListStore store = LocalListStore(app, custom);
-      addTearDown(() async {
-        await store.close();
-        await app.close();
-        await custom.close();
-      });
-      final List<ListCatalog> seen = [];
-      final StreamSubscription<ListCatalog> subscription = store.watch().listen(seen.add);
-      addTearDown(subscription.cancel);
-
-      await pumpEventQueue();
-      expect(seen, isEmpty);
-      expect(store.current.definitions, isEmpty);
-
-      await app.loadData();
-      await pumpEventQueue();
-      expect(seen, isEmpty, reason: 'the custom lists are not loaded yet');
-
-      await custom.load();
-      await pumpEventQueue();
-      expect(seen, isNotEmpty);
-      for (final ListCatalog catalog in seen) {
-        expect(catalog.definitions.map((d) => d.id), containsAll([..._builtinIds, _plantsId]));
-        expect(catalog.itemsOf(_plantsId).single.id, 'fern');
-      }
-      expect(store.current.definition(_plantsId), isNotNull);
-    });
-
-    test('a built-in patch mixing info and other ops is refused whole', () async {
-      final (LocalListStore store, Future<void> Function() close) = await _localStore();
-      addTearDown(close);
-      final ListDefinition before = store.current.definition(BuiltinTemplates.groceryId)!;
-
-      final ListPatchResult? result = await store.patchList(BuiltinTemplates.groceryId, const [
-        ListPatchOp(PatchOpKind.setListInfo, {'name': 'Shopping'}),
-        ListPatchOp(PatchOpKind.addField, {
-          'field': {'key': 'shop', 'type': 'text', 'label': 'Shop'},
-        }),
-      ]);
-      expect(result, isNotNull);
-      expect(result!.isValid, isFalse);
-      await pumpEventQueue();
-
-      final ListDefinition after = store.current.definition(BuiltinTemplates.groceryId)!;
-      expect(after.toJson(), before.toJson());
-      expect(store.custom.state.builtinInfo, isEmpty);
-    });
-  });
 }

@@ -836,4 +836,40 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get itemSheetEdit => 'Eintrag bearbeiten';
+
+  @override
+  String get account => 'Konto';
+
+  @override
+  String get blankList => 'Leer';
+
+  @override
+  String get signInFailed =>
+      'Anmeldung fehlgeschlagen. Bitte erneut versuchen.';
+
+  @override
+  String get signInOffline =>
+      'Keine Verbindung. Zum Anmelden mit dem Internet verbinden.';
+
+  @override
+  String get signOutFailed =>
+      'Abmeldung fehlgeschlagen. Bitte erneut versuchen.';
+
+  @override
+  String get signOutCleanupFailed =>
+      'Abgemeldet, aber die auf diesem Gerät gespeicherten Listen konnten nicht gelöscht werden.';
+
+  @override
+  String get tryAgain => 'Erneut versuchen';
+
+  @override
+  String get listChangeNotSaved =>
+      'Eine Listenänderung konnte nicht gespeichert werden und wurde rückgängig gemacht.';
+
+  @override
+  String get starterListsFailed =>
+      'Die Startlisten konnten nicht eingerichtet werden.';
+
+  @override
+  String get startEmpty => 'Leer beginnen';
 }

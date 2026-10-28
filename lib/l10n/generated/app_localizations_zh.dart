@@ -827,4 +827,34 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get itemSheetEdit => '编辑项目';
+
+  @override
+  String get account => '账户';
+
+  @override
+  String get blankList => '空白';
+
+  @override
+  String get signInFailed => '登录失败，请重试。';
+
+  @override
+  String get signInOffline => '无网络连接。请连接互联网后登录。';
+
+  @override
+  String get signOutFailed => '退出登录失败，请重试。';
+
+  @override
+  String get signOutCleanupFailed => '已退出登录，但无法删除保存在此设备上的列表。';
+
+  @override
+  String get tryAgain => '重试';
+
+  @override
+  String get listChangeNotSaved => '列表更改无法保存，已撤销。';
+
+  @override
+  String get starterListsFailed => '无法创建初始列表。';
+
+  @override
+  String get startEmpty => '从空白开始';
 }

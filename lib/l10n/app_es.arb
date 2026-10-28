@@ -299,5 +299,15 @@
   "listOpenDoneCount": "{open} pendientes · {done} hechos",
   "listItemCount": "{count, plural, =1{1 elemento} other{{count} elementos}}",
   "itemSheetNew": "Nuevo elemento",
-  "itemSheetEdit": "Editar elemento"
+  "itemSheetEdit": "Editar elemento",
+  "account": "Cuenta",
+  "blankList": "En blanco",
+  "signInFailed": "No se pudo iniciar sesión. Inténtalo de nuevo.",
+  "signInOffline": "Sin conexión. Conéctate a internet para iniciar sesión.",
+  "signOutFailed": "No se pudo cerrar sesión. Inténtalo de nuevo.",
+  "signOutCleanupFailed": "Sesión cerrada, pero no se pudieron borrar las listas guardadas en este dispositivo.",
+  "tryAgain": "Reintentar",
+  "listChangeNotSaved": "No se pudo guardar un cambio en una lista y se ha deshecho.",
+  "starterListsFailed": "No se pudieron crear las listas iniciales.",
+  "startEmpty": "Empezar sin listas"
 }

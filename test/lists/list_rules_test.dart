@@ -1,17 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:hybrid_note/app_cubit.dart';
-import 'package:hybrid_note/app_data.dart';
-import 'package:hybrid_note/grocery_item.dart';
 import 'package:hybrid_note/lists/builtin_templates.dart';
-import 'package:hybrid_note/lists/legacy_lists.dart';
 import 'package:hybrid_note/lists/list_definition.dart';
 import 'package:hybrid_note/lists/list_item.dart';
 import 'package:hybrid_note/lists/list_rules.dart';
 import 'package:hybrid_note/lists/list_vocabulary.dart';
-import 'package:hybrid_note/task_item.dart';
-
-import '../support/fakes.dart';
 
 final DateTime _t0 = DateTime.utc(2026, 3, 1, 9);
 
@@ -154,82 +147,5 @@ void main() {
         {'frequency': 'none'},
       );
     });
-
-    test('matches the old AppCubit repeat logic', () async {
-      final TaskItem task = TaskItem(
-        id: 'old-1',
-        title: 'Rent',
-        description: '',
-        isCompleted: true,
-        category: '',
-        subtasks: const [],
-        reminderAt: DateTime.utc(2026, 1, 31, 8),
-        repeatFrequency: RepeatFrequency.monthly,
-        customRepeatDays: null,
-        createdAt: _t0,
-        updatedAt: _t0,
-      );
-      final FakeAppStorage storage = FakeAppStorage()
-        ..data = AppData.empty('d').copyWith(tasks: [task]);
-      final AppCubit cubit = AppCubit(
-        storage: storage,
-        driveSyncService: FakeDriveSyncService(),
-        deviceId: 'd',
-      );
-      await cubit.loadData();
-      final DateTime now = DateTime.now().toUtc();
-
-      await cubit.clearCompletedTasks(AppData.defaultCategory);
-      final ListChanges generic = ListRules.clearCompleted(
-        tasks,
-        [LegacyLists.taskToItem(task)],
-        now,
-      );
-
-      final TaskItem oldNext = cubit.state.data.tasks.single;
-      expect(generic.saved.single.id, oldNext.id);
-      expect(
-        DateTime.parse(generic.saved.single['reminderAt'] as String),
-        oldNext.reminderAt,
-      );
-      await cubit.close();
-    });
-  });
-
-  test('matches the old AppCubit grocery clear', () async {
-    final GroceryItem milk = GroceryItem(
-      id: 'milk',
-      title: 'Milk',
-      description: '',
-      section: GrocerySection.current,
-      isCompleted: true,
-      autoAddToNext: true,
-      createdAt: _t0,
-      updatedAt: _t0,
-    );
-    final FakeAppStorage storage = FakeAppStorage()
-      ..data = AppData.empty('d').copyWith(groceryItems: [milk]);
-    final AppCubit cubit = AppCubit(
-      storage: storage,
-      driveSyncService: FakeDriveSyncService(),
-      deviceId: 'd',
-    );
-    await cubit.loadData();
-
-    await cubit.clearCompletedGroceryItems(GrocerySection.current);
-    final ListChanges generic = ListRules.clearCompleted(
-      grocery,
-      [LegacyLists.groceryToItem(milk)],
-      _t0,
-      inScope: (item) => item['section'] == 'current',
-    );
-
-    final GroceryItem oldCopy = cubit.state.data.groceryItems.single;
-    final GroceryItem newCopy = LegacyLists.itemToGrocery(generic.saved.single);
-    expect(
-      [newCopy.title, newCopy.section, newCopy.isCompleted, newCopy.autoAddToNext],
-      [oldCopy.title, oldCopy.section, oldCopy.isCompleted, oldCopy.autoAddToNext],
-    );
-    await cubit.close();
   });
 }

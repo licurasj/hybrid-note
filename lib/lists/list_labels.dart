@@ -309,8 +309,6 @@ class ListLabels {
         return loc.errorItemIdTaken;
       case ListErrorCode.itemInOtherList:
         return loc.errorItemInOtherList;
-      case ListErrorCode.builtinOnlyInfo:
-        return loc.errorBuiltinOnlyInfo;
     }
   }
 

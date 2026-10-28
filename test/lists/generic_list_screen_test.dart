@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:hybrid_note/app_cubit.dart';
+import 'package:hybrid_note/backend/firestore_list_store.dart';
 import 'package:hybrid_note/l10n/generated/app_localizations.dart';
 import 'package:hybrid_note/lists/builtin_templates.dart';
-import 'package:hybrid_note/lists/custom_lists.dart';
 import 'package:hybrid_note/lists/generic_list_screen.dart';
 import 'package:hybrid_note/lists/generic_list_host.dart';
 import 'package:hybrid_note/lists/list_definition.dart';
@@ -13,10 +12,8 @@ import 'package:hybrid_note/lists/list_item.dart';
 import 'package:hybrid_note/lists/list_labels.dart';
 import 'package:hybrid_note/lists/list_rules.dart';
 import 'package:hybrid_note/lists/list_store.dart';
-import 'package:hybrid_note/lists/local_list_store.dart';
-import 'package:hybrid_note/watch_item.dart';
 
-import '../support/fakes.dart';
+import '../support/firestore_store.dart';
 
 final ListDefinition _watch = BuiltinTemplates.watchRead();
 
@@ -224,40 +221,27 @@ void main() {
     expect(recorder.deleted.single, 'c');
   });
 
-  testWidgets('Watch/Read adapter adds through AppCubit', (tester) async {
-    final FakeAppStorage storage = FakeAppStorage();
-    final AppCubit cubit = AppCubit(
-      storage: storage,
-      driveSyncService: FakeDriveSyncService(),
-      deviceId: 'test-device',
-    );
-    await cubit.loadData();
+  testWidgets('Watch/Read host adds through the store', (tester) async {
+    final FirestoreListStore store = await widgetTestStore(tester);
 
     await tester.pumpWidget(
-      MultiBlocProvider(
-        providers: [
-          BlocProvider.value(value: cubit),
-          BlocProvider(create: (_) => CustomListsCubit(FakeCustomListsStorage())..load()),
-          LocalListStore.provider(),
-        ],
+      RepositoryProvider<ListStore>.value(
+        value: store,
         child: _app(const GenericListHost(listId: BuiltinTemplates.watchReadId)),
       ),
     );
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const ValueKey('field-title')), 'Dune');
     await _pickOption(tester, 'type', 'Book');
     await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
+    await settle(tester);
 
-    final WatchItem added = cubit.state.data.watchItems.single;
-    expect(added.title, 'Dune');
-    expect(added.type, MediaType.book);
-    expect(storage.data.watchItems.single.id, added.id);
+    final ListItem added = store.current.itemsOf(BuiltinTemplates.watchReadId).single;
+    expect(added['title'], 'Dune');
+    expect(added['type'], 'book');
     expect(find.text('Book'), findsOneWidget);
-
-    await cubit.close();
   });
 }

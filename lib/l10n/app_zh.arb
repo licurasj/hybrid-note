@@ -299,5 +299,15 @@
   "listOpenDoneCount": "{open} 项未完成 · {done} 项已完成",
   "listItemCount": "{count, plural, other{{count} 项}}",
   "itemSheetNew": "新建项目",
-  "itemSheetEdit": "编辑项目"
+  "itemSheetEdit": "编辑项目",
+  "account": "账户",
+  "blankList": "空白",
+  "signInFailed": "登录失败，请重试。",
+  "signInOffline": "无网络连接。请连接互联网后登录。",
+  "signOutFailed": "退出登录失败，请重试。",
+  "signOutCleanupFailed": "已退出登录，但无法删除保存在此设备上的列表。",
+  "tryAgain": "重试",
+  "listChangeNotSaved": "列表更改无法保存，已撤销。",
+  "starterListsFailed": "无法创建初始列表。",
+  "startEmpty": "从空白开始"
 }

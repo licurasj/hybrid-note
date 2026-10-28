@@ -1,12 +1,11 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../app_cubit.dart';
-import '../app_state.dart';
 import '../home_screen.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../launcher/radial_launcher.dart';
-import '../lists/builtin_templates.dart';
 import '../lists/generic_list_host.dart';
 import '../lists/list_catalog.dart';
 import '../lists/list_catalog_builder.dart';
@@ -17,6 +16,8 @@ import '../lists/list_icons.dart';
 import '../lists/list_labels.dart';
 import '../lists/list_patch.dart';
 import '../lists/list_store.dart';
+import '../lists/list_template_picker.dart';
+import 'app_settings.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -32,13 +33,6 @@ class _MainShellState extends State<MainShell> {
   // case never needs scrolling (plan 5.3). Kept in memory for now.
   final List<String> _recent = [];
 
-  static const List<String> _homeTargets = [
-    BuiltinTemplates.tasksId,
-    BuiltinTemplates.groceryId,
-    BuiltinTemplates.journalId,
-    BuiltinTemplates.watchReadId,
-  ];
-
   void _openList(String listId) {
     setState(() {
       _recent
@@ -50,14 +44,6 @@ class _MainShellState extends State<MainShell> {
         builder: (_) => GenericListHost(listId: listId),
       ),
     );
-  }
-
-  // Home dashboard cards use the old tab numbers: 1 tasks, 2 grocery,
-  // 3 journal, 4 watch/read.
-  void _openFromHome(int index) {
-    if (index >= 1 && index <= _homeTargets.length) {
-      _openList(_homeTargets[index - 1]);
-    }
   }
 
   List<LauncherNote> _notes(AppLocalizations loc, ListCatalog catalog) {
@@ -89,14 +75,16 @@ class _MainShellState extends State<MainShell> {
     ];
   }
 
+  // Blank or a template first, then the editor on that fresh copy, which can
+  // be changed before saving (Q-22 D).
   Future<void> _newList() async {
-    final AppLocalizations loc = AppLocalizations.of(context);
+    final ListDefinition? draft = await showListTemplatePicker(context);
+    if (!mounted || draft == null) {
+      return;
+    }
     final ListEditorOutcome? outcome = await Navigator.of(context).push(
       MaterialPageRoute<ListEditorOutcome>(
-        builder: (_) => ListEditorScreen(
-          definition: blankListDefinition(loc),
-          isNew: true,
-        ),
+        builder: (_) => ListEditorScreen(definition: draft, isNew: true),
       ),
     );
     final ListPatchResult? result = outcome?.result;
@@ -138,8 +126,16 @@ class _MainShellState extends State<MainShell> {
     }
 
     // The store re-applies the ops to its current items, in case they changed
-    // meanwhile, and saves only a valid result.
-    await store.patchList(listId, outcome.ops);
+    // meanwhile, and saves only a valid result. The editor has closed, so a
+    // failure is reported here rather than lost (T-17 F1).
+    final AppLocalizations loc = AppLocalizations.of(context);
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    try {
+      await store.patchList(listId, outcome.ops);
+    } on Object catch (error) {
+      developer.log('patch $listId failed: $error', name: 'MainShell');
+      messenger.showSnackBar(SnackBar(content: Text(loc.listChangeNotSaved)));
+    }
   }
 
   // Deleting is immediate, with Undo in a snackbar and no trash bin (D-5).
@@ -170,54 +166,42 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<AppCubit, AppState>(
-      listenWhen: (oldState, newState) {
-        return oldState.errorMessage != newState.errorMessage ||
-            oldState.syncMessage != newState.syncMessage;
-      },
-      listener: (context, state) {
-        final String? message = state.errorMessage ?? state.syncMessage;
-
-        if (message != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message)),
-          );
-        }
-      },
-      child: Scaffold(
-        body: ListCatalogBuilder(
-          builder: (context, catalog) => BlocBuilder<AppCubit, AppState>(
-          builder: (context, state) {
-            final AppLocalizations loc = AppLocalizations.of(context);
-            return Stack(
-              children: [
-                // Room below the dashboard so the hub never covers it.
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 88),
-                  child: HomeScreen(onNavigate: _openFromHome),
-                ),
-                Positioned.fill(
-                  child: RadialLauncher(
-                    notes: _notes(loc, catalog),
-                    onOpen: (note) => _openList(note.id),
-                    onEdit: (note) => _editList(note.id),
-                    onNew: _newList,
-                    hubTooltip: loc.launcherHub,
-                    editLabel: loc.edit,
-                    moveLabel: loc.moveHub,
-                    addLabel: loc.newList,
-                    previousLabel: loc.previous,
-                    nextLabel: loc.next,
-                    noteHint: loc.launcherNoteHint,
-                    hubPosition: state.hubPosition,
-                    onHubMoved: context.read<AppCubit>().setHubPosition,
-                  ),
-                ),
-              ],
-            );
-          },
-          ),
-        ),
+    return Scaffold(
+      body: ListCatalogBuilder(
+        builder: (context, catalog) =>
+            BlocBuilder<AppSettingsCubit, AppSettings>(
+              builder: (context, settings) {
+                final AppLocalizations loc = AppLocalizations.of(context);
+                return Stack(
+                  children: [
+                    // Room below the dashboard so the hub never covers it.
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 88),
+                      child: HomeScreen(onOpenList: _openList),
+                    ),
+                    Positioned.fill(
+                      child: RadialLauncher(
+                        notes: _notes(loc, catalog),
+                        onOpen: (note) => _openList(note.id),
+                        onEdit: (note) => _editList(note.id),
+                        onNew: _newList,
+                        hubTooltip: loc.launcherHub,
+                        editLabel: loc.edit,
+                        moveLabel: loc.moveHub,
+                        addLabel: loc.newList,
+                        previousLabel: loc.previous,
+                        nextLabel: loc.next,
+                        noteHint: loc.launcherNoteHint,
+                        hubPosition: settings.hubPosition,
+                        onHubMoved: context
+                            .read<AppSettingsCubit>()
+                            .setHubPosition,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
       ),
     );
   }

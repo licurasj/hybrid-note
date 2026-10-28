@@ -836,4 +836,38 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get itemSheetEdit => 'Modifier l’élément';
+
+  @override
+  String get account => 'Compte';
+
+  @override
+  String get blankList => 'Vide';
+
+  @override
+  String get signInFailed => 'La connexion a échoué. Veuillez réessayer.';
+
+  @override
+  String get signInOffline =>
+      'Pas de connexion. Connectez-vous à Internet pour vous connecter.';
+
+  @override
+  String get signOutFailed => 'La déconnexion a échoué. Veuillez réessayer.';
+
+  @override
+  String get signOutCleanupFailed =>
+      'Déconnecté, mais les listes enregistrées sur cet appareil n\'ont pas pu être supprimées.';
+
+  @override
+  String get tryAgain => 'Réessayer';
+
+  @override
+  String get listChangeNotSaved =>
+      'Une modification de liste n\'a pas pu être enregistrée et a été annulée.';
+
+  @override
+  String get starterListsFailed =>
+      'Les listes de départ n\'ont pas pu être créées.';
+
+  @override
+  String get startEmpty => 'Commencer sans listes';
 }

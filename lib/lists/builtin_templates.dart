@@ -1,10 +1,13 @@
 import 'list_definition.dart';
 import 'list_vocabulary.dart';
 
-// The four lists the app has today, described with the generic vocabulary.
-// They are created on first launch. List ids are fixed, so two devices that
-// each create the defaults end up with the same lists instead of duplicates.
-// Labels are l10n keys from lib/l10n/app_en.arb.
+// The four list templates, described with the generic vocabulary (Q-22 D).
+// A new account gets one starter copy of each, an ordinary list that can be
+// edited and deleted; "New list" offers them, and the AI gets them as
+// examples. A copy has its own list id and names its template in
+// `templateId`. The ids below are template keys, kept from the time these
+// were fixed built-in lists. Labels are l10n keys from lib/l10n/app_en.arb;
+// colours are the Q-19 A palette.
 class BuiltinTemplates {
   static const String tasksId = 'builtin.tasks';
   static const String groceryId = 'builtin.grocery';
@@ -12,13 +15,6 @@ class BuiltinTemplates {
   static const String watchReadId = 'builtin.watchRead';
 
   static final DateTime _created = DateTime.utc(2026, 10, 25);
-
-  static bool isBuiltin(String listId) {
-    return listId == tasksId ||
-        listId == groceryId ||
-        listId == journalId ||
-        listId == watchReadId;
-  }
 
   static List<ListDefinition> all({List<String> taskCategories = const []}) {
     return [
@@ -34,7 +30,7 @@ class BuiltinTemplates {
       id: tasksId,
       nameKey: 'tasks',
       icon: 'pending_actions',
-      color: '#1E88E5',
+      color: '#FF4D12',
       templateId: tasksId,
       fields: [
         const FieldDefinition(
@@ -105,7 +101,7 @@ class BuiltinTemplates {
       id: groceryId,
       nameKey: 'grocery',
       icon: 'shopping_cart',
-      color: '#43A047',
+      color: '#00A63E',
       templateId: groceryId,
       fields: const [
         FieldDefinition(
@@ -172,7 +168,7 @@ class BuiltinTemplates {
       id: journalId,
       nameKey: 'journal',
       icon: 'book',
-      color: '#8E24AA',
+      color: '#E5007E',
       templateId: journalId,
       fields: const [
         FieldDefinition(
@@ -202,7 +198,7 @@ class BuiltinTemplates {
       id: watchReadId,
       nameKey: 'watchRead',
       icon: 'movie',
-      color: '#FB8C00',
+      color: '#6B3BFF',
       templateId: watchReadId,
       fields: const [
         FieldDefinition(

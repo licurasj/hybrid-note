@@ -69,8 +69,7 @@ enum ListErrorCode implements WireName {
   listExists('listExists'), // {list}
   duplicateItemId('duplicateItemId'),
   itemIdTaken('itemIdTaken'),
-  itemInOtherList('itemInOtherList'), // {list}
-  builtinOnlyInfo('builtinOnlyInfo'); // {list, op}
+  itemInOtherList('itemInOtherList'); // {list}
 
   const ListErrorCode(this.wire);
 
@@ -210,9 +209,6 @@ class ListError {
         return 'id already used by another list';
       case ListErrorCode.itemInOtherList:
         return 'belongs to list "${arg('list')}"';
-      case ListErrorCode.builtinOnlyInfo:
-        return 'built-in list "${arg('list')}": only setListInfo is supported, '
-            'not ${arg('op')}';
     }
   }
 

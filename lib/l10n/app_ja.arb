@@ -299,5 +299,15 @@
   "listOpenDoneCount": "未完了 {open} · 完了 {done}",
   "listItemCount": "{count, plural, other{{count} 件}}",
   "itemSheetNew": "新しい項目",
-  "itemSheetEdit": "項目を編集"
+  "itemSheetEdit": "項目を編集",
+  "account": "アカウント",
+  "blankList": "空白",
+  "signInFailed": "サインインに失敗しました。もう一度お試しください。",
+  "signInOffline": "接続がありません。サインインするにはインターネットに接続してください。",
+  "signOutFailed": "サインアウトに失敗しました。もう一度お試しください。",
+  "signOutCleanupFailed": "サインアウトしましたが、この端末に保存されたリストを削除できませんでした。",
+  "tryAgain": "再試行",
+  "listChangeNotSaved": "リストの変更を保存できなかったため、元に戻しました。",
+  "starterListsFailed": "初期リストを作成できませんでした。",
+  "startEmpty": "空で始める"
 }

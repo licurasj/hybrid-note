@@ -14,6 +14,7 @@ import 'package:hybrid_note/lists/list_rules.dart';
 import 'package:hybrid_note/lists/list_store.dart';
 
 import '../lists/list_store_contract_test.dart' show listStoreContract;
+import '../support/firestore_store.dart' show DelayedAckFirestore;
 
 const String _uid = 'user-1';
 final DateTime _t0 = DateTime.utc(2026, 3, 1);
@@ -59,6 +60,7 @@ class _ScriptedFirestore extends FakeFirebaseFirestore {
   Future<void> Function()? beforeBatch;
   final List<String> deleted = [];
   Object? failWith;
+  FirebaseException? failReadOnWeb;
   bool hang = false;
   Completer<void>? hold;
   Future<Object?>? held;
@@ -77,6 +79,17 @@ class _ScriptedFirestore extends FakeFirebaseFirestore {
     final Object? failure = failWith;
     if (failure != null) {
       throw failure;
+    }
+    // Like cloud_firestore_web: the handler's read fails, and the error
+    // reaches the caller wrapped in a JavaScript error (T-17 F1).
+    final FirebaseException? readFailure = failReadOnWeb;
+    if (readFailure != null) {
+      try {
+        await transactionHandler(_FailingTransaction(readFailure));
+      } on Object catch (error) {
+        throw _JsError('Error: Dart exception: $error');
+      }
+      throw StateError('the read did not fail');
     }
     if (hang) {
       return Completer<T>().future;
@@ -100,6 +113,30 @@ class _ScriptedFirestore extends FakeFirebaseFirestore {
       maxAttempts: maxAttempts,
     );
   }
+}
+
+class _FailingTransaction extends Fake implements Transaction {
+  _FailingTransaction(this.failure);
+
+  final FirebaseException failure;
+
+  @override
+  Future<DocumentSnapshot<T>> get<T extends Object?>(
+    DocumentReference<T> documentReference,
+  ) async {
+    throw failure;
+  }
+}
+
+// What a rejected JavaScript promise becomes in Dart: not a
+// FirebaseException.
+class _JsError {
+  _JsError(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
 }
 
 class _ScriptedBatch implements WriteBatch {
@@ -131,11 +168,13 @@ class _ScriptedBatch implements WriteBatch {
   }
 }
 
+// A stored document without the store's `_createdAt` (tested on its own).
 Future<Map<String, dynamic>> _doc(
   FakeFirebaseFirestore firestore,
   String path,
 ) async {
-  return (await firestore.doc('users/$_uid/lists/$path').get()).data()!;
+  return (await firestore.doc('users/$_uid/lists/$path').get()).data()!
+    ..remove(FirestoreListStore.createdAtKey);
 }
 
 ListItem _kind(String id, Object kind) {
@@ -285,6 +324,139 @@ void main() {
   }, dispose: (store) => closers.remove(store)!());
 
   group('FirestoreListStore', () {
+    test('lists come in creation order, then by id (Q-22 D)', () async {
+      final FakeFirebaseFirestore firestore = FakeFirebaseFirestore();
+      Future<void> put(String id, String? createdAt) {
+        return firestore.doc('users/$_uid/lists/$id').set({
+          ..._simple(id).toJson(),
+          '_createdAt': ?createdAt,
+        });
+      }
+
+      await put('list-c', '2026-03-01T00:00:00.001Z');
+      await put('list-a', '2026-03-01T00:00:00.002Z');
+      await put('list-b', '2026-03-01T00:00:00.001Z');
+      await put('list-old', null);
+      final FirestoreListStore store = await _loaded(firestore);
+
+      expect(store.current.definitions.map((d) => d.id), [
+        'list-old',
+        'list-b',
+        'list-c',
+        'list-a',
+      ]);
+      // `_createdAt` belongs to the store, not to the definition.
+      expect(store.current.definition('list-a')!.extra, isEmpty);
+
+      expect(await store.createList(_simple('list-0')), isEmpty);
+      final ListCatalog catalog = await _until(
+        store,
+        (c) => c.definition('list-0') != null,
+      );
+      expect(catalog.definitions.last.id, 'list-0');
+    });
+
+    test('create, delete and Undo complete before the server answers', () async {
+      final DelayedAckFirestore firestore = DelayedAckFirestore();
+      final FirestoreListStore store = await _loaded(firestore);
+      firestore.holdAcks = true;
+      const Duration local = Duration(seconds: 5);
+
+      // Offline the server answers only once back online; the caller goes on
+      // as soon as the device has the change (T-17 R3, D-5).
+      expect(await store.createList(_simple('list-a')).timeout(local), isEmpty);
+      expect(store.current.definition('list-a'), isNotNull);
+
+      final DeletedList? deleted = await store
+          .deleteList('list-a')
+          .timeout(local);
+      expect(deleted, isNotNull);
+      expect(store.current.definition('list-a'), isNull);
+
+      await store.restoreList(deleted!).timeout(local);
+      expect(store.current.definition('list-a'), isNotNull);
+      expect(firestore.acks, hasLength(3));
+      expect(firestore.acks.where((ack) => ack.isCompleted), isEmpty);
+    });
+
+    test('a write the server rejects later is reported', () async {
+      final DelayedAckFirestore firestore = DelayedAckFirestore();
+      final FirestoreListStore store = await _loaded(firestore);
+      final List<Object> failures = [];
+      store.writeFailures.listen(failures.add);
+      firestore.holdAcks = true;
+
+      expect(await store.createList(_simple('list-a')), isEmpty);
+      expect(failures, isEmpty);
+      firestore.acks.single.completeError(
+        FirebaseException(plugin: 'cloud_firestore', code: 'permission-denied'),
+      );
+      await pumpEventQueue();
+      expect(failures.single, isA<FirebaseException>());
+    });
+
+    test('lists created at the same time are ordered by id', () async {
+      final FakeFirebaseFirestore firestore = FakeFirebaseFirestore();
+      for (final String id in ['list-b', 'list-c', 'list-a']) {
+        await firestore.doc('users/$_uid/lists/$id').set({
+          ..._simple(id).toJson(),
+          '_createdAt': '2026-03-01T00:00:00.001Z',
+        });
+      }
+      final FirestoreListStore store = await _loaded(firestore);
+
+      expect(store.current.definitions.map((d) => d.id), [
+        'list-a',
+        'list-b',
+        'list-c',
+      ]);
+    });
+
+    test('a patch and an undone delete keep the list in its place', () async {
+      final FakeFirebaseFirestore firestore = FakeFirebaseFirestore();
+      // Explicit, distinct creation times: list-b first, although its id
+      // sorts after list-a's (two DateTime.now calls can be equal, T-17 R4).
+      const String createdAt = '2026-03-01T00:00:00.001Z';
+      for (final (String id, String time) in [
+        ('list-b', createdAt),
+        ('list-a', '2026-03-01T00:00:00.002Z'),
+      ]) {
+        await firestore.doc('users/$_uid/lists/$id').set({
+          ..._simple(id).toJson(),
+          '_createdAt': time,
+        });
+      }
+      final FirestoreListStore store = await _loaded(firestore);
+      expect(store.current.definitions.map((d) => d.id), ['list-b', 'list-a']);
+
+      final ListPatchResult? result = await store.patchList('list-b', const [
+        ListPatchOp(PatchOpKind.setListInfo, {'name': 'Renamed'}),
+      ]);
+      expect(result!.isValid, isTrue);
+      expect(
+        (await firestore.doc('users/$_uid/lists/list-b').get())
+            .data()!['_createdAt'],
+        createdAt,
+      );
+
+      final DeletedList deleted = (await store.deleteList('list-b'))!;
+      await _until(store, (c) => c.definitions.length == 1);
+      await store.restoreList(deleted);
+      final ListCatalog catalog = await _until(
+        store,
+        (c) => c.definitions.length == 2,
+      );
+      expect(catalog.definitions.map((d) => d.id), ['list-b', 'list-a']);
+    });
+
+    test('a list may use a template id: there are no built-ins', () async {
+      final FirestoreListStore store = await _loaded(FakeFirebaseFirestore());
+
+      expect(await store.createList(BuiltinTemplates.tasks()), isEmpty);
+      await _until(store, (c) => c.definition(BuiltinTemplates.tasksId) != null);
+      expect(await store.deleteList(BuiltinTemplates.tasksId), isNotNull);
+    });
+
     test('stores the Q-5 layout: one document per list and per item', () async {
       final FakeFirebaseFirestore firestore = await _seeded();
       final FirestoreListStore store = await _loaded(firestore);
@@ -292,7 +464,11 @@ void main() {
       expect(await store.createList(list, items: [_row('list-a', 1)]), isEmpty);
 
       final listDoc = await firestore.doc('users/$_uid/lists/list-a').get();
-      expect(listDoc.data(), list.toJson());
+      // Plus `_createdAt`, for the list order.
+      expect(listDoc.data(), {
+        ...list.toJson(),
+        '_createdAt': isA<String>(),
+      });
       final itemDoc = await firestore
           .doc('users/$_uid/lists/list-a/items/list-a-item-1')
           .get();
@@ -403,14 +579,21 @@ void main() {
               c.itemsOf('list-big').every((item) => item['title'] == 'Edited'),
         );
 
+        final Future<void> allDeleted = firestore
+            .collection('users/$_uid/lists/list-big/items')
+            .snapshots()
+            .firstWhere((snapshot) => snapshot.size == 0);
         final DeletedList? deleted = await store.deleteList('list-big');
         expect(deleted!.items, hasLength(count));
         await _until(store, (c) => c.definition('list-big') == null);
-        expect(
-          (await firestore.collection('users/$_uid/lists/list-big/items').get())
-              .size,
-          0,
-        );
+        // deleteList completes once the list is gone locally (T-17 R3). The
+        // fake applies a batch one document at a time, so the other batches'
+        // item deletes may still be running; Firestore applies each batch
+        // whole and in order, so there Undo always comes after them. (The
+        // fake's get() already reports no items once the list document is
+        // gone; a listener from before the delete reports them as they
+        // happen.)
+        await allDeleted.timeout(const Duration(seconds: 10));
 
         await store.restoreList(deleted);
         await _until(store, (c) => c.itemsOf('list-big').length == count);
@@ -925,6 +1108,63 @@ void main() {
         );
         expect(result!.errors, isEmpty);
         await _until(store, (c) => c.itemsOf('list-a').single['kind'] == 1);
+      },
+    );
+
+    // T-17 F1: on web the offline read error arrives wrapped in a
+    // JavaScript error; the fallback must still apply, without waiting for
+    // the timeout.
+    test('offline on web, a patch falls back to the cache at once', () async {
+      final _ScriptedFirestore firestore = await _seeded(_ScriptedFirestore());
+      final FirestoreListStore store = await _loaded(firestore);
+      await store.createList(_simple('list-a'), items: [_kind('one', '1')]);
+      await _until(store, (c) => c.itemsOf('list-a').length == 1);
+
+      firestore.failReadOnWeb = FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'unavailable',
+        message: 'Connection failed.',
+      );
+      final ListPatchResult? result = await store
+          .patchList('list-a', const [
+            ListPatchOp(PatchOpKind.setListInfo, {'name': 'Renamed offline'}),
+          ])
+          .timeout(const Duration(seconds: 2));
+      expect(result!.errors, isEmpty);
+      await _until(
+        store,
+        (c) => c.definition('list-a')!.name == 'Renamed offline',
+      );
+      expect((await _doc(firestore, 'list-a'))['name'], 'Renamed offline');
+    });
+
+    test(
+      'on web, a read refused for another reason still fails the patch',
+      () async {
+        final _ScriptedFirestore firestore = await _seeded(
+          _ScriptedFirestore(),
+        );
+        final FirestoreListStore store = await _loaded(firestore);
+        await store.createList(_simple('list-a'));
+        await _until(store, (c) => c.definition('list-a') != null);
+
+        firestore.failReadOnWeb = FirebaseException(
+          plugin: 'cloud_firestore',
+          code: 'permission-denied',
+        );
+        await expectLater(
+          store.patchList('list-a', const [
+            ListPatchOp(PatchOpKind.setListInfo, {'name': 'Not allowed'}),
+          ]),
+          throwsA(
+            isA<FirebaseException>().having(
+              (e) => e.code,
+              'code',
+              'permission-denied',
+            ),
+          ),
+        );
+        expect(store.current.definition('list-a')!.name, isNot('Not allowed'));
       },
     );
 

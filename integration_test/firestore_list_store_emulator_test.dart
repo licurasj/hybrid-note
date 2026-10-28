@@ -8,6 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'package:hybrid_note/backend/firestore_list_store.dart';
+import 'package:hybrid_note/backend/firestore_setup.dart';
+import 'package:hybrid_note/backend/starter_lists.dart';
 import 'package:hybrid_note/firebase_options.dart';
 import 'package:hybrid_note/lists/builtin_templates.dart';
 import 'package:hybrid_note/lists/list_catalog.dart';
@@ -535,7 +537,14 @@ void main() {
     test('more than 500 writes: chunked batches and a large patch', () async {
       final (String uid, _) = await _newUser();
       await _seed(uid);
-      final FirestoreListStore store = await _loaded(_db, uid);
+      // The 600-item transaction takes close to the app's 10 s on the
+      // emulator; a longer timeout keeps this test on the transaction path
+      // instead of falling back by chance (T-17 unit 5b).
+      final FirestoreListStore store = await _loaded(
+        _db,
+        uid,
+        transactionTimeout: const Duration(seconds: 60),
+      );
       const int count = 600;
       final List<ListItem> rows = [
         for (int i = 0; i < count; i++)
@@ -660,6 +669,122 @@ void main() {
         );
         return data!['_rev'] == revision && (data['values'] as Map)['n'] == '7';
       });
+    });
+  });
+
+  group('T-17 starter lists and cache on the emulator', () {
+    test('seeding once under the rules; a second device with an empty cache '
+        'sees the marker and writes nothing (Q-22 D)', () async {
+      final (String uid, String email) = await _newUser();
+      final Stopwatch watch = Stopwatch()..start();
+      expect(await StarterLists.ensure(_db, uid), isTrue);
+      _measure('seeding a new account took ${watch.elapsedMilliseconds} ms');
+      final FirestoreListStore store = await _loaded(_db, uid);
+      final ListCatalog catalog = await _until(
+        store,
+        (c) => c.definitions.length == 4,
+      );
+      final List<String> ids = [for (final d in catalog.definitions) d.id];
+      expect(catalog.definitions.map((d) => d.templateId), [
+        for (final d in BuiltinTemplates.all()) d.id,
+      ]);
+      // A starter list deleted on the first device.
+      expect(await store.deleteList(ids.first), isNotNull);
+      await _eventually(
+        () async => await _server(_db, 'users/$uid/lists/${ids.first}') == null,
+      );
+
+      // The second device: same user, nothing of theirs in its cache.
+      await _auth2.signOut();
+      await _auth2.signInWithEmailAndPassword(email: email, password: _password);
+      Object? cached;
+      try {
+        cached = (await _db2
+                .doc('users/$uid')
+                .get(const GetOptions(source: Source.cache)))
+            .data();
+      } on FirebaseException {
+        cached = null;
+      }
+      expect(cached, isNull);
+      watch.reset();
+      expect(await StarterLists.ensure(_db2, uid), isFalse);
+      _measure(
+        'second device, empty cache: marker found in '
+        '${watch.elapsedMilliseconds} ms',
+      );
+      final lists = await _db2
+          .collection('users/$uid/lists')
+          .get(const GetOptions(source: Source.server));
+      expect(lists.docs.map((d) => d.id).toSet(), ids.skip(1).toSet());
+      // And the marker is now in its cache, so the next start needs no
+      // server.
+      final DocumentSnapshot<Map<String, dynamic>> marker = await _db2
+          .doc('users/$uid')
+          .get(const GetOptions(source: Source.cache));
+      expect(marker.exists, isTrue);
+      watch.reset();
+      expect(await StarterLists.ensure(_db2, uid), isFalse);
+      _measure('next start: marker from cache in ${watch.elapsedMilliseconds} ms');
+      await _auth2.signOut();
+    });
+
+    test('openStore with the app settings; clearCache empties the cache and '
+        'the instance works again', () async {
+      final FirebaseApp app = await Firebase.initializeApp(
+        name: 'clear-cache-${DateTime.now().microsecondsSinceEpoch}',
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      final FirebaseFirestore db = FirebaseFirestore.instanceFor(app: app);
+      final FirebaseAuth auth = FirebaseAuth.instanceFor(app: app);
+      final FirestoreSetup setup = FirestoreSetup(db)..configure();
+      db.useFirestoreEmulator(_host, 8080);
+      await auth.useAuthEmulator(_host, 9099);
+      expect(db.settings.persistenceEnabled, isTrue);
+      final UserCredential credential = await auth
+          .createUserWithEmailAndPassword(
+            email: 'clear-${DateTime.now().microsecondsSinceEpoch}@example.test',
+            password: _password,
+          );
+      final String uid = credential.user!.uid;
+
+      final opened = setup.openStore(uid);
+      expect(await opened.starter, isTrue);
+      await _until(opened.store, (c) => c.definitions.length == 4);
+      final String listId = opened.store.current.definitions.first.id;
+      expect(
+        (await db
+                .doc('users/$uid/lists/$listId')
+                .get(const GetOptions(source: Source.cache)))
+            .exists,
+        isTrue,
+      );
+
+      // Sign-out order: close the store, sign out, clear the cache.
+      await opened.store.close();
+      await auth.signOut();
+      final Stopwatch watch = Stopwatch()..start();
+      await setup.clearCache();
+      _measure('clearCache took ${watch.elapsedMilliseconds} ms');
+
+      bool inCache;
+      try {
+        inCache = (await db
+                .doc('users/$uid/lists/$listId')
+                .get(const GetOptions(source: Source.cache)))
+            .exists;
+      } on FirebaseException {
+        inCache = false;
+      }
+      expect(inCache, isFalse);
+      // Signed in again, the same instance reads from the server.
+      await auth.signInWithEmailAndPassword(
+        email: credential.user!.email!,
+        password: _password,
+      );
+      final FirestoreListStore again = await _loaded(db, uid);
+      await _until(again, (c) => c.definitions.length == 4);
+      await auth.signOut();
     });
   });
 }

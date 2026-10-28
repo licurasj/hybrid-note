@@ -188,9 +188,9 @@ describe('other users and signed-out clients', () => {
     await assertFails(deleteDoc(doc(db, `users/${OWNER}/lists/plants`)));
   });
 
-  test('nothing outside users/{uid}/lists is open, not even to the owner', async () => {
+  // users/{uid} itself is the starter-lists marker (tested below).
+  test('nothing else outside users/{uid}/lists is open, not even to the owner', async () => {
     const db = owner();
-    await assertFails(getDoc(doc(db, `users/${OWNER}`)));
     await assertFails(setDoc(doc(db, `users/${OWNER}`), { name: 'x' }));
     await assertFails(setDoc(doc(db, `users/${OWNER}/settings/app`), { theme: 'dark' }));
     await assertFails(setDoc(doc(db, 'shared/x'), { a: 1 }));
@@ -285,5 +285,72 @@ describe('item shape', () => {
     for (let i = 0; i < 50; i++) legacy[`tags${i}`] = [{ __array: ['a', 'b'] }];
     values._legacy = legacy;
     await assertSucceeds(setDoc(ref(), item('ivy', 'plants', { values })));
+  });
+});
+
+// T-17, Q-22 D: users/{uid} is the starter-lists marker.
+describe('starter-lists marker', () => {
+  const marker = { starterSeededAt: '2026-03-01T00:00:00.000Z' };
+  const ref = (db, uid = OWNER) => doc(db, `users/${uid}`);
+
+  test('the owner creates and reads their marker', async () => {
+    await assertSucceeds(setDoc(ref(owner()), marker));
+    await assertSucceeds(getDoc(ref(owner())));
+  });
+
+  test('the owner reads a missing marker (a new account)', async () => {
+    await assertSucceeds(getDoc(ref(owner())));
+  });
+
+  test('the marker and the starter lists in one batch, as seeding writes them', async () => {
+    const db = owner();
+    const batch = writeBatch(db);
+    batch.set(ref(db), marker);
+    for (const id of ['list-a', 'list-b', 'list-c', 'list-d']) {
+      batch.set(
+        doc(db, `users/${OWNER}/lists/${id}`),
+        list(id, { templateId: 'builtin.tasks', _createdAt: '2026-03-01T00:00:00.001Z' }),
+      );
+    }
+    await assertSucceeds(batch.commit());
+  });
+
+  test('the marker is never changed or deleted', async () => {
+    await assertSucceeds(setDoc(ref(owner()), marker));
+    await assertFails(setDoc(ref(owner()), { starterSeededAt: '2026-04-01T00:00:00.000Z' }));
+    await assertFails(deleteDoc(ref(owner())));
+  });
+
+  test('a malformed marker is refused', async () => {
+    await assertFails(setDoc(ref(owner()), {}));
+    await assertFails(setDoc(ref(owner()), { starterSeededAt: 5 }));
+  });
+
+  test('other users and signed-out clients can neither read nor write it', async () => {
+    await env.withSecurityRulesDisabled(async (context) => {
+      await setDoc(ref(context.firestore()), marker);
+    });
+    await assertFails(getDoc(ref(other())));
+    await assertFails(getDoc(ref(signedOut())));
+    await assertFails(setDoc(ref(other()), marker));
+    await assertFails(setDoc(ref(other(), 'new-uid'), marker));
+    await assertFails(setDoc(ref(signedOut(), 'new-uid'), marker));
+    await assertFails(deleteDoc(ref(other())));
+  });
+
+  test('an anonymous user has their own marker (T-18)', async () => {
+    const anon = env
+      .authenticatedContext('anon-uid', { firebase: { sign_in_provider: 'anonymous' } })
+      .firestore();
+    await assertSucceeds(setDoc(ref(anon, 'anon-uid'), marker));
+    await assertFails(getDoc(ref(anon)));
+  });
+});
+
+describe('list order key', () => {
+  test('`_createdAt` must be a string when present', async () => {
+    const ref = doc(owner(), `users/${OWNER}/lists/books`);
+    await assertSucceeds(setDoc(ref, list('books', { _createdAt: '2026-03-01T00:00:00.000Z' })));
+    await assertFails(setDoc(ref, list('books', { _createdAt: 5 })));
   });
 });

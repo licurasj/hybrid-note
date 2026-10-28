@@ -683,5 +683,15 @@
     }
   },
   "itemSheetNew": "New item",
-  "itemSheetEdit": "Edit item"
+  "itemSheetEdit": "Edit item",
+  "account": "Account",
+  "blankList": "Blank",
+  "signInFailed": "Sign-in failed. Please try again.",
+  "signInOffline": "No connection. Connect to the internet to sign in.",
+  "signOutFailed": "Sign-out failed. Please try again.",
+  "signOutCleanupFailed": "Signed out, but the lists saved on this device could not be deleted.",
+  "tryAgain": "Try again",
+  "listChangeNotSaved": "A list change could not be saved and was undone.",
+  "starterListsFailed": "The starter lists could not be set up.",
+  "startEmpty": "Start empty"
 }

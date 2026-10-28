@@ -5,10 +5,8 @@ import 'list_item.dart';
 import 'list_patch.dart';
 import 'list_rules.dart';
 
-// Where the screens read and write lists. LocalListStore keeps today's
-// storage behind it (AppData with Drive sync for the built-ins, a local file
-// for the user's own lists); FirestoreListStore will implement the same
-// interface and run the same contract tests
+// Where the screens read and write lists. FirestoreListStore implements it
+// for the signed-in user (T-17) and runs the shared contract tests
 // (test/lists/list_store_contract_test.dart).
 //
 // Fit for Firestore (Q-5 A: lists/{listId} with an items subcollection, in

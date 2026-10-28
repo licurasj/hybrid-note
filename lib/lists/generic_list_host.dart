@@ -9,19 +9,19 @@ import 'list_definition.dart';
 import 'list_labels.dart';
 import 'list_store.dart';
 
-// One list on the generic screen, built-in or the user's own.
+// One list on the generic screen. A list made from a template gets that
+// template's texts; any other list gets plain ones.
 class GenericListHost extends StatelessWidget {
   const GenericListHost({super.key, required this.listId});
 
   final String listId;
 
   static GenericListTexts textsFor(
-    String listId,
     AppLocalizations loc,
     ListDefinition definition,
   ) {
     final String name = ListLabels(loc).listName(definition);
-    switch (listId) {
+    switch (definition.templateId) {
       case BuiltinTemplates.tasksId:
         return GenericListTexts(
           title: name,
@@ -82,7 +82,7 @@ class GenericListHost extends StatelessWidget {
           definition: definition,
           items: catalog.itemsOf(listId),
           store: store,
-          texts: textsFor(listId, loc, definition),
+          texts: textsFor(loc, definition),
         );
       },
     );

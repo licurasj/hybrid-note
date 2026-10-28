@@ -1,16 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'app_cubit.dart';
-import 'app_state.dart';
+import 'app/app_settings.dart';
+import 'app/hybrid_note_app.dart';
+import 'app/starter_note.dart';
 import 'l10n/generated/app_localizations.dart';
+import 'lists/list_catalog.dart';
+import 'lists/list_catalog_builder.dart';
+import 'lists/list_definition.dart';
+import 'lists/list_icons.dart';
+import 'lists/list_labels.dart';
+import 'lists/list_vocabulary.dart';
 
+// Minimal T-17 home: one card per list and the account row. T-16 unit 5
+// replaces this screen (Q-20 A).
 class HomeScreen extends StatelessWidget {
-  final ValueChanged<int>? onNavigate;
+  final ValueChanged<String>? onOpenList;
 
   const HomeScreen({
     super.key,
-    this.onNavigate,
+    this.onOpenList,
   });
 
   Widget _summaryCard({
@@ -60,11 +69,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-
-  void _openPage(int index) {
-    onNavigate?.call(index);
-  }
-
   String _languageLabel(AppLocalizations loc, String? code) {
     switch (code) {
       case 'en':
@@ -87,7 +91,7 @@ class HomeScreen extends StatelessWidget {
 
   Future<void> _showLanguageDialog(
     BuildContext context,
-    AppState state,
+    AppSettings settings,
   ) async {
     final AppLocalizations loc = AppLocalizations.of(context);
 
@@ -113,7 +117,7 @@ class HomeScreen extends StatelessWidget {
               itemCount: options.length,
               itemBuilder: (context, index) {
                 final option = options[index];
-                final bool selected = state.selectedLocaleCode == option.code;
+                final bool selected = settings.localeCode == option.code;
 
                 return ListTile(
                   selected: selected,
@@ -123,7 +127,7 @@ class HomeScreen extends StatelessWidget {
                   title: Text(option.label),
                   subtitle: Text(option.subtitle),
                   onTap: () {
-                    context.read<AppCubit>().setPreferredLocaleCode(option.code);
+                    context.read<AppSettingsCubit>().setLocaleCode(option.code);
                     Navigator.of(dialogContext).pop();
                   },
                 );
@@ -145,17 +149,11 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<AppCubit, AppState>(
-      builder: (context, state) {
+    return BlocBuilder<AppSettingsCubit, AppSettings>(
+      builder: (context, settings) {
         final AppLocalizations loc = AppLocalizations.of(context);
-
-        if (state.isLoading) {
-          return const Scaffold(
-            body: Center(
-              child: CircularProgressIndicator(),
-            ),
-          );
-        }
+        final ListLabels labels = ListLabels(loc);
+        final SignedInAccount account = context.read<SignedInAccount>();
 
         return Scaffold(
           appBar: AppBar(
@@ -163,153 +161,59 @@ class HomeScreen extends StatelessWidget {
             actions: [
               IconButton(
                 onPressed: () {
-                  _showLanguageDialog(context, state);
+                  _showLanguageDialog(context, settings);
                 },
                 icon: const Icon(Icons.language),
-                tooltip: '${loc.language}: ${_languageLabel(loc, state.selectedLocaleCode)}',
+                tooltip: '${loc.language}: ${_languageLabel(loc, settings.localeCode)}',
               ),
               IconButton(
                 onPressed: () {
-                  context.read<AppCubit>().toggleDarkMode();
+                  context.read<AppSettingsCubit>().toggleDarkMode();
                 },
                 icon: Icon(
-                  state.isDarkMode ? Icons.light_mode : Icons.dark_mode,
+                  settings.isDarkMode ? Icons.light_mode : Icons.dark_mode,
                 ),
-                tooltip: state.isDarkMode
+                tooltip: settings.isDarkMode
                     ? loc.switchToLightMode
                     : loc.switchToDarkMode,
               ),
-              IconButton(
-                onPressed: state.isSyncing
-                    ? null
-                    : () {
-                        context.read<AppCubit>().syncWithDrive();
-                      },
-                icon: state.isSyncing
-                    ? const SizedBox(
-                        height: 22,
-                        width: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.cloud_sync),
-              ),
             ],
           ),
-          body: RefreshIndicator(
-            onRefresh: () {
-              return context.read<AppCubit>().syncWithDrive();
-            },
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
+          body: ListCatalogBuilder(
+            builder: (context, catalog) => ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                _summaryCard(
-                  context: context,
-                  icon: Icons.pending_actions,
-                  title: loc.pendingTasks,
-                  value: '${state.pendingTaskCount}',
-                  onTap: () {
-                    _openPage(1);
-                  },
-                ),
-                _summaryCard(
-                  context: context,
-                  icon: Icons.done_all,
-                  title: loc.completedTasks,
-                  value: '${state.completedTaskCount}',
-                  onTap: () {
-                    _openPage(1);
-                  },
-                ),
-                _summaryCard(
-                  context: context,
-                  icon: Icons.book,
-                  title: loc.journalEntries,
-                  value: '${state.data.journalEntries.length}',
-                  onTap: () {
-                    _openPage(3);
-                  },
-                ),
-                _summaryCard(
-                  context: context,
-                  icon: Icons.movie,
-                  title: loc.watchReadItems,
-                  value: '${state.data.watchItems.length}',
-                  onTap: () {
-                    _openPage(4);
-                  },
-                ),
-                _summaryCard(
-                  context: context,
-                  icon: Icons.shopping_cart,
-                  title: loc.groceryItems,
-                  value: '${state.data.groceryItems.length}',
-                  onTap: () {
-                    _openPage(2);
-                  },
-                ),
+                if (catalog.definitions.isEmpty) const StarterNote(),
+                for (final ListDefinition definition in catalog.definitions)
+                  _summaryCard(
+                    context: context,
+                    icon: listIcon(definition.icon),
+                    title: labels.listName(definition),
+                    value: '${_openCount(catalog, definition)}',
+                    onTap: () {
+                      onOpenList?.call(definition.id);
+                    },
+                  ),
                 const SizedBox(height: 12),
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(18),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
                       children: [
-                        Text(
-                          loc.googleDriveSync,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
+                        const Icon(Icons.account_circle),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            account.user.email ?? loc.account,
+                            key: const ValueKey('account-email'),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          state.isSyncing
-                              ? loc.syncing
-                              : state.lastSyncedAt == null
-                                  ? loc.notSyncedYet
-                                  : loc.lastSynced(state.lastSyncedAt!.toLocal().toString()),
-                        ),
-                        if (!state.isSyncing && state.syncMessage != null) ...[
-                          const SizedBox(height: 8),
-                          Text(state.syncMessage!),
-                        ],
-                        const SizedBox(height: 12),
                         OutlinedButton.icon(
-                          onPressed: state.isSyncing
-                              ? null
-                              : () {
-                                  if (state.isGoogleSignedIn) {
-                                    context.read<AppCubit>().signOutOfGoogle();
-                                  } else {
-                                    context.read<AppCubit>().signInToGoogle();
-                                  }
-                                },
-                          icon: Icon(
-                            state.isGoogleSignedIn ? Icons.logout : Icons.login,
-                          ),
-                          label: Text(
-                            state.isGoogleSignedIn ? loc.logOut : loc.signInWithGoogle,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        FilledButton.icon(
-                          onPressed: state.isSyncing
-                              ? null
-                              : () {
-                                  context.read<AppCubit>().syncWithDrive();
-                                },
-                          icon: state.isSyncing
-                              ? const SizedBox(
-                                  height: 18,
-                                  width: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Icon(Icons.cloud_sync),
-                          label: Text(loc.syncToGoogleDrive),
+                          key: const ValueKey('sign-out'),
+                          onPressed: account.signOut,
+                          icon: const Icon(Icons.logout),
+                          label: Text(loc.logOut),
                         ),
                       ],
                     ),
@@ -321,5 +225,14 @@ class HomeScreen extends StatelessWidget {
         );
       },
     );
+  }
+
+  // Items not marked done (all items when the list has no completion field).
+  static int _openCount(ListCatalog catalog, ListDefinition definition) {
+    final String? done = definition.fieldWithRole(FieldRole.completion)?.key;
+    return catalog
+        .itemsOf(definition.id)
+        .where((item) => done == null || item.values[done] != true)
+        .length;
   }
 }

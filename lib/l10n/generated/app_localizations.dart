@@ -1525,6 +1525,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Edit item'**
   String get itemSheetEdit;
+
+  /// No description provided for @account.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get account;
+
+  /// No description provided for @blankList.
+  ///
+  /// In en, this message translates to:
+  /// **'Blank'**
+  String get blankList;
+
+  /// No description provided for @signInFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in failed. Please try again.'**
+  String get signInFailed;
+
+  /// No description provided for @signInOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'No connection. Connect to the internet to sign in.'**
+  String get signInOffline;
+
+  /// No description provided for @signOutFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-out failed. Please try again.'**
+  String get signOutFailed;
+
+  /// No description provided for @signOutCleanupFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed out, but the lists saved on this device could not be deleted.'**
+  String get signOutCleanupFailed;
+
+  /// No description provided for @tryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get tryAgain;
+
+  /// No description provided for @listChangeNotSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'A list change could not be saved and was undone.'**
+  String get listChangeNotSaved;
+
+  /// No description provided for @starterListsFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The starter lists could not be set up.'**
+  String get starterListsFailed;
+
+  /// No description provided for @startEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Start empty'**
+  String get startEmpty;
 }
 
 class _AppLocalizationsDelegate

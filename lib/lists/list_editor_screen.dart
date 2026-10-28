@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
 import '../l10n/generated/app_localizations.dart';
-import 'builtin_templates.dart';
 import 'list_definition.dart';
 import 'list_editor_rules.dart';
 import 'list_icons.dart';
@@ -78,7 +77,6 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
   late ListPatchResult _result;
   final TextEditingController _newOption = TextEditingController();
 
-  bool get _builtin => BuiltinTemplates.isBuiltin(widget.definition.id);
   ListDefinition get _draft => _result.definition;
 
   @override
@@ -546,7 +544,7 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
       appBar: AppBar(
         title: Text(widget.isNew ? loc.newList : loc.editList),
         actions: [
-          if (!widget.isNew && !_builtin)
+          if (!widget.isNew)
             IconButton(
               key: const ValueKey('delete-list'),
               tooltip: loc.deleteList,
@@ -569,14 +567,13 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
-          Text(
-            _builtin ? loc.builtinListNote : loc.localOnlyNote,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 12),
           TextFormField(
             key: const ValueKey('list-name'),
-            initialValue: widget.isNew
+            // A blank new list starts without a name; a template copy shows
+            // the template's.
+            initialValue:
+                (widget.definition.name ?? '').isEmpty &&
+                    widget.definition.nameKey == null
                 ? ''
                 : labels.listName(widget.definition),
             autofocus: widget.isNew,
@@ -633,38 +630,36 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
             onChanged: (on) =>
                 _push(ListPatchOp(PatchOpKind.setListInfo, {'aiAllowed': on})),
           ),
-          if (!_builtin) ...[
-            _heading(loc.fields),
-            ReorderableListView(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              buildDefaultDragHandles: false,
-              onReorder: (from, to) {
-                final FieldDefinition field = draft.fields[from];
-                _push(
-                  ListPatchOp(PatchOpKind.moveField, {
-                    'key': field.key,
-                    'index': to > from ? to - 1 : to,
-                  }),
-                );
-              },
-              children: [
-                for (int index = 0; index < draft.fields.length; index++)
-                  _fieldCard(labels, draft.fields[index], index),
-              ],
+          _heading(loc.fields),
+          ReorderableListView(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            buildDefaultDragHandles: false,
+            onReorder: (from, to) {
+              final FieldDefinition field = draft.fields[from];
+              _push(
+                ListPatchOp(PatchOpKind.moveField, {
+                  'key': field.key,
+                  'index': to > from ? to - 1 : to,
+                }),
+              );
+            },
+            children: [
+              for (int index = 0; index < draft.fields.length; index++)
+                _fieldCard(labels, draft.fields[index], index),
+            ],
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              key: const ValueKey('add-field'),
+              icon: const Icon(Icons.add),
+              label: Text(loc.addField),
+              onPressed: () => _addField(labels),
             ),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                key: const ValueKey('add-field'),
-                icon: const Icon(Icons.add),
-                label: Text(loc.addField),
-                onPressed: () => _addField(labels),
-              ),
-            ),
-            _layoutSection(labels),
-            ListEditorRules(definition: draft, labels: labels, onOp: _push),
-          ],
+          ),
+          _layoutSection(labels),
+          ListEditorRules(definition: draft, labels: labels, onOp: _push),
           if (_result.hiddenValues > 0)
             Padding(
               padding: const EdgeInsets.only(top: 16),

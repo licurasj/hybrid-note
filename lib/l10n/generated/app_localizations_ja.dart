@@ -829,4 +829,34 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get itemSheetEdit => '項目を編集';
+
+  @override
+  String get account => 'アカウント';
+
+  @override
+  String get blankList => '空白';
+
+  @override
+  String get signInFailed => 'サインインに失敗しました。もう一度お試しください。';
+
+  @override
+  String get signInOffline => '接続がありません。サインインするにはインターネットに接続してください。';
+
+  @override
+  String get signOutFailed => 'サインアウトに失敗しました。もう一度お試しください。';
+
+  @override
+  String get signOutCleanupFailed => 'サインアウトしましたが、この端末に保存されたリストを削除できませんでした。';
+
+  @override
+  String get tryAgain => '再試行';
+
+  @override
+  String get listChangeNotSaved => 'リストの変更を保存できなかったため、元に戻しました。';
+
+  @override
+  String get starterListsFailed => '初期リストを作成できませんでした。';
+
+  @override
+  String get startEmpty => '空で始める';
 }

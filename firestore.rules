@@ -9,7 +9,13 @@ rules_version = '2';
 // number of fields and keeps hidden values, so a cap would make valid lists
 // unwritable. Firestore's 1 MiB per document is the only size limit.
 //
-// Item documents carry the store's `_rev` (an int) next to the item's JSON.
+// The user document users/{uid} is the starter-lists marker (T-17, Q-22 D):
+// the owner reads it and creates it once, with `starterSeededAt`; it is
+// never changed or deleted from the app, so deleted starter lists do not
+// come back.
+//
+// List documents carry the store's `_createdAt` (an ISO date string, for the
+// list order) and item documents its `_rev` (an int) next to their JSON.
 // Arrays inside arrays are stored as {"__array": [...]} maps; the rules do
 // not look inside `values`, so that encoding passes as it is.
 service cloud.firestore {
@@ -33,7 +39,8 @@ service cloud.firestore {
         && data.view is map
         && (!('behaviors' in data) || data.behaviors is list)
         && (!('schemaRevision' in data) || data.schemaRevision is int)
-        && data.updatedAt is string;
+        && data.updatedAt is string
+        && (!('_createdAt' in data) || data._createdAt is string);
     }
 
     // An item (ListItem.toJson) plus `_rev`, stored under its own list.
@@ -45,6 +52,18 @@ service cloud.firestore {
         && data.values is map
         && data.createdAt is string && data.updatedAt is string
         && (!('_rev' in data) || data._rev is int);
+    }
+
+    // The starter-lists marker. Keys of a newer build are allowed.
+    function isMarker() {
+      let data = request.resource.data;
+      return data.keys().hasAll(['starterSeededAt'])
+        && data.starterSeededAt is string;
+    }
+
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && isMarker();
     }
 
     match /users/{uid}/lists/{listId} {
