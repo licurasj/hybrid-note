@@ -85,8 +85,8 @@ void main() {
       BuiltinTemplates.groceryId,
     );
 
-    expect(find.text('Current Grocery Run (2)'), findsOneWidget);
-    expect(find.text('Next Time (0)'), findsOneWidget);
+    expect(find.text('CURRENT GROCERY RUN · 2'), findsOneWidget);
+    expect(find.text('NEXT TIME · 0'), findsOneWidget);
 
     await tester.tap(find.textContaining('Clear Ticked'));
     await tester.pumpAndSettle();
@@ -95,7 +95,7 @@ void main() {
     final GroceryItem copy = cubit.state.data.groceryItems.firstWhere((i) => i.title == 'Milk');
     expect(copy.section, GrocerySection.nextTime);
     expect(copy.isCompleted, isFalse);
-    expect(find.text('Next Time (1)'), findsOneWidget);
+    expect(find.text('NEXT TIME · 1'), findsOneWidget);
 
     // The move-all button sits on the Next Time header and points to the current run.
     await tester.tap(find.widgetWithIcon(TextButton, Icons.arrow_upward));
@@ -120,19 +120,19 @@ void main() {
       BuiltinTemplates.tasksId,
     );
 
-    expect(find.text('All My Tasks (2)'), findsOneWidget);
-    await tester.tap(find.text('Work (1)'));
+    expect(find.text('All 2'), findsOneWidget);
+    await tester.tap(find.text('Work 1'));
     await tester.pumpAndSettle();
     expect(find.text('Rent'), findsNothing);
     expect(find.text('Report'), findsOneWidget);
 
-    await tester.tap(find.text('All My Tasks (2)'));
+    await tester.tap(find.text('All 2'));
     await tester.pumpAndSettle();
 
-    // Sub-items live in the expandable card.
+    // Sub-items unfold under their row.
     await tester.tap(find.text('Rent'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(CheckboxListTile, 'Check balance'));
+    await tester.tap(find.text('Check balance'));
     await tester.pumpAndSettle();
     expect(
       cubit.state.data.tasks.firstWhere((t) => t.id == 't1').subtasks.single.isCompleted,
@@ -140,7 +140,7 @@ void main() {
     );
 
     // Tick Report, then clear completed from the app bar.
-    final Finder reportCard = find.ancestor(of: find.text('Report'), matching: find.byType(Card));
+    final Finder reportCard = find.byKey(const ValueKey('item-t2'));
     await tester.tap(find.descendant(of: reportCard, matching: find.byType(Checkbox)));
     await tester.pumpAndSettle();
     expect(cubit.state.data.tasks.firstWhere((t) => t.id == 't2').isCompleted, isTrue);
@@ -168,7 +168,7 @@ void main() {
 
     expect(cubit.state.data.tasks.single.category, 'Garden');
     expect(cubit.state.data.categories, contains('Garden'));
-    expect(find.text('Garden (1)'), findsOneWidget);
+    expect(find.text('Garden 1'), findsOneWidget);
     await cubit.close();
   });
 
@@ -184,7 +184,7 @@ void main() {
 
     expect(find.text('2026'), findsOneWidget);
     expect(find.text('2025'), findsOneWidget);
-    expect(find.text('April'), findsOneWidget);
+    expect(find.text('APRIL'), findsOneWidget);
     expect(find.text('Spring'), findsOneWidget);
     // Older years start folded.
     expect(find.text('Winter'), findsNothing);

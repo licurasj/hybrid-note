@@ -807,4 +807,26 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get ruleMoveTo => 'Mover a';
+
+  @override
+  String get listFilterAll => 'Todo';
+
+  @override
+  String get listDoneGroup => 'Hecho';
+
+  @override
+  String listOpenDoneCount(int open, int done) {
+    return '$open pendientes · $done hechos';
+  }
+
+  @override
+  String listItemCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count elementos',
+      one: '1 elemento',
+    );
+    return '$_temp0';
+  }
 }

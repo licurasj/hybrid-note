@@ -293,5 +293,9 @@
   "ruleRepeatField": "Champ de répétition",
   "ruleMoveField": "Champ",
   "ruleMoveFrom": "Déplacer de",
-  "ruleMoveTo": "Déplacer vers"
+  "ruleMoveTo": "Déplacer vers",
+  "listFilterAll": "Tout",
+  "listDoneGroup": "Terminé",
+  "listOpenDoneCount": "{open} en cours · {done} terminés",
+  "listItemCount": "{count, plural, =1{1 élément} other{{count} éléments}}"
 }

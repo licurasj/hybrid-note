@@ -808,4 +808,26 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get ruleMoveTo => 'Déplacer vers';
+
+  @override
+  String get listFilterAll => 'Tout';
+
+  @override
+  String get listDoneGroup => 'Terminé';
+
+  @override
+  String listOpenDoneCount(int open, int done) {
+    return '$open en cours · $done terminés';
+  }
+
+  @override
+  String listItemCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count éléments',
+      one: '1 élément',
+    );
+    return '$_temp0';
+  }
 }

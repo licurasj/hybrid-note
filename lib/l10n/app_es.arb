@@ -293,5 +293,9 @@
   "ruleRepeatField": "Campo de repetición",
   "ruleMoveField": "Campo",
   "ruleMoveFrom": "Mover de",
-  "ruleMoveTo": "Mover a"
+  "ruleMoveTo": "Mover a",
+  "listFilterAll": "Todo",
+  "listDoneGroup": "Hecho",
+  "listOpenDoneCount": "{open} pendientes · {done} hechos",
+  "listItemCount": "{count, plural, =1{1 elemento} other{{count} elementos}}"
 }

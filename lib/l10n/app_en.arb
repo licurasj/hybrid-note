@@ -660,5 +660,26 @@
   "ruleRepeatField": "Repeat field",
   "ruleMoveField": "Field",
   "ruleMoveFrom": "Move from",
-  "ruleMoveTo": "Move to"
+  "ruleMoveTo": "Move to",
+  "listFilterAll": "All",
+  "listDoneGroup": "Done",
+  "listOpenDoneCount": "{open} open · {done} done",
+  "@listOpenDoneCount": {
+    "placeholders": {
+      "open": {
+        "type": "int"
+      },
+      "done": {
+        "type": "int"
+      }
+    }
+  },
+  "listItemCount": "{count, plural, =1{1 item} other{{count} items}}",
+  "@listItemCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../app/app_theme.dart';
+import '../app_colors.dart';
 import '../l10n/generated/app_localizations.dart';
 import 'generic_item_dialog.dart';
 import 'list_definition.dart';
+import 'list_icons.dart';
 import 'list_item.dart';
 import 'list_labels.dart';
 import 'list_rules.dart';
@@ -28,7 +31,9 @@ class GenericListTexts {
 }
 
 // Shows any list from its definition and writes every change through a
-// ListStore. The look is deliberately plain until the design pass (D-3).
+// ListStore. The look is direction A "Eclipse" (docs/AESTHETICS.md): a giant
+// cropped title, text filters, hairline rows and the eclipse add button, in
+// the list's own colour.
 class GenericListScreen extends StatefulWidget {
   const GenericListScreen({
     super.key,
@@ -50,8 +55,17 @@ class GenericListScreen extends StatefulWidget {
 }
 
 class _GenericListScreenState extends State<GenericListScreen> {
-  // Selected filter chip value; null shows everything.
+  // Text and headers sit on the side margin. Rows sit 12 px outside it, so
+  // their 48 px checkbox and menu targets line up with it visually.
+  static const double _margin = AppShapes.sideMargin;
+  static const double _edge = AppShapes.sideMargin - 12;
+
+  // Selected filter value; null shows everything.
   String? _filter;
+
+  final Set<String> _flipped = {};
+
+  late _Look _look;
 
   ListDefinition get _definition => widget.definition;
 
@@ -324,7 +338,7 @@ class _GenericListScreenState extends State<GenericListScreen> {
       }
     }
 
-    return parts.join(' | ');
+    return parts.join(' · ');
   }
 
   DateTime? _timelineDate(ListItem item) {
@@ -339,27 +353,140 @@ class _GenericListScreenState extends State<GenericListScreen> {
     return value is String ? DateTime.tryParse(value) : null;
   }
 
-  Widget _header(String text, {List<Widget> actions = const []}) {
+  // Collapsible parts (years, months, items with sub-items) whose state the
+  // user flipped from its default.
+  bool _isOpen(String key, bool byDefault) =>
+      _flipped.contains(key) ? !byDefault : byDefault;
+
+  void _flip(String key) {
+    setState(() {
+      if (!_flipped.remove(key)) {
+        _flipped.add(key);
+      }
+    });
+  }
+
+  // Shows or hides children by growing them; never fades.
+  Widget _collapsible(bool open, List<Widget> children) {
+    return AnimatedSize(
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : AppMotion.standard,
+      curve: AppMotion.curve,
+      alignment: Alignment.topCenter,
+      child: open
+          ? Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children)
+          : const SizedBox(width: double.infinity),
+    );
+  }
+
+  // A round checkbox filled in the list colour.
+  Widget _check(bool value, ValueChanged<bool> onChanged, {double scale = 1.3}) {
+    final _Look look = _look;
+    return Transform.scale(
+      scale: scale,
+      child: Checkbox(
+        value: value,
+        onChanged: (value) => onChanged(value ?? false),
+        shape: const CircleBorder(),
+        fillColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? look.color
+              : Colors.transparent,
+        ),
+        checkColor: look.onColor,
+        side: WidgetStateBorderSide.resolveWith(
+          (states) => BorderSide(
+            color: states.contains(WidgetState.selected)
+                ? look.color
+                : look.neutrals.text,
+            width: 1.75 / scale,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // An uppercase section label with its count, and any actions (clear ticked,
+  // move all) as a bar under it.
+  Widget _header(String text, {int? count, List<Widget> actions = const []}) {
+    final _Look look = _look;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 12, 4, 4),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(_margin, 22, _margin, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
+          Semantics(
+            header: true,
             child: Text(
-              text,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              count == null
+                  ? text.toUpperCase()
+                  : '${text.toUpperCase()} · $count',
+              style: look.type.sectionLabel,
             ),
           ),
-          ...actions,
+          if (actions.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Wrap(spacing: 8, children: actions),
+            ),
         ],
       ),
     );
   }
 
-  Widget _itemCard(ListLabels labels, ListItem item) {
+  // A tappable section label that folds what is under it.
+  Widget _foldHeader(String text, bool open, VoidCallback onTap, {bool strong = false}) {
+    final _Look look = _look;
+    return Semantics(
+      button: true,
+      expanded: open,
+      child: InkWell(
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(_margin, 10, _margin, 0),
+            child: Row(
+              children: [
+                Text(
+                  text.toUpperCase(),
+                  style: strong
+                      ? look.type.sectionLabel.copyWith(
+                          color: look.neutrals.text,
+                          fontWeight: FontWeight.w600,
+                        )
+                      : look.type.sectionLabel,
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  open ? Icons.expand_less : Icons.expand_more,
+                  size: 18,
+                  color: look.neutrals.muted,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  ButtonStyle get _barButtonStyle {
+    final _Look look = _look;
+    return TextButton.styleFrom(
+      foregroundColor: look.neutrals.text,
+      backgroundColor: look.neutrals.surface,
+      textStyle: look.type.meta.copyWith(fontWeight: FontWeight.w500),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      minimumSize: const Size(0, 36),
+      shape: AppShapes.pill,
+    );
+  }
+
+  Widget _itemRow(ListLabels labels, ListItem item) {
     final AppLocalizations loc = labels.loc;
+    final _Look look = _look;
     final FieldDefinition? completion = _completion;
     final bool done = completion != null && item[completion.key] == true;
     final String summary = _summary(labels, item);
@@ -373,30 +500,13 @@ class _GenericListScreenState extends State<GenericListScreen> {
         .firstOrNull;
     final Object? subItems =
         checklistField == null ? null : item[checklistField.key];
-
-    final Widget? leading = completion == null
-        ? null
-        : Checkbox(
-            value: done,
-            onChanged: (value) => _apply(
-              ListRules.setCompleted(
-                _definition,
-                item,
-                value ?? false,
-                DateTime.now().toUtc(),
-              ),
-            ),
-          );
-    final Widget title = Text(
-      primary is String ? primary : '',
-      overflow: TextOverflow.ellipsis,
-      maxLines: 2,
-    );
-    final Widget? subtitle = summary.isEmpty
-        ? null
-        : Text(summary, overflow: TextOverflow.ellipsis, maxLines: 3);
+    final bool hasSubItems =
+        checklistField != null && subItems is List && subItems.isNotEmpty;
+    final String openKey = 'item-${item.id}';
+    final bool open = hasSubItems && _isOpen(openKey, false);
 
     final Widget menu = PopupMenuButton<String>(
+      icon: Icon(Icons.more_horiz, size: 20, color: look.neutrals.muted),
       onSelected: (value) {
         if (value == 'edit') {
           _showItemDialog(item: item);
@@ -442,57 +552,131 @@ class _GenericListScreenState extends State<GenericListScreen> {
       },
     );
 
-    final ShapeBorder shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(6),
+    final Widget text = Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppShapes.rowPadding),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            primary is String ? primary : '',
+            style: done
+                ? look.type.row.copyWith(
+                    color: look.neutrals.muted,
+                    decoration: TextDecoration.lineThrough,
+                    decorationColor: look.neutrals.muted,
+                  )
+                : look.type.row,
+          ),
+          if (summary.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                summary,
+                style: look.type.meta,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 3,
+              ),
+            ),
+        ],
+      ),
     );
 
-    if (checklistField != null && subItems is List && subItems.isNotEmpty) {
-      return Card(
-        shape: shape,
-        child: ExpansionTile(
-          key: PageStorageKey('item-${item.id}'),
-          leading: leading,
-          title: title,
-          subtitle: subtitle,
-          trailing: menu,
-          shape: const Border(),
-          children: [
-            for (final Object? entry in subItems)
-              if (entry is Map)
-                CheckboxListTile(
-                  dense: true,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  value: entry['done'] == true,
-                  title: Text('${entry['title'] ?? ''}'),
-                  onChanged: (value) => _toggleSubItem(
-                    item,
-                    checklistField,
-                    '${entry['id']}',
-                    value ?? false,
+    return Padding(
+      key: ValueKey(openKey),
+      padding: const EdgeInsets.symmetric(horizontal: _edge),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            onTap: hasSubItems
+                ? () => _flip(openKey)
+                : () => _showItemDialog(item: item),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (completion == null)
+                  const SizedBox(width: _margin - _edge)
+                else ...[
+                  _check(
+                    done,
+                    (value) => _apply(
+                      ListRules.setCompleted(
+                        _definition,
+                        item,
+                        value,
+                        DateTime.now().toUtc(),
+                      ),
+                    ),
                   ),
-                ),
-          ],
-        ),
-      );
-    }
-
-    return Card(
-      shape: shape,
-      child: ListTile(
-        leading: leading,
-        title: title,
-        subtitle: subtitle,
-        trailing: menu,
-        onTap: () => _showItemDialog(item: item),
+                  const SizedBox(width: 2),
+                ],
+                Expanded(child: text),
+                if (hasSubItems)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 14),
+                    child: Icon(
+                      open ? Icons.expand_less : Icons.expand_more,
+                      size: 20,
+                      color: look.neutrals.muted,
+                    ),
+                  ),
+                menu,
+              ],
+            ),
+          ),
+          if (hasSubItems)
+            _collapsible(open, [
+              for (final Object? entry in subItems)
+                if (entry is Map)
+                  _subItemRow(item, checklistField, entry),
+            ]),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: _margin - _edge),
+            child: Divider(),
+          ),
+        ],
       ),
     );
   }
 
-  List<Widget> _filterChips(ListLabels labels) {
+  Widget _subItemRow(ListItem item, FieldDefinition field, Map entry) {
+    final _Look look = _look;
+    final bool done = entry['done'] == true;
+    void toggle(bool value) =>
+        _toggleSubItem(item, field, '${entry['id']}', value);
+
+    return InkWell(
+      key: ValueKey('sub-${entry['id']}'),
+      onTap: () => toggle(!done),
+      child: Padding(
+        padding: const EdgeInsets.only(left: 50),
+        child: Row(
+          children: [
+            _check(done, toggle, scale: 1.1),
+            Expanded(
+              child: Text(
+                '${entry['title'] ?? ''}',
+                style: look.type.row.copyWith(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w400,
+                  color: done ? look.neutrals.muted : null,
+                  decoration: done ? TextDecoration.lineThrough : null,
+                  decorationColor: look.neutrals.muted,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _filters(ListLabels labels) {
     final FieldDefinition? field = _filterField;
     if (field == null) {
       return const [];
     }
+    final _Look look = _look;
 
     int count(String? value) {
       return widget.items.where((item) {
@@ -504,38 +688,90 @@ class _GenericListScreenState extends State<GenericListScreen> {
       }).length;
     }
 
-    return [
-      SizedBox(
-        height: 48,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: ChoiceChip(
-                label: Text('${labels.loc.allMyTasks} (${count(null)})'),
-                selected: _filter == null,
-                onSelected: (_) => setState(() => _filter = null),
-              ),
-            ),
-            for (final FieldOption option in field.options)
-              Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: ChoiceChip(
-                  label: Text('${labels.option(option)} (${count(option.value)})'),
-                  selected: _filter == option.value,
-                  onSelected: (_) => setState(() => _filter = option.value),
+    // Plain text; the active one is bold with a dot in the list colour.
+    Widget filter(String text, String? value) {
+      final bool on = _filter == value;
+      return Semantics(
+        button: true,
+        selected: on,
+        child: InkWell(
+          customBorder: const StadiumBorder(),
+          onTap: () => setState(() => _filter = value),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (on) ...[
+                  Container(
+                    width: 9,
+                    height: 9,
+                    decoration: BoxDecoration(
+                      color: look.color,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 7),
+                ],
+                Text(
+                  text,
+                  style: look.type.row.copyWith(
+                    fontSize: 14,
+                    fontWeight: on ? FontWeight.w600 : FontWeight.w400,
+                    color: on ? look.neutrals.text : look.neutrals.muted,
+                  ),
                 ),
-              ),
-            if (field.type.hasUserOptions)
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return [
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(_margin, 8, _edge, 0),
+        child: Row(
+          children: [
+            filter('${labels.loc.listFilterAll} ${count(null)}', null),
+            for (final FieldOption option in field.options) ...[
+              const SizedBox(width: 18),
+              filter('${labels.option(option)} ${count(option.value)}', option.value),
+            ],
+            if (field.type.hasUserOptions) ...[
+              const SizedBox(width: 6),
               IconButton(
                 tooltip: labels.loc.categories,
-                icon: const Icon(Icons.tune),
+                icon: Icon(Icons.tune, size: 20, color: look.neutrals.muted),
                 onPressed: () => _manageOptions(field, labels),
               ),
+            ],
           ],
         ),
       ),
+    ];
+  }
+
+  // Open items in their groups, then ticked items in one Done group.
+  List<Widget> _withDone(
+    ListLabels labels,
+    List<ListItem> sorted,
+    List<Widget> Function(List<ListItem> open) openPart,
+  ) {
+    if (_completion == null) {
+      return openPart(sorted);
+    }
+    final List<ListItem> done =
+        sorted.where((item) => ListRules.isCompleted(_definition, item)).toList();
+    return [
+      ...openPart(
+        sorted.where((item) => !ListRules.isCompleted(_definition, item)).toList(),
+      ),
+      if (done.isNotEmpty) ...[
+        _header(labels.loc.listDoneGroup, count: done.length),
+        for (final ListItem item in done) _itemRow(labels, item),
+      ],
     ];
   }
 
@@ -543,7 +779,7 @@ class _GenericListScreenState extends State<GenericListScreen> {
     final FieldDefinition? groupField =
         _definition.field(_definition.view.groupBy ?? '');
     if (groupField == null) {
-      return [for (final ListItem item in sorted) _itemCard(labels, item)];
+      return [for (final ListItem item in sorted) _itemRow(labels, item)];
     }
 
     final List<Widget> children = [];
@@ -557,8 +793,8 @@ class _GenericListScreenState extends State<GenericListScreen> {
         return;
       }
       placed.addAll(members.map((item) => item.id));
-      children.add(_header('$header (${members.length})'));
-      children.addAll(members.map((item) => _itemCard(labels, item)));
+      children.add(_header(header, count: members.length));
+      children.addAll(members.map((item) => _itemRow(labels, item)));
     }
 
     for (final FieldOption option in groupField.options) {
@@ -579,7 +815,7 @@ class _GenericListScreenState extends State<GenericListScreen> {
     final FieldDefinition? sectionField =
         _definition.field(_definition.view.sectionBy ?? '');
     if (sectionField == null) {
-      return [for (final ListItem item in sorted) _itemCard(labels, item)];
+      return [for (final ListItem item in sorted) _itemRow(labels, item)];
     }
 
     final BehaviorDefinition? moveAll = _behavior(BehaviorKind.moveAll);
@@ -603,10 +839,12 @@ class _GenericListScreenState extends State<GenericListScreen> {
 
       children.add(
         _header(
-          '${labels.option(option)} (${members.length})',
+          labels.option(option),
+          count: members.length,
           actions: [
             if (canClear && ticked > 0)
               TextButton(
+                style: _barButtonStyle,
                 onPressed: () => _clearCompleted(
                   (item) => item[sectionField.key] == option.value,
                 ),
@@ -616,7 +854,8 @@ class _GenericListScreenState extends State<GenericListScreen> {
               ),
             if (target != null)
               TextButton.icon(
-                icon: const Icon(Icons.arrow_upward),
+                style: _barButtonStyle,
+                icon: const Icon(Icons.arrow_upward, size: 16),
                 label: Text(labels.option(target)),
                 onPressed: () => _apply(
                   ListRules.moveAll(
@@ -633,13 +872,16 @@ class _GenericListScreenState extends State<GenericListScreen> {
 
       if (members.isEmpty) {
         children.add(
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-            child: Text('—'),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: _margin,
+              vertical: AppShapes.rowPadding,
+            ),
+            child: Text('—', style: _look.type.meta),
           ),
         );
       }
-      children.addAll(members.map((item) => _itemCard(labels, item)));
+      children.addAll(members.map((item) => _itemRow(labels, item)));
     }
 
     return children;
@@ -660,36 +902,41 @@ class _GenericListScreenState extends State<GenericListScreen> {
     }
 
     final List<int> yearKeys = years.keys.toList()..sort((a, b) => b - a);
-    return [
-      for (final int year in yearKeys)
-        ExpansionTile(
-          key: PageStorageKey('year-$year'),
-          initiallyExpanded: year == yearKeys.first,
-          title: Text('$year'),
-          children: [
-            for (final int month in years[year]!.keys.toList()..sort((a, b) => b - a))
-              if (!byMonth)
-                ...years[year]![month]!.map((item) => _itemCard(labels, item))
-              else
-                ExpansionTile(
-                  key: PageStorageKey('month-$year-$month'),
-                  initiallyExpanded: year == yearKeys.first,
-                  title: Text(DateFormat.MMMM(locale).format(DateTime(year, month))),
-                  children: [
-                    for (final ListItem item in years[year]![month]!)
-                      _itemCard(labels, item),
-                  ],
-                ),
-          ],
-        ),
-    ];
+    final List<Widget> children = [];
+    for (final int year in yearKeys) {
+      final String yearKey = 'year-$year';
+      final bool yearOpen = _isOpen(yearKey, year == yearKeys.first);
+      children.add(_foldHeader('$year', yearOpen, () => _flip(yearKey), strong: true));
+      children.add(
+        _collapsible(yearOpen, [
+          for (final int month in years[year]!.keys.toList()..sort((a, b) => b - a))
+            if (!byMonth)
+              ...years[year]![month]!.map((item) => _itemRow(labels, item))
+            else ...[
+              _foldHeader(
+                DateFormat.MMMM(locale).format(DateTime(year, month)),
+                _isOpen('month-$year-$month', year == yearKeys.first),
+                () => _flip('month-$year-$month'),
+              ),
+              _collapsible(
+                _isOpen('month-$year-$month', year == yearKeys.first),
+                [
+                  for (final ListItem item in years[year]![month]!)
+                    _itemRow(labels, item),
+                ],
+              ),
+            ],
+        ]),
+      );
+    }
+    return children;
   }
 
   List<Widget> _checklist(ListLabels labels, List<ListItem> sorted) {
     final FieldDefinition? bucketField =
         _definition.field(_definition.view.bucketBy ?? '');
     if (bucketField == null) {
-      return [for (final ListItem item in sorted) _itemCard(labels, item)];
+      return [for (final ListItem item in sorted) _itemRow(labels, item)];
     }
 
     final DateTime now = DateTime.now();
@@ -712,8 +959,8 @@ class _GenericListScreenState extends State<GenericListScreen> {
       if (members.isEmpty) {
         continue;
       }
-      children.add(_header('${names[index]} (${members.length})'));
-      children.addAll(members.map((item) => _itemCard(labels, item)));
+      children.add(_header(names[index], count: members.length));
+      children.addAll(members.map((item) => _itemRow(labels, item)));
     }
     return children;
   }
@@ -753,10 +1000,98 @@ class _GenericListScreenState extends State<GenericListScreen> {
     return sorted;
   }
 
+  // The giant list name, cropped by the right edge, and the count under it.
+  Widget _title(AppLocalizations loc) {
+    final _Look look = _look;
+    final int done = _completion == null
+        ? 0
+        : widget.items.where((item) => ListRules.isCompleted(_definition, item)).length;
+    return Padding(
+      padding: const EdgeInsets.only(left: 18, top: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Semantics(
+            header: true,
+            child: Text(
+              widget.texts.title,
+              style: look.type.listTitle,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.clip,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, top: 12),
+            child: Text(
+              _completion == null
+                  ? loc.listItemCount(widget.items.length)
+                  : loc.listOpenDoneCount(widget.items.length - done, done),
+              style: look.type.meta.copyWith(fontSize: 14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // The eclipse: a list-colour disc over a black one, with the floating shadow.
+  Widget _addButton() {
+    final _Look look = _look;
+    const double disc = 62;
+    return SizedBox(
+      width: disc + 10,
+      height: disc + 6,
+      child: Stack(
+        children: [
+          Positioned(
+            right: 0,
+            bottom: 0,
+            width: disc,
+            height: disc,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: look.neutrals.text,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            top: 0,
+            width: disc,
+            height: disc,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: look.shadow,
+              ),
+              child: FloatingActionButton(
+                onPressed: () {
+                  _showItemDialog();
+                },
+                tooltip: widget.texts.addTooltip,
+                backgroundColor: look.color,
+                foregroundColor: look.onColor,
+                elevation: 0,
+                focusElevation: 0,
+                hoverElevation: 0,
+                highlightElevation: 0,
+                shape: const CircleBorder(),
+                child: const Icon(Icons.add, size: 28),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final AppLocalizations loc = AppLocalizations.of(context);
     final ListLabels labels = ListLabels(loc);
+    _look = _Look.of(context, _definition);
     final FieldDefinition? filterField = _filterField;
     if (filterField != null && _filter != null && !filterField.hasOption(_filter)) {
       _filter = null;
@@ -771,10 +1106,11 @@ class _GenericListScreenState extends State<GenericListScreen> {
       ViewKind.grouped => _grouped(labels, visible),
       ViewKind.sectioned => _sectioned(labels, visible),
       ViewKind.timeline => _timeline(labels, visible),
-      ViewKind.checklist => _checklist(labels, visible),
-      ViewKind.table || ViewKind.cards => [
-          for (final ListItem item in visible) _itemCard(labels, item),
-        ],
+      ViewKind.checklist =>
+        _withDone(labels, visible, (open) => _checklist(labels, open)),
+      ViewKind.table || ViewKind.cards => _withDone(labels, visible, (open) => [
+            for (final ListItem item in open) _itemRow(labels, item),
+          ]),
     };
 
     final bool showEmpty =
@@ -783,7 +1119,9 @@ class _GenericListScreenState extends State<GenericListScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text(widget.texts.title),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         actions: [
           if (canClearAll)
             IconButton(
@@ -791,30 +1129,59 @@ class _GenericListScreenState extends State<GenericListScreen> {
               icon: const Icon(Icons.cleaning_services_outlined),
               onPressed: () => _clearCompleted(_matchesFilter),
             ),
+          const SizedBox(width: 4),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _showItemDialog();
-        },
-        tooltip: widget.texts.addTooltip,
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: _addButton(),
       body: RefreshIndicator(
         onRefresh: widget.store.refresh,
+        color: _look.color,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
+          padding: const EdgeInsets.only(bottom: 120),
           children: [
-            ..._filterChips(labels),
-            if (showEmpty) ...[
-              const SizedBox(height: 200),
-              Center(child: Text(widget.texts.emptyText)),
-            ] else
+            _title(loc),
+            ..._filters(labels),
+            if (showEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(_margin, 32, _margin, 0),
+                child: Text(widget.texts.emptyText, style: _look.type.meta),
+              )
+            else
               ...content,
           ],
         ),
       ),
     );
   }
+}
+
+// The colours and styles this screen uses for the current theme: the
+// neutrals and the open list's colour (docs/AESTHETICS.md).
+class _Look {
+  const _Look._({
+    required this.neutrals,
+    required this.type,
+    required this.color,
+    required this.onColor,
+    required this.shadow,
+  });
+
+  factory _Look.of(BuildContext context, ListDefinition definition) {
+    final Brightness brightness = Theme.of(context).brightness;
+    final Color color = listColor(definition.color, brightness: brightness);
+    return _Look._(
+      neutrals: AppColors.neutrals(brightness),
+      type: AppTypography.of(context),
+      color: color,
+      onColor: AppColors.onColor(color),
+      shadow: AppShadows.floating(brightness),
+    );
+  }
+
+  final AppNeutrals neutrals;
+  final AppTypography type;
+  final Color color;
+  final Color onColor;
+  final List<BoxShadow> shadow;
 }

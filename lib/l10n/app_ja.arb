@@ -293,5 +293,9 @@
   "ruleRepeatField": "繰り返しの項目",
   "ruleMoveField": "項目",
   "ruleMoveFrom": "移動元",
-  "ruleMoveTo": "移動先"
+  "ruleMoveTo": "移動先",
+  "listFilterAll": "すべて",
+  "listDoneGroup": "完了",
+  "listOpenDoneCount": "未完了 {open} · 完了 {done}",
+  "listItemCount": "{count, plural, other{{count} 件}}"
 }

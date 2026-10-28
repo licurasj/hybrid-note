@@ -79,6 +79,15 @@ class AppTypography extends ThemeExtension<AppTypography> {
   // Uppercase the text itself; the style only sets size and tracking.
   final TextStyle sectionLabel;
 
+  // The theme's styles, or the app theme's for this brightness when the
+  // surrounding theme has none (plain MaterialApps in tests).
+  static AppTypography of(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    return theme.extension<AppTypography>() ??
+        (theme.brightness == Brightness.dark ? AppTheme.dark() : AppTheme.light())
+            .extension<AppTypography>()!;
+  }
+
   @override
   AppTypography copyWith({
     TextStyle? listTitle,

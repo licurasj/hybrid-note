@@ -293,5 +293,9 @@
   "ruleRepeatField": "重复字段",
   "ruleMoveField": "字段",
   "ruleMoveFrom": "移动自",
-  "ruleMoveTo": "移动到"
+  "ruleMoveTo": "移动到",
+  "listFilterAll": "全部",
+  "listDoneGroup": "已完成",
+  "listOpenDoneCount": "{open} 项未完成 · {done} 项已完成",
+  "listItemCount": "{count, plural, other{{count} 项}}"
 }

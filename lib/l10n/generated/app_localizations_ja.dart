@@ -802,4 +802,25 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get ruleMoveTo => '移動先';
+
+  @override
+  String get listFilterAll => 'すべて';
+
+  @override
+  String get listDoneGroup => '完了';
+
+  @override
+  String listOpenDoneCount(int open, int done) {
+    return '未完了 $open · 完了 $done';
+  }
+
+  @override
+  String listItemCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 件',
+    );
+    return '$_temp0';
+  }
 }

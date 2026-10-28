@@ -800,4 +800,25 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get ruleMoveTo => '移动到';
+
+  @override
+  String get listFilterAll => '全部';
+
+  @override
+  String get listDoneGroup => '已完成';
+
+  @override
+  String listOpenDoneCount(int open, int done) {
+    return '$open 项未完成 · $done 项已完成';
+  }
+
+  @override
+  String listItemCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 项',
+    );
+    return '$_temp0';
+  }
 }

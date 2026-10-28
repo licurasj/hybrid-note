@@ -1489,6 +1489,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Move to'**
   String get ruleMoveTo;
+
+  /// No description provided for @listFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get listFilterAll;
+
+  /// No description provided for @listDoneGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get listDoneGroup;
+
+  /// No description provided for @listOpenDoneCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{open} open · {done} done'**
+  String listOpenDoneCount(int open, int done);
+
+  /// No description provided for @listItemCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 item} other{{count} items}}'**
+  String listItemCount(int count);
 }
 
 class _AppLocalizationsDelegate
