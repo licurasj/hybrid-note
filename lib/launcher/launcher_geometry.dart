@@ -5,11 +5,13 @@ import 'dart:ui';
 // on a real phone (Q-3), so they all live here.
 //
 // Layout, described for a hub nearest the bottom-right corner: list tabs fan
-// out to the hub's upper left as long, overlapping rectangles along spokes.
-// The fan starts `edgeMarginDegrees` above the bottom edge and turns
-// clockwise until the same margin before the right edge. "+" sits right next
-// to the hub on the corner side. For a hub nearer another corner the whole
-// layout is mirrored so the fan always opens away from that corner.
+// out to the hub's upper left as wedges that share the quarter between them.
+// The fan starts `startMarginDegrees` above the bottom edge (the first wedge
+// lies along it) and turns clockwise until `endMarginDegrees` before the right
+// edge. The tab under the finger widens and pushes its neighbours aside
+// (`selectedSpread`). "+" sits right next to the hub on the corner side. For a
+// hub nearer another corner the whole layout is mirrored so the fan always
+// opens away from that corner.
 class LauncherConfig {
   const LauncherConfig({
     this.hubRadius = 32,
@@ -18,10 +20,11 @@ class LauncherConfig {
     this.screenMargin = 40,
     this.addRadius = 20,
     this.addGap = 6,
-    this.edgeMarginDegrees = 20,
+    this.startMarginDegrees = 0,
+    this.endMarginDegrees = 0,
+    this.overscrollDegrees = 20,
     this.innerRadius = 56,
     this.tabLength = 170,
-    this.tabThickness = 40,
     this.visibleTabs = 5,
     this.promptDelay = const Duration(milliseconds: 1200),
     this.revealDuration = const Duration(milliseconds: 250),
@@ -35,6 +38,7 @@ class LauncherConfig {
     this.tapMaxDuration = const Duration(milliseconds: 250),
     this.selectedTabScale = 1.22,
     this.neighbourTabScale = 1.08,
+    this.selectedSpread = 1.9,
   });
 
   final double hubRadius;
@@ -46,12 +50,16 @@ class LauncherConfig {
   final double screenMargin;
   final double addRadius;
   final double addGap;
-  final double edgeMarginDegrees;
+  // Gaps between the fan and the edge it starts from (bottom or top) and the
+  // edge it ends at (right or left).
+  final double startMarginDegrees;
+  final double endMarginDegrees;
+  // Past either end of the fan, this far still scrolls it.
+  final double overscrollDegrees;
   // Tabs start at this distance from the hub centre and run outward.
   final double innerRadius;
   final double tabLength;
-  final double tabThickness;
-  // Tabs shown across the fan at once; they overlap near the hub.
+  // Tabs shown across the fan at once.
   final int visibleTabs;
   // How long a finger must rest (on a tab, or on the hub) before the Edit or
   // Move prompt appears (interaction law, coordination/docs/INTERACTIONS.md).
@@ -78,6 +86,9 @@ class LauncherConfig {
   // scaled from their hub end (docs/AESTHETICS.md, Motion).
   final double selectedTabScale;
   final double neighbourTabScale;
+  // The selected tab's angle compared with an unselected one; its neighbours
+  // widen a little too and the rest give up the room.
+  final double selectedSpread;
 
   double get outerRadius => innerRadius + tabLength;
 }
@@ -115,12 +126,19 @@ class LauncherGeometry {
     required this.size,
     required this.noteCount,
     Offset? hubPosition,
+    this.focus,
+    this.focusAmount = 1,
   }) : hubCenter = clampHub(config, size, hubPosition ?? defaultHub(config, size));
 
   final LauncherConfig config;
   final Size size;
   final int noteCount;
   final Offset hubCenter;
+  // The selected tab's slot (index minus scroll offset, may be fractional
+  // while it moves) and how far the fan has spread around it, 0 to 1. Null
+  // keeps every tab the same width.
+  final double? focus;
+  final double focusAmount;
 
   static const double _degree = math.pi / 180;
 
@@ -161,8 +179,8 @@ class LauncherGeometry {
 
   Offset get _hubFrame => _flip(hubCenter);
 
-  double get startAngle => math.pi - config.edgeMarginDegrees * _degree;
-  double get endAngle => math.pi / 2 + config.edgeMarginDegrees * _degree;
+  double get startAngle => math.pi - config.startMarginDegrees * _degree;
+  double get endAngle => math.pi / 2 + config.endMarginDegrees * _degree;
   double get _span => startAngle - endAngle;
 
   Offset get addCenter => _flip(
@@ -175,11 +193,19 @@ class LauncherGeometry {
       config.innerRadius + config.tabLength * config.selectedTabScale;
 
   // Edit prompt: just past the outer end of the (selected, enlarged) tab,
-  // along its spoke.
+  // along its spoke; pulled in along the spoke when that is off screen.
   Offset editPromptCenter(double angle) {
-    return _keepOnScreen(
-      pointAt(angle, selectedOuterRadius + config.promptGap),
-    );
+    const double margin = 40;
+    bool fits(Offset point) =>
+        point.dx >= margin &&
+        point.dx <= size.width - margin &&
+        point.dy >= margin &&
+        point.dy <= size.height - margin;
+    double radius = selectedOuterRadius + config.promptGap;
+    while (!fits(pointAt(angle, radius)) && radius > selectedOuterRadius) {
+      radius -= 2;
+    }
+    return _keepOnScreen(pointAt(angle, radius));
   }
 
   // Move prompt: below the hub in the corner frame (towards the near edge).
@@ -203,8 +229,92 @@ class LauncherGeometry {
 
   double get _step => _span / slotCount;
 
-  // Frame angle of a (possibly fractional) slot.
-  double slotAngle(double slot) => startAngle - (slot + 0.5) * _step;
+  // The spread around the focus is a triangular bump in angular density over
+  // slot coordinates (0 = start of the fan, slotCount = end): the focused
+  // tab gets `selectedSpread` times the room of a far one. _bumpArea is the
+  // bump's integral up to x.
+  static const double _bumpWidth = 1.5;
+
+  // Over its own slot the focused tab gets 1 - 1 / (4 x _bumpWidth) of the
+  // bump's peak, so the peak is raised to make the ratio come out exact.
+  double get _bumpHeight => focus == null
+      ? 0
+      : (config.selectedSpread - 1) / (1 - 1 / (4 * _bumpWidth)) * focusAmount;
+
+  double _bumpArea(double x) {
+    final double u = (x - (focus ?? 0) - 0.5) / _bumpWidth;
+    if (u <= -1) {
+      return 0;
+    }
+    if (u <= 0) {
+      return _bumpWidth * (1 + u) * (1 + u) / 2;
+    }
+    if (u < 1) {
+      return _bumpWidth * (1 - (1 - u) * (1 - u) / 2);
+    }
+    return _bumpWidth;
+  }
+
+  // Maps an even slot coordinate to where it lands once the fan has spread
+  // around the focus; both ends of the fan stay put.
+  double _warp(double x) {
+    final double k = _bumpHeight;
+    if (k == 0) {
+      return x;
+    }
+    final double total =
+        slotCount + k * (_bumpArea(slotCount.toDouble()) - _bumpArea(0));
+    return (x + k * (_bumpArea(x) - _bumpArea(0))) * slotCount / total;
+  }
+
+  double _unwarp(double warped) {
+    if (_bumpHeight == 0) {
+      return warped;
+    }
+    double low = -slotCount.toDouble();
+    double high = 2.0 * slotCount;
+    for (int i = 0; i < 40; i++) {
+      final double mid = (low + high) / 2;
+      if (_warp(mid) < warped) {
+        low = mid;
+      } else {
+        high = mid;
+      }
+    }
+    return (low + high) / 2;
+  }
+
+  // Frame angle of a slot coordinate.
+  double _edgeAngle(double x) => startAngle - _warp(x) * _step;
+
+  // Frame angle of a (possibly fractional) slot's centre line.
+  double slotAngle(double slot) => _edgeAngle(slot + 0.5);
+
+  // Frame angles of a tab's two sides (towards the start, towards the end),
+  // cut off at the ends of the fan; null when nothing of it is in view.
+  (double, double)? tabSides(int noteIndex, double scrollOffset) {
+    final double slot = noteIndex - scrollOffset;
+    final double from = math.max(0, slot);
+    final double to = math.min(slotCount.toDouble(), slot + 1);
+    if (to - from <= 0.02) {
+      return null;
+    }
+    return (_edgeAngle(from), _edgeAngle(to));
+  }
+
+  // Length scale of the tab in a (possibly fractional) slot: the focused one
+  // the most, its neighbours a little, the rest not at all.
+  double tabScale(double slot) {
+    final double? focused = focus;
+    if (focused == null) {
+      return 1;
+    }
+    final double d = (slot - focused).abs();
+    final double scale = d <= 1
+        ? lerpDouble(config.selectedTabScale, config.neighbourTabScale, d)!
+        : lerpDouble(config.neighbourTabScale, 1, math.min(1, d - 1))!;
+    return 1 + (scale - 1) * focusAmount;
+  }
 
   Offset pointAt(double angle, double radius) {
     return _flip(
@@ -232,12 +342,10 @@ class LauncherGeometry {
     return math.atan2(reading.dy, reading.dx);
   }
 
+  // Middle of the part of a tab that is in view, or null when none is.
   double? tabAngle(int noteIndex, double scrollOffset) {
-    final double slot = noteIndex - scrollOffset;
-    if (slot < -0.5 || slot > slotCount - 0.5) {
-      return null;
-    }
-    return slotAngle(slot);
+    final (double, double)? sides = tabSides(noteIndex, scrollOffset);
+    return sides == null ? null : (sides.$1 + sides.$2) / 2;
   }
 
   // Centre of a tab in the strip, or null when scrolled out of view.
@@ -253,8 +361,8 @@ class LauncherGeometry {
   double? fanPosition(Offset point) {
     final Offset local = _flip(point) - _hubFrame;
     final double distance = local.distance;
-    if (distance < config.innerRadius - config.tabThickness ||
-        distance > config.outerRadius + config.tabThickness) {
+    if (distance < config.innerRadius - 40 ||
+        distance > selectedOuterRadius + 40) {
       return null;
     }
 
@@ -278,7 +386,8 @@ class LauncherGeometry {
       return LauncherTarget.none;
     }
 
-    final int slot = (position * slotCount).floor().clamp(0, slotCount - 1);
+    final int slot =
+        _unwarp(position * slotCount).floor().clamp(0, slotCount - 1);
     final int noteIndex = (slot + scrollOffset).round();
     if (noteIndex < 0 || noteIndex >= noteCount) {
       return LauncherTarget.none;
@@ -295,7 +404,7 @@ class LauncherGeometry {
     }
 
     final double zone = config.endZoneFraction;
-    final double margin = config.edgeMarginDegrees * _degree / _span;
+    final double margin = config.overscrollDegrees * _degree / _span;
     if (position < -margin || position > 1 + margin) {
       return 0;
     }

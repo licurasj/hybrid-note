@@ -11,6 +11,7 @@ import 'package:hybrid_note/backend/auth_service.dart';
 import 'package:hybrid_note/backend/firestore_list_store.dart';
 import 'package:hybrid_note/backend/firestore_setup.dart';
 import 'package:hybrid_note/lists/builtin_templates.dart';
+import 'package:hybrid_note/lists/generic_list_host.dart';
 import 'package:hybrid_note/lists/generic_list_screen.dart';
 import 'package:hybrid_note/lists/list_definition.dart';
 
@@ -490,6 +491,48 @@ void main() {
     });
   });
 
+  testWidgets('the hub floats over a list; a list opened from a list replaces it, and back goes home', (
+    WidgetTester tester,
+  ) async {
+    await _pumpApp(tester, FakeAuthService(user: testUser));
+    Finder host(String id) => find.byWidgetPredicate(
+      (widget) => widget is GenericListHost && widget.listId == id,
+    );
+    Future<void> pick(String id) async {
+      await tester.tap(_hub);
+      await tester.pump();
+      await tester.tap(find.byKey(ValueKey('launcher-note-$id')));
+      await settle(tester);
+    }
+
+    await pick(BuiltinTemplates.groceryId);
+    expect(host(BuiltinTemplates.groceryId), findsOneWidget);
+    expect(_hub, findsOneWidget);
+
+    await pick(BuiltinTemplates.journalId);
+    expect(host(BuiltinTemplates.journalId), findsOneWidget);
+    expect(host(BuiltinTemplates.groceryId), findsNothing);
+
+    // Android back: from list B to the home, not to list A.
+    await tester.binding.handlePopRoute();
+    await settle(tester);
+    expect(host(BuiltinTemplates.journalId), findsNothing);
+    expect(host(BuiltinTemplates.groceryId), findsNothing);
+    expect(find.byKey(const ValueKey('settings')), findsOneWidget);
+    expect(_hub, findsOneWidget);
+  });
+
+  testWidgets('a sheet on the home or a list hides the hub until it closes', (
+    WidgetTester tester,
+  ) async {
+    await _pumpApp(tester, FakeAuthService(user: testUser));
+
+    await _openSettings(tester);
+    expect(_hub, findsNothing);
+    await _closeSettings(tester);
+    expect(_hub, findsOneWidget);
+  });
+
   testWidgets('the hub can be moved and its position is saved', (
     WidgetTester tester,
   ) async {
@@ -505,11 +548,9 @@ void main() {
       await gesture.moveTo(Offset.lerp(start, prompt, i / 6)!);
       await tester.pump(const Duration(milliseconds: 16));
     }
-    await gesture.up();
-    await tester.pump();
-
-    gesture = await tester.startGesture(start);
-    await gesture.moveTo(const Offset(120, 200));
+    // Reaching Move picked the hub up; it follows the same drag.
+    final Offset grab = tester.getCenter(_hub) - prompt;
+    await gesture.moveTo(const Offset(120, 200) - grab);
     await tester.pump();
     await gesture.up();
     await tester.pumpAndSettle();

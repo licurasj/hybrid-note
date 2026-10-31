@@ -78,20 +78,20 @@ void main() {
       expect(geometry.addCenter.dx + _config.addRadius, lessThanOrEqualTo(400));
     });
 
-    test('tabs fan from 20 degrees above the bottom to 20 before the right edge', () {
-      expect(geometry.startAngle, closeTo(160 * 3.14159265 / 180, 1e-6));
-      expect(geometry.endAngle, closeTo(110 * 3.14159265 / 180, 1e-6));
+    test('wedges share the whole quarter, from the bottom edge to the right edge', () {
+      expect(geometry.startAngle, closeTo(3.14159265, 1e-6));
+      expect(geometry.endAngle, closeTo(3.14159265 / 2, 1e-6));
 
       final Offset first = _tab(geometry, 0);
       final Offset last = _tab(geometry, geometry.slotCount - 1);
       // First tab points mostly left, the last mostly up; all stay on screen.
-      // Neighbouring tabs overlap near the hub.
-      expect(
-        (geometry.pointAt(geometry.slotAngle(0), _config.innerRadius) -
-                geometry.pointAt(geometry.slotAngle(1), _config.innerRadius))
-            .distance,
-        lessThan(_config.tabThickness),
-      );
+      // Neighbouring wedges meet without overlapping, the first along the
+      // bottom, the last pointing straight up.
+      expect(geometry.tabSides(0, 0)!.$1, closeTo(geometry.startAngle, 1e-9));
+      expect(geometry.tabSides(4, 0)!.$2, closeTo(geometry.endAngle, 1e-9));
+      for (int i = 0; i < geometry.slotCount - 1; i++) {
+        expect(geometry.tabSides(i, 0)!.$2, closeTo(geometry.tabSides(i + 1, 0)!.$1, 1e-9));
+      }
       expect(first.dx < last.dx && first.dy > last.dy, isTrue);
       for (int i = 0; i < geometry.slotCount; i++) {
         final Offset outer = geometry.pointAt(geometry.slotAngle(i.toDouble()), _config.outerRadius);
@@ -165,6 +165,60 @@ void main() {
           final double rotation = g.tabRotation(g.slotAngle(i.toDouble()));
           expect(rotation.abs(), lessThanOrEqualTo(3.14159265 / 2 + 1e-9));
         }
+      }
+    });
+
+    test('the selected tab widens and lengthens; its neighbours a little', () {
+      final LauncherGeometry spread = LauncherGeometry(
+        config: _config,
+        size: const Size(400, 800),
+        noteCount: 12,
+        focus: 2,
+      );
+      double width(LauncherGeometry g, int i) {
+        final (double, double) sides = g.tabSides(i, 0)!;
+        return sides.$1 - sides.$2;
+      }
+
+      // The fan keeps its ends.
+      expect(spread.tabSides(0, 0)!.$1, closeTo(spread.startAngle, 1e-9));
+      expect(spread.tabSides(4, 0)!.$2, closeTo(spread.endAngle, 1e-9));
+      expect(width(spread, 2) / width(spread, 0), closeTo(_config.selectedSpread, 0.05));
+      expect(width(spread, 1), greaterThan(width(spread, 0)));
+      expect(width(spread, 1), lessThan(width(spread, 2)));
+      expect(width(spread, 2), greaterThan(width(geometry, 2)));
+      // Hit testing follows the wedges as drawn: a point just inside the
+      // widened tab 2 that used to be tab 1 is now tab 2.
+      final double edge = spread.tabSides(2, 0)!.$1 - 0.01;
+      expect(
+        spread.hitTest(spread.pointAt(edge, _config.innerRadius + 60), 0),
+        const LauncherTarget(LauncherTargetKind.note, 2),
+      );
+      expect(
+        geometry.hitTest(geometry.pointAt(edge, _config.innerRadius + 60), 0),
+        const LauncherTarget(LauncherTargetKind.note, 1),
+      );
+
+      expect(spread.tabScale(2), _config.selectedTabScale);
+      expect(spread.tabScale(1), closeTo(_config.neighbourTabScale, 1e-9));
+      expect(spread.tabScale(3), closeTo(_config.neighbourTabScale, 1e-9));
+      expect(spread.tabScale(0), 1);
+      expect(geometry.tabScale(2), 1);
+    });
+
+    test('Edit lies along its spoke, pulled in when the screen ends', () {
+      for (int i = 0; i < geometry.slotCount; i++) {
+        final double angle = geometry.slotAngle(i.toDouble());
+        final Offset edit = geometry.editPromptCenter(angle);
+        final Offset onSpoke = geometry.pointAt(
+          angle,
+          (edit - geometry.hubCenter).distance,
+        );
+        expect(edit, offsetMoreOrLessEquals(onSpoke, epsilon: 0.5));
+        expect(
+          (edit - geometry.hubCenter).distance,
+          greaterThanOrEqualTo(geometry.selectedOuterRadius),
+        );
       }
     });
 
@@ -404,11 +458,11 @@ void main() {
   });
 
   group('moving the hub', () {
-    testWidgets('rest on the hub: Move comes out below; release on it, then drag the hub', (tester) async {
+    testWidgets('rest on the hub: Move comes out below; reaching it picks the hub up until release', (tester) async {
       final _Log log = await _pump(tester);
       final LauncherGeometry geometry = _geometry(4);
 
-      TestGesture gesture = await tester.startGesture(geometry.hubCenter);
+      final TestGesture gesture = await tester.startGesture(geometry.hubCenter);
       await rest(tester, 1000);
       expect(find.byKey(const ValueKey('launcher-move-prompt')), findsNothing);
       await rest(tester, 600);
@@ -416,26 +470,28 @@ void main() {
       // Below the hub, and painted underneath it.
       expect(geometry.movePromptCenter.dy, greaterThan(geometry.hubCenter.dy));
       await moveInSteps(gesture, tester, geometry.hubCenter, geometry.movePromptCenter);
-      await gesture.up();
-      await tester.pump();
-      expect(find.byKey(const ValueKey('launcher-move-armed')), findsOneWidget);
-
-      // The next drag moves the hub, then move mode ends by itself.
-      gesture = await tester.startGesture(geometry.hubCenter);
-      await gesture.moveTo(const Offset(100, 200));
-      await tester.pump();
+      // Picked up: the fan and the prompt are gone, the hub follows the
+      // finger at the same distance in the same gesture.
+      expect(find.byKey(const ValueKey('launcher-move-prompt')), findsNothing);
+      expect(find.text('Note 0'), findsNothing);
+      // Lift it clear of the bottom margin, then measure the grip.
+      final Offset finger = geometry.movePromptCenter - const Offset(0, 100);
+      await moveInSteps(gesture, tester, geometry.movePromptCenter, finger);
+      final Offset grabbed = tester.getCenter(find.byKey(const ValueKey('launcher-hub')));
+      expect(grabbed.dy, lessThan(geometry.hubCenter.dy));
+      final Offset target = const Offset(100, 200) - (grabbed - finger);
+      await moveInSteps(gesture, tester, finger, target);
       expect(
         tester.getCenter(find.byKey(const ValueKey('launcher-hub'))),
-        const Offset(100, 200),
+        offsetMoreOrLessEquals(const Offset(100, 200), epsilon: 0.5),
       );
       await gesture.up();
       await tester.pump();
 
       expect(log.events, ['moved 0.25,0.25']);
-      expect(find.byKey(const ValueKey('launcher-move-armed')), findsNothing);
     });
 
-    testWidgets('releasing short of the Move prompt does nothing; tapping away cancels move mode', (tester) async {
+    testWidgets('releasing short of the Move prompt does nothing', (tester) async {
       final _Log log = await _pump(tester);
       final LauncherGeometry geometry = _geometry(4);
 
@@ -443,18 +499,20 @@ void main() {
       await rest(tester, 1600);
       await gesture.up();
       await tester.pump();
-      expect(find.byKey(const ValueKey('launcher-move-armed')), findsNothing);
 
       gesture = await tester.startGesture(geometry.hubCenter);
       await rest(tester, 1600);
-      await moveInSteps(gesture, tester, geometry.hubCenter, geometry.movePromptCenter);
+      await moveInSteps(
+        gesture,
+        tester,
+        geometry.hubCenter,
+        Offset.lerp(geometry.hubCenter, geometry.movePromptCenter, 0.3)!,
+      );
       await gesture.up();
       await tester.pump();
-      await tester.tapAt(const Offset(20, 20));
-      await tester.pump();
 
-      expect(find.byKey(const ValueKey('launcher-move-armed')), findsNothing);
       expect(log.events, isEmpty);
+      expect(tester.getCenter(find.byKey(const ValueKey('launcher-hub'))), geometry.hubCenter);
     });
 
     testWidgets('a saved position is used, and the fan opens away from it', (tester) async {

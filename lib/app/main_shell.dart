@@ -1,6 +1,7 @@
 import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../home_screen.dart';
@@ -28,10 +29,34 @@ class MainShell extends StatefulWidget {
   }
 }
 
+// The home and the open list live in the shell's own navigator, with the
+// launcher floating above it on both (T-16 unit 6). Opening a list from a
+// list replaces it, so back always leads to the home. Sheets and dialogs on
+// that navigator hide the hub; the list editor and the New list picker open
+// on the app's navigator, above all of it.
 class _MainShellState extends State<MainShell> {
   // Lists in the order they were last opened, newest first, so the common
   // case never needs scrolling (plan 5.3). Kept in memory for now.
   final List<String> _recent = [];
+
+  final GlobalKey<NavigatorState> _content = GlobalKey<NavigatorState>();
+  final _TopRoute _top = _TopRoute();
+
+  static const String _listRoute = 'list:';
+
+  // The list on top of the shell's navigator, if any.
+  String? get _openListId {
+    final String? name = _top.current?.settings.name;
+    return name != null && name.startsWith(_listRoute)
+        ? name.substring(_listRoute.length)
+        : null;
+  }
+
+  @override
+  void dispose() {
+    _top.dispose();
+    super.dispose();
+  }
 
   void _openList(String listId) {
     setState(() {
@@ -39,11 +64,20 @@ class _MainShellState extends State<MainShell> {
         ..remove(listId)
         ..insert(0, listId);
     });
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => GenericListHost(listId: listId),
-      ),
+    final NavigatorState? content = _content.currentState;
+    final String? open = _openListId;
+    if (content == null || open == listId) {
+      return;
+    }
+    final Route<void> route = MaterialPageRoute<void>(
+      settings: RouteSettings(name: '$_listRoute$listId'),
+      builder: (_) => GenericListHost(listId: listId),
     );
+    if (open == null) {
+      content.push(route);
+    } else {
+      content.pushReplacement(route);
+    }
   }
 
   List<LauncherNote> _notes(AppLocalizations loc, ListCatalog catalog) {
@@ -149,6 +183,9 @@ class _MainShellState extends State<MainShell> {
     }
 
     setState(() => _recent.remove(listId));
+    if (_openListId == listId) {
+      _content.currentState?.popUntil((route) => route.isFirst);
+    }
     messenger.showSnackBar(
       SnackBar(
         content: Text(loc.listDeleted),
@@ -174,28 +211,50 @@ class _MainShellState extends State<MainShell> {
                 final AppLocalizations loc = AppLocalizations.of(context);
                 return Stack(
                   children: [
-                    // Room below the dashboard so the hub never covers it.
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 88),
-                      child: HomeScreen(onOpenList: _openList),
+                    // Back pops the shell's navigator first (the open list,
+                    // a sheet), then leaves the app as before.
+                    NavigatorPopHandler(
+                      onPopWithResult: (_) => _content.currentState?.maybePop(),
+                      child: Navigator(
+                        key: _content,
+                        observers: [_top],
+                        onGenerateInitialRoutes: (_, _) => [
+                          MaterialPageRoute<void>(
+                            settings: const RouteSettings(name: 'home'),
+                            // Room below the dashboard so the hub never
+                            // covers it.
+                            builder: (_) => Padding(
+                              padding: const EdgeInsets.only(bottom: 88),
+                              child: HomeScreen(onOpenList: _openList),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     Positioned.fill(
-                      child: RadialLauncher(
-                        notes: _notes(loc, catalog),
-                        onOpen: (note) => _openList(note.id),
-                        onEdit: (note) => _editList(note.id),
-                        onNew: _newList,
-                        hubTooltip: loc.launcherHub,
-                        editLabel: loc.edit,
-                        moveLabel: loc.moveHub,
-                        addLabel: loc.newList,
-                        previousLabel: loc.previous,
-                        nextLabel: loc.next,
-                        noteHint: loc.launcherNoteHint,
-                        hubPosition: settings.hubPosition,
-                        onHubMoved: context
-                            .read<AppSettingsCubit>()
-                            .setHubPosition,
+                      child: ValueListenableBuilder<Route<dynamic>?>(
+                        valueListenable: _top.route,
+                        builder: (context, top, launcher) => Offstage(
+                          offstage: top != null && top is! PageRoute,
+                          child: launcher,
+                        ),
+                        child: RadialLauncher(
+                          notes: _notes(loc, catalog),
+                          onOpen: (note) => _openList(note.id),
+                          onEdit: (note) => _editList(note.id),
+                          onNew: _newList,
+                          hubTooltip: loc.launcherHub,
+                          editLabel: loc.edit,
+                          moveLabel: loc.moveHub,
+                          addLabel: loc.newList,
+                          previousLabel: loc.previous,
+                          nextLabel: loc.next,
+                          noteHint: loc.launcherNoteHint,
+                          hubPosition: settings.hubPosition,
+                          onHubMoved: context
+                              .read<AppSettingsCubit>()
+                              .setHubPosition,
+                        ),
                       ),
                     ),
                   ],
@@ -204,5 +263,53 @@ class _MainShellState extends State<MainShell> {
             ),
       ),
     );
+  }
+}
+
+// Follows the route on top of the shell's navigator. Navigator callbacks can
+// come in the middle of a build, so the change is passed on after the frame.
+class _TopRoute extends NavigatorObserver {
+  final ValueNotifier<Route<dynamic>?> route = ValueNotifier(null);
+  Route<dynamic>? _top;
+
+  bool _disposed = false;
+
+  Route<dynamic>? get current => _top;
+
+  void dispose() {
+    _disposed = true;
+    route.dispose();
+  }
+
+  void _set(Route<dynamic>? top) {
+    _top = top;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!_disposed) {
+        route.value = _top;
+      }
+    });
+    SchedulerBinding.instance.ensureVisualUpdate();
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _set(route);
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _set(previousRoute);
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (route == _top) {
+      _set(previousRoute);
+    }
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    if (oldRoute == _top) {
+      _set(newRoute);
+    }
   }
 }
