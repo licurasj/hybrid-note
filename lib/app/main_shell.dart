@@ -23,9 +23,9 @@ import '../lists/list_store.dart';
 import '../lists/list_template_picker.dart';
 import 'app_settings.dart';
 
-// T-16 unit 6 prototype switch: --dart-define=DIAL_LAUNCHER=true shows the
-// dial instead of the fan (to compare on the phone; not for release).
-const bool _dialLauncher = bool.fromEnvironment('DIAL_LAUNCHER');
+// The launcher is the dial (owner's choice, T-16 unit 6, 2026-11-03);
+// --dart-define=FAN_LAUNCHER=true shows the earlier fan instead.
+const bool _dialLauncher = !bool.fromEnvironment('FAN_LAUNCHER');
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});

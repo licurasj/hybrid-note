@@ -816,6 +816,12 @@ class _DialLauncherState extends State<DialLauncher>
     );
     if (_mode == _Mode.tap) {
       wedge = GestureDetector(
+        // The fan's keys, so callers and tests reach entries the same way.
+        key: ValueKey(switch (entry.kind) {
+          _Kind.note => 'launcher-note-${entry.note!.id}',
+          _Kind.add => 'launcher-add',
+          _Kind.home => 'launcher-home',
+        }),
         onTap: () {
           _close();
           _act(entry);
@@ -991,6 +997,7 @@ class _DialLauncherState extends State<DialLauncher>
         Color.lerp(neutrals.promptDark, AppColors.appBlue, _progress)!;
     final Offset center = g.movePromptCenter;
     return Positioned(
+      key: const ValueKey('launcher-move-prompt'),
       left: center.dx - 50,
       top: center.dy - 20,
       width: 100,
