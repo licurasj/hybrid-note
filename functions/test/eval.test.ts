@@ -60,6 +60,22 @@ describe('eval run (fake provider)', () => {
     }
   });
 
+  test('runs only the chosen cases', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hn-eval-'));
+    const log = console.log;
+    console.log = () => {};
+    try {
+      const two = CASES.filter((c) => c.id === 'design-meals' || c.id === 'route-ambiguous-shoes');
+      const results = await runEval(['fake'], {}, dir, two);
+      assert.deepEqual(results.map((r) => r.caseId), two.map((c) => c.id));
+      const sheet = readFileSync(join(dir, 'grading.md'), 'utf8');
+      assert.ok(sheet.includes('2 cases') && !sheet.includes('## add-grocery ('));
+    } finally {
+      console.log = log;
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test('reads KEY=value secrets, skipping comments and quotes', () => {
     const dir = mkdtempSync(join(tmpdir(), 'hn-secret-'));
     try {

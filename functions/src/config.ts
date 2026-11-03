@@ -152,10 +152,12 @@ export const MODELS: Record<string, ModelConfig> = {
 };
 
 /**
- * The model aiCommand uses outside the emulator. Proposed: Claude Haiku 5.5
- * until the owner picks after the T-19 unit 3 eval (Q-28).
+ * The model aiCommand uses outside the emulator: DeepSeek V4.1 Flash, the
+ * owner's pick after the T-19 unit 3 eval (Q-28, 2026-11-03). Claude Haiku 5.5
+ * stays the backup: switching is this line and a redeploy (both secrets are
+ * bound to the function).
  */
-export const ACTIVE_MODEL = 'claude-haiku-5-5';
+export const ACTIVE_MODEL = 'deepseek-flash';
 
 /** App Check per app (Q-34 1): "enforce" refuses calls without a valid token. */
 export type AppCheckMode = 'enforce' | 'monitor';

@@ -7,6 +7,7 @@
 //   npm run eval -- --providers claude-haiku-5-5,deepseek-flash
 //                                                 prints the estimate and stops
 //   npm run eval -- --providers ... --yes         real calls (the owner's yes)
+//   ... --cases design-meals,route-ambiguous-shoes  only those cases
 //
 // Real calls read ANTHROPIC_API_KEY / DEEPSEEK_API_KEY from the git-ignored
 // functions/.secret.local that the owner fills in. Keys are never printed,
@@ -118,11 +119,11 @@ export async function runCase(testCase: EvalCase, model: ModelConfig, provider: 
 const usd = (n: number) => `$${n.toFixed(5)}`;
 
 /** The grading sheet: per case the prompt, the rubric and each model's answer with blank grades. */
-export function gradingSheet(results: CaseResult[], models: string[], when: string): string {
+export function gradingSheet(results: CaseResult[], models: string[], when: string, cases: EvalCase[] = CASES): string {
   const lines: string[] = [
     `# T-19 unit 3 eval: grading sheet`,
     '',
-    `Run ${when}. Models: ${models.join(', ')}. ${CASES.length} cases. Grade each answer 1-5 (5 = exactly what you wanted)`,
+    `Run ${when}. Models: ${models.join(', ')}. ${cases.length} cases. Grade each answer 1-5 (5 = exactly what you wanted)`,
     'and write a note where it matters. The auto check only tests the kind of answer and the target list.',
     '',
     '## Totals',
@@ -144,7 +145,7 @@ export function gradingSheet(results: CaseResult[], models: string[], when: stri
     );
   }
   lines.push('', 'Your pick (model and why): ', '');
-  for (const testCase of CASES) {
+  for (const testCase of cases) {
     const open = (testCase.data.openList as { definition: { id: string } } | null)?.definition.id ?? 'none';
     lines.push(
       `## ${testCase.id} (${testCase.category})`,
@@ -188,12 +189,17 @@ function csv(results: CaseResult[]): string {
 }
 
 /** Runs every case on each model in turn and writes results.json, results.csv and grading.md. */
-export async function runEval(models: string[], secrets: Record<string, string>, outDir: string): Promise<CaseResult[]> {
+export async function runEval(
+  models: string[],
+  secrets: Record<string, string>,
+  outDir: string,
+  cases: EvalCase[] = CASES,
+): Promise<CaseResult[]> {
   const results: CaseResult[] = [];
   for (const name of models) {
     const model = MODELS[name];
     const provider = providerFor(model, secrets);
-    for (const testCase of CASES) {
+    for (const testCase of cases) {
       const result = await runCase(testCase, model, provider);
       results.push(result);
       console.log(`${name} ${testCase.id}: ${result.outcome} ${result.autoCheck} ${usd(result.costUsd)} ${result.latencyMs} ms`);
@@ -204,7 +210,7 @@ export async function runEval(models: string[], secrets: Record<string, string>,
   const ids = models.map((name) => MODELS[name].model);
   writeFileSync(join(outDir, 'results.json'), JSON.stringify({ when, models: ids, results }, null, 2));
   writeFileSync(join(outDir, 'results.csv'), csv(results));
-  writeFileSync(join(outDir, 'grading.md'), gradingSheet(results, ids, when));
+  writeFileSync(join(outDir, 'grading.md'), gradingSheet(results, ids, when, cases));
   return results;
 }
 
@@ -218,13 +224,21 @@ async function main(): Promise<void> {
     console.error(`usage: --dry | --providers ${Object.keys(MODELS).filter((m) => m !== 'fake').join(',')} [--yes]`);
     process.exit(2);
   }
+  const pick = args.indexOf('--cases');
+  const wanted = pick >= 0 ? (args[pick + 1] ?? '').split(',').filter(Boolean) : [];
+  const missing = wanted.filter((id) => !CASES.some((c) => c.id === id));
+  if (missing.length > 0) {
+    console.error(`unknown cases: ${missing.join(', ')}`);
+    process.exit(2);
+  }
+  const cases = wanted.length > 0 ? CASES.filter((c) => wanted.includes(c.id)) : CASES;
   if (!dry && !args.includes('--yes')) {
     // Upper bound per model: every case at the ceiling of one call.
     for (const name of models) {
       const m = MODELS[name];
       const p = m.peak?.prices ?? m.prices;
       const perCall = (m.maxInputTokens * p.inputUsdPerMTok + m.maxOutputTokens * p.outputUsdPerMTok) / 1e6;
-      console.log(`${name}: ${CASES.length} cases, at most about ${usd(perCall * CASES.length * 2)} (every call at its ceiling, every case retried)`);
+      console.log(`${name}: ${cases.length} cases, at most about ${usd(perCall * cases.length * 2)} (every call at its ceiling, every case retried)`);
     }
     console.log('Nothing was sent. Add --yes to make the real calls.');
     return;
@@ -232,7 +246,7 @@ async function main(): Promise<void> {
   const secrets = dry ? {} : readSecrets(join(ROOT, '.secret.local'));
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const outDir = join(ROOT, 'eval', 'results', `${dry ? 'dry-' : ''}${stamp}`);
-  await runEval(models, secrets, outDir);
+  await runEval(models, secrets, outDir, cases);
   console.log(`Results in ${outDir}`);
 }
 
