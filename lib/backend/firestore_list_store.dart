@@ -900,6 +900,147 @@ class FirestoreListStore implements ListStore {
     );
   }
 
+  // Q-35 A, like patchList (Q-16): a transaction over the list and the
+  // touched items as stored when online, the cache and a queued batch when
+  // the server cannot be reached. One transaction holds every write, so an
+  // undo touches fewer than [batchLimit] items (AI changes are far smaller).
+  @override
+  Future<List<ListError>> restoreSnapshot(ListSnapshot snapshot) async {
+    await _ready.future;
+    bool fellBack = false;
+    try {
+      return await _restoreInTransaction(
+        snapshot,
+        () => fellBack,
+      ).timeout(transactionTimeout);
+    } on TimeoutException {
+      fellBack = true;
+      return _restoreCached(snapshot);
+    } on FirebaseException catch (error) {
+      if (!_offlineCodes.contains(error.code)) {
+        rethrow;
+      }
+      return _restoreCached(snapshot);
+    }
+  }
+
+  static List<ListError> _changedSince(ListSnapshot snapshot) {
+    return [ListError(ListErrorCode.listChanged, {'list': snapshot.listId})];
+  }
+
+  // The writes that restore [snapshot] over [current]: the definition when
+  // the change touched it, then the touched items.
+  List<void Function(WriteBatch batch)> _restoreWrites(
+    ListSnapshot snapshot,
+    ListDefinition current,
+    DateTime now,
+  ) {
+    final ListDefinition? definition = snapshot.restoredDefinition(current, now);
+    final int revision = (definition ?? current).schemaRevision;
+    return [
+      if (definition != null) _setDefinition(definition),
+      for (final String id in snapshot.itemIds)
+        if (snapshot.itemsBefore[id] case final ListItem item)
+          _setItem(item, revision)
+        else
+          _deleteItem(snapshot.listId, id),
+    ];
+  }
+
+  // An attempt that runs once [abandoned] is true writes nothing, as in
+  // _patchInTransaction (T-14 R2); so does one whose web read failed
+  // (T-17 F1: the read error is thrown instead).
+  Future<List<ListError>> _restoreInTransaction(
+    ListSnapshot snapshot,
+    bool Function() abandoned,
+  ) async {
+    final String listId = snapshot.listId;
+    final DateTime now = DateTime.now().toUtc();
+    FirebaseException? readError;
+    Future<Map<String, dynamic>?> read(
+      Transaction transaction,
+      DocumentReference<Map<String, dynamic>> ref,
+    ) async {
+      try {
+        return (await transaction.get(ref)).data();
+      } on FirebaseException catch (error) {
+        readError = error;
+        rethrow;
+      }
+    }
+
+    try {
+      return await firestore.runTransaction((transaction) async {
+        readError = null;
+        final Map<String, dynamic>? data = await read(transaction, _lists.doc(listId));
+        final Map<String, ListItem> items = {};
+        for (final String id in snapshot.itemIds) {
+          final Map<String, dynamic>? itemData = await read(transaction, _itemsOf(listId).doc(id));
+          if (itemData != null) {
+            try {
+              items[id] = _itemFrom(itemData);
+            } on Object {
+              // Malformed: not as the change left it.
+              return _changedSince(snapshot);
+            }
+          }
+        }
+        final ListDefinition? current = data == null ? null : _definitionFrom(data);
+        if (current == null || !snapshot.isCurrent(current, items)) {
+          return _changedSince(snapshot);
+        }
+        if (abandoned()) {
+          return const <ListError>[];
+        }
+        final ListDefinition? definition = snapshot.restoredDefinition(current, now);
+        final int revision = (definition ?? current).schemaRevision;
+        if (definition != null) {
+          transaction.set(
+            _lists.doc(listId),
+            definitionData(definition, createdAt: _createdAtOf(data!)),
+          );
+        }
+        for (final String id in snapshot.itemIds) {
+          final ListItem? item = snapshot.itemsBefore[id];
+          if (item == null) {
+            transaction.delete(_itemsOf(listId).doc(id));
+          } else {
+            transaction.set(_itemsOf(listId).doc(id), itemData(item, revision));
+          }
+        }
+        return const <ListError>[];
+      });
+    } on FirebaseException {
+      rethrow;
+    } on Object {
+      final FirebaseException? cause = readError;
+      if (cause == null) {
+        rethrow;
+      }
+      throw cause;
+    }
+  }
+
+  // The offline fallback: checked against the cache, saved as a batch that
+  // queues until the device is back online.
+  List<ListError> _restoreCached(ListSnapshot snapshot) {
+    final String listId = snapshot.listId;
+    final ListDefinition? current = _definitions[listId];
+    final Map<String, ListItem> cached = _items[listId] ?? const {};
+    final Map<String, ListItem> items = {
+      for (final String id in snapshot.itemIds)
+        if (cached[id] case final ListItem item) id: item,
+    };
+    if (current == null || !snapshot.isCurrent(current, items)) {
+      return _changedSince(snapshot);
+    }
+    // Not awaited, as in _patchCached.
+    _write(
+      _restoreWrites(snapshot, current, DateTime.now().toUtc()),
+    ).catchError((Object error) => _log('restore $listId', error));
+    return const [];
+  }
+
   static Object? _encode(Object? value, {bool inList = false}) {
     if (value is Map) {
       return {
