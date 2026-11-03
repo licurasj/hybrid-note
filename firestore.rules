@@ -61,6 +61,23 @@ service cloud.firestore {
         && data.starterSeededAt is string;
     }
 
+    // aiCommand's server-only documents (T-19): the allowlist, the cap
+    // counters and the 7-day prompt log. Only the function (Admin SDK, which
+    // bypasses rules) touches them; no client may read or write them. Rules
+    // deny anything unmatched anyway; these blocks make it explicit.
+    match /aiAllowlist/{doc=**} {
+      allow read, write: if false;
+    }
+    match /aiUsageUser/{doc=**} {
+      allow read, write: if false;
+    }
+    match /aiUsagePool/{doc=**} {
+      allow read, write: if false;
+    }
+    match /aiPromptLog/{doc=**} {
+      allow read, write: if false;
+    }
+
     match /users/{uid} {
       allow read: if isOwner(uid);
       allow create: if isOwner(uid) && isMarker();
