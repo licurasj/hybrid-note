@@ -55,9 +55,11 @@ class LauncherConfig {
     this.dialSelectKeep = 0.15,
     this.dialEdgeZone = 1.5,
     this.dialEdgeLeave = 0.25,
-    this.dialEdgeDelay = const Duration(milliseconds: 300),
     this.dialEdgeSpeedMin = 1.5,
     this.dialEdgeSpeedMax = 6,
+    this.dialEdgeLead = const Duration(milliseconds: 250),
+    this.dialEdgeReach = 2,
+    this.dialEdgeCarry = 0.8,
     this.dialOffDialDegrees = 30,
     this.dialEditDepth = 40,
     this.dialEditSwipe = 28,
@@ -138,13 +140,18 @@ class LauncherConfig {
   // At either end of the lists this many steps (the outermost list and half
   // the next) are a scroll zone while more lists lie beyond; leaving it
   // takes this many steps more, so the selection does not flicker on its
-  // border. A finger held there scrolls after the delay, at these speeds
-  // (lists per second) from the zone's inner border to its outer side.
+  // border. A finger there scrolls at once, at these speeds (lists per
+  // second) from the zone's inner border to its outer side. A finger
+  // swiping along the arc towards an end reaches the zone as far ahead as
+  // it would turn in dialEdgeLead (up to dialEdgeReach more steps), and the
+  // scroll carries on at this share of its speed if that is faster.
   final double dialEdgeZone;
   final double dialEdgeLeave;
-  final Duration dialEdgeDelay;
   final double dialEdgeSpeedMin;
   final double dialEdgeSpeedMax;
+  final Duration dialEdgeLead;
+  final double dialEdgeReach;
+  final double dialEdgeCarry;
   // Further than this past either edge (or past the longest tab) the finger
   // is off the dial: nothing is selected, and letting go cancels.
   final double dialOffDialDegrees;

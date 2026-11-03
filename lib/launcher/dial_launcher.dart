@@ -126,10 +126,13 @@ class _DialLauncherState extends State<DialLauncher>
   double _scroll = 0;
   double _focus = 0;
   double _zoom = 0;
-  // Which scroll zone the finger is in (-1 side, 1 bottom, 0 neither), and
-  // since when.
+  // Which scroll zone the finger is in (-1 side, 1 bottom, 0 neither).
   int _edge = 0;
-  Duration? _edgeSince;
+  // How fast the finger turns around the hub (radians a second, towards the
+  // bottom edge positive), smoothed, and when and where it last moved.
+  double _turnSpeed = 0;
+  Duration? _turnAt;
+  double _turnAngle = 0;
 
   // Where New list and Home stop (their outer sides), for this geometry.
   Object? _limitsKey;
@@ -389,6 +392,15 @@ class _DialLauncherState extends State<DialLauncher>
   double _zoneHigh(LauncherGeometry g) =>
       _roomHigh(g) - _config.dialEdgeZone * _step;
 
+  // A finger swiping fast along the arc towards an end reaches that end's
+  // zone sooner: it reaches as far ahead as the finger would turn in
+  // dialEdgeLead, up to dialEdgeReach more steps.
+  double _zoneAhead(int side) {
+    final double toward = side < 0 ? -_turnSpeed : _turnSpeed;
+    final double lead = _config.dialEdgeLead.inMicroseconds / 1e6;
+    return (toward * lead).clamp(0, _config.dialEdgeReach * _step).toDouble();
+  }
+
   // Whether lists still lie in or beyond a zone, to scroll in.
   bool _more(LauncherGeometry g, int side) {
     final double diagonal = _diagonal(g);
@@ -566,6 +578,8 @@ class _DialLauncherState extends State<DialLauncher>
     final double t = _reduceMotion
         ? 1
         : 1 - math.exp(-seconds * 3e6 / AppMotion.quick.inMicroseconds);
+    // The finger's turning speed fades once it stops moving.
+    _turnSpeed *= math.exp(-seconds / 0.1);
     final int? selected = _selected;
     final double focusTarget = selected?.toDouble() ?? _focus;
     final double zoomTarget = selected == null ? 0 : 1;
@@ -601,19 +615,13 @@ class _DialLauncherState extends State<DialLauncher>
   bool _scrollAtEdge(LauncherGeometry g, Offset pointer, double seconds) {
     final int? selected = _selected;
     if (_edge == 0 || selected == null || _isFixed(selected)) {
-      _edgeSince = null;
       return false;
     }
     final (double angle, double _) = _polar(g, pointer);
     if (!_more(g, _edge)) {
       _edge = 0;
-      _edgeSince = null;
       _select(_pointed(g, angle));
       return true;
-    }
-    final Duration since = _edgeSince ??= _now;
-    if (_now - since < _config.dialEdgeDelay) {
-      return false;
     }
     // 0 at the zone's inner border, 1 from the outermost list's far side.
     final double depth = (_edge < 0
@@ -621,11 +629,13 @@ class _DialLauncherState extends State<DialLauncher>
             : (angle - _zoneHigh(g)) / (_roomHigh(g) - _zoneHigh(g)))
         .clamp(0, 1)
         .toDouble();
-    final double speed = lerpDouble(
-      _config.dialEdgeSpeedMin,
-      _config.dialEdgeSpeedMax,
-      depth,
-    )!;
+    // A swipe carries on at the finger's own speed if that is faster.
+    final double swipe =
+        math.max(0, _edge * _turnSpeed) / _step * _config.dialEdgeCarry;
+    final double speed = math.max(
+      lerpDouble(_config.dialEdgeSpeedMin, _config.dialEdgeSpeedMax, depth)!,
+      swipe,
+    );
     _scroll = (_scroll + _edge * speed * seconds)
         .clamp(_firstList.toDouble(), _lastList.toDouble())
         .toDouble();
@@ -689,8 +699,9 @@ class _DialLauncherState extends State<DialLauncher>
       _zoom = 0;
       _editShown = false;
       _moveShown = false;
-      _edgeSince = null;
       _edge = 0;
+      _turnSpeed = 0;
+      _turnAt = null;
     });
   }
 
@@ -716,6 +727,14 @@ class _DialLauncherState extends State<DialLauncher>
     final Offset finger = event.position;
     final (double angle, double radius) = _polar(g, finger);
     final bool onHub = radius <= _config.hubRadius;
+    final Duration? last = _turnAt;
+    if (last != null && event.timeStamp > last && !onHub) {
+      final double seconds = (event.timeStamp - last).inMicroseconds / 1e6;
+      final double speed = (angle - _turnAngle) / seconds;
+      _turnSpeed += (speed - _turnSpeed) * math.min(1, seconds / 0.05);
+    }
+    _turnAt = event.timeStamp;
+    _turnAngle = angle;
     setState(() {
       _pointer = finger;
       if (!onHub) {
@@ -790,8 +809,8 @@ class _DialLauncherState extends State<DialLauncher>
   // is on it.
   void _followEdge(LauncherGeometry g, double angle) {
     final double leave = _config.dialEdgeLeave * _step;
-    final double low = _zoneLow(g);
-    final double high = _zoneHigh(g);
+    final double low = _zoneLow(g) + _zoneAhead(-1);
+    final double high = _zoneHigh(g) - _zoneAhead(1);
     int edge = switch (_edge) {
       -1 => angle < low + leave ? -1 : 0,
       1 => angle > high - leave ? 1 : 0,
@@ -800,10 +819,7 @@ class _DialLauncherState extends State<DialLauncher>
     if (edge != 0 && !_more(g, edge)) {
       edge = 0;
     }
-    if (edge != _edge) {
-      _edge = edge;
-      _edgeSince = null;
-    }
+    _edge = edge;
     final int? selected = _selected;
     if (selected != null && _isFixed(selected)) {
       final (double, double)? sides = _sides(g, selected);

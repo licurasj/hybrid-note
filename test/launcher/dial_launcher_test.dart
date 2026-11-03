@@ -510,4 +510,68 @@ void main() {
     expect(beside, lessThan(first - 20));
     await gesture.up();
   });
+
+  // The highest list entry shown on the dial.
+  int shownMax(WidgetTester tester) => [
+        for (int i = 1; i <= 12; i++)
+          if (find.byKey(ValueKey('dial-entry-$i')).evaluate().isNotEmpty) i,
+      ].last;
+
+  testWidgets('scrolling starts as soon as the finger is in a zone', (
+    WidgetTester tester,
+  ) async {
+    await _pump(tester, count: 12);
+    final TestGesture gesture = await _pickFirst(tester);
+    await tester.pump(const Duration(milliseconds: 100));
+    final int before = shownMax(tester);
+    await gesture.moveTo(_at(tester, math.pi - 0.05, 160));
+    // Within 250 ms (the old delay alone was 300 ms) lists have come in.
+    for (int i = 0; i < 12; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    expect(shownMax(tester), greaterThan(before));
+    await gesture.up();
+  });
+
+  testWidgets('a fast swipe towards an end reaches its zone sooner', (
+    WidgetTester tester,
+  ) async {
+    await _pump(tester, count: 12);
+    // Short of the bottom zone: turning slowly there does not scroll...
+    TestGesture gesture = await _pickFirst(tester);
+    final double diagonal = _diagonal(tester);
+    const double short = math.pi - 0.45;
+    // The dial reads the finger's speed from the events' time stamps.
+    Duration clock = const Duration(seconds: 1);
+    for (int i = 1; i <= 40; i++) {
+      clock += const Duration(milliseconds: 60);
+      await gesture.moveTo(
+        _at(tester, diagonal + (short - diagonal) * i / 40, 160),
+        timeStamp: clock,
+      );
+      await tester.pump(const Duration(milliseconds: 60));
+    }
+    await tester.pump(const Duration(milliseconds: 100));
+    final int slow = shownMax(tester);
+    await gesture.moveTo(_hub(tester));
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // ...swiping there fast does.
+    gesture = await _pickFirst(tester);
+    clock += const Duration(seconds: 1);
+    for (int i = 1; i <= 3; i++) {
+      clock += const Duration(milliseconds: 16);
+      await gesture.moveTo(
+        _at(tester, diagonal + (short - diagonal) * i / 3, 160),
+        timeStamp: clock,
+      );
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    for (int i = 0; i < 12; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    expect(shownMax(tester), greaterThan(slow));
+    await gesture.up();
+  });
 }
