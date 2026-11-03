@@ -276,6 +276,13 @@ export const CASES: EvalCase[] = [
     check: on('upsert_items', 'runs'),
   },
   {
+    id: 'route-no-list-fits',
+    category: 'routing',
+    data: request('Barolo 2019, 3 bottles', null),
+    rubric: 'No wine list: Grocery (a purchase) or a short reply suggesting a new list; never create_list for a single item.',
+    check: (calls, d) => (only('reply')(calls, d) === null || on('upsert_items', 'grocery')(calls, d) === null ? null : 'expected Grocery or a reply'),
+  },
+  {
     id: 'route-ambiguous-dune',
     category: 'routing',
     data: request('Dune', null),
