@@ -7,7 +7,8 @@ export interface ToolCall {
   args: Record<string, unknown>;
 }
 
-export type DeclineReason = 'offTopic' | 'providerRefusal' | 'noValidTool';
+/** offTopic and notSupported come from the model's decline call (unit 1 schema). */
+export type DeclineReason = 'offTopic' | 'notSupported' | 'providerRefusal' | 'noValidTool';
 
 export interface FilteredOutput {
   outcome: 'ok' | 'declined';
@@ -61,7 +62,7 @@ export function filterOutput(
     declineReason: reason,
   });
 
-  let declined = false;
+  let declined: DeclineReason | null = null;
   for (const block of response.content) {
     if (block.type === 'text') {
       result.droppedText++;
@@ -71,14 +72,14 @@ export function filterOutput(
     if (call === null) {
       result.droppedTools++;
     } else if (call.name === 'decline') {
-      declined = true;
+      declined ??= call.args.reason === 'notSupported' ? 'notSupported' : 'offTopic';
     } else {
       result.toolCalls.push(call);
     }
   }
 
   if (response.stopReason === 'refusal') return decline('providerRefusal');
-  if (declined) return decline('offTopic');
+  if (declined !== null) return decline(declined);
   if (result.toolCalls.length === 0) {
     return decline(result.droppedTools > 0 ? 'noValidTool' : 'offTopic');
   }
@@ -105,8 +106,10 @@ function acceptCall(
       if (typeof args.listId !== 'string' || !listIds.has(args.listId)) return null;
       break;
     case 'choose_list': {
-      const ids = args.listIds;
-      if (!Array.isArray(ids) || ids.length === 0 || ids.length > 3) return null;
+      // "Which list?" with 2 or 3 distinct candidates of the user's lists (Q-36).
+      const ids = args.candidates;
+      if (!Array.isArray(ids) || ids.length < 2 || ids.length > 3) return null;
+      if (new Set(ids).size !== ids.length) return null;
       if (!ids.every((id) => typeof id === 'string' && listIds.has(id))) return null;
       break;
     }

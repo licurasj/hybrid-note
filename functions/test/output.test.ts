@@ -60,6 +60,13 @@ describe('filterOutput', () => {
     assert.deepEqual(out.toolCalls, []);
   });
 
+  test('decline keeps notSupported, anything else is offTopic', () => {
+    const reason = (r: unknown) => filterOutput(answer([call('decline', { reason: r })]), open, limits).declineReason;
+    assert.equal(reason('notSupported'), 'notSupported');
+    assert.equal(reason('offTopic'), 'offTopic');
+    assert.equal(reason('whatever'), 'offTopic');
+  });
+
   test('the provider refusal is a decline', () => {
     const out = filterOutput(answer([], 'refusal'), open, limits);
     assert.equal(out.declineReason, 'providerRefusal');
@@ -93,10 +100,10 @@ describe('filterOutput', () => {
     assert.equal(filterOutput(answer([patch('grocery')]), closed, limits).declineReason, 'noValidTool');
   });
 
-  test('choose_list names 1 to 3 of the user lists', () => {
-    const choose = (listIds: unknown) => call('choose_list', { listIds });
+  test('choose_list names 2 or 3 distinct user lists as candidates', () => {
+    const choose = (candidates: unknown) => call('choose_list', { question: 'Grocery or To do?', candidates });
     assert.equal(filterOutput(answer([choose(['grocery', 'todo'])]), closed, limits).outcome, 'ok');
-    for (const bad of [[], ['grocery', 'todo', 'grocery', 'todo'], ['nope'], 'grocery']) {
+    for (const bad of [[], ['grocery'], ['grocery', 'grocery'], ['grocery', 'nope'], 'grocery']) {
       assert.equal(filterOutput(answer([choose(bad)]), closed, limits).outcome, 'declined');
     }
   });
