@@ -303,5 +303,12 @@
   "tryAgain": "Erneut versuchen",
   "listChangeNotSaved": "Eine Listenänderung konnte nicht gespeichert werden und wurde rückgängig gemacht.",
   "starterListsFailed": "Die Startlisten konnten nicht eingerichtet werden.",
-  "startEmpty": "Leer beginnen"
+  "startEmpty": "Leer beginnen",
+  "errorMissingArg": "Einer Änderung fehlt „{arg}“.",
+  "errorWrongArgType": "Eine Änderung hat für „{arg}“ einen Wert der falschen Art.",
+  "errorUnknownArg": "Eine Änderung hat eine unbekannte Einstellung „{arg}“.",
+  "errorUnknownList": "Die Liste wurde nicht gefunden.",
+  "errorUnknownItem": "Ein zu ändernder Eintrag wurde in der Liste nicht gefunden.",
+  "errorUnknownField": "„{field}“ ist kein Feld dieser Liste.",
+  "errorListChanged": "Die Liste hat sich inzwischen geändert, daher kann dies nicht rückgängig gemacht werden."
 }

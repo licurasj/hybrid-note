@@ -48,6 +48,8 @@ ListError _sample(ListErrorCode code) {
     'max': '9',
     'op': 'removeField',
     'detail': 'bad json',
+    'arg': 'field.colour',
+    'item': 'fern',
   };
   return ListError(code, args, code == ListErrorCode.duplicateItemId ? 'fern' : null);
 }
@@ -148,12 +150,12 @@ void main() {
       expect(result.errors.map((error) => '$error'), [
         'changeFieldType: unknown type "colour"',
         'addField: "title" already exists',
-        'removeField: no field "null"',
+        'removeField: missing "key"',
       ]);
       expect(result.errors.map((error) => error.code), [
         ListErrorCode.unknownFieldType,
         ListErrorCode.fieldExists,
-        ListErrorCode.opNoField,
+        ListErrorCode.missingArg,
       ]);
     });
   });

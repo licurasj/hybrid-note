@@ -670,5 +670,40 @@
   "tryAgain": "Try again",
   "listChangeNotSaved": "A list change could not be saved and was undone.",
   "starterListsFailed": "The starter lists could not be set up.",
-  "startEmpty": "Start empty"
+  "startEmpty": "Start empty",
+  "errorMissingArg": "A change is missing \"{arg}\".",
+  "@errorMissingArg": {
+    "placeholders": {
+      "arg": {
+        "type": "String"
+      }
+    }
+  },
+  "errorWrongArgType": "A change has the wrong kind of value for \"{arg}\".",
+  "@errorWrongArgType": {
+    "placeholders": {
+      "arg": {
+        "type": "String"
+      }
+    }
+  },
+  "errorUnknownArg": "A change has an unknown setting \"{arg}\".",
+  "@errorUnknownArg": {
+    "placeholders": {
+      "arg": {
+        "type": "String"
+      }
+    }
+  },
+  "errorUnknownList": "The list was not found.",
+  "errorUnknownItem": "An item to change was not found in the list.",
+  "errorUnknownField": "\"{field}\" is not a field of this list.",
+  "@errorUnknownField": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "errorListChanged": "The list has changed since, so this cannot be undone."
 }

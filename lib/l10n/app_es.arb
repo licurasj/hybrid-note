@@ -303,5 +303,12 @@
   "tryAgain": "Reintentar",
   "listChangeNotSaved": "No se pudo guardar un cambio en una lista y se ha deshecho.",
   "starterListsFailed": "No se pudieron crear las listas iniciales.",
-  "startEmpty": "Empezar sin listas"
+  "startEmpty": "Empezar sin listas",
+  "errorMissingArg": "A un cambio le falta «{arg}».",
+  "errorWrongArgType": "Un cambio tiene un valor de tipo incorrecto para «{arg}».",
+  "errorUnknownArg": "Un cambio tiene un ajuste desconocido «{arg}».",
+  "errorUnknownList": "No se encontró la lista.",
+  "errorUnknownItem": "No se encontró en la lista un elemento que se iba a cambiar.",
+  "errorUnknownField": "«{field}» no es un campo de esta lista.",
+  "errorListChanged": "La lista ha cambiado desde entonces, así que no se puede deshacer."
 }

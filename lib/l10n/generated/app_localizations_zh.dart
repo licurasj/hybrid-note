@@ -830,4 +830,33 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get startEmpty => '从空白开始';
+
+  @override
+  String errorMissingArg(String arg) {
+    return '某项更改缺少“$arg”。';
+  }
+
+  @override
+  String errorWrongArgType(String arg) {
+    return '某项更改中“$arg”的值类型不正确。';
+  }
+
+  @override
+  String errorUnknownArg(String arg) {
+    return '某项更改包含未知设置“$arg”。';
+  }
+
+  @override
+  String get errorUnknownList => '未找到该列表。';
+
+  @override
+  String get errorUnknownItem => '在列表中未找到要更改的条目。';
+
+  @override
+  String errorUnknownField(String field) {
+    return '“$field”不是此列表的字段。';
+  }
+
+  @override
+  String get errorListChanged => '列表在此之后已更改，因此无法撤销。';
 }
