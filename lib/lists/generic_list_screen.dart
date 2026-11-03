@@ -69,38 +69,58 @@ class _GenericListScreenState extends State<GenericListScreen> {
   late _Look _look;
 
   // Under the floating launcher the add button pops in once the page has
-  // arrived, the same way it reappears when the hub moves (the Scaffold's
-  // button entrance).
+  // arrived and shrinks away as soon as the page starts to leave (going
+  // home, or another list replacing it), the same way it moves with the hub
+  // (the Scaffold's button entrance and exit).
   bool _pageArrived = false;
+  bool _pageLeaving = false;
   Animation<double>? _pageAnimation;
+  Animation<double>? _coverAnimation;
 
   ListDefinition get _definition => widget.definition;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final Animation<double>? animation = ModalRoute.of(context)?.animation;
-    if (animation == _pageAnimation) {
-      return;
+    final ModalRoute<Object?>? route = ModalRoute.of(context);
+    final Animation<double>? animation = route?.animation;
+    if (animation != _pageAnimation) {
+      _pageAnimation?.removeStatusListener(_onPageAnimation);
+      _pageAnimation = animation;
+      _pageArrived = animation == null || animation.isCompleted;
+      animation?.addStatusListener(_onPageAnimation);
     }
-    _pageAnimation?.removeStatusListener(_onPageAnimation);
-    _pageAnimation = animation;
-    if (animation == null || animation.isCompleted) {
-      _pageArrived = true;
-    } else {
-      animation.addStatusListener(_onPageAnimation);
+    final Animation<double>? cover = route?.secondaryAnimation;
+    if (cover != _coverAnimation) {
+      _coverAnimation?.removeStatusListener(_onCoverAnimation);
+      _coverAnimation = cover;
+      cover?.addStatusListener(_onCoverAnimation);
     }
   }
 
   void _onPageAnimation(AnimationStatus status) {
-    if (status.isCompleted && !_pageArrived) {
-      setState(() => _pageArrived = true);
+    final bool arrived = _pageArrived || status.isCompleted;
+    final bool leaving = status == AnimationStatus.reverse;
+    if (arrived != _pageArrived || leaving != _pageLeaving) {
+      setState(() {
+        _pageArrived = arrived;
+        _pageLeaving = leaving;
+      });
+    }
+  }
+
+  // Another page coming over this one (a list replacing it).
+  void _onCoverAnimation(AnimationStatus status) {
+    final bool leaving = status.isForwardOrCompleted;
+    if (leaving != _pageLeaving) {
+      setState(() => _pageLeaving = leaving);
     }
   }
 
   @override
   void dispose() {
     _pageAnimation?.removeStatusListener(_onPageAnimation);
+    _coverAnimation?.removeStatusListener(_onCoverAnimation);
     super.dispose();
   }
 
@@ -1166,7 +1186,9 @@ class _GenericListScreenState extends State<GenericListScreen> {
         ],
       ),
       floatingActionButton:
-          hubArea == null || _pageArrived ? _addButton() : null,
+          hubArea == null || (_pageArrived && !_pageLeaving)
+              ? _addButton()
+              : null,
       floatingActionButtonLocation:
           hubArea == null ? null : AboveHubButtonLocation(hubArea),
       body: RefreshIndicator(

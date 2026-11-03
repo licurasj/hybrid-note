@@ -541,7 +541,7 @@ void main() {
     expect(_hub, findsOneWidget);
   });
 
-  testWidgets('the add button of a list pops in once the page has arrived', (
+  testWidgets('the add button of a list pops in once the page has arrived and out as it leaves', (
     WidgetTester tester,
   ) async {
     await _pumpApp(tester, FakeAuthService(user: testUser));
@@ -564,6 +564,26 @@ void main() {
     expect(find.byType(FloatingActionButton), findsNothing);
     await settle(tester);
     expect(find.byType(FloatingActionButton), findsOneWidget);
+
+    // Leaving for the home: the button shrinks away while the page goes.
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    final Finder add = find.byType(FloatingActionButton);
+    expect(
+      add.evaluate().isEmpty ||
+          tester
+                  .widget<ScaleTransition>(
+                    find
+                        .ancestor(of: add, matching: find.byType(ScaleTransition))
+                        .first,
+                  )
+                  .scale
+                  .status ==
+              AnimationStatus.reverse,
+      isTrue,
+    );
+    await settle(tester);
   });
 
   testWidgets('a sheet on the home or a list hides the hub until it closes', (
