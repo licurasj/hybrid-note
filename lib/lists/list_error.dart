@@ -83,6 +83,7 @@ enum ListErrorCode implements WireName {
   unknownList('unknownList'), // {list}
   unknownItem('unknownItem'), // {item, list}
   unknownField('unknownField'), // {field, list}
+  aiNotAllowed('aiNotAllowed'), // {list}: the user turned AI off for it (Q-36)
 
   // Undo of an AI change (Q-35 A).
   listChanged('listChanged'); // {list}
@@ -237,6 +238,8 @@ class ListError {
         return 'no item "${arg('item')}" in list "${arg('list')}"';
       case ListErrorCode.unknownField:
         return '$field is not a field of list "${arg('list')}"';
+      case ListErrorCode.aiNotAllowed:
+        return 'list "${arg('list')}" does not allow AI changes';
       case ListErrorCode.listChanged:
         return 'list "${arg('list')}" changed since the change was applied; nothing was undone';
     }

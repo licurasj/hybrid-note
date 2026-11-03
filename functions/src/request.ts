@@ -6,6 +6,8 @@ export interface ListSummary {
   id: string;
   name: string;
   fields: unknown[];
+  /** false: the user turned AI off for this list; it is dropped before the model sees anything. */
+  aiAllowed?: boolean;
 }
 
 /** The list open on screen, if any: its definition and recent items. */
@@ -57,6 +59,9 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
     if (!isRecord(list) || !isId(list.id) || typeof list.name !== 'string' || !Array.isArray(list.fields)) {
       throw refuse('badRequest', 'each list needs id, name and fields');
     }
+    if (list.aiAllowed !== undefined && typeof list.aiAllowed !== 'boolean') {
+      throw refuse('badRequest', 'aiAllowed must be true or false');
+    }
   }
   if (new Set(lists.map((list) => list.id)).size !== lists.length) {
     throw refuse('badRequest', 'list ids must be unique');
@@ -85,15 +90,20 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
   if (contextBytes > limits.contextMaxBytes) {
     throw refuse('contextTooLarge', `context is over ${limits.contextMaxBytes} bytes`);
   }
-  if (openList !== null && (openList.definition as Record<string, unknown>).aiAllowed === false) {
+  const openId = openList === null ? undefined : (openList.definition as Record<string, unknown>).id;
+  const openSummary = (lists as Record<string, unknown>[]).find((list) => list.id === openId);
+  if (openList !== null && ((openList.definition as Record<string, unknown>).aiAllowed === false || openSummary?.aiAllowed === false)) {
     throw refuse('aiNotAllowed', 'AI is off for the open list');
   }
+  // Lists with AI off are dropped (Q-36): the model never sees them, and the
+  // output filter refuses any tool call that names one (its id is unknown).
+  const allowed = (lists as Record<string, unknown>[]).filter((list) => list.aiAllowed !== false);
 
   return {
     prompt,
     locale,
     ...(today !== undefined ? { today } : {}),
-    lists: lists as unknown as ListSummary[],
+    lists: allowed as unknown as ListSummary[],
     openList: openList as OpenList | null,
   };
 }

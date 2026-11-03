@@ -496,6 +496,79 @@ void main() {
     }
   });
 
+  group('lists with AI off (Q-36)', () {
+    final ListDefinition private = ListDefinition.fromJson({
+      ..._tasks.toJson(),
+      'id': 'private',
+      'name': 'Private',
+      'aiAllowed': false,
+    });
+    final ListItem secret = ListItem(
+      id: 'secret',
+      listId: 'private',
+      values: const {'title': 'Secret'},
+      createdAt: _t0,
+      updatedAt: _t0,
+    );
+    final ListCatalog catalog = ListCatalog(
+      definitions: [_grocery, private],
+      items: [_milk(), secret],
+    );
+    const List<ListErrorCode> refused = [ListErrorCode.aiNotAllowed];
+
+    test('upsert_items adds nothing to it and changes none of its items', () {
+      for (final Map<String, Object?> item in [
+        {
+          'values': [
+            {'field': 'title', 'value': 'x'},
+          ],
+        },
+        {
+          'id': 'secret',
+          'values': [
+            {'field': 'title', 'value': 'x'},
+          ],
+        },
+      ]) {
+        final (ListChanges changes, List<ListError> errors) = ListInput.upsertItems(
+          {'listId': 'private', 'items': [item]},
+          catalog,
+          newId: _ids(),
+          now: _now,
+        );
+        expect(errors.map((e) => e.code), refused);
+        expect(errors.single.toString(), 'list "private" does not allow AI changes');
+        expect(changes.isEmpty, isTrue);
+      }
+    });
+
+    test('delete_items deletes none of its items', () {
+      final (ListChanges changes, List<ListError> errors) =
+          ListInput.deleteItems({'listId': 'private', 'ids': ['secret']}, catalog);
+      expect(errors.map((e) => e.code), refused);
+      expect(changes.isEmpty, isTrue);
+    });
+
+    test('patch_list changes nothing of its structure', () {
+      final (String? listId, List<ListPatchOp> ops, List<ListError> errors) = ListInput.patchList({
+        'listId': 'private',
+        'ops': [
+          {'op': 'removeField', 'key': 'title'},
+        ],
+      }, catalog);
+      expect(errors.map((e) => e.code), refused);
+      expect(listId, isNull);
+      expect(ops, isEmpty);
+    });
+
+    test('the other lists of the same catalog still work', () {
+      final (ListChanges changes, List<ListError> errors) =
+          ListInput.deleteItems({'listId': _grocery.id, 'ids': ['milk']}, catalog);
+      expect(errors, isEmpty);
+      expect(changes.deletedIds, ['milk']);
+    });
+  });
+
   group('create_list', () {
     Map<String, dynamic> runs() => {
       'name': 'Runs',

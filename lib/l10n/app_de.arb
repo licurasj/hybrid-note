@@ -310,5 +310,6 @@
   "errorUnknownList": "Die Liste wurde nicht gefunden.",
   "errorUnknownItem": "Ein zu ändernder Eintrag wurde in der Liste nicht gefunden.",
   "errorUnknownField": "„{field}“ ist kein Feld dieser Liste.",
-  "errorListChanged": "Die Liste hat sich inzwischen geändert, daher kann dies nicht rückgängig gemacht werden."
+  "errorListChanged": "Die Liste hat sich inzwischen geändert, daher kann dies nicht rückgängig gemacht werden.",
+  "errorAiNotAllowed": "Die KI darf diese Liste nicht ändern."
 }

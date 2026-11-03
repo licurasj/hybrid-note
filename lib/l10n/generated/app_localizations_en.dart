@@ -869,4 +869,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorListChanged =>
       'The list has changed since, so this cannot be undone.';
+
+  @override
+  String get errorAiNotAllowed => 'The AI may not change this list.';
 }

@@ -310,5 +310,6 @@
   "errorUnknownList": "La liste est introuvable.",
   "errorUnknownItem": "Un élément à modifier est introuvable dans la liste.",
   "errorUnknownField": "« {field} » n’est pas un champ de cette liste.",
-  "errorListChanged": "La liste a changé depuis, cette action ne peut donc pas être annulée."
+  "errorListChanged": "La liste a changé depuis, cette action ne peut donc pas être annulée.",
+  "errorAiNotAllowed": "L’IA n’a pas le droit de modifier cette liste."
 }

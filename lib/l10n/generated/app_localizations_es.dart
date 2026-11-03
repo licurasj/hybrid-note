@@ -871,4 +871,7 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get errorListChanged =>
       'La lista ha cambiado desde entonces, así que no se puede deshacer.';
+
+  @override
+  String get errorAiNotAllowed => 'La IA no puede cambiar esta lista.';
 }

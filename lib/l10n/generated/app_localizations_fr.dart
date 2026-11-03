@@ -873,4 +873,8 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get errorListChanged =>
       'La liste a changé depuis, cette action ne peut donc pas être annulée.';
+
+  @override
+  String get errorAiNotAllowed =>
+      'L’IA n’a pas le droit de modifier cette liste.';
 }

@@ -321,6 +321,8 @@ class ListLabels {
         return loc.errorUnknownItem;
       case ListErrorCode.unknownField:
         return loc.errorUnknownField(name);
+      case ListErrorCode.aiNotAllowed:
+        return loc.errorAiNotAllowed;
       case ListErrorCode.listChanged:
         return loc.errorListChanged;
     }

@@ -33,6 +33,29 @@ const call = (name: string, args: unknown): ContentBlock => ({ type: 'tool_call'
 const text = (t: string): ContentBlock => ({ type: 'text', text: t });
 
 describe('filterOutput', () => {
+  test('a call naming a list with AI off is dropped (Q-36, dropped by parseRequest)', () => {
+    const request = parseRequest(
+      {
+        prompt: 'add milk',
+        locale: 'en',
+        lists: [
+          { id: 'grocery', name: 'Grocery', fields: [] },
+          { id: 'diary', name: 'Diary', fields: [], aiAllowed: false },
+        ],
+        openList: null,
+      },
+      limits,
+    );
+    const items = [{ values: [{ field: 'title', value: 'x' }] }];
+    const out = filterOutput(
+      answer([call('upsert_items', { listId: 'diary', items }), call('delete_items', { listId: 'diary', ids: ['d1'] })]),
+      request,
+      limits,
+    );
+    assert.equal(out.outcome, 'declined');
+    assert.equal(out.droppedTools, 2);
+  });
+
   test('tool calls pass and free text around them is dropped', () => {
     const out = filterOutput(
       answer([text('Sure!'), call('upsert_items', { listId: 'grocery', items: [] }), text('Done.')]),

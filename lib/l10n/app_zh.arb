@@ -310,5 +310,6 @@
   "errorUnknownList": "未找到该列表。",
   "errorUnknownItem": "在列表中未找到要更改的条目。",
   "errorUnknownField": "“{field}”不是此列表的字段。",
-  "errorListChanged": "列表在此之后已更改，因此无法撤销。"
+  "errorListChanged": "列表在此之后已更改，因此无法撤销。",
+  "errorAiNotAllowed": "AI 不能更改此列表。"
 }

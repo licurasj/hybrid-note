@@ -861,4 +861,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get errorListChanged => 'リストがその後変更されたため、元に戻せません。';
+
+  @override
+  String get errorAiNotAllowed => 'AIはこのリストを変更できません。';
 }

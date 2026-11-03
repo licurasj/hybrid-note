@@ -28,6 +28,23 @@ function reason(data: unknown) {
 }
 
 describe('parseRequest', () => {
+  test('lists with AI off are dropped; their ids are then unknown to the output filter (Q-36)', () => {
+    const data = base({
+      lists: [
+        { id: 'grocery', name: 'Grocery', fields: [], aiAllowed: true },
+        { id: 'diary', name: 'Diary', fields: [], aiAllowed: false },
+        { id: 'tasks', name: 'Tasks', fields: [] },
+      ],
+    });
+    assert.deepEqual(parseRequest(data, limits).lists.map((list) => list.id), ['grocery', 'tasks']);
+    assert.equal(reason(base({ lists: [{ id: 'grocery', name: 'Grocery', fields: [], aiAllowed: 'no' }] })), 'badRequest');
+  });
+
+  test('an open list whose summary says AI off is refused', () => {
+    const lists = [{ id: 'grocery', name: 'Grocery', fields: [], aiAllowed: false }];
+    assert.equal(reason(base({ lists })), 'aiNotAllowed');
+  });
+
   test('a normal request is accepted', () => {
     assert.equal(reason(base()), 'accepted');
   });

@@ -1591,6 +1591,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The list has changed since, so this cannot be undone.'**
   String get errorListChanged;
+
+  /// No description provided for @errorAiNotAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI may not change this list.'**
+  String get errorAiNotAllowed;
 }
 
 class _AppLocalizationsDelegate

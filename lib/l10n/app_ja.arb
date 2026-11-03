@@ -310,5 +310,6 @@
   "errorUnknownList": "リストが見つかりません。",
   "errorUnknownItem": "変更する項目がリストに見つかりません。",
   "errorUnknownField": "「{field}」はこのリストのフィールドではありません。",
-  "errorListChanged": "リストがその後変更されたため、元に戻せません。"
+  "errorListChanged": "リストがその後変更されたため、元に戻せません。",
+  "errorAiNotAllowed": "AIはこのリストを変更できません。"
 }

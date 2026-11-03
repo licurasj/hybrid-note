@@ -875,4 +875,7 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get errorListChanged =>
       'Die Liste hat sich inzwischen geändert, daher kann dies nicht rückgängig gemacht werden.';
+
+  @override
+  String get errorAiNotAllowed => 'Die KI darf diese Liste nicht ändern.';
 }

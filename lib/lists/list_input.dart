@@ -166,7 +166,8 @@ class ListInput {
     return ListError(ListErrorCode.badOp, {'op': op, 'detail': error.message});
   }
 
-  // The list a tool call targets: one of the user's lists (Q-36).
+  // The list a tool call targets: one of the user's lists that allows AI
+  // changes (Q-36: a list with aiAllowed false is never changed by the AI).
   static (ListDefinition?, List<ListError>) _target(
     Map args,
     ListCatalog catalog,
@@ -176,9 +177,13 @@ class ListInput {
       return (null, const []);
     }
     final ListDefinition? definition = catalog.definition(listId);
-    return definition == null
-        ? (null, [ListError(ListErrorCode.unknownList, {'list': listId})])
-        : (definition, const []);
+    if (definition == null) {
+      return (null, [ListError(ListErrorCode.unknownList, {'list': listId})]);
+    }
+    if (!definition.aiAllowed) {
+      return (null, [ListError(ListErrorCode.aiNotAllowed, {'list': listId})]);
+    }
+    return (definition, const []);
   }
 
   // A {field, value} entries list as a map; errors when it is not one.
@@ -246,6 +251,10 @@ class ListInput {
     }
     final (ListDefinition? definition, List<ListError> targetErrors) = _target(args, catalog);
     errors.addAll(targetErrors);
+    // No ops at all for a list that is not there or does not allow AI changes.
+    if (targetErrors.isNotEmpty) {
+      return (null, const [], errors);
+    }
     final List<ListPatchOp> ops = [];
     final Object? rawOps = args['ops'];
     if (rawOps is List) {

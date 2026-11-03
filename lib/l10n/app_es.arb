@@ -310,5 +310,6 @@
   "errorUnknownList": "No se encontró la lista.",
   "errorUnknownItem": "No se encontró en la lista un elemento que se iba a cambiar.",
   "errorUnknownField": "«{field}» no es un campo de esta lista.",
-  "errorListChanged": "La lista ha cambiado desde entonces, así que no se puede deshacer."
+  "errorListChanged": "La lista ha cambiado desde entonces, así que no se puede deshacer.",
+  "errorAiNotAllowed": "La IA no puede cambiar esta lista."
 }

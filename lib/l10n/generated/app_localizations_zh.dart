@@ -859,4 +859,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get errorListChanged => '列表在此之后已更改，因此无法撤销。';
+
+  @override
+  String get errorAiNotAllowed => 'AI 不能更改此列表。';
 }
