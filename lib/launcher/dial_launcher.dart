@@ -21,15 +21,17 @@ final List<LauncherNote> debugDialExtraNotes = [];
 // 2026-11-03). Petal-shaped tabs in the list's colour stand around the hub;
 // the most recent list opens on the screen's diagonal, reaching halfway to
 // the far corner. The tab under the finger is selected and grows (owner,
-// 2026-11-03: the finger always selects in the middle); holding the finger
-// at an edge scrolls the lists that way, a step at a time and faster the
-// longer it holds, then picks New list or Home. New list and Home (inside a
-// list) ride at the two ends of the lists and stop as far out as they can
-// without crossing the lines that continue the hub's outer edges along the
-// screen, which leaves the lists more room. Far off the dial nothing is selected and letting go cancels. Rest
-// the finger on a list and Edit slides out from behind its end; a short
-// swipe outwards (wherever the finger is) selects it. Rest on the hub for
-// Move.
+// 2026-11-03: the finger always selects in the middle). At either end of
+// the lists the outermost list and half the next are a scroll zone while
+// more lists lie beyond: a finger held there scrolls the lists in, faster
+// the deeper it is, and the list it is on (never the outermost) is
+// selected as it comes into the hand. New list and Home (inside a list)
+// ride at the two ends of the lists and stop as far out as they can without
+// crossing the lines that continue the hub's outer edges along the screen,
+// which leaves the lists more room. Far off the dial nothing is selected and
+// letting go cancels. Rest the finger on a list and Edit slides out from
+// behind its end; a short swipe outwards (wherever the finger is) selects
+// it. Rest on the hub for Move.
 //
 // A quick tap on the hub (or Enter/Space on it, or a screen reader's tap)
 // opens tap mode: tap a tab to open it, long-press or right-click to edit;
@@ -124,12 +126,10 @@ class _DialLauncherState extends State<DialLauncher>
   double _scroll = 0;
   double _focus = 0;
   double _zoom = 0;
-  // Which edge the finger is at (-1 side, 1 bottom, 0 neither), and the
-  // stepping while it holds: since when, when it last stepped, how often.
+  // Which scroll zone the finger is in (-1 side, 1 bottom, 0 neither), and
+  // since when.
   int _edge = 0;
   Duration? _edgeSince;
-  Duration _edgeStepped = Duration.zero;
-  int _edgeSteps = 0;
 
   // Where New list and Home stop (their outer sides), for this geometry.
   Object? _limitsKey;
@@ -377,34 +377,41 @@ class _DialLauncherState extends State<DialLauncher>
     return start - end > 0.3 * _step ? (start, end) : null;
   }
 
-  // The first and last lists fully shown, for where scrolling has taken the
-  // dial.
-  int _shownAt(LauncherGeometry g, int side) {
+  // The far end of the lists' room: where Home stops, or the bottom edge's
+  // limit on the home screen (no Home).
+  double _roomHigh(LauncherGeometry g) =>
+      widget.onHome != null ? _listsHigh(g) : _edgeLimits(g).$2;
+
+  // The scroll zones: the outermost list and half the next at either end of
+  // the lists' room (owner, 2026-11-03), and everything past them.
+  double _zoneLow(LauncherGeometry g) =>
+      _listsLow(g) + _config.dialEdgeZone * _step;
+  double _zoneHigh(LauncherGeometry g) =>
+      _roomHigh(g) - _config.dialEdgeZone * _step;
+
+  // Whether lists still lie in or beyond a zone, to scroll in.
+  bool _more(LauncherGeometry g, int side) {
     final double diagonal = _diagonal(g);
-    final double low = _addSidesAt(g, _scroll).$1;
-    final double high = _homeEndAt(g, _scroll);
-    final int index = side < 0
-        ? (_scroll + 0.5 + (low - diagonal) / _step - 1e-6).ceil()
-        : (_scroll - 0.5 + (high - diagonal) / _step + 1e-6).floor();
+    return side < 0
+        ? diagonal + (_firstList - _scroll) * _step < _zoneLow(g) - 1e-3
+        : diagonal + (_lastList - _scroll) * _step > _zoneHigh(g) + 1e-3;
+  }
+
+  // The list in the hand while in a zone: the one under the finger, but
+  // never the outermost one shown at that end, which only scrolls.
+  int _inHand(LauncherGeometry g, double angle) {
+    final double diagonal = _diagonal(g);
+    int index = (_position + (angle - diagonal) / _step).round();
+    if (_edge < 0) {
+      final int outer =
+          (_position - 0.5 + (_listsLow(g) - diagonal) / _step).floor() + 1;
+      index = math.max(index, outer + 1);
+    } else if (_edge > 0) {
+      final int outer =
+          (_position + 0.5 + (_roomHigh(g) - diagonal) / _step).ceil() - 1;
+      index = math.min(index, outer - 1);
+    }
     return index.clamp(_firstList, _lastList);
-  }
-
-  // New list's sides and Home's inner side with the dial at `position`.
-  (double, double) _addSidesAt(LauncherGeometry g, double position) {
-    final double saved = _position;
-    _position = position;
-    final (double, double) sides = _addSides(g);
-    _position = saved;
-    return sides;
-  }
-
-  double _homeEndAt(LauncherGeometry g, double position) {
-    final double saved = _position;
-    _position = position;
-    final double end =
-        widget.onHome != null ? _homeSides(g).$2 : _edgeLimits(g).$2;
-    _position = saved;
-    return end;
   }
 
   // 1 for the selected entry, less with distance from it.
@@ -577,7 +584,7 @@ class _DialLauncherState extends State<DialLauncher>
 
     bool changed = animating;
     if (_mode == _Mode.hold && g != null && pointer != null) {
-      changed = _scrollAtEdge(g, pointer) || changed;
+      changed = _scrollAtEdge(g, pointer, seconds) || changed;
       changed = _offerPrompt(g, pointer) || changed;
     }
     if (changed) {
@@ -587,51 +594,46 @@ class _DialLauncherState extends State<DialLauncher>
     }
   }
 
-  // The finger at an edge keeps scrolling the lists that way, a list at a
-  // time and faster the longer it holds, selecting the list at that edge, so
-  // many lists need no more room than the corner has; with none left that
-  // way it picks New list or Home (inside a list).
-  bool _scrollAtEdge(LauncherGeometry g, Offset pointer) {
+  // A finger held in a scroll zone scrolls the lists in, smoothly and faster
+  // the deeper it is, selecting the list coming into the hand; with no lists
+  // left that way the zone ends and the tab under the finger (New list or
+  // Home at the very end) is selected.
+  bool _scrollAtEdge(LauncherGeometry g, Offset pointer, double seconds) {
     final int? selected = _selected;
     if (_edge == 0 || selected == null || _isFixed(selected)) {
       _edgeSince = null;
-      _edgeSteps = 0;
       return false;
+    }
+    final (double angle, double _) = _polar(g, pointer);
+    if (!_more(g, _edge)) {
+      _edge = 0;
+      _edgeSince = null;
+      _select(_pointed(g, angle));
+      return true;
     }
     final Duration since = _edgeSince ??= _now;
-    final Duration interval = Duration(
-      microseconds: math.max(
-        _config.dialEdgeFastest.inMicroseconds,
-        _config.dialEdgeInterval.inMicroseconds - _edgeSteps * 30000,
-      ),
-    );
-    final bool due = _edgeSteps == 0
-        ? _now - since >= _config.dialEdgeDelay
-        : _now - _edgeStepped >= interval;
-    if (!due) {
+    if (_now - since < _config.dialEdgeDelay) {
       return false;
     }
-    final bool more = _edge < 0
-        ? _shownAt(g, -1) > _firstList
-        : _shownAt(g, 1) < _lastList;
-    if (more) {
-      _scroll += _edge;
-      _select(_shownAt(g, _edge));
-    } else {
-      final int? end = _edgeEntry(_edge);
-      if (end == null) {
-        return false;
-      }
-      _select(end);
-    }
-    _edgeStepped = _now;
-    _edgeSteps++;
+    // 0 at the zone's inner border, 1 from the outermost list's far side.
+    final double depth = (_edge < 0
+            ? (_zoneLow(g) - angle) / (_zoneLow(g) - _listsLow(g))
+            : (angle - _zoneHigh(g)) / (_roomHigh(g) - _zoneHigh(g)))
+        .clamp(0, 1)
+        .toDouble();
+    final double speed = lerpDouble(
+      _config.dialEdgeSpeedMin,
+      _config.dialEdgeSpeedMax,
+      depth,
+    )!;
+    _scroll = (_scroll + _edge * speed * seconds)
+        .clamp(_firstList.toDouble(), _lastList.toDouble())
+        .toDouble();
+    // The dial follows the scroll directly, so the lists flow steadily.
+    _position = _scroll;
+    _select(_inHand(g, angle));
     return true;
   }
-
-  // New list at the side edge, Home (inside a list) at the bottom edge.
-  int? _edgeEntry(int edge) =>
-      edge < 0 ? 0 : (widget.onHome != null ? _entries.length - 1 : null);
 
   // After a rest: Edit on a list (not while at an edge, where the hold
   // scrolls), or Move on the hub.
@@ -688,7 +690,6 @@ class _DialLauncherState extends State<DialLauncher>
       _editShown = false;
       _moveShown = false;
       _edgeSince = null;
-      _edgeSteps = 0;
       _edge = 0;
     });
   }
@@ -783,38 +784,40 @@ class _DialLauncherState extends State<DialLauncher>
     });
   }
 
-  // In the middle the tab under the finger is selected; at an edge the hold
-  // scrolls (see _scrollAtEdge). Arriving at an edge with no lists left that
-  // way picks New list or Home at once; pointed at straight from the hub,
-  // New list or Home stays picked.
+  // In the middle the tab under the finger is selected; in a scroll zone the
+  // list in the hand is, and holding scrolls (see _scrollAtEdge). New list
+  // or Home pointed at straight from the hub stays picked while the finger
+  // is on it.
   void _followEdge(LauncherGeometry g, double angle) {
     final double leave = _config.dialEdgeLeave * _step;
-    final double low = _listsLow(g);
-    final double high = _listsHigh(g);
-    final int edge = switch (_edge) {
+    final double low = _zoneLow(g);
+    final double high = _zoneHigh(g);
+    int edge = switch (_edge) {
       -1 => angle < low + leave ? -1 : 0,
       1 => angle > high - leave ? 1 : 0,
       _ => angle < low ? -1 : (angle > high ? 1 : 0),
     };
+    if (edge != 0 && !_more(g, edge)) {
+      edge = 0;
+    }
     if (edge != _edge) {
       _edge = edge;
       _edgeSince = null;
-      _edgeSteps = 0;
     }
     final int? selected = _selected;
+    if (selected != null && _isFixed(selected)) {
+      final (double, double)? sides = _sides(g, selected);
+      final double keep = _config.dialSelectKeep * _step;
+      if (sides != null &&
+          angle <= sides.$1 + keep &&
+          angle >= sides.$2 - keep) {
+        return;
+      }
+    }
     if (_edge == 0 || selected == null) {
       _select(_pointed(g, angle));
-      return;
-    }
-    if (_isFixed(selected)) {
-      return;
-    }
-    final bool more = _edge < 0
-        ? _shownAt(g, -1) > _firstList
-        : _shownAt(g, 1) < _lastList;
-    final int? end = _edgeEntry(_edge);
-    if (!more && end != null) {
-      _select(end);
+    } else {
+      _select(_inHand(g, angle));
     }
   }
 

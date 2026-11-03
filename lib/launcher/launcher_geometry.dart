@@ -53,10 +53,11 @@ class LauncherConfig {
     this.dialTabCap = 56,
     this.dialTabGrow = 14,
     this.dialSelectKeep = 0.15,
+    this.dialEdgeZone = 1.5,
     this.dialEdgeLeave = 0.25,
-    this.dialEdgeDelay = const Duration(milliseconds: 350),
-    this.dialEdgeInterval = const Duration(milliseconds: 280),
-    this.dialEdgeFastest = const Duration(milliseconds: 110),
+    this.dialEdgeDelay = const Duration(milliseconds: 300),
+    this.dialEdgeSpeedMin = 1.5,
+    this.dialEdgeSpeedMax = 6,
     this.dialOffDialDegrees = 30,
     this.dialEditDepth = 40,
     this.dialEditSwipe = 28,
@@ -134,13 +135,16 @@ class LauncherConfig {
   // The selected tab stays selected until the finger is this many steps
   // past its sides.
   final double dialSelectKeep;
-  // At an edge the hold keeps stepping: first after the delay, then every
-  // interval, shortening to the fastest. Leaving an edge takes this many
-  // steps more, so the selection does not flicker on its border.
+  // At either end of the lists this many steps (the outermost list and half
+  // the next) are a scroll zone while more lists lie beyond; leaving it
+  // takes this many steps more, so the selection does not flicker on its
+  // border. A finger held there scrolls after the delay, at these speeds
+  // (lists per second) from the zone's inner border to its outer side.
+  final double dialEdgeZone;
   final double dialEdgeLeave;
   final Duration dialEdgeDelay;
-  final Duration dialEdgeInterval;
-  final Duration dialEdgeFastest;
+  final double dialEdgeSpeedMin;
+  final double dialEdgeSpeedMax;
   // Further than this past either edge (or past the longest tab) the finger
   // is off the dial: nothing is selected, and letting go cancels.
   final double dialOffDialDegrees;

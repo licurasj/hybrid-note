@@ -157,14 +157,38 @@ void main() {
     final List<String> log = await _pump(tester, count: 12);
     final TestGesture gesture = await _pickFirst(tester);
     await _turn(tester, gesture, _diagonal(tester), math.pi - 0.05, 160);
-    for (int i = 0; i < 300; i++) {
+    for (int i = 0; i < 70; i++) {
       await tester.pump(const Duration(milliseconds: 20));
     }
-    // No Edit while holding at an edge.
+    // Scrolling, not resting: no Edit.
     expect(find.byKey(const ValueKey('dial-edit')), findsNothing);
+    for (int i = 0; i < 80; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
     await gesture.up();
     await tester.pump();
     expect(log, ['open n11']);
+  });
+
+  testWidgets('the outermost list in a scroll zone is never picked', (
+    WidgetTester tester,
+  ) async {
+    final List<String> log = await _pump(tester, count: 12);
+    final TestGesture gesture = await _pickFirst(tester);
+    // Past the bottom end of the lists, then let go before any scrolling:
+    // a list is picked, but a list further out is still shown (the
+    // outermost one only scrolls).
+    await _turn(tester, gesture, _diagonal(tester), math.pi + 0.12, 140);
+    final List<int> shown = [
+      for (int i = 1; i <= 12; i++)
+        if (find.byKey(ValueKey('dial-entry-$i')).evaluate().isNotEmpty) i,
+    ];
+    await gesture.up();
+    await tester.pump();
+    expect(log, hasLength(1));
+    final int picked = int.parse(log.single.substring('open n'.length));
+    // Entry index = list index + 1.
+    expect(shown.last, greaterThan(picked + 1));
   });
 
   testWidgets('inside a list, past the last list the bottom edge picks Home', (
