@@ -24,9 +24,9 @@ final List<LauncherNote> debugDialExtraNotes = [];
 // 2026-11-03: the finger always selects in the middle); holding the finger
 // at an edge scrolls the lists that way, a step at a time and faster the
 // longer it holds, then picks New list or Home. New list and Home (inside a
-// list) ride at the two ends of the lists, wider than a list, and stop where
-// they would cross the lines that continue the hub's outer edges along the
-// screen. Far off the dial nothing is selected and letting go cancels. Rest
+// list) ride at the two ends of the lists and stop as far out as they can
+// without crossing the lines that continue the hub's outer edges along the
+// screen, which leaves the lists more room. Far off the dial nothing is selected and letting go cancels. Rest
 // the finger on a list and Edit slides out from behind its end; a short
 // swipe outwards (wherever the finger is) selects it. Rest on the hub for
 // Move.
@@ -222,8 +222,8 @@ class _DialLauncherState extends State<DialLauncher>
 
   bool _isFixed(int index) => _entries[index].kind != _Kind.note;
 
-  // New list and Home are this much wider than a list.
-  double get _fixedWidth => _step * _config.dialFixedSpread;
+  // New list and Home take a list's angle.
+  double get _fixedWidth => _step;
 
   // --- Geometry, in the corner frame of LauncherGeometry -------------------
 
@@ -299,7 +299,7 @@ class _DialLauncherState extends State<DialLauncher>
     // in from it, on the middle of the hub's two discs).
     (double, double) reach((double, double) sides) {
       final double Function(double) halfAt =
-          _halfWidth(sides, inner, outer, 1, fixed: true);
+          _halfWidth(sides, inner, outer, 1);
       double x = -double.infinity;
       double y = -double.infinity;
       for (final Offset p in _outlinePoints(g, sides, inner, outer, halfAt)) {
@@ -993,14 +993,13 @@ class _DialLauncherState extends State<DialLauncher>
     (double, double) sides,
     double inner,
     double outer,
-    double zoom, {
-    bool fixed = false,
-  }) {
+    double zoom,
+  ) {
     final double root = _config.dialTabRoot;
-    final double share = (sides.$1 - sides.$2) * outer * 0.92;
-    final double end = fixed
-        ? share
-        : math.min(_config.dialTabCap + _config.dialTabGrow * zoom, share);
+    final double end = math.min(
+      _config.dialTabCap + _config.dialTabGrow * zoom,
+      (sides.$1 - sides.$2) * outer * 0.92,
+    );
     return (double a) =>
         (root + (end - root) * (a - inner) / math.max(outer - inner, 1)) / 2;
   }
@@ -1075,7 +1074,7 @@ class _DialLauncherState extends State<DialLauncher>
     final double outer = _outer(g, index, angle);
     final double zoom = _closeness(index);
     final double Function(double) halfAt =
-        _halfWidth(sides, inner, outer, zoom, fixed: _isFixed(index));
+        _halfWidth(sides, inner, outer, zoom);
     final (Rect bounds, List<Offset> outline) =
         _outline(g, sides, inner, outer, halfAt);
 

@@ -47,7 +47,6 @@ class LauncherConfig {
     this.selectedSpread = 2.0,
     this.dialStepDegrees = 12,
     this.dialSelectedSpread = 1.0,
-    this.dialFixedSpread = 1.6,
     this.dialNeighbourLength = 0.8,
     this.dialFarLength = 0.68,
     this.dialTabRoot = 16,
@@ -119,13 +118,12 @@ class LauncherConfig {
   final double selectedSpread;
 
   // The dial (owner's choices on the phone, T-16 unit 6, 2026-10-30 to
-  // 2026-11-03). Each list takes this angle, the selected one this many
-  // times as much (1: no wider, owner 2026-11-03), New list and Home this
-  // many times as much. The selected tab reaches half the screen diagonal;
-  // its neighbours and the rest reach these shares of that.
+  // 2026-11-03). Each tab takes this angle, the selected one this many times
+  // as much (1: no wider, owner 2026-11-03). The selected tab reaches half
+  // the screen diagonal; its neighbours and the rest reach these shares of
+  // that.
   final double dialStepDegrees;
   final double dialSelectedSpread;
-  final double dialFixedSpread;
   final double dialNeighbourLength;
   final double dialFarLength;
   // Petal widths: at the hub, the cap at the end, and how much the selected
