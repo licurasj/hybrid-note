@@ -16,7 +16,8 @@ export type RefusalReason =
   | 'dailyCount'
   | 'globalBudget'
   | 'busy'
-  | 'provider';
+  | 'provider'
+  | 'outputTooLong';
 
 const CODES: Record<RefusalReason, FunctionsErrorCode> = {
   signIn: 'unauthenticated',
@@ -30,6 +31,8 @@ const CODES: Record<RefusalReason, FunctionsErrorCode> = {
   globalBudget: 'resource-exhausted',
   busy: 'aborted',
   provider: 'unavailable',
+  // The answer hit the output ceiling and was cut; nothing of it is used.
+  outputTooLong: 'resource-exhausted',
 };
 
 /** A typed refusal. Messages are English and carry no request text. */

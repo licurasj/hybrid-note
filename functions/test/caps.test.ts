@@ -94,8 +94,8 @@ describe('global $1/day stop', () => {
     assert.equal(pool.get('reservedMicros'), 0);
   });
 
-  test('the ceiling of the fake model matches Haiku-like prices', () => {
-    // 20k input at $0.10/MTok + 4k output at $0.50/MTok = $0.004.
-    assert.equal(CEILING, 4000);
+  test('the ceiling of the fake model matches Haiku 5.5 prices', () => {
+    // Two attempts of 70k input at the $0.125/MTok cache-write rate + 8k output at $0.50/MTok = $0.0255.
+    assert.equal(CEILING, 25500);
   });
 });

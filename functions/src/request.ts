@@ -17,6 +17,8 @@ export interface OpenList {
 export interface AiRequest {
   prompt: string;
   locale: string;
+  /** The device's local date, YYYY-MM-DD, for "on Friday"; the server's UTC date when absent. */
+  today?: string;
   lists: ListSummary[];
   /** Absent or null when no list is open (Q-36): the AI routes to a list. */
   openList: OpenList | null;
@@ -45,6 +47,10 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
   }
   if (typeof locale !== 'string' || locale.length === 0 || locale.length > 35) {
     throw refuse('badRequest', 'locale must be a short string');
+  }
+  const today = data.today ?? undefined;
+  if (today !== undefined && (typeof today !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(today))) {
+    throw refuse('badRequest', 'today must be YYYY-MM-DD');
   }
   if (!Array.isArray(lists)) throw refuse('badRequest', 'lists must be an array');
   for (const list of lists) {
@@ -86,6 +92,7 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
   return {
     prompt,
     locale,
+    ...(today !== undefined ? { today } : {}),
     lists: lists as unknown as ListSummary[],
     openList: openList as OpenList | null,
   };

@@ -25,10 +25,11 @@ const open: AiRequest = parseRequest(
 const closed: AiRequest = { ...open, openList: null };
 
 function answer(content: ContentBlock[], stopReason: ProviderResponse['stopReason'] = 'end'): ProviderResponse {
-  return { content, usage: { inputTokens: 1, outputTokens: 1 }, stopReason };
+  return { content, usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 }, stopReason };
 }
 
-const call = (name: string, args: unknown): ContentBlock => ({ type: 'tool_call', name, args });
+let ids = 0;
+const call = (name: string, args: unknown): ContentBlock => ({ type: 'tool_call', id: `c${ids++}`, name, args });
 const text = (t: string): ContentBlock => ({ type: 'text', text: t });
 
 describe('filterOutput', () => {
@@ -123,7 +124,7 @@ describe('filterOutput', () => {
   });
 
   test('a failing schema check drops the call', () => {
-    const out = filterOutput(answer([call('create_list', {})]), open, limits, () => false);
+    const out = filterOutput(answer([call('create_list', {})]), open, limits, () => ['bad']);
     assert.equal(out.declineReason, 'noValidTool');
   });
 });

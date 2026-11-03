@@ -107,6 +107,8 @@ describe('the ordinary log never carries prompt, list or item text', () => {
         },
       }),
     })],
+    ['a schema self-correction', () => ({ uid: UID, appCheckTokenPresent: false, data: data(`[fake:badschema] eggs, ${PROMPT_SECRET}`) })],
+    ['an answer cut at the length limit', () => ({ uid: UID, appCheckTokenPresent: false, data: data(`[fake:length] ${PROMPT_SECRET}`) })],
     ['an over-long prompt', () => ({ uid: UID, appCheckTokenPresent: false, data: data(PROMPT_SECRET + 'x'.repeat(1200)) })],
     ['a refused App Check', () => ({ uid: UID, appCheckTokenPresent: true, data: data(PROMPT_SECRET, { platform: 'web' }) })],
     ['a provider error that echoes the text', () => ({ uid: UID, appCheckTokenPresent: false, data: data(PROMPT_SECRET) }), failing],

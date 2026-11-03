@@ -3,19 +3,25 @@ import { HttpsError } from 'firebase-functions/v2/https';
 
 import { decideAppCheck } from './appCheck';
 import { countOnly, reserve, settle, type Reservation } from './caps';
-import { ACTIVE_MODEL, COLLECTIONS, MODELS, TIERS, costMicros, type ModelConfig, type TierName } from './config';
+import {
+  ACTIVE_MODEL,
+  COLLECTIONS,
+  MODELS,
+  TIERS,
+  addUsage,
+  costMicros,
+  type ModelConfig,
+  type TierName,
+  type Usage,
+} from './config';
 import { reasonOf, refuse } from './errors';
 import { uidHash, type LogSink, type RequestMeta } from './log';
-import { filterOutput, structuralCheck, type DeclineReason, type SchemaCheck, type ToolCall } from './output';
+import { filterOutput, retryFeedback, type DeclineReason, type SchemaCheck, type ToolCall } from './output';
 import { writePromptLog } from './promptLog';
-import type { AiProvider, ProviderResponse } from './provider/types';
-import { parseRequest } from './request';
-
-// Placeholder: T-19 unit 3 writes the real system prompt (list design, the
-// off-topic rule, routing between lists) next to the tool schemas.
-export const SYSTEM_PROMPT =
-  'You help with the user\'s lists in Hybrid Note only. Act through the tools. ' +
-  'For anything not about the user\'s lists, call decline.';
+import { buildUserMessage, systemPrompt } from './prompt';
+import { ProviderError, type AiProvider, type ProviderCall, type ProviderResponse } from './provider/types';
+import { parseRequest, type AiRequest } from './request';
+import { loadTools, schemaErrors } from './schemas';
 
 export interface CallInput {
   uid?: string;
@@ -32,6 +38,7 @@ export interface Deps {
   now: () => Date;
   newRequestId: () => string;
   model?: ModelConfig;
+  /** The tool-call check; the unit 1 JSON Schemas (schemaErrors) by default. */
   schemaCheck?: SchemaCheck;
 }
 
@@ -40,7 +47,42 @@ export interface AiResponse {
   outcome: 'ok' | 'declined';
   toolCalls: ToolCall[];
   declineReason?: DeclineReason;
-  usage: { inputTokens: number; outputTokens: number; costUsd: number };
+  usage: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens: number;
+    cacheWriteTokens: number;
+    costUsd: number;
+  };
+}
+
+/**
+ * The provider step shared by aiCommand and the eval (eval/run.ts): one call,
+ * then one self-correction call when a known tool's arguments fail the
+ * schema (Q-34 A). Returns the final answer and the usage of both calls.
+ */
+export async function runModel(
+  provider: AiProvider,
+  model: ModelConfig,
+  request: AiRequest,
+  schemaCheck: SchemaCheck,
+  now: Date,
+  onAttempt: (attempts: number) => void = () => {},
+): Promise<{ response: ProviderResponse; usage: Usage; attempts: number }> {
+  const call: ProviderCall = {
+    model,
+    system: systemPrompt(),
+    tools: loadTools(model.strictTools),
+    user: buildUserMessage(request, now),
+    request,
+  };
+  onAttempt(1);
+  const first = await provider.call(call);
+  const feedback = first.stopReason === 'end' ? retryFeedback(first, schemaCheck) : [];
+  if (feedback.length === 0) return { response: first, usage: first.usage, attempts: 1 };
+  onAttempt(2);
+  const second = await provider.call({ ...call, retry: { previous: first, feedback } });
+  return { response: second, usage: addUsage(first.usage, second.usage), attempts: 2 };
 }
 
 /** Finds the caller's tier on the server-only allowlist; T-18 adds the demo tier here. */
@@ -52,8 +94,8 @@ export async function resolveTier(db: Firestore, uid: string): Promise<TierName 
 
 /**
  * aiCommand's whole flow, in order: sign-in, App Check, allowlist tier, input
- * limits, prompt log, cap reservation, provider call, settlement, output
- * filter. The function never writes list data: the client validates,
+ * limits, prompt log, cap reservation, provider call (with one schema
+ * self-correction), settlement, output filter. The function never writes list data: the client validates,
  * previews and applies the returned tool calls (plan 7.1 step 5).
  */
 export async function handleAiCommand(input: CallInput, deps: Deps): Promise<AiResponse> {
@@ -101,22 +143,29 @@ export async function handleAiCommand(input: CallInput, deps: Deps): Promise<AiR
     meta.model = model.model;
     const reservation: Reservation = await reserve(deps.db, uid, tier, limits, model, started);
 
+    const schemaCheck = deps.schemaCheck ?? schemaErrors;
     let response: ProviderResponse;
+    let usage: Usage;
     try {
-      response = await deps.provider.call({ model, system: SYSTEM_PROMPT, request });
-    } catch {
+      ({ response, usage } = await runModel(deps.provider, model, request, schemaCheck, started, (n) => (meta.attempts = n)));
+    } catch (error) {
       // The usage of a failed call is unknown, so the ceiling stays spent.
+      meta.providerError = error instanceof ProviderError ? error.kind : 'unknown';
       await settle(deps.db, reservation, reservation.reservedMicros, deps.now());
       throw refuse('provider', 'the AI provider failed');
     }
-    const cost = costMicros(model, response.usage.inputTokens, response.usage.outputTokens);
+    const cost = costMicros(model, usage, started);
     await settle(deps.db, reservation, cost, deps.now());
-    meta.inputTokens = response.usage.inputTokens;
-    meta.outputTokens = response.usage.outputTokens;
+    meta.inputTokens = usage.inputTokens;
+    meta.outputTokens = usage.outputTokens;
+    meta.cacheReadTokens = usage.cacheReadTokens;
+    meta.cacheWriteTokens = usage.cacheWriteTokens;
     meta.costMicros = cost;
     meta.stopReason = response.stopReason;
+    // A cut answer may end in a half tool call: none of it is used.
+    if (response.stopReason === 'length') throw refuse('outputTooLong', 'the AI answer was cut at its length limit');
 
-    const output = filterOutput(response, request, limits, deps.schemaCheck ?? structuralCheck);
+    const output = filterOutput(response, request, limits, schemaCheck);
     meta.outcome = output.outcome;
     meta.reason = output.declineReason;
     meta.droppedText = output.droppedText;
@@ -132,11 +181,7 @@ export async function handleAiCommand(input: CallInput, deps: Deps): Promise<AiR
       outcome: output.outcome,
       toolCalls: output.toolCalls,
       ...(output.declineReason ? { declineReason: output.declineReason } : {}),
-      usage: {
-        inputTokens: response.usage.inputTokens,
-        outputTokens: response.usage.outputTokens,
-        costUsd: cost / 1e6,
-      },
+      usage: { ...usage, costUsd: cost / 1e6 },
     };
   } catch (error) {
     meta.reason = reasonOf(error);

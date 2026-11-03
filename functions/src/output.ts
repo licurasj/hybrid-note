@@ -1,6 +1,6 @@
 import type { TierLimits } from './config';
 import type { AiRequest } from './request';
-import { TOOL_NAMES, type ProviderResponse, type ToolName } from './provider/types';
+import { TOOL_NAMES, type ProviderResponse, type ToolFeedback, type ToolName } from './provider/types';
 
 export interface ToolCall {
   name: ToolName;
@@ -21,13 +21,28 @@ export interface FilteredOutput {
 }
 
 /**
- * The per-tool schema check. Structural until T-19 unit 3 wires the JSON
- * Schemas that unit 1 writes (copied to lib/schema/ by scripts/copy-schemas.mjs)
- * and adds the one self-correction retry.
+ * The per-tool schema check: the errors of one call, none when it is valid.
+ * aiCommand uses schemaErrors (src/schemas.ts, the unit 1 JSON Schemas);
+ * structuralCheck accepts everything, for tests of the other rules.
  */
-export type SchemaCheck = (name: ToolName, args: Record<string, unknown>) => boolean;
+export type SchemaCheck = (name: ToolName, args: unknown) => string[];
 
-export const structuralCheck: SchemaCheck = () => true;
+export const structuralCheck: SchemaCheck = () => [];
+
+/**
+ * The schema errors of the answer's calls to known tools, for the one
+ * self-correction round (Q-34 A). Unknown tools are not retried: they are
+ * dropped, as a list delete or a made-up tool must be.
+ */
+export function retryFeedback(response: ProviderResponse, schemaCheck: SchemaCheck): ToolFeedback[] {
+  const feedback: ToolFeedback[] = [];
+  for (const block of response.content) {
+    if (block.type !== 'tool_call' || !(TOOL_NAMES as readonly string[]).includes(block.name)) continue;
+    const errors = schemaCheck(block.name as ToolName, block.args);
+    if (errors.length > 0) feedback.push({ id: block.id, errors });
+  }
+  return feedback;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -127,5 +142,5 @@ function acceptCall(
       break;
   }
   const checked = args as Record<string, unknown>;
-  return schemaCheck(tool, checked) ? { name: tool, args: checked } : null;
+  return schemaCheck(tool, checked).length === 0 ? { name: tool, args: checked } : null;
 }

@@ -2,24 +2,51 @@ import { randomUUID } from 'node:crypto';
 
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { defineSecret } from 'firebase-functions/params';
 import { onCall } from 'firebase-functions/v2/https';
 
-import { ACTIVE_MODEL, MODELS } from './config';
+import { ACTIVE_MODEL, MODELS, type ModelConfig } from './config';
 import { refuse } from './errors';
 import { handleAiCommand } from './handler';
 import { cloudLogSink } from './log';
+import { ClaudeProvider } from './provider/claude';
+import { DeepSeekProvider } from './provider/deepseek';
 import { FakeProvider } from './provider/fake';
-import type { AiProvider } from './provider/types';
+import { ProviderError, type AiProvider } from './provider/types';
 
 initializeApp();
 
-/** The configured provider. The fake one answers only inside the emulator. */
-function provider(): AiProvider {
-  const model = MODELS[ACTIVE_MODEL];
-  if (model.provider === 'fake' && process.env.FUNCTIONS_EMULATOR === 'true') {
-    return new FakeProvider();
+// One Secret Manager secret per provider (Q-28). The owner sets them with
+// `firebase functions:secrets:set` (T-19 unit 6); on the emulator they come
+// from the git-ignored functions/.secret.local.
+const anthropicKey = defineSecret('ANTHROPIC_API_KEY');
+const deepseekKey = defineSecret('DEEPSEEK_API_KEY');
+
+/**
+ * The model of this call. The emulator always uses the fake provider, so
+ * tests never reach a real API or spend money, even when the owner has put
+ * keys in .secret.local; AI_REAL_PROVIDER=true in the shell that starts the
+ * emulator opts in to the configured model.
+ */
+function pickModel(): ModelConfig {
+  const emulator = process.env.FUNCTIONS_EMULATOR === 'true';
+  return emulator && process.env.AI_REAL_PROVIDER !== 'true' ? MODELS.fake : MODELS[ACTIVE_MODEL];
+}
+
+/** The adapter for the model; read only after the checks before the provider call passed. */
+function providerFor(model: ModelConfig): AiProvider {
+  try {
+    switch (model.provider) {
+      case 'fake':
+        return new FakeProvider();
+      case 'claude':
+        return new ClaudeProvider(anthropicKey.value());
+      case 'deepseek':
+        return new DeepSeekProvider(deepseekKey.value());
+    }
+  } catch (error) {
+    if (!(error instanceof ProviderError)) throw error;
   }
-  // T-19 unit 3 adds the Claude and DeepSeek adapters here.
   throw refuse('provider', 'no AI provider is configured');
 }
 
@@ -33,11 +60,14 @@ export const aiCommand = onCall(
     region: 'us-central1',
     enforceAppCheck: false,
     maxInstances: 2,
-    timeoutSeconds: 60,
+    // Two provider calls (the schema self-correction) of up to 50 s each.
+    timeoutSeconds: 120,
+    secrets: [anthropicKey, deepseekKey],
     memory: '256MiB',
   },
-  (request) =>
-    handleAiCommand(
+  (request) => {
+    const model = pickModel();
+    return handleAiCommand(
       {
         uid: request.auth?.uid,
         verifiedAppId: request.app?.appId,
@@ -47,11 +77,13 @@ export const aiCommand = onCall(
       {
         db: getFirestore(),
         get provider() {
-          return provider();
+          return providerFor(model);
         },
+        model,
         log: cloudLogSink,
         now: () => new Date(),
         newRequestId: randomUUID,
       },
-    ),
+    );
+  },
 );

@@ -21,8 +21,14 @@ export interface RequestMeta {
   promptChars?: number;
   inputTokens?: number;
   outputTokens?: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
   costMicros?: number;
   stopReason?: string;
+  /** Provider calls made: 2 when the schema self-correction ran. */
+  attempts?: number;
+  /** ProviderError kind of a failed call (never its message). */
+  providerError?: string;
   toolCounts?: Record<string, number>;
   droppedText?: number;
   droppedTools?: number;

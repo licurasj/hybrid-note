@@ -96,7 +96,7 @@ describe('outcomes', () => {
     assert.ok(r.ok, JSON.stringify(r));
     assert.equal(r.result.outcome, 'ok');
     assert.deepEqual(r.result.toolCalls, [
-      { name: 'upsert_items', args: { listId: GROCERY, items: [{ values: { name: 'eggs' } }, { values: { name: 'milk' } }] } },
+      { name: 'upsert_items', args: { listId: GROCERY, items: [{ values: [{ field: 'title', value: 'eggs' }] }, { values: [{ field: 'title', value: 'milk' }] }] } },
     ]);
     assert.ok(r.result.usage.costUsd > 0 && r.result.usage.costUsd <= CEILING / 1e6);
     assert.equal(typeof r.result.requestId, 'string');
