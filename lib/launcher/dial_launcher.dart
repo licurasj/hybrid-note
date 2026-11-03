@@ -17,10 +17,10 @@ import 'radial_launcher.dart' show LauncherNote, LauncherWedgePainter;
 // corner, where the thumb does not cover its name. Pointing at a tab picks
 // it and turns it to the diagonal; from there, turning the thumb by one step
 // picks the next or previous one (the dial follows, the finger never chases
-// it). Later lists lie towards the bottom (or top) edge. New list (along the
-// side edge) and Home (inside a list, along the bottom edge) stay put while
-// the lists turn between them; holding the thumb next to either keeps
-// stepping through the lists that way. Tabs take their
+// it). Later lists lie towards the bottom (or top) edge. New list and Home
+// (inside a list) ride at the two ends of the lists and stop at the side and
+// bottom edges, so they stay in reach; holding the thumb next to either
+// keeps stepping through the lists that way. Tabs take their
 // list's colour. Rest the finger and Edit slides out from behind the
 // selected tab's end; a short swipe outwards (wherever the finger is)
 // selects it. Rest on the hub for Move.
@@ -62,6 +62,25 @@ class DialLauncher extends StatefulWidget {
 }
 
 enum _Mode { closed, hold, tap, moving }
+
+// Test switch for the owner's phone (2026-11-03): --dart-define=
+// DIAL_DEMO_LISTS=n adds n made-up lists to the dial only, to try scrolling
+// without touching the account's data. They open nothing.
+const int _demoListCount = int.fromEnvironment('DIAL_DEMO_LISTS');
+const List<(String, Color)> _demoLists = [
+  ('Books', Color(0xFF3D5AFE)),
+  ('Recipes', Color(0xFFE64A19)),
+  ('Gifts', Color(0xFFC2185B)),
+  ('Travel', Color(0xFF00897B)),
+  ('Gym', Color(0xFF5D4037)),
+  ('Movies', Color(0xFF7B1FA2)),
+  ('Ideas', Color(0xFFF5B800)),
+  ('Errands', Color(0xFF2E7D32)),
+  ('Garden', Color(0xFF00ACC1)),
+  ('Music', Color(0xFFD81B60)),
+  ('Packing', Color(0xFF6D4C41)),
+  ('Projects', Color(0xFF1E88E5)),
+];
 
 enum _Kind { home, note, add }
 
@@ -159,26 +178,45 @@ class _DialLauncherState extends State<DialLauncher>
   // edge); Home (inside a list) last, towards the bottom edge, as in the fan.
   List<_Entry> get _entries => [
         const _Entry(_Kind.add),
-        for (final LauncherNote note in widget.notes) _Entry(_Kind.note, note),
+        for (final LauncherNote note in _notes) _Entry(_Kind.note, note),
         if (widget.onHome != null) const _Entry(_Kind.home),
       ];
 
-  // The most recent list stands on the diagonal when the dial opens.
-  int get _firstList => widget.notes.isEmpty ? 0 : 1;
-  int get _lastList => widget.notes.length;
+  List<LauncherNote> get _notes => [
+        ...widget.notes,
+        for (int i = 0; i < _demoListCount; i++)
+          LauncherNote(
+            id: 'demo-$i',
+            label: _demoLists[i % _demoLists.length].$1,
+            icon: Icons.list,
+            color: _demoLists[i % _demoLists.length].$2,
+            semanticsLabel: _demoLists[i % _demoLists.length].$1,
+          ),
+      ];
 
-  // New list and Home stay put at the two edges of the corner's quarter
-  // (owner, 2026-11-03); only the lists turn, between them.
+  // The most recent list stands on the diagonal when the dial opens.
+  int get _firstList => _notes.isEmpty ? 0 : 1;
+  int get _lastList => _notes.length;
+
+  // New list and Home ride at the two ends of the lists and turn with them;
+  // when the lists run past an edge of the corner's quarter they stop there,
+  // so both stay in reach (owner, 2026-11-03).
   bool _isFixed(int index) => _entries[index].kind != _Kind.note;
 
+  // Where New list and Home stop: the end zones for scrolling lie next to
+  // these.
   double get _listsLow => math.pi / 2 + _step;
   double get _listsHigh => math.pi - (widget.onHome != null ? _step : 0);
+
+  // Whether the finger picked New list or Home where it stopped at an edge
+  // (leaving it goes back to the list the dial stands on).
+  bool _edgePick = false;
 
   // Where the dial heads: the selected list, or the nearest list while New
   // list or Home is selected.
   double get _target {
     final int? selected = _selected;
-    if (selected == null || widget.notes.isEmpty) {
+    if (selected == null || _notes.isEmpty) {
       return _position;
     }
     return selected.clamp(_firstList, _lastList).toDouble();
@@ -223,33 +261,60 @@ class _DialLauncherState extends State<DialLauncher>
     return x.sign * (selected / 2 + (x.abs() - 0.5) * _step);
   }
 
-  // An entry's two sides: New list along the side edge, Home along the
-  // bottom edge, the lists turning between them and cut off where they
-  // meet those; null when nothing of it shows.
+  // Where an entry would stand on the turning dial. Later entries lie
+  // towards the bottom (or top) edge, where the quarter has the most room
+  // past the diagonal.
+  (double, double) _turning(LauncherGeometry g, int index) {
+    final double diagonal = _diagonal(g);
+    final double d = index - _position;
+    return (diagonal + _offset(d + 0.5), diagonal + _offset(d - 0.5));
+  }
+
+  // New list's sides: before the first list, stopping at the side edge.
+  (double, double) _addSides(LauncherGeometry g) {
+    final (double start, double end) = _turning(g, 0);
+    final double push = math.max(0, math.pi / 2 - end);
+    return (start + push, end + push);
+  }
+
+  bool _addAtEdge(LauncherGeometry g) =>
+      _turning(g, 0).$2 <= math.pi / 2 + 0.001;
+
+  // Home's sides: after the last list, stopping at the bottom edge.
+  (double, double) _homeSides(LauncherGeometry g) {
+    final (double start, double end) = _turning(g, _entries.length - 1);
+    final double pull = math.max(0, start - math.pi);
+    return (start - pull, end - pull);
+  }
+
+  bool _homeAtEdge(LauncherGeometry g) =>
+      widget.onHome != null &&
+      _turning(g, _entries.length - 1).$1 >= math.pi - 0.001;
+
+  // An entry's two sides, the lists cut off where they meet New list and
+  // Home; null when nothing of it shows.
   (double, double)? _sides(LauncherGeometry g, int index) {
     switch (_entries[index].kind) {
       case _Kind.add:
-        return (math.pi / 2 + _step, math.pi / 2);
+        return _addSides(g);
       case _Kind.home:
-        return (math.pi, math.pi - _step);
+        return _homeSides(g);
       case _Kind.note:
         break;
     }
-    final double diagonal = _diagonal(g);
-    final double d = index - _position;
-    // Later entries lie towards the bottom (or top) edge, where the quarter
-    // has the most room past the diagonal.
-    final double start = math.min(_listsHigh, diagonal + _offset(d + 0.5));
-    final double end = math.max(_listsLow, diagonal + _offset(d - 0.5));
+    final (double turnStart, double turnEnd) = _turning(g, index);
+    final double high =
+        widget.onHome != null ? _homeSides(g).$2 : math.pi;
+    final double start = math.min(high, turnStart);
+    final double end = math.max(_addSides(g).$1, turnEnd);
     // A sliver cut off by New list or Home is not shown.
     return start - end > 0.3 * _step ? (start, end) : null;
   }
 
-  // 1 for the selected entry, less with distance from it; New list and Home
-  // keep one length unless selected.
+  // 1 for the selected entry, less with distance from it.
   double _emphasis(int index) {
-    if (_isFixed(index)) {
-      return _selected == index ? 1 : 0.72;
+    if (_isFixed(index) && _selected == index) {
+      return 1;
     }
     final double d = (index - _position).abs();
     final double profile = d <= 1
@@ -460,6 +525,7 @@ class _DialLauncherState extends State<DialLauncher>
       _moveShown = false;
       _endSince = null;
       _endSteps = 0;
+      _edgePick = false;
     });
   }
 
@@ -544,31 +610,35 @@ class _DialLauncherState extends State<DialLauncher>
         _select(_entryAt(g, angle), angle);
         return;
       }
-      // New list and Home stay put: the finger on one picks it; leaving it
-      // goes back to the list the dial stands on.
-      if (angle < _listsLow || angle > _listsHigh) {
-        final int fixed = angle < _listsLow ? 0 : _entries.length - 1;
-        if (_isFixed(fixed)) {
-          _select(fixed, angle);
-          return;
-        }
+      // New list or Home stopped at an edge: the finger there picks it;
+      // leaving it goes back to the list the dial stands on.
+      if (angle < _listsLow && _addAtEdge(g)) {
+        _select(0, angle);
+        _edgePick = true;
+        return;
       }
-      if (_isFixed(_selected!)) {
-        if (widget.notes.isNotEmpty) {
+      if (angle > _listsHigh && _homeAtEdge(g)) {
+        _select(_entries.length - 1, angle);
+        _edgePick = true;
+        return;
+      }
+      if (_edgePick) {
+        _edgePick = false;
+        if (_notes.isNotEmpty) {
           _select(_position.round().clamp(_firstList, _lastList), angle);
         }
         return;
       }
-      // Turning the thumb picks the next or previous list, one step at a
-      // time; the dial follows.
+      // Turning the thumb picks the next or previous entry, one step at a
+      // time; the dial follows (New list and Home are the ends).
       double jog = (angle - _ref) / _step;
       int index = _selected!;
-      while (jog >= _jogAt && index < _lastList) {
+      while (jog >= _jogAt && index < _entries.length - 1) {
         index++;
         _ref += _step;
         jog -= 1;
       }
-      while (jog <= -_jogAt && index > _firstList) {
+      while (jog <= -_jogAt && index > 0) {
         index--;
         _ref -= _step;
         jog += 1;
@@ -592,9 +662,13 @@ class _DialLauncherState extends State<DialLauncher>
       case _Kind.add:
         widget.onNew?.call();
       case _Kind.note:
-        widget.onOpen(entry.note!);
+        if (!_isDemo(entry)) {
+          widget.onOpen(entry.note!);
+        }
     }
   }
+
+  bool _isDemo(_Entry entry) => entry.note?.id.startsWith('demo-') ?? false;
 
   void _onPointerUp(PointerUpEvent event) {
     final LauncherGeometry? g = _geometry;
@@ -636,7 +710,9 @@ class _DialLauncherState extends State<DialLauncher>
     }
     final _Entry entry = entries[selected];
     if (edit && entry.note != null) {
-      widget.onEdit(entry.note!);
+      if (!_isDemo(entry)) {
+        widget.onEdit(entry.note!);
+      }
     } else if (radius > widget.config.hubRadius) {
       _act(entry);
     }
@@ -759,7 +835,7 @@ class _DialLauncherState extends State<DialLauncher>
           _close();
           _act(entry);
         },
-        onLongPress: entry.note == null
+        onLongPress: entry.note == null || _isDemo(entry)
             ? null
             : () {
                 _close();
