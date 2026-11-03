@@ -8,6 +8,7 @@
 //                                                 prints the estimate and stops
 //   npm run eval -- --providers ... --yes         real calls (the owner's yes)
 //   ... --cases design-meals,route-ambiguous-shoes  only those cases
+//   ... --force-retry   reject the first answer once, to run the self-correction call
 //
 // Real calls read ANTHROPIC_API_KEY / DEEPSEEK_API_KEY / OPENAI_API_KEY from the git-ignored
 // functions/.secret.local that the owner fills in. Keys are never printed,
@@ -17,7 +18,7 @@ import { join } from 'node:path';
 
 import { MODELS, TIERS, costMicros, type ModelConfig, type Usage } from '../src/config';
 import { runModel } from '../src/handler';
-import { filterOutput, type ToolCall } from '../src/output';
+import { filterOutput, type SchemaCheck, type ToolCall } from '../src/output';
 import { ClaudeProvider } from '../src/provider/claude';
 import { DeepSeekProvider } from '../src/provider/deepseek';
 import { FakeProvider } from '../src/provider/fake';
@@ -78,12 +79,28 @@ function coldCost(model: ModelConfig, usage: Usage, at: Date): number {
   return costMicros(model, { inputTokens: all, outputTokens: usage.outputTokens, cacheReadTokens: 0, cacheWriteTokens: 0 }, at) / 1e6;
 }
 
-export async function runCase(testCase: EvalCase, model: ModelConfig, provider: AiProvider): Promise<CaseResult> {
+/** A schema check that rejects the first answer's calls once, so the self-correction call runs. */
+function forcedOnce(): SchemaCheck {
+  let first = true;
+  return (name, args) => {
+    if (!first) return schemaErrors(name, args);
+    first = false;
+    return ['(forced by the eval) send this call again unchanged'];
+  };
+}
+
+export async function runCase(
+  testCase: EvalCase,
+  model: ModelConfig,
+  provider: AiProvider,
+  forceRetry = false,
+): Promise<CaseResult> {
   const request = parseRequest(testCase.data, limits);
   const started = new Date();
   const base = { caseId: testCase.id, model: model.model, droppedText: 0, droppedTools: 0, toolCalls: [] as ToolCall[] };
   try {
-    const { response, usage, attempts } = await runModel(provider, model, request, schemaErrors, started);
+    const run = await runModel(provider, model, request, forceRetry ? forcedOnce() : schemaErrors, started);
+    const { response, usage, attempts } = run;
     const latencyMs = Date.now() - started.getTime();
     const costs = { usage, costUsd: costMicros(model, usage, started) / 1e6, coldCostUsd: coldCost(model, usage, started) };
     if (response.stopReason === 'length') {
@@ -101,7 +118,7 @@ export async function runCase(testCase: EvalCase, model: ModelConfig, provider: 
       attempts,
       stopReason: response.stopReason,
       latencyMs,
-      autoCheck: testCase.check(output.toolCalls, output.declineReason) ?? 'pass',
+      autoCheck: (testCase.check(output.toolCalls, output.declineReason) ?? 'pass') + (run.retryError ? ` (retry failed: ${run.retryError})` : ''),
     };
   } catch (error) {
     const kind = error instanceof ProviderError ? error.kind : 'unknown';
@@ -197,13 +214,14 @@ export async function runEval(
   secrets: Record<string, string>,
   outDir: string,
   cases: EvalCase[] = CASES,
+  forceRetry = false,
 ): Promise<CaseResult[]> {
   const results: CaseResult[] = [];
   for (const name of models) {
     const model = MODELS[name];
     const provider = providerFor(model, secrets);
     for (const testCase of cases) {
-      const result = await runCase(testCase, model, provider);
+      const result = await runCase(testCase, model, provider, forceRetry);
       results.push(result);
       console.log(`${name} ${testCase.id}: ${result.outcome} ${result.autoCheck} ${usd(result.costUsd)} ${result.latencyMs} ms`);
     }
@@ -249,7 +267,7 @@ async function main(): Promise<void> {
   const secrets = dry ? {} : readSecrets(join(ROOT, '.secret.local'));
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const outDir = join(ROOT, 'eval', 'results', `${dry ? 'dry-' : ''}${stamp}`);
-  await runEval(models, secrets, outDir, cases);
+  await runEval(models, secrets, outDir, cases, args.includes('--force-retry'));
   console.log(`Results in ${outDir}`);
 }
 

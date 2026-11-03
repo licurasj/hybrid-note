@@ -57,7 +57,7 @@ export class DeepSeekProvider implements AiProvider {
     if (!apiKey) throw new ProviderError('noKey');
   }
 
-  async call({ model, system, tools, user, retry }: ProviderCall): Promise<ProviderResponse> {
+  async call({ model, system, tools, user, retry, timeoutMs }: ProviderCall): Promise<ProviderResponse> {
     const messages: unknown[] = [
       { role: 'system', content: system },
       { role: 'user', content: user },
@@ -92,7 +92,7 @@ export class DeepSeekProvider implements AiProvider {
       stream: false,
     };
 
-    const completion = await this.post(body);
+    const completion = await this.post(body, timeoutMs ?? TIMEOUT_MS);
     const choice = completion.choices?.[0];
     if (choice === undefined || choice.message === undefined) throw new ProviderError('badResponse');
     if (choice.finish_reason === 'insufficient_system_resource' || choice.finish_reason === 'aborted') {
@@ -121,34 +121,25 @@ export class DeepSeekProvider implements AiProvider {
     };
   }
 
-  /** One POST, retried once after a second on 429, 5xx or no answer (like the Claude SDK). */
-  private async post(body: unknown): Promise<DeepSeekCompletion> {
-    let last: ProviderError = new ProviderError('network');
-    for (let attempt = 0; attempt < 2; attempt++) {
-      if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 1000));
-      let response: Response;
-      try {
-        response = await this.fetchFn(DEEPSEEK_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.apiKey}` },
-          body: JSON.stringify(body),
-          signal: AbortSignal.timeout(TIMEOUT_MS),
-        });
-      } catch {
-        last = new ProviderError('network');
-        continue;
-      }
-      if (response.ok) {
-        try {
-          return (await response.json()) as DeepSeekCompletion;
-        } catch {
-          throw new ProviderError('badResponse', response.status);
-        }
-      }
-      last = new ProviderError(kindOfStatus(response.status), response.status);
-      if (last.kind !== 'rateLimit' && last.kind !== 'overloaded') throw last;
+  /** One POST; retries are runModel's (one place, one deadline). */
+  private async post(body: unknown, timeoutMs: number): Promise<DeepSeekCompletion> {
+    let response: Response;
+    try {
+      response = await this.fetchFn(DEEPSEEK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.apiKey}` },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch {
+      throw new ProviderError('network');
     }
-    throw last;
+    if (!response.ok) throw new ProviderError(kindOfStatus(response.status), response.status);
+    try {
+      return (await response.json()) as DeepSeekCompletion;
+    } catch {
+      throw new ProviderError('badResponse', response.status);
+    }
   }
 }
 

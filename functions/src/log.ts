@@ -29,6 +29,8 @@ export interface RequestMeta {
   attempts?: number;
   /** ProviderError kind of a failed call (never its message). */
   providerError?: string;
+  /** Why the self-correction call did not count: its error kind, or noTime. */
+  retryError?: string;
   toolCounts?: Record<string, number>;
   droppedText?: number;
   droppedTools?: number;

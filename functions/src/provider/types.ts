@@ -50,6 +50,8 @@ export interface ProviderCall {
   /** The request's context and prompt (prompt.ts). */
   user: string;
   request: AiRequest;
+  /** The most this call may take (runModel's deadline); the adapter's own default otherwise. */
+  timeoutMs?: number;
   /** Set on the one self-correction call: the previous answer and what failed. */
   retry?: { previous: ProviderResponse; feedback: ToolFeedback[] };
 }

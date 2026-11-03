@@ -64,7 +64,7 @@ export const aiCommand = onCall(
     region: 'us-central1',
     enforceAppCheck: false,
     maxInstances: 2,
-    // Two provider calls (the schema self-correction) of up to 50 s each.
+    // runModel's deadline is 100 s for every provider call together; the rest settles and logs.
     timeoutSeconds: 120,
     secrets: [anthropicKey, deepseekKey, openaiKey],
     memory: '256MiB',

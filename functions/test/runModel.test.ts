@@ -1,0 +1,119 @@
+// runModel's deadline, its one retry of busy answers and the fallback when
+// the self-correction call fails (M2 and M3 of the T-19 unit 5 review).
+// No network, no emulator: a scripted provider and a fake clock.
+import assert from 'node:assert/strict';
+import { describe, test } from 'node:test';
+
+import { MODELS } from '../src/config';
+import { CALL_TIMEOUT_MS, MIN_ATTEMPT_MS, PROVIDER_DEADLINE_MS, runModel, unbilled } from '../src/handler';
+import { structuralCheck, type SchemaCheck } from '../src/output';
+import { ProviderError, type AiProvider, type ProviderCall, type ProviderResponse } from '../src/provider/types';
+import type { AiRequest } from '../src/request';
+
+const request: AiRequest = { prompt: 'eggs', locale: 'en', lists: [{ id: 'g', name: 'Grocery', fields: [] }], openList: null };
+const usage = { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 };
+const ok: ProviderResponse = {
+  content: [{ type: 'tool_call', id: 'c1', name: 'reply', args: { text: 'hi' } }],
+  usage,
+  stopReason: 'end',
+};
+
+/** A provider answering from a script; each step may advance the fake clock. */
+function scripted(steps: (ProviderResponse | Error)[], clock: { now: number }, advance = 0) {
+  const calls: ProviderCall[] = [];
+  const provider: AiProvider = {
+    name: 'scripted',
+    call: async (input) => {
+      calls.push(input);
+      clock.now += advance;
+      const step = steps.shift();
+      if (step === undefined) throw new Error('script ended');
+      if (step instanceof Error) throw step;
+      return step;
+    },
+  };
+  return { provider, calls };
+}
+
+const failOnce = (): SchemaCheck => {
+  let first = true;
+  return () => (first ? ((first = false), ['bad']) : []);
+};
+
+function run(provider: AiProvider, check: SchemaCheck, clock: { now: number }) {
+  return runModel(provider, MODELS.fake, request, check, new Date(), { clock: () => clock.now, wait: async () => {} });
+}
+
+describe('runModel', () => {
+  test('each call gets the time left, at most CALL_TIMEOUT_MS', async () => {
+    const clock = { now: 0 };
+    const { provider, calls } = scripted([ok, ok], clock, 60_000);
+    const result = await run(provider, failOnce(), clock);
+    assert.equal(result.attempts, 2);
+    assert.equal(calls[0].timeoutMs, CALL_TIMEOUT_MS);
+    assert.equal(calls[1].timeoutMs, PROVIDER_DEADLINE_MS - 60_000);
+  });
+
+  test('a busy answer is retried once; a second one fails the request', async () => {
+    const clock = { now: 0 };
+    const busy = () => new ProviderError('overloaded', 529);
+    const once = scripted([busy(), ok], clock);
+    assert.equal((await run(once.provider, structuralCheck, clock)).response, ok);
+    assert.equal(once.calls.length, 2);
+    const twice = scripted([new ProviderError('rateLimit', 429), new ProviderError('rateLimit', 429)], clock);
+    await assert.rejects(run(twice.provider, structuralCheck, clock), (e: ProviderError) => e.kind === 'rateLimit');
+    assert.equal(twice.calls.length, 2);
+  });
+
+  test('errors that may have been billed, or are final, are not retried', async () => {
+    for (const error of [new ProviderError('network'), new ProviderError('badRequest', 400), new ProviderError('billing', 402), new ProviderError('overloaded')]) {
+      const clock = { now: 0 };
+      const { provider, calls } = scripted([error, ok], clock);
+      await assert.rejects(run(provider, structuralCheck, clock));
+      assert.equal(calls.length, 1, error.message);
+    }
+  });
+
+  test('no busy retry when too little time is left', async () => {
+    const clock = { now: 0 };
+    const { provider, calls } = scripted([new ProviderError('overloaded', 503), ok], clock, PROVIDER_DEADLINE_MS - MIN_ATTEMPT_MS);
+    await assert.rejects(run(provider, structuralCheck, clock));
+    assert.equal(calls.length, 1);
+  });
+
+  test('the self-correction is skipped when too little time is left; the first answer is used', async () => {
+    const clock = { now: 0 };
+    const { provider, calls } = scripted([ok, ok], clock, PROVIDER_DEADLINE_MS - MIN_ATTEMPT_MS + 1);
+    const result = await run(provider, failOnce(), clock);
+    assert.equal(calls.length, 1);
+    assert.equal(result.response, ok);
+    assert.equal(result.retryError, 'noTime');
+  });
+
+  test('a failed self-correction falls back to the first answer and says whether it may be billed', async () => {
+    for (const [error, billed] of [
+      [new ProviderError('network'), true],
+      [new ProviderError('badRequest', 400), false],
+    ] as const) {
+      const clock = { now: 0 };
+      const { provider } = scripted([ok, error], clock);
+      const result = await run(provider, failOnce(), clock);
+      assert.equal(result.response, ok);
+      assert.deepEqual(result.usage, usage);
+      assert.equal(result.attempts, 2);
+      assert.equal(result.retryError, error.kind);
+      assert.equal(result.retryMaybeBilled, billed);
+    }
+  });
+
+  test('unbilled: error answers yes, timeouts and unknown errors no', () => {
+    assert.ok(unbilled(new ProviderError('auth', 401)));
+    assert.ok(unbilled(new ProviderError('billing', 402)));
+    assert.ok(unbilled(new ProviderError('rateLimit', 429)));
+    assert.ok(unbilled(new ProviderError('overloaded', 503)));
+    assert.ok(!unbilled(new ProviderError('overloaded')));
+    assert.ok(!unbilled(new ProviderError('network')));
+    assert.ok(!unbilled(new ProviderError('badResponse', 200)));
+    assert.ok(!unbilled(new Error('x')));
+  });
+});

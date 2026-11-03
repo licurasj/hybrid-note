@@ -27,12 +27,15 @@ function input(model: string, extra: Partial<ProviderCall> = {}): ProviderCall {
 }
 
 /** A stand-in for the SDK client that records the request and returns `reply`. */
+const claudeOptions: unknown[] = [];
+
 function claudeStub(reply: unknown | (() => never)) {
   const sent: Record<string, unknown>[] = [];
   const client = {
     messages: {
-      create: async (params: Record<string, unknown>) => {
+      create: async (params: Record<string, unknown>, options?: unknown) => {
         sent.push(params);
+        claudeOptions.push(options);
         if (typeof reply === 'function') return (reply as () => never)();
         return reply;
       },
@@ -69,6 +72,9 @@ describe('ClaudeProvider', () => {
     assert.deepEqual(tools.filter((t) => t.strict === true).map((t) => t.name), ['upsert_items', 'delete_items', 'choose_list', 'reply', 'decline']);
     assert.deepEqual(params.messages, [{ role: 'user', content: 'USER' }]);
     for (const key of ['temperature', 'top_p', 'top_k', 'thinking']) assert.ok(!(key in params), key);
+    assert.deepEqual(claudeOptions.at(-1), { timeout: 50_000 });
+    await provider.call(input('claude-haiku-5-5', { timeoutMs: 12_345 }));
+    assert.deepEqual(claudeOptions.at(-1), { timeout: 12_345 });
   });
 
   test('maps thinking, text and tool_use blocks, usage and stop reasons', async () => {
@@ -249,7 +255,7 @@ describe('DeepSeekProvider', () => {
     assert.equal(messages[5].role, 'user');
   });
 
-  test('HTTP errors map to kinds; 429, 5xx and no answer are retried once', async () => {
+  test('HTTP errors map to kinds in one attempt (retries are runModel\'s)', async () => {
     const kinds: [number, string][] = [
       [401, 'auth'],
       [402, 'billing'],
@@ -264,18 +270,16 @@ describe('DeepSeekProvider', () => {
       });
       assert.equal(sent.length, 1, `${status} is not retried`);
     }
-    const twice: [Response | Error, Response | Error, string][] = [
-      [json({}, 429), json({}, 429), 'rateLimit'],
-      [json({}, 503), json({}, 500), 'overloaded'],
-      [new Error('socket'), new Error('socket'), 'network'],
+    const once: [Response | Error, string][] = [
+      [json({}, 429), 'rateLimit'],
+      [json({}, 503), 'overloaded'],
+      [new Error('socket'), 'network'],
     ];
-    for (const [a, b, kind] of twice) {
-      const { fetchFn, sent } = fetchStub(a, b);
+    for (const [answer, kind] of once) {
+      const { fetchFn, sent } = fetchStub(answer);
       await assert.rejects(new DeepSeekProvider('KEY', fetchFn).call(input('deepseek-flash')), (e: ProviderError) => e.kind === kind);
-      assert.equal(sent.length, 2);
+      assert.equal(sent.length, 1);
     }
-    const { fetchFn } = fetchStub(json({}, 503), json(completion({ content: 'x' }, 'stop')));
-    assert.equal((await new DeepSeekProvider('KEY', fetchFn).call(input('deepseek-flash'))).stopReason, 'end');
   });
 
   test('without a key there is no provider', () => {

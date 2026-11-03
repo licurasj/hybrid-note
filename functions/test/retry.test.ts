@@ -5,7 +5,7 @@ import { beforeEach, describe, test } from 'node:test';
 
 import { HttpsError } from 'firebase-functions/v2/https';
 
-import { COLLECTIONS, MODELS, costMicros } from '../src/config';
+import { COLLECTIONS, MAX_ATTEMPTS, MODELS, ceilingMicros, costMicros } from '../src/config';
 import { handleAiCommand, type AiResponse } from '../src/handler';
 import type { RequestMeta } from '../src/log';
 import { FakeProvider } from '../src/provider/fake';
@@ -104,6 +104,41 @@ describe('schema self-correction', () => {
     const { result, entry } = await run('delete it', provider);
     assert.equal(entry.attempts, 1);
     assert.equal(result?.declineReason, 'noValidTool');
+  });
+});
+
+describe('provider failures (M1, M3 of the unit 5 review)', () => {
+  async function reservedMicros(): Promise<number> {
+    const pool = await db().collection(COLLECTIONS.poolUsage).doc(`global_${today()}`).get();
+    return pool.get('reservedMicros') as number;
+  }
+
+  test('an error answer that cannot have been billed settles to $0', async () => {
+    const { error, entry } = await run('[fake:billing] eggs', new FakeProvider());
+    assert.ok(error instanceof HttpsError);
+    assert.deepEqual(error.details, { reason: 'provider' });
+    assert.equal(entry.providerError, 'billing');
+    assert.equal(await spentMicros(), 0);
+    assert.equal(await reservedMicros(), 0);
+  });
+
+  test('an error that may have been billed keeps the ceiling spent', async () => {
+    const { error } = await run('[fake:fail] eggs', new FakeProvider());
+    assert.ok(error instanceof HttpsError);
+    assert.equal(await spentMicros(), ceilingMicros(model));
+  });
+
+  test('a failed self-correction keeps the first answer and counts the failed call at its ceiling', async () => {
+    const { provider, calls } = recording();
+    const { result, entry } = await run('[fake:retryfail] eggs', provider);
+    assert.equal(calls.length, 2);
+    assert.equal(entry.retryError, 'network');
+    // The first answer's only call broke the schema, so it is dropped.
+    assert.equal(result?.declineReason, 'noValidTool');
+    const first = (await new FakeProvider().call(calls[0])).usage;
+    const expected = costMicros(model, first, new Date()) + Math.ceil(ceilingMicros(model) / MAX_ATTEMPTS);
+    assert.equal(await spentMicros(), expected);
+    assert.equal(Math.round((result?.usage.costUsd ?? 0) * 1e6), expected);
   });
 });
 

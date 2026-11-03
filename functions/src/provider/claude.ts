@@ -11,7 +11,7 @@ import {
   type ProviderResponse,
 } from './types';
 
-/** Seconds one Messages call may take; the SDK retries once on 429, 5xx and connection errors. */
+/** The default time of one Messages call; retries are runModel's (one place, one deadline). */
 const TIMEOUT_MS = 50_000;
 
 /**
@@ -28,10 +28,10 @@ export class ClaudeProvider implements AiProvider {
 
   constructor(apiKey: string | undefined, client?: Anthropic) {
     if (client === undefined && !apiKey) throw new ProviderError('noKey');
-    this.client = client ?? new Anthropic({ apiKey, timeout: TIMEOUT_MS, maxRetries: 1 });
+    this.client = client ?? new Anthropic({ apiKey, timeout: TIMEOUT_MS, maxRetries: 0 });
   }
 
-  async call({ model, system, tools, user, retry }: ProviderCall): Promise<ProviderResponse> {
+  async call({ model, system, tools, user, retry, timeoutMs }: ProviderCall): Promise<ProviderResponse> {
     const messages: Anthropic.MessageParam[] = [{ role: 'user', content: user }];
     if (retry !== undefined) {
       const previous = retry.previous.raw as Anthropic.ContentBlock[] | undefined;
@@ -65,7 +65,7 @@ export class ClaudeProvider implements AiProvider {
         tool_choice: { type: 'auto' },
         ...(model.effort ? { output_config: { effort: model.effort } } : {}),
         messages,
-      });
+      }, { timeout: timeoutMs ?? TIMEOUT_MS });
     } catch (error) {
       throw mapError(error);
     }

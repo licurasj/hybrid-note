@@ -38,10 +38,10 @@ export class OpenAiProvider implements AiProvider {
 
   constructor(apiKey: string | undefined, client?: OpenAI) {
     if (client === undefined && !apiKey) throw new ProviderError('noKey');
-    this.client = client ?? new OpenAI({ apiKey, timeout: TIMEOUT_MS, maxRetries: 1 });
+    this.client = client ?? new OpenAI({ apiKey, timeout: TIMEOUT_MS, maxRetries: 0 });
   }
 
-  async call({ model, system, tools, user, retry }: ProviderCall): Promise<ProviderResponse> {
+  async call({ model, system, tools, user, retry, timeoutMs }: ProviderCall): Promise<ProviderResponse> {
     const input: OpenAI.Responses.ResponseInputItem[] = [{ role: 'user', content: user }];
     if (retry !== undefined) {
       const previous = retry.previous.raw as OpenAI.Responses.ResponseOutputItem[] | undefined;
@@ -80,7 +80,7 @@ export class OpenAiProvider implements AiProvider {
         ...(model.effort ? { reasoning: { effort: model.effort } } : {}),
         store: false,
         include: ['reasoning.encrypted_content'],
-      });
+      }, { timeout: timeoutMs ?? TIMEOUT_MS });
     } catch (error) {
       throw mapError(error);
     }

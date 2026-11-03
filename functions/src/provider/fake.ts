@@ -1,4 +1,4 @@
-import type { AiProvider, ContentBlock, ProviderCall, ProviderResponse } from './types';
+import { ProviderError, type AiProvider, type ContentBlock, type ProviderCall, type ProviderResponse } from './types';
 
 /**
  * A scripted provider for the emulator and tests: no network, no keys.
@@ -14,6 +14,8 @@ import type { AiProvider, ContentBlock, ProviderCall, ProviderResponse } from '.
  *   [fake:length]    the answer is cut at the output ceiling
  *   [fake:badschema] the first answer breaks the tool schema, the retry fixes it
  *   [fake:badtwice]  both answers break the tool schema
+ *   [fake:billing]   the provider answers 402 (no credit): an error that is not billed
+ *   [fake:retryfail] the first answer breaks the schema and the retry call fails
  *
  * An item whose text contains "[fake:inject]" makes the fake "obey" it, as a
  * model fooled by a prompt injection would: it calls tools the function must
@@ -49,9 +51,12 @@ export class FakeProvider implements AiProvider {
     });
 
     if (prompt.includes('[fake:fail]')) throw new Error('fake provider failure');
+    if (prompt.includes('[fake:billing]')) throw new ProviderError('billing', 402);
+    if (prompt.includes('[fake:retryfail]') && retry !== undefined) throw new ProviderError('network');
     if (prompt.includes('[fake:refusal]')) return answer([], 'refusal');
     if (prompt.includes('[fake:length]')) return answer([adds], 'length');
-    if (prompt.includes('[fake:badtwice]') || (prompt.includes('[fake:badschema]') && retry === undefined)) {
+    const badFirst = prompt.includes('[fake:badschema]') || prompt.includes('[fake:retryfail]');
+    if (prompt.includes('[fake:badtwice]') || (badFirst && retry === undefined)) {
       // Values as a map, the shape the strict schema does not allow.
       return answer([tool('upsert_items', { listId: target, items: words.map((word) => ({ values: { title: word } })) })]);
     }
