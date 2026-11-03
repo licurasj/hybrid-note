@@ -362,5 +362,8 @@
   "aiRefusedAccess": "このアカウントまたはアプリはAIを使えません。",
   "aiRefusedUnavailable": "AIは現在利用できません。後でもう一度お試しください。",
   "aiRefusedBadRequest": "リクエストを送信できませんでした。",
-  "aiInvalidAnswer": "変更がリストに合わないため、何も適用されませんでした。"
+  "aiInvalidAnswer": "変更がリストに合わないため、何も適用されませんでした。",
+  "errorUndoTooLarge": "この変更は項目が多すぎるため、元に戻せません。",
+  "aiPartlyNotDone": "リクエストの一部は実行できませんでした。",
+  "aiRefusedProviderAccount": "AIプロバイダーのアカウントに問題があります。キーまたは残高を確認してください。"
 }

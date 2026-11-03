@@ -1120,4 +1120,16 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get aiInvalidAnswer =>
       'Les modifications ne correspondent pas à la liste, rien n’a donc été appliqué.';
+
+  @override
+  String get errorUndoTooLarge =>
+      'Cette modification a touché trop d’éléments pour être annulée.';
+
+  @override
+  String get aiPartlyNotDone =>
+      'Une partie de la demande n’a pas pu être faite.';
+
+  @override
+  String get aiRefusedProviderAccount =>
+      'Le compte du fournisseur d’IA demande votre attention : vérifiez la clé ou le solde.';
 }

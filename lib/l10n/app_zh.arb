@@ -362,5 +362,8 @@
   "aiRefusedAccess": "此账号或应用不能使用 AI。",
   "aiRefusedUnavailable": "AI 目前不可用。请稍后再试。",
   "aiRefusedBadRequest": "请求无法发送。",
-  "aiInvalidAnswer": "这些更改与列表不符，因此没有应用任何内容。"
+  "aiInvalidAnswer": "这些更改与列表不符，因此没有应用任何内容。",
+  "errorUndoTooLarge": "此更改涉及的项目太多，无法撤销。",
+  "aiPartlyNotDone": "请求的一部分无法完成。",
+  "aiRefusedProviderAccount": "AI 服务商账户需要处理：请检查密钥或余额。"
 }

@@ -493,6 +493,12 @@ class _Panel extends StatelessWidget {
           children: [
             lines(AiPlanText(loc).lines(plan), type.row),
             if (plan.reply != null) Text(plan.reply!, style: type.meta),
+            if (controller.partial)
+              Text(
+                loc.aiPartlyNotDone,
+                key: const ValueKey('ai-partial'),
+                style: type.meta,
+              ),
           ],
         ),
         [
@@ -550,10 +556,22 @@ class _Panel extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: Text(
-                _doneText(loc, controller.done),
-                key: const ValueKey('ai-done'),
-                style: type.row,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _doneText(loc, controller.done),
+                    key: const ValueKey('ai-done'),
+                    style: type.row,
+                  ),
+                  if (controller.partial &&
+                      controller.done?.kind != AiDoneKind.undone)
+                    Text(
+                      loc.aiPartlyNotDone,
+                      key: const ValueKey('ai-partial'),
+                      style: type.meta,
+                    ),
+                ],
               ),
             ),
             if (controller.canUndo) undo,
@@ -644,7 +662,11 @@ List<String> _problemTexts(
   final List<ListError> errors = problem.errors;
   // A refused undo is the one store error with its own sentence.
   if (errors.isNotEmpty &&
-      errors.every((error) => error.code == ListErrorCode.listChanged)) {
+      errors.every(
+        (error) =>
+            error.code == ListErrorCode.listChanged ||
+            error.code == ListErrorCode.undoTooLarge,
+      )) {
     return [labels.error(errors.first)];
   }
   return [
@@ -664,6 +686,7 @@ String aiRefusalText(AppLocalizations loc, String reason) {
     'promptTooLong' => loc.aiRefusedPromptTooLong,
     'contextTooLarge' => loc.aiRefusedContextTooLarge,
     'signIn' || 'appCheck' || 'notAllowed' => loc.aiRefusedAccess,
+    'providerAccount' => loc.aiRefusedProviderAccount,
     'badRequest' => loc.aiRefusedBadRequest,
     _ => loc.aiRefusedUnavailable,
   };

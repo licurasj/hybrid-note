@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
 import { TIERS } from '../src/config';
-import { filterOutput } from '../src/output';
+import { filterOutput, retryFeedback, structuralCheck } from '../src/output';
 import type { ContentBlock, ProviderResponse } from '../src/provider/types';
 import { parseRequest, type AiRequest } from '../src/request';
 
@@ -149,5 +149,44 @@ describe('filterOutput', () => {
   test('a failing schema check drops the call', () => {
     const out = filterOutput(answer([call('create_list', {})]), open, limits, () => ['bad']);
     assert.equal(out.declineReason, 'noValidTool');
+  });
+});
+
+describe('retryFeedback', () => {
+  test('a reply that is only too long is not retried: filterOutput cuts it (L2)', () => {
+    const long = answer([call('reply', { text: 'x'.repeat(600) })]);
+    const maxLength = (_: string, args: unknown) =>
+      ((args as { text: string }).text.length > 500 ? ['text: must be at most 500 characters'] : []);
+    assert.deepEqual(retryFeedback(long, maxLength, open), []);
+  });
+
+  test('calls naming a list they may not target go into the one retry (L3)', () => {
+    const response = answer([
+      call('upsert_items', { listId: 'elsewhere', items: [] }),
+      call('patch_list', { listId: 'todo', ops: [] }),
+      call('choose_list', { candidates: ['grocery'] }),
+      call('upsert_items', { listId: 'todo', items: [] }),
+    ]);
+    const feedback = retryFeedback(response, structuralCheck, open);
+    assert.equal(feedback.length, 3);
+    assert.match(feedback[0].errors[0], /listId must be the id of one of the user's lists/);
+    assert.match(feedback[1].errors[0], /patch_list may only change the open list/);
+    assert.match(feedback[2].errors[0], /choose_list/);
+    assert.equal(retryFeedback(answer([call('patch_list', { listId: 'grocery', ops: [] })]), structuralCheck, closed).length, 1);
+  });
+
+  test('without the request only the schema is checked', () => {
+    assert.deepEqual(retryFeedback(answer([call('upsert_items', { listId: 'elsewhere' })]), structuralCheck), []);
+  });
+
+  test('filterOutput counts the calls it dropped', () => {
+    const out = filterOutput(
+      answer([call('upsert_items', { listId: 'grocery', items: [] }), call('upsert_items', { listId: 'elsewhere', items: [] })]),
+      open,
+      limits,
+    );
+    assert.equal(out.outcome, 'ok');
+    assert.equal(out.toolCalls.length, 1);
+    assert.equal(out.droppedTools, 1);
   });
 });

@@ -907,6 +907,15 @@ class FirestoreListStore implements ListStore {
   @override
   Future<List<ListError>> restoreSnapshot(ListSnapshot snapshot) async {
     await _ready.future;
+    // The restore is one transaction (the list plus every touched item), and
+    // a transaction holds at most [batchLimit] writes; a patch that touched
+    // more items (changeFieldType, removeField on a big list) is not undone
+    // at all rather than in part (L13 of the T-19 unit 5 review).
+    if (snapshot.itemIds.length + 1 > batchLimit) {
+      return [
+        ListError(ListErrorCode.undoTooLarge, {'list': snapshot.listId}),
+      ];
+    }
     bool fellBack = false;
     try {
       return await _restoreInTransaction(

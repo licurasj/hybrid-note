@@ -29,16 +29,28 @@ export type SchemaCheck = (name: ToolName, args: unknown) => string[];
 
 export const structuralCheck: SchemaCheck = () => [];
 
+/** The `maxLength` of `reply.text` in the unit 1 schema; filterOutput cuts to the tier's limit. */
+export const REPLY_SCHEMA_MAX_CHARS = 500;
+
 /**
- * The schema errors of the answer's calls to known tools, for the one
- * self-correction round (Q-34 A). Unknown tools are not retried: they are
- * dropped, as a list delete or a made-up tool must be.
+ * The errors of the answer's calls to known tools, for the one
+ * self-correction round (Q-34 A): the schema's, and a list the call may not
+ * target (L3 of the T-19 unit 5 review). A reply that is only too long is
+ * not retried, since filterOutput cuts it anyway (L2). Unknown tools are not
+ * retried: they are dropped, as a list delete or a made-up tool must be.
  */
-export function retryFeedback(response: ProviderResponse, schemaCheck: SchemaCheck): ToolFeedback[] {
+export function retryFeedback(response: ProviderResponse, schemaCheck: SchemaCheck, request?: AiRequest): ToolFeedback[] {
+  const listIds = new Set(request?.lists.map((list) => list.id) ?? []);
+  const openId = request?.openList?.definition.id;
   const feedback: ToolFeedback[] = [];
   for (const block of response.content) {
     if (block.type !== 'tool_call' || !(TOOL_NAMES as readonly string[]).includes(block.name)) continue;
-    const errors = schemaCheck(block.name as ToolName, block.args);
+    const name = block.name as ToolName;
+    const args = name === 'reply' ? cutReply(block.args, REPLY_SCHEMA_MAX_CHARS) : block.args;
+    const errors = [
+      ...(request !== undefined && isRecord(args) ? targetErrors(name, args, listIds, openId) : []),
+      ...schemaCheck(name, args),
+    ];
     if (errors.length > 0) feedback.push({ id: block.id, errors });
   }
   return feedback;
@@ -46,6 +58,44 @@ export function retryFeedback(response: ProviderResponse, schemaCheck: SchemaChe
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** A reply's text cut to `max` characters; anything else unchanged. */
+function cutReply(args: unknown, max: number): unknown {
+  if (!isRecord(args) || typeof args.text !== 'string') return args;
+  const chars = [...args.text];
+  return chars.length > max ? { ...args, text: chars.slice(0, max).join('') } : args;
+}
+
+/**
+ * Which lists a call may name (Q-32, Q-36): item tools any of the user's
+ * lists in the context, `patch_list` only the open list, `choose_list` 2 or
+ * 3 distinct ones of them. English, for the self-correction round.
+ */
+function targetErrors(name: ToolName, args: Record<string, unknown>, listIds: Set<string>, openId: string | undefined): string[] {
+  switch (name) {
+    case 'patch_list':
+      return openId !== undefined && args.listId === openId
+        ? []
+        : ['patch_list may only change the open list; use create_list for a new one'];
+    case 'upsert_items':
+    case 'delete_items':
+      return typeof args.listId === 'string' && listIds.has(args.listId)
+        ? []
+        : [`${name}: listId must be the id of one of the user's lists`];
+    case 'choose_list': {
+      const ids = args.candidates;
+      const ok =
+        Array.isArray(ids) &&
+        ids.length >= 2 &&
+        ids.length <= 3 &&
+        new Set(ids).size === ids.length &&
+        ids.every((id) => typeof id === 'string' && listIds.has(id));
+      return ok ? [] : ["choose_list: candidates must be 2 or 3 different ids of the user's lists"];
+    }
+    default:
+      return [];
+  }
 }
 
 /**
@@ -112,35 +162,12 @@ function acceptCall(
 ): ToolCall | null {
   if (!(TOOL_NAMES as readonly string[]).includes(name) || !isRecord(args)) return null;
   const tool = name as ToolName;
-  switch (tool) {
-    case 'patch_list':
-      if (openId === undefined || args.listId !== openId) return null;
-      break;
-    case 'upsert_items':
-    case 'delete_items':
-      if (typeof args.listId !== 'string' || !listIds.has(args.listId)) return null;
-      break;
-    case 'choose_list': {
-      // "Which list?" with 2 or 3 distinct candidates of the user's lists (Q-36).
-      const ids = args.candidates;
-      if (!Array.isArray(ids) || ids.length < 2 || ids.length > 3) return null;
-      if (new Set(ids).size !== ids.length) return null;
-      if (!ids.every((id) => typeof id === 'string' && listIds.has(id))) return null;
-      break;
-    }
-    case 'reply': {
-      if (typeof args.text !== 'string') return null;
-      const chars = [...args.text];
-      if (chars.length > limits.replyMaxChars) {
-        args = { ...args, text: chars.slice(0, limits.replyMaxChars).join('') };
-        result.replyTruncated = true;
-      }
-      break;
-    }
-    case 'create_list':
-    case 'decline':
-      break;
+  if (targetErrors(tool, args, listIds, openId).length > 0) return null;
+  let checked = args;
+  if (tool === 'reply') {
+    if (typeof args.text !== 'string') return null;
+    checked = cutReply(args, limits.replyMaxChars) as Record<string, unknown>;
+    if (checked !== args) result.replyTruncated = true;
   }
-  const checked = args as Record<string, unknown>;
   return schemaCheck(tool, checked).length === 0 ? { name: tool, args: checked } : null;
 }

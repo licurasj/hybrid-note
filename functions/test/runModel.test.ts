@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
 import { MODELS } from '../src/config';
-import { CALL_TIMEOUT_MS, MIN_ATTEMPT_MS, PROVIDER_DEADLINE_MS, runModel, unbilled } from '../src/handler';
+import { CALL_TIMEOUT_MS, MIN_ATTEMPT_MS, PROVIDER_DEADLINE_MS, runCost, runModel, unbilled, usageReadable } from '../src/handler';
 import { structuralCheck, type SchemaCheck } from '../src/output';
 import { ProviderError, type AiProvider, type ProviderCall, type ProviderResponse } from '../src/provider/types';
 import type { AiRequest } from '../src/request';
@@ -156,5 +156,77 @@ describe('runModel', () => {
     assert.ok(!unbilled(new ProviderError('network')));
     assert.ok(!unbilled(new ProviderError('badResponse', 200)));
     assert.ok(!unbilled(new Error('x')));
+  });
+});
+
+describe('runModel, T-19 unit 6', () => {
+  test('time already used by the request comes off the deadline (N6)', async () => {
+    const clock = { now: 0 };
+    const { provider, calls } = scripted([ok], clock);
+    await runModel(provider, MODELS.fake, request, structuralCheck, new Date(), {
+      clock: () => clock.now,
+      wait: async () => {},
+      elapsedMs: 70_000,
+    });
+    assert.equal(calls[0].timeoutMs, PROVIDER_DEADLINE_MS - 70_000);
+  });
+
+  test('a busy retry is reported (N8)', async () => {
+    const clock = { now: 0 };
+    const { provider } = scripted([new ProviderError('rateLimit', 429), ok], clock);
+    let busy = 0;
+    await runModel(provider, MODELS.fake, request, structuralCheck, new Date(), {
+      clock: () => clock.now,
+      wait: async () => {},
+      onBusyRetry: () => busy++,
+    });
+    assert.equal(busy, 1);
+  });
+
+  test('an item call naming an unknown list gets the self-correction (L3)', async () => {
+    const clock = { now: 0 };
+    const wrong: ProviderResponse = {
+      content: [{ type: 'tool_call', id: 'c1', name: 'upsert_items', args: { listId: 'nope', items: [] } }],
+      usage,
+      stopReason: 'end',
+    };
+    const right: ProviderResponse = {
+      content: [{ type: 'tool_call', id: 'c2', name: 'upsert_items', args: { listId: 'g', items: [] } }],
+      usage,
+      stopReason: 'end',
+    };
+    const { provider, calls } = scripted([wrong, right], clock);
+    const result = await run(provider, structuralCheck, clock);
+    assert.equal(result.attempts, 2);
+    assert.equal(result.response, right);
+    assert.match(calls[1].retry!.feedback[0].errors[0], /listId/);
+  });
+});
+
+describe('runCost', () => {
+  const deepseek = MODELS['deepseek-flash'];
+  const ceiling = 45_600;
+
+  test('unreadable usage costs the ceiling (L1)', () => {
+    const at = new Date('2026-11-03T12:00:00Z');
+    for (const bad of [
+      { ...usage, inputTokens: NaN },
+      { ...usage, inputTokens: -5 },
+      { ...usage, outputTokens: Infinity },
+      { ...usage, cacheReadTokens: undefined as unknown as number },
+    ]) {
+      assert.ok(!usageReadable(bad));
+      assert.equal(runCost(deepseek, bad, at, at, ceiling), ceiling);
+    }
+    assert.ok(usageReadable(usage));
+  });
+
+  test('a request that crosses into peak hours is priced at peak (N1)', () => {
+    const big = { inputTokens: 10_000, outputTokens: 1_000, cacheReadTokens: 0, cacheWriteTokens: 0 };
+    // Tuesday 00:59:30 UTC off-peak, 01:00:30 peak.
+    const start = new Date('2026-11-03T00:59:30Z');
+    const end = new Date('2026-11-03T01:00:30Z');
+    assert.equal(runCost(deepseek, big, start, end, ceiling), runCost(deepseek, big, end, end, ceiling));
+    assert.ok(runCost(deepseek, big, start, end, ceiling) > runCost(deepseek, big, start, start, ceiling));
   });
 });

@@ -10,7 +10,9 @@ import { cloudLogSink, uidHash, type RequestMeta } from '../src/log';
 import { handleAiCommand, type CallInput, type Deps } from '../src/handler';
 import { FakeProvider } from '../src/provider/fake';
 import type { AiProvider } from '../src/provider/types';
-import { allow, clearFirestore, db } from './helpers';
+import { MODELS, ceilingMicros } from '../src/config';
+import { ProviderError, type ProviderResponse } from '../src/provider/types';
+import { allow, clearFirestore, db, today } from './helpers';
 
 const PROMPT_SECRET = 'PROMPTSECRET4711';
 const ITEM_SECRET = 'ITEMSECRET0815';
@@ -37,7 +39,7 @@ function data(prompt: string, extra: Record<string, unknown> = {}) {
 }
 
 /** Runs the handler once and returns what reached any output, plus the result or error. */
-async function run(input: CallInput, provider: AiProvider = new FakeProvider()) {
+async function run(input: CallInput, provider: AiProvider = new FakeProvider(), extra: Partial<Deps> = {}) {
   const written: string[] = [];
   const entries: RequestMeta[] = [];
   const out = process.stdout.write.bind(process.stdout);
@@ -58,6 +60,7 @@ async function run(input: CallInput, provider: AiProvider = new FakeProvider()) 
     },
     now: () => new Date(),
     newRequestId: () => `req-${Math.random().toString(36).slice(2)}`,
+    ...extra,
   };
   let result: unknown;
   let error: unknown;
@@ -156,9 +159,78 @@ describe('the 7-day prompt log', () => {
     assert.ok(!JSON.stringify(doc.data()).includes(ITEM_SECRET), 'item text is not kept');
   });
 
+  test('a request refused at the daily cap writes none (L5)', async () => {
+    await db().collection('aiUsageUser').doc(`${UID}_${today()}`).set({ count: 100 });
+    const { error } = await run({ uid: UID, appCheckTokenPresent: false, data: data(`eggs ${PROMPT_SECRET}`) });
+    assert.equal((error as { details?: { reason?: string } }).details?.reason, 'dailyCount');
+    assert.equal((await db().collection('aiPromptLog').get()).size, 0);
+  });
+
   test('a request refused before the input checks writes none', async () => {
     await run({ uid: 'not-allowed', appCheckTokenPresent: false, data: data('eggs') });
     await run({ uid: UID, appCheckTokenPresent: false, data: data('x'.repeat(1200)) });
     assert.equal((await db().collection('aiPromptLog').get()).size, 0);
+  });
+});
+
+/** A provider that always gives the same answer. */
+function answering(response: ProviderResponse): AiProvider {
+  return { name: 'answering', call: async () => response };
+}
+
+describe('T-19 unit 6 fixes', () => {
+  test('a provider failure says its kind, no provider text (L4)', async () => {
+    const billing: AiProvider = { name: 'billing', call: async () => { throw new ProviderError('billing', 402); } };
+    const { error, entries } = await run({ uid: UID, appCheckTokenPresent: false, data: data('eggs') }, billing);
+    assert.deepEqual((error as { details?: unknown }).details, { kind: 'billing', reason: 'provider' });
+    assert.equal(entries[0].providerError, 'billing');
+  });
+
+  test('an unexpected error logs its class name, never its message (L9)', async () => {
+    let checks = 0;
+    const schemaCheck = () => {
+      if (++checks > 1) throw new TypeError(`broken ${PROMPT_SECRET}`);
+      return [];
+    };
+    const { error, entries, written } = await run({ uid: UID, appCheckTokenPresent: false, data: data('eggs') }, undefined, { schemaCheck });
+    assert.equal((error as { code?: string }).code, 'internal');
+    assert.equal(entries[0].outcome, 'error');
+    assert.equal(entries[0].errorName, 'TypeError');
+    assertNoSecrets(written);
+  });
+
+  test('unreadable usage books the ceiling (L1)', async () => {
+    const response: ProviderResponse = {
+      content: [{ type: 'tool_call', id: 'c1', name: 'reply', args: { text: 'hi' } }],
+      usage: { inputTokens: NaN, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      stopReason: 'end',
+    };
+    const { entries } = await run({ uid: UID, appCheckTokenPresent: false, data: data('eggs') }, answering(response), {
+      model: MODELS.fake,
+    });
+    assert.equal(entries[0].usageUnreadable, true);
+    assert.equal(entries[0].costMicros, ceilingMicros(MODELS.fake));
+    const pool = await db().collection('aiUsagePool').doc(`global_${today()}`).get();
+    assert.equal(pool.get('spentMicros'), ceilingMicros(MODELS.fake));
+    assert.equal(pool.get('reservedMicros'), 0);
+  });
+
+  test('the answer says how many tool calls were left out (L3)', async () => {
+    const response: ProviderResponse = {
+      content: [
+        { type: 'tool_call', id: 'c1', name: 'upsert_items', args: { listId: 'grocery', items: [] } },
+        { type: 'tool_call', id: 'c2', name: 'upsert_items', args: { listId: 'elsewhere', items: [] } },
+      ],
+      usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      stopReason: 'end',
+    };
+    const { result, entries } = await run(
+      { uid: UID, appCheckTokenPresent: false, data: data('eggs') },
+      answering(response),
+      { schemaCheck: () => [] },
+    );
+    assert.equal((result as { droppedTools: number }).droppedTools, 1);
+    assert.equal((result as { toolCalls: unknown[] }).toolCalls.length, 1);
+    assert.equal(entries[0].attempts, 2, 'the wrong list went into the self-correction');
   });
 });

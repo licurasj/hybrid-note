@@ -184,8 +184,10 @@ class ListPatch {
     // Moves a value that does not fit any more into the hidden slot.
     void hide(String itemId, String key) {
       final Map<String, dynamic> itemValues = values[itemId]!;
+      // A stored `_legacy` that is not a map is replaced, not cast (N5).
+      final Object? stored = itemValues[legacyKey];
       final Map<String, dynamic> legacy = Map<String, dynamic>.from(
-        itemValues[legacyKey] as Map? ?? const {},
+        stored is Map ? stored : const {},
       );
       legacy[key] = [...archivedValues(legacy, key), itemValues.remove(key)];
       itemValues[legacyKey] = legacy;

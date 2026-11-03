@@ -344,6 +344,10 @@ class ListInput {
   }) {
     final List<ListItem> saved = [];
     final List<ListError> errors = [];
+    // Two entries for one item would both start from the stored item, so
+    // the second would silently drop the first's edit (N3 of the T-19 unit 5
+    // review).
+    final Set<String> seen = {};
     for (int i = 0; i < items.length; i++) {
       final String path = 'items[$i]';
       final List<ListError> argErrors = checkArgs(
@@ -361,6 +365,10 @@ class ListInput {
       final String? id = json['id'] as String?;
       ListItem? before;
       if (id != null) {
+        if (!seen.add(id)) {
+          errors.add(ListError(ListErrorCode.duplicateItemId, const {}, id));
+          continue;
+        }
         before = existing.where((item) => item.id == id).firstOrNull;
         if (before == null) {
           errors.add(ListError(ListErrorCode.unknownItem, {'item': id, 'list': definition.id}));

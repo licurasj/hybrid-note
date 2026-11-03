@@ -1112,4 +1112,15 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get aiInvalidAnswer =>
       'The changes do not fit the list, so nothing was applied.';
+
+  @override
+  String get errorUndoTooLarge =>
+      'This change touched too many items to be undone.';
+
+  @override
+  String get aiPartlyNotDone => 'Part of the request could not be done.';
+
+  @override
+  String get aiRefusedProviderAccount =>
+      'The AI provider account needs attention: check its key or balance.';
 }

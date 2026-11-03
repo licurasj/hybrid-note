@@ -10,7 +10,7 @@ import OpenAI from 'openai';
 import { MODELS } from '../src/config';
 import { ClaudeProvider, mapError } from '../src/provider/claude';
 import { DEEPSEEK_URL, DeepSeekProvider, type Fetch } from '../src/provider/deepseek';
-import { OpenAiProvider, mapError as openaiMapError } from '../src/provider/openai';
+import { OpenAiProvider, failedError, mapError as openaiMapError } from '../src/provider/openai';
 import { ProviderError, type ProviderCall } from '../src/provider/types';
 import { loadTools } from '../src/schemas';
 
@@ -401,5 +401,26 @@ describe('OpenAiProvider', () => {
 
   test('without a key there is no provider', () => {
     assert.throws(() => new OpenAiProvider(''), (e: ProviderError) => e.kind === 'noKey');
+  });
+
+  test('a failed response keeps its error code as a kind (N9)', async () => {
+    for (const [code, kind] of [
+      [undefined, 'overloaded'],
+      ['server_error', 'overloaded'],
+      ['rate_limit_exceeded', 'rateLimit'],
+      ['insufficient_quota', 'billing'],
+      ['invalid_prompt', 'badRequest'],
+    ] as const) {
+      assert.equal(failedError(code).kind, kind, String(code));
+      assert.equal(failedError(code).status, undefined);
+    }
+    const failed = openaiResponse([], { status: 'failed', error: { code: 'invalid_prompt', message: 'secret text' } });
+    await assert.rejects(openaiStub(failed).provider.call(input('gpt-6-luna')), (e: ProviderError) => e.kind === 'badRequest' && !e.message.includes('secret'));
+  });
+
+  test('a response without usage reads as unreadable, not free (L1)', async () => {
+    const response = await openaiStub(openaiResponse([], { usage: undefined })).provider.call(input('gpt-6-luna'));
+    assert.ok(Number.isNaN(response.usage.inputTokens));
+    assert.ok(Number.isNaN(response.usage.outputTokens));
   });
 });

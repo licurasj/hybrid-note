@@ -116,7 +116,7 @@ describe('provider failures (M1, M3 of the unit 5 review)', () => {
   test('an error answer that cannot have been billed settles to $0', async () => {
     const { error, entry } = await run('[fake:billing] eggs', new FakeProvider());
     assert.ok(error instanceof HttpsError);
-    assert.deepEqual(error.details, { reason: 'provider' });
+    assert.deepEqual(error.details, { kind: 'billing', reason: 'provider' });
     assert.equal(entry.providerError, 'billing');
     assert.equal(await spentMicros(), 0);
     assert.equal(await reservedMicros(), 0);

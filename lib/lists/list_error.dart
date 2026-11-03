@@ -86,7 +86,8 @@ enum ListErrorCode implements WireName {
   aiNotAllowed('aiNotAllowed'), // {list}: the user turned AI off for it (Q-36)
 
   // Undo of an AI change (Q-35 A).
-  listChanged('listChanged'); // {list}
+  listChanged('listChanged'), // {list}
+  undoTooLarge('undoTooLarge'); // {list}: more items than one write holds
 
   const ListErrorCode(this.wire);
 
@@ -242,6 +243,8 @@ class ListError {
         return 'list "${arg('list')}" does not allow AI changes';
       case ListErrorCode.listChanged:
         return 'list "${arg('list')}" changed since the change was applied; nothing was undone';
+      case ListErrorCode.undoTooLarge:
+        return 'the change to list "${arg('list')}" touched too many items to undo; nothing was undone';
     }
   }
 

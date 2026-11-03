@@ -477,6 +477,10 @@ void main() {
       const AiRefusal('appCheck'): 'This account or app may not use the AI.',
       const AiRefusal('provider'):
           'The AI is not available right now. Try again later.',
+      AiRefusal.of({'reason': 'provider', 'kind': 'billing'}, 'unavailable'):
+          'The AI provider account needs attention: check its key or balance.',
+      AiRefusal.of({'reason': 'provider', 'kind': 'network'}, 'unavailable'):
+          'The AI is not available right now. Try again later.',
     };
     for (final MapEntry<Object, String> entry in expected.entries) {
       ai.answers.add(entry.key);
@@ -484,6 +488,39 @@ void main() {
       expect(find.text(entry.value), findsOneWidget, reason: '${entry.key}');
       await _tapKey(tester, 'ai-close');
     }
+  });
+
+  testWidgets('an answer the function left part out of says so (L3)', (
+    tester,
+  ) async {
+    final FakeAiService ai = FakeAiService()
+      ..answers.add(
+        AiAnswer(
+          requestId: 'r',
+          toolCalls: [
+            _add(_grocery, ['Milk']),
+          ],
+          droppedTools: 1,
+        ),
+      )
+      ..answers.add(_calls([_add(_grocery, ['Eggs'])]));
+    final FirestoreListStore store = await _pump(tester, ai);
+
+    await _ask(tester, 'milk and a price column');
+    expect(find.textContaining('Added to'), findsOneWidget);
+    expect(find.byKey(const ValueKey('ai-partial')), findsOneWidget);
+    expect(_titles(store, _grocery), contains('Milk'));
+    await _tapKey(tester, 'ai-undo');
+    expect(find.byKey(const ValueKey('ai-partial')), findsNothing);
+
+    await _ask(tester, 'eggs');
+    expect(find.byKey(const ValueKey('ai-partial')), findsNothing);
+  });
+
+  test('AiAnswer reads droppedTools, 0 when absent or not a count', () {
+    expect(AiAnswer.fromJson({'droppedTools': 2}).droppedTools, 2);
+    expect(AiAnswer.fromJson({}).droppedTools, 0);
+    expect(AiAnswer.fromJson({'droppedTools': 'x'}).droppedTools, 0);
   });
 
   testWidgets('"Describe a new list" asks for a new list, previews it, '

@@ -325,6 +325,8 @@ class ListLabels {
         return loc.errorAiNotAllowed;
       case ListErrorCode.listChanged:
         return loc.errorListChanged;
+      case ListErrorCode.undoTooLarge:
+        return loc.errorUndoTooLarge;
     }
   }
 

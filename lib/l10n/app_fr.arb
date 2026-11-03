@@ -362,5 +362,8 @@
   "aiRefusedAccess": "Ce compte ou cette app ne peut pas utiliser l’IA.",
   "aiRefusedUnavailable": "L’IA n’est pas disponible pour le moment. Réessayez plus tard.",
   "aiRefusedBadRequest": "La demande n’a pas pu être envoyée.",
-  "aiInvalidAnswer": "Les modifications ne correspondent pas à la liste, rien n’a donc été appliqué."
+  "aiInvalidAnswer": "Les modifications ne correspondent pas à la liste, rien n’a donc été appliqué.",
+  "errorUndoTooLarge": "Cette modification a touché trop d’éléments pour être annulée.",
+  "aiPartlyNotDone": "Une partie de la demande n’a pas pu être faite.",
+  "aiRefusedProviderAccount": "Le compte du fournisseur d’IA demande votre attention : vérifiez la clé ou le solde."
 }

@@ -85,7 +85,7 @@ export class OpenAiProvider implements AiProvider {
       throw mapError(error);
     }
 
-    if (response.status === 'failed') throw new ProviderError('overloaded');
+    if (response.status === 'failed') throw failedError(response.error?.code);
     const content: ContentBlock[] = [];
     let refused = false;
     for (const item of response.output) {
@@ -103,10 +103,12 @@ export class OpenAiProvider implements AiProvider {
     const written = usage?.input_tokens_details?.cache_write_tokens ?? 0;
     return {
       content,
+      // A missing usage stays unreadable (NaN), so aiCommand books the
+      // ceiling instead of a free request (L1 of the T-19 unit 5 review).
       usage: {
         // input_tokens counts cached and cache-written tokens too.
-        inputTokens: Math.max(0, (usage?.input_tokens ?? 0) - cached - written),
-        outputTokens: usage?.output_tokens ?? 0,
+        inputTokens: usage === undefined || usage === null ? NaN : Math.max(0, usage.input_tokens - cached - written),
+        outputTokens: usage === undefined || usage === null ? NaN : usage.output_tokens,
         cacheReadTokens: cached,
         cacheWriteTokens: written,
       },
@@ -119,6 +121,20 @@ export class OpenAiProvider implements AiProvider {
 export function stopReasonOf(response: Pick<OpenAI.Responses.Response, 'status' | 'incomplete_details'>): ProviderResponse['stopReason'] {
   if (response.status !== 'incomplete') return 'end';
   return response.incomplete_details?.reason === 'content_filter' ? 'refusal' : 'length';
+}
+
+/**
+ * The kind of a response with status `failed`, from its error code (never
+ * the message; N9 of the T-19 unit 5 follow-up review). No HTTP status, so
+ * the kinds that may have been billed stay so.
+ */
+export function failedError(code: string | undefined): ProviderError {
+  if (code === undefined) return new ProviderError('overloaded');
+  if (BILLING_CODES.has(code)) return new ProviderError('billing');
+  if (code === 'rate_limit_exceeded') return new ProviderError('rateLimit');
+  if (code === 'server_error') return new ProviderError('overloaded');
+  // invalid_prompt and the input checks (invalid_image and so on): our request.
+  return new ProviderError('badRequest');
 }
 
 /** Typed SDK errors to ProviderError kinds, most specific first (never by message text). */

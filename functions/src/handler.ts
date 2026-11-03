@@ -27,7 +27,6 @@ import {
   type AiProvider,
   type ProviderCall,
   type ProviderResponse,
-  type ToolName,
 } from './provider/types';
 import { parseRequest, type AiRequest } from './request';
 import { loadTools, schemaErrors } from './schemas';
@@ -58,6 +57,12 @@ export interface AiResponse {
   outcome: 'ok' | 'declined';
   toolCalls: ToolCall[];
   declineReason?: DeclineReason;
+  /**
+   * Tool calls left out of `toolCalls` because they were invalid or named a
+   * list they may not touch, so the app can say part of the request was not
+   * done (L3 of the T-19 unit 5 review). A count only, never their content.
+   */
+  droppedTools: number;
   usage: {
     inputTokens: number;
     outputTokens: number;
@@ -124,6 +129,14 @@ export interface ModelRun {
 
 export interface RunOptions {
   onAttempt?: (attempts: number) => void;
+  /** A busy answer was tried again (N8 of the T-19 unit 5 follow-up review). */
+  onBusyRetry?: () => void;
+  /**
+   * Time the request already used before the provider step (sign-in,
+   * allowlist, reservation), taken off the deadline so the whole request
+   * stays inside the function timeout (N6).
+   */
+  elapsedMs?: number;
   clock?: () => number;
   wait?: (ms: number) => Promise<void>;
 }
@@ -148,13 +161,14 @@ export async function runModel(
 ): Promise<ModelRun> {
   const clock = options.clock ?? Date.now;
   const wait = options.wait ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
-  const deadline = clock() + PROVIDER_DEADLINE_MS;
+  const deadline = clock() + PROVIDER_DEADLINE_MS - Math.max(0, options.elapsedMs ?? 0);
   const left = () => deadline - clock();
   const attempt = async (call: ProviderCall): Promise<ProviderResponse> => {
     try {
       return await provider.call({ ...call, timeoutMs: Math.min(CALL_TIMEOUT_MS, left()) });
     } catch (error) {
       if (!transient(error) || left() < MIN_ATTEMPT_MS + 1000) throw error;
+      options.onBusyRetry?.();
       await wait(1000);
       return provider.call({ ...call, timeoutMs: Math.min(CALL_TIMEOUT_MS, left()) });
     }
@@ -168,7 +182,7 @@ export async function runModel(
   };
   options.onAttempt?.(1);
   const first = await attempt(call);
-  const feedback = first.stopReason === 'end' ? retryFeedback(first, schemaCheck) : [];
+  const feedback = first.stopReason === 'end' ? retryFeedback(first, schemaCheck, request) : [];
   if (feedback.length === 0) return { response: first, usage: first.usage, attempts: 1 };
   if (left() < MIN_ATTEMPT_MS) return { response: first, usage: first.usage, attempts: 1, retryError: 'noTime' };
   options.onAttempt?.(2);
@@ -189,7 +203,11 @@ export async function runModel(
   const usage = addUsage(first.usage, second.usage);
   const validFirst = knownCalls(first) - feedback.length;
   const flaw =
-    second.stopReason !== 'end' ? second.stopReason : validCalls(second, schemaCheck) < validFirst ? 'fewerCalls' : undefined;
+    second.stopReason !== 'end'
+      ? second.stopReason
+      : validCalls(second, schemaCheck, request) < validFirst
+        ? 'fewerCalls'
+        : undefined;
   if (flaw !== undefined) return { response: first, usage, attempts: 2, retryError: flaw };
   return { response: second, usage, attempts: 2 };
 }
@@ -199,14 +217,30 @@ function knownCalls(response: ProviderResponse): number {
   return response.content.filter((b) => b.type === 'tool_call' && (TOOL_NAMES as readonly string[]).includes(b.name)).length;
 }
 
-/** Calls to the known tools whose arguments pass the schema check. */
-function validCalls(response: ProviderResponse, schemaCheck: SchemaCheck): number {
-  return response.content.filter(
-    (b) =>
-      b.type === 'tool_call' &&
-      (TOOL_NAMES as readonly string[]).includes(b.name) &&
-      schemaCheck(b.name as ToolName, b.args).length === 0,
-  ).length;
+/** Calls to the known tools that the self-correction would not ask about. */
+function validCalls(response: ProviderResponse, schemaCheck: SchemaCheck, request: AiRequest): number {
+  return knownCalls(response) - retryFeedback(response, schemaCheck, request).length;
+}
+
+/**
+ * Whether every usage count is a real token count. A provider answer with a
+ * missing, non-numeric or negative count (for example cache hits above the
+ * prompt tokens) would otherwise write NaN or a negative cost into the
+ * counters and switch the daily stop off (L1 of the T-19 unit 5 review).
+ */
+export function usageReadable(usage: Usage): boolean {
+  return Object.values(usage).every((n) => typeof n === 'number' && Number.isFinite(n) && n >= 0);
+}
+
+/**
+ * Microdollars a finished run costs: the dearer of the prices at its start
+ * and at its end, so a request that crosses into DeepSeek's peak hours is
+ * not counted at the cheaper rate (N1); the ceiling when the usage is not
+ * readable (L1).
+ */
+export function runCost(model: ModelConfig, usage: Usage, started: Date, ended: Date, ceiling: number): number {
+  if (!usageReadable(usage)) return ceiling;
+  return Math.max(costMicros(model, usage, started), costMicros(model, usage, ended));
 }
 
 /** Finds the caller's tier on the server-only allowlist; T-18 adds the demo tier here. */
@@ -256,6 +290,13 @@ export async function handleAiCommand(input: CallInput, deps: Deps): Promise<AiR
     meta.itemCount = request.openList?.items.length ?? 0;
     meta.promptChars = [...request.prompt].length;
 
+    meta.provider = deps.provider.name;
+    meta.model = model.model;
+    const reservation: Reservation = await reserve(deps.db, uid, tier, limits, model, started);
+
+    // After the reservation, so a user at the daily cap cannot keep adding
+    // prompt-log documents (L5 of the T-19 unit 5 review, Proposed): a
+    // refused request is still in the metadata log, without its text.
     await writePromptLog(deps.db, {
       requestId: meta.requestId,
       uidHash: meta.uidHash,
@@ -263,29 +304,32 @@ export async function handleAiCommand(input: CallInput, deps: Deps): Promise<AiR
       now: started,
     });
 
-    meta.provider = deps.provider.name;
-    meta.model = model.model;
-    const reservation: Reservation = await reserve(deps.db, uid, tier, limits, model, started);
-
     const schemaCheck = deps.schemaCheck ?? schemaErrors;
     let run: ModelRun;
     try {
       run = await runModel(deps.provider, model, request, schemaCheck, started, {
         onAttempt: (n) => (meta.attempts = n),
+        onBusyRetry: () => (meta.busyRetries = (meta.busyRetries ?? 0) + 1),
+        elapsedMs: deps.now().getTime() - started.getTime(),
         ...deps.runOptions,
       });
     } catch (error) {
       // An error answer was not billed; otherwise the usage is unknown and the
       // ceiling stays spent (M1 of the unit 5 review).
-      meta.providerError = error instanceof ProviderError ? error.kind : 'unknown';
+      const kind = error instanceof ProviderError ? error.kind : 'unknown';
+      meta.providerError = kind;
       await settle(deps.db, reservation, unbilled(error) ? 0 : reservation.reservedMicros, deps.now());
-      throw refuse('provider', 'the AI provider failed');
+      // The kind (no provider text) lets the app tell "the AI account needs
+      // attention" (key, balance) from "try again later" (L4).
+      throw refuse('provider', 'the AI provider failed', { kind });
     }
     const { response, usage } = run;
     meta.retryError = run.retryError;
     // A failed self-correction that may have been billed counts as one call at its ceiling.
+    if (!usageReadable(usage)) meta.usageUnreadable = true;
     const cost =
-      costMicros(model, usage, started) + (run.retryMaybeBilled ? Math.ceil(ceilingMicros(model) / MAX_ATTEMPTS) : 0);
+      runCost(model, usage, started, deps.now(), reservation.reservedMicros) +
+      (run.retryMaybeBilled ? Math.ceil(ceilingMicros(model) / MAX_ATTEMPTS) : 0);
     await settle(deps.db, reservation, cost, deps.now());
     meta.inputTokens = usage.inputTokens;
     meta.outputTokens = usage.outputTokens;
@@ -312,11 +356,14 @@ export async function handleAiCommand(input: CallInput, deps: Deps): Promise<AiR
       outcome: output.outcome,
       toolCalls: output.toolCalls,
       ...(output.declineReason ? { declineReason: output.declineReason } : {}),
+      droppedTools: output.droppedTools,
       usage: { ...usage, costUsd: cost / 1e6 },
     };
   } catch (error) {
     meta.reason = reasonOf(error);
     meta.outcome = meta.reason === 'internal' ? 'error' : 'refused';
+    // The class name only, never the message, which may carry request text (L9).
+    if (meta.reason === 'internal') meta.errorName = error instanceof Error ? error.name : typeof error;
     if (error instanceof HttpsError) throw error;
     throw new HttpsError('internal', 'internal error');
   } finally {

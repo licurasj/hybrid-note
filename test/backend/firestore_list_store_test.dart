@@ -8,6 +8,7 @@ import 'package:hybrid_note/backend/firestore_list_store.dart';
 import 'package:hybrid_note/lists/builtin_templates.dart';
 import 'package:hybrid_note/lists/list_catalog.dart';
 import 'package:hybrid_note/lists/list_definition.dart';
+import 'package:hybrid_note/lists/list_error.dart';
 import 'package:hybrid_note/lists/list_item.dart';
 import 'package:hybrid_note/lists/list_patch.dart';
 import 'package:hybrid_note/lists/list_rules.dart';
@@ -597,6 +598,47 @@ void main() {
 
         await store.restoreList(deleted);
         await _until(store, (c) => c.itemsOf('list-big').length == count);
+      },
+    );
+
+    test(
+      'an undo larger than one transaction is refused and changes nothing',
+      () async {
+        final FakeFirebaseFirestore firestore = await _seeded();
+        final FirestoreListStore store = await _loaded(
+          firestore,
+          batchLimit: 10,
+        );
+        final List<ListItem> items = [
+          for (int n = 0; n < 9; n++) _row('list-big', n),
+        ];
+        expect(
+          await store.createList(_simple('list-big'), items: items),
+          isEmpty,
+        );
+        await _until(store, (c) => c.itemsOf('list-big').length == 9);
+        final ListDefinition definition = store.current.definition(
+          'list-big',
+        )!;
+        // Nine edits and the definition fit in ten writes; ten new items do not.
+        final ListChanges fits = ListChanges(saved: items);
+        final ListChanges tooMany = ListChanges(
+          saved: [for (int n = 9; n < 19; n++) _row('list-big', n)],
+        );
+        await store.apply(tooMany);
+        await _until(store, (c) => c.itemsOf('list-big').length == 19);
+
+        final List<ListError> refused = await store.restoreSnapshot(
+          ListSnapshot.ofChanges(definition, items, tooMany),
+        );
+        expect(refused.single.code, ListErrorCode.undoTooLarge);
+        expect(store.current.itemsOf('list-big'), hasLength(19));
+        expect(
+          await store.restoreSnapshot(
+            ListSnapshot.ofChanges(definition, items, fits),
+          ),
+          isEmpty,
+        );
       },
     );
 

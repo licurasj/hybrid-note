@@ -1096,4 +1096,14 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get aiInvalidAnswer => '変更がリストに合わないため、何も適用されませんでした。';
+
+  @override
+  String get errorUndoTooLarge => 'この変更は項目が多すぎるため、元に戻せません。';
+
+  @override
+  String get aiPartlyNotDone => 'リクエストの一部は実行できませんでした。';
+
+  @override
+  String get aiRefusedProviderAccount =>
+      'AIプロバイダーのアカウントに問題があります。キーまたは残高を確認してください。';
 }

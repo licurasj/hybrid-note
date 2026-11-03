@@ -416,6 +416,23 @@ void main() {
           {'id': 'call', 'values': <Object?>[]},
         ],
       }, {ListErrorCode.unknownItem}, 'no item "call" in list "builtin.grocery"'),
+      ('the same id twice in one call (N3)', {
+        'listId': 'builtin.grocery',
+        'items': [
+          {
+            'id': 'milk',
+            'values': [
+              {'field': 'title', 'value': 'Oat milk'},
+            ],
+          },
+          {
+            'id': 'milk',
+            'values': [
+              {'field': 'done', 'value': true},
+            ],
+          },
+        ],
+      }, {ListErrorCode.duplicateItemId}, 'item "milk": duplicate id'),
       ('an id that is no string', {
         'listId': 'builtin.grocery',
         'items': [

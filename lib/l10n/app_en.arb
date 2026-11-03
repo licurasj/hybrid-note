@@ -940,5 +940,8 @@
   "aiRefusedAccess": "This account or app may not use the AI.",
   "aiRefusedUnavailable": "The AI is not available right now. Try again later.",
   "aiRefusedBadRequest": "The request could not be sent.",
-  "aiInvalidAnswer": "The changes do not fit the list, so nothing was applied."
+  "aiInvalidAnswer": "The changes do not fit the list, so nothing was applied.",
+  "errorUndoTooLarge": "This change touched too many items to be undone.",
+  "aiPartlyNotDone": "Part of the request could not be done.",
+  "aiRefusedProviderAccount": "The AI provider account needs attention: check its key or balance."
 }

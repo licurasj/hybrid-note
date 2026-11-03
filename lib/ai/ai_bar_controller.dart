@@ -135,6 +135,10 @@ class AiBarController extends ChangeNotifier {
   AiProblem? get problem => _problem;
   AiDone? _done;
   AiDone? get done => _done;
+  bool _partial = false;
+  // The function left part of the answer out (L3): the preview and the
+  // done line say that not everything asked was done.
+  bool get partial => _partial;
   bool get canUndo => _undo.isNotEmpty;
 
   AiRequest? _request;
@@ -268,6 +272,7 @@ class AiBarController extends ChangeNotifier {
     }
 
     _plan = plan;
+    _partial = answer.droppedTools > 0;
     text.clear();
     _newList = false;
     if (plan.steps.isEmpty) {
@@ -435,6 +440,7 @@ class AiBarController extends ChangeNotifier {
     _plan = null;
     _problem = null;
     _done = null;
+    _partial = false;
     _pending = null;
     _undo = const [];
     _set(AiBarPhase.idle);

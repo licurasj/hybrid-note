@@ -67,8 +67,10 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
   if (typeof prompt !== 'string' || prompt.trim().length === 0) {
     throw refuse('badRequest', 'prompt must be a non-empty string');
   }
-  if (typeof locale !== 'string' || locale.length === 0 || locale.length > 35) {
-    throw refuse('badRequest', 'locale must be a short string');
+  // A BCP-47 language tag as Flutter's toLanguageTag() gives it ("en",
+  // "zh-Hans-CN"); it goes into the prompt, so nothing else is let in (N2).
+  if (typeof locale !== 'string' || locale.length > 35 || !/^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$/.test(locale)) {
+    throw refuse('badRequest', 'locale must be a language tag');
   }
   const today = data.today ?? undefined;
   if (today !== undefined && (typeof today !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(today))) {

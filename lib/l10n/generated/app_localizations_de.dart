@@ -1122,4 +1122,16 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get aiInvalidAnswer =>
       'Die Änderungen passen nicht zur Liste, daher wurde nichts übernommen.';
+
+  @override
+  String get errorUndoTooLarge =>
+      'Diese Änderung betraf zu viele Einträge, um rückgängig gemacht zu werden.';
+
+  @override
+  String get aiPartlyNotDone =>
+      'Ein Teil der Anfrage konnte nicht ausgeführt werden.';
+
+  @override
+  String get aiRefusedProviderAccount =>
+      'Das Konto beim KI-Anbieter braucht Aufmerksamkeit: Schlüssel oder Guthaben prüfen.';
 }

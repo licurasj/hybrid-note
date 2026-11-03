@@ -35,9 +35,16 @@ const CODES: Record<RefusalReason, FunctionsErrorCode> = {
   outputTooLong: 'resource-exhausted',
 };
 
-/** A typed refusal. Messages are English and carry no request text. */
-export function refuse(reason: RefusalReason, message: string = reason): HttpsError {
-  return new HttpsError(CODES[reason], message, { reason });
+/**
+ * A typed refusal. Messages are English and carry no request text; `extra`
+ * adds fixed codes to the details (for `provider`: the ProviderError kind).
+ */
+export function refuse(
+  reason: RefusalReason,
+  message: string = reason,
+  extra: Record<string, string> = {},
+): HttpsError {
+  return new HttpsError(CODES[reason], message, { ...extra, reason });
 }
 
 export function reasonOf(error: unknown): RefusalReason | 'internal' {

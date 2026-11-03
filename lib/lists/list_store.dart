@@ -76,7 +76,9 @@ abstract interface class ListStore {
   // when the list is gone, it changes nothing and returns listChanged.
   // Items the change did not touch are not compared. A restored definition
   // gets a new schemaRevision, so items saved for the changed one are fitted
-  // to it like after any patch. Empty means restored.
+  // to it like after any patch. A store that writes in one step of limited
+  // size refuses a larger snapshot with undoTooLarge and changes nothing
+  // (L13 of the T-19 unit 5 review). Empty means restored.
   Future<List<ListError>> restoreSnapshot(ListSnapshot snapshot);
 }
 
@@ -91,7 +93,9 @@ class ListSnapshot {
   });
 
   // An item change (upsert_items, delete_items) to a list whose definition
-  // and items were [definition] and [items] before it.
+  // and items were [definition] and [items] before it. [items] must be the
+  // store's items read when the change is applied, not an older copy, or
+  // undo would write back stale values (L11 of the T-19 unit 5 review).
   factory ListSnapshot.ofChanges(
     ListDefinition definition,
     List<ListItem> items,

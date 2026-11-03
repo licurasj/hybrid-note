@@ -67,8 +67,10 @@ export interface ModelConfig {
   prices: Prices;
   /**
    * Higher prices in fixed UTC hours on weekdays (DeepSeek's peak). Chinese
-   * public holidays, which DeepSeek bills off-peak, are billed here at peak:
-   * the counters may overstate a holiday's cost, never understate it.
+   * public holidays, which DeepSeek bills off-peak, are billed here at peak,
+   * and aiCommand prices a request at the dearer of its start and end time
+   * (handler.ts runCost): the counters may overstate a cost, not understate
+   * it, unless DeepSeek prices one request in two parts.
    */
   peak?: { prices: Prices; utcHours: [number, number][] };
   /** Input tokens one call can have: the stable prefix plus the largest context the tier allows. */
@@ -155,7 +157,9 @@ export const MODELS: Record<string, ModelConfig> = {
     provider: 'openai',
     model: 'gpt-6-luna',
     // Standard tier, global processing, prompts under 272K tokens (2x above);
-    // cache write is the 30-minute rate.
+    // cache write is the 30-minute rate. Regional (data residency) endpoints
+    // cost 10 % more: keep the project on global processing, or raise these
+    // prices first, or the ceiling understates (N7).
     prices: { inputUsdPerMTok: 0.1, outputUsdPerMTok: 0.5, cacheReadUsdPerMTok: 0.01, cacheWriteUsdPerMTok: 0.125 },
     maxInputTokens: 70000,
     maxOutputTokens: 8000,

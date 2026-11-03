@@ -1094,4 +1094,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiInvalidAnswer => '这些更改与列表不符，因此没有应用任何内容。';
+
+  @override
+  String get errorUndoTooLarge => '此更改涉及的项目太多，无法撤销。';
+
+  @override
+  String get aiPartlyNotDone => '请求的一部分无法完成。';
+
+  @override
+  String get aiRefusedProviderAccount => 'AI 服务商账户需要处理：请检查密钥或余额。';
 }

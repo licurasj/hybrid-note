@@ -362,5 +362,8 @@
   "aiRefusedAccess": "Esta cuenta o esta app no puede usar la IA.",
   "aiRefusedUnavailable": "La IA no está disponible ahora. Inténtalo más tarde.",
   "aiRefusedBadRequest": "No se pudo enviar la solicitud.",
-  "aiInvalidAnswer": "Los cambios no encajan en la lista, así que no se aplicó nada."
+  "aiInvalidAnswer": "Los cambios no encajan en la lista, así que no se aplicó nada.",
+  "errorUndoTooLarge": "Este cambio afectó a demasiados elementos para poder deshacerlo.",
+  "aiPartlyNotDone": "Una parte de la solicitud no se pudo hacer.",
+  "aiRefusedProviderAccount": "La cuenta del proveedor de IA necesita atención: revisa la clave o el saldo."
 }

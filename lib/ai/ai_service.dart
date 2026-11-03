@@ -211,6 +211,7 @@ class AiAnswer {
     required this.requestId,
     required this.toolCalls,
     this.declineReason,
+    this.droppedTools = 0,
   });
 
   factory AiAnswer.fromJson(Map<Object?, Object?> json) {
@@ -220,6 +221,10 @@ class AiAnswer {
       declineReason: json['outcome'] == 'declined'
           ? '${json['declineReason'] ?? 'offTopic'}'
           : null,
+      droppedTools: switch (json['droppedTools']) {
+        final int count when count > 0 => count,
+        _ => 0,
+      },
       toolCalls: [
         if (calls is List)
           for (final Object? call in calls)
@@ -234,6 +239,9 @@ class AiAnswer {
   // offTopic, notSupported, providerRefusal or noValidTool; null when the
   // answer was not a decline.
   final String? declineReason;
+  // Tool calls the function left out (invalid, or a list they may not
+  // touch): the rest is only part of what was asked (L3).
+  final int droppedTools;
 
   bool get declined => declineReason != null;
 
@@ -254,15 +262,30 @@ class AiAnswer {
 }
 
 // Why the function refused (functions/src/errors.ts `details.reason`), or
-// `unavailable` when it could not be reached at all.
+// `unavailable` when it could not be reached at all. A `provider` refusal
+// whose kind says the key or the balance is the problem becomes
+// `providerAccount` (L4), so it is not shown as "try again later".
 class AiRefusal implements Exception {
   const AiRefusal(this.reason);
+
+  // From a FirebaseFunctionsException's details and code.
+  factory AiRefusal.of(Object? details, String code) {
+    final Object? reason = details is Map ? details['reason'] : null;
+    final Object? kind = details is Map ? details['kind'] : null;
+    if (reason == 'provider' && _accountKinds.contains(kind)) {
+      return const AiRefusal('providerAccount');
+    }
+    return AiRefusal(reason is String ? reason : code);
+  }
 
   final String reason;
 
   @override
   String toString() => 'AiRefusal($reason)';
 }
+
+// functions/src/provider/types.ts kinds that only the account's owner can fix.
+const Set<String> _accountKinds = {'auth', 'billing', 'noKey'};
 
 class FunctionsAiService implements AiService {
   FunctionsAiService([FirebaseFunctions? functions])
@@ -288,9 +311,7 @@ class FunctionsAiService implements AiService {
       }
       return AiAnswer.fromJson(data);
     } on FirebaseFunctionsException catch (error) {
-      final Object? details = error.details;
-      final Object? reason = details is Map ? details['reason'] : null;
-      throw AiRefusal(reason is String ? reason : error.code);
+      throw AiRefusal.of(error.details, error.code);
     }
   }
 }

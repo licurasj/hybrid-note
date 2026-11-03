@@ -74,6 +74,12 @@ function providerFor(model: ModelConfig, secrets: Record<string, string>): AiPro
   }
 }
 
+/**
+ * Every input token at the plain input price: "cold" means nothing read from
+ * a cache. A first request that also writes the cache costs more where the
+ * write has a premium (Claude, OpenAI 1.25x; N7): the task file's cost table
+ * keeps that case in its own column.
+ */
 function coldCost(model: ModelConfig, usage: Usage, at: Date): number {
   const all = usage.inputTokens + usage.cacheReadTokens + usage.cacheWriteTokens;
   return costMicros(model, { inputTokens: all, outputTokens: usage.outputTokens, cacheReadTokens: 0, cacheWriteTokens: 0 }, at) / 1e6;

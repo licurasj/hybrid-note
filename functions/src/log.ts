@@ -31,6 +31,12 @@ export interface RequestMeta {
   providerError?: string;
   /** Why the self-correction call did not count: its error kind, or noTime. */
   retryError?: string;
+  /** Busy answers tried again (a rate-limited provider otherwise looks healthy). */
+  busyRetries?: number;
+  /** The provider's usage was missing or not a count; the ceiling was booked (L1). */
+  usageUnreadable?: boolean;
+  /** Class name of an unexpected error (outcome error), never its message (L9). */
+  errorName?: string;
   toolCounts?: Record<string, number>;
   droppedText?: number;
   droppedTools?: number;

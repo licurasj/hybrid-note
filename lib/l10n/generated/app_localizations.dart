@@ -1903,6 +1903,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The changes do not fit the list, so nothing was applied.'**
   String get aiInvalidAnswer;
+
+  /// No description provided for @errorUndoTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'This change touched too many items to be undone.'**
+  String get errorUndoTooLarge;
+
+  /// No description provided for @aiPartlyNotDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Part of the request could not be done.'**
+  String get aiPartlyNotDone;
+
+  /// No description provided for @aiRefusedProviderAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI provider account needs attention: check its key or balance.'**
+  String get aiRefusedProviderAccount;
 }
 
 class _AppLocalizationsDelegate

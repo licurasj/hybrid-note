@@ -362,5 +362,8 @@
   "aiRefusedAccess": "Dieses Konto oder diese App darf die KI nicht nutzen.",
   "aiRefusedUnavailable": "Die KI ist gerade nicht erreichbar. Versuche es später noch einmal.",
   "aiRefusedBadRequest": "Die Anfrage konnte nicht gesendet werden.",
-  "aiInvalidAnswer": "Die Änderungen passen nicht zur Liste, daher wurde nichts übernommen."
+  "aiInvalidAnswer": "Die Änderungen passen nicht zur Liste, daher wurde nichts übernommen.",
+  "errorUndoTooLarge": "Diese Änderung betraf zu viele Einträge, um rückgängig gemacht zu werden.",
+  "aiPartlyNotDone": "Ein Teil der Anfrage konnte nicht ausgeführt werden.",
+  "aiRefusedProviderAccount": "Das Konto beim KI-Anbieter braucht Aufmerksamkeit: Schlüssel oder Guthaben prüfen."
 }

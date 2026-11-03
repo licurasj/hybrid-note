@@ -48,6 +48,17 @@ void main() {
     expect(result.items[3].values.containsKey('price'), isFalse);
     expect(result.hiddenValues, 2);
     expect(result.changedItemIds, {'a', 'b', 'c', 'd'});
+  });
+
+  test('a stored _legacy that is not a map is replaced, not a crash (N5)', () {
+    final ListPatchResult result = ListPatch.apply(_books(), [
+      _item('x', {'price': 'about 5', '_legacy': 'broken'}),
+    ], const [
+      ListPatchOp(PatchOpKind.changeFieldType, {'key': 'price', 'type': 'number'}),
+    ], _t1);
+
+    expect(result.isValid, isTrue);
+    expect(result.items.single['_legacy'], {'price': ['about 5']});
     expect(result.items[0].updatedAt, _t1);
     expect(result.definition.schemaRevision, 2);
     for (final ListItem item in result.items) {
