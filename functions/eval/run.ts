@@ -9,7 +9,7 @@
 //   npm run eval -- --providers ... --yes         real calls (the owner's yes)
 //   ... --cases design-meals,route-ambiguous-shoes  only those cases
 //
-// Real calls read ANTHROPIC_API_KEY / DEEPSEEK_API_KEY from the git-ignored
+// Real calls read ANTHROPIC_API_KEY / DEEPSEEK_API_KEY / OPENAI_API_KEY from the git-ignored
 // functions/.secret.local that the owner fills in. Keys are never printed,
 // logged or written to the results.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -21,6 +21,7 @@ import { filterOutput, type ToolCall } from '../src/output';
 import { ClaudeProvider } from '../src/provider/claude';
 import { DeepSeekProvider } from '../src/provider/deepseek';
 import { FakeProvider } from '../src/provider/fake';
+import { OpenAiProvider } from '../src/provider/openai';
 import { ProviderError, type AiProvider } from '../src/provider/types';
 import { parseRequest } from '../src/request';
 import { schemaErrors } from '../src/schemas';
@@ -67,6 +68,8 @@ function providerFor(model: ModelConfig, secrets: Record<string, string>): AiPro
       return new ClaudeProvider(secrets.ANTHROPIC_API_KEY);
     case 'deepseek':
       return new DeepSeekProvider(secrets.DEEPSEEK_API_KEY);
+    case 'openai':
+      return new OpenAiProvider(secrets.OPENAI_API_KEY);
   }
 }
 

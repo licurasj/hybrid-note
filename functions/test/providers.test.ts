@@ -1,14 +1,16 @@
-// The Claude and DeepSeek adapters against stubbed clients: request shape,
+// The Claude, DeepSeek and OpenAI adapters against stubbed clients: request shape,
 // answer mapping, the retry turn and typed errors (T-19 unit 3). No network,
 // no keys: real calls happen only in the owner-approved eval (eval/run.ts).
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
 import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 
 import { MODELS } from '../src/config';
 import { ClaudeProvider, mapError } from '../src/provider/claude';
 import { DEEPSEEK_URL, DeepSeekProvider, type Fetch } from '../src/provider/deepseek';
+import { OpenAiProvider, mapError as openaiMapError } from '../src/provider/openai';
 import { ProviderError, type ProviderCall } from '../src/provider/types';
 import { loadTools } from '../src/schemas';
 
@@ -278,5 +280,122 @@ describe('DeepSeekProvider', () => {
 
   test('without a key there is no provider', () => {
     assert.throws(() => new DeepSeekProvider(undefined), (e: ProviderError) => e.kind === 'noKey');
+  });
+});
+
+/** A stand-in for the OpenAI client that records the request and returns `reply`. */
+function openaiStub(reply: unknown) {
+  const sent: Record<string, unknown>[] = [];
+  const client = {
+    responses: {
+      create: async (params: Record<string, unknown>) => {
+        sent.push(params);
+        return reply;
+      },
+    },
+  } as unknown as OpenAI;
+  return { provider: new OpenAiProvider(undefined, client), sent };
+}
+
+const openaiResponse = (output: unknown[], extra: Record<string, unknown> = {}) => ({
+  id: 'resp_1',
+  object: 'response',
+  status: 'completed',
+  incomplete_details: null,
+  output,
+  usage: {
+    input_tokens: 12000,
+    input_tokens_details: { cached_tokens: 11000, cache_write_tokens: 0 },
+    output_tokens: 150,
+    output_tokens_details: { reasoning_tokens: 60 },
+    total_tokens: 12150,
+  },
+  ...extra,
+});
+
+describe('OpenAiProvider', () => {
+  test('uses the Responses API with function tools, tool_choice auto, effort, store false', async () => {
+    const { provider, sent } = openaiStub(openaiResponse([]));
+    await provider.call(input('gpt-6-luna'));
+    const params = sent[0];
+    assert.equal(params.model, 'gpt-6-luna');
+    assert.equal(params.instructions, 'SYSTEM');
+    assert.deepEqual(params.input, [{ role: 'user', content: 'USER' }]);
+    assert.equal(params.tool_choice, 'auto');
+    assert.equal(params.max_output_tokens, 8000);
+    assert.deepEqual(params.reasoning, { effort: 'medium' });
+    assert.equal(params.store, false);
+    assert.deepEqual(params.include, ['reasoning.encrypted_content']);
+    const tools = params.tools as Record<string, unknown>[];
+    assert.equal(tools.length, 7);
+    assert.deepEqual(Object.keys(tools[0]), ['type', 'name', 'description', 'parameters', 'strict']);
+    assert.ok(tools.every((t) => t.type === 'function' && t.strict === false));
+  });
+
+  test('maps function calls, text, refusals, usage and incomplete reasons', async () => {
+    const { provider } = openaiStub(
+      openaiResponse([
+        { type: 'reasoning', id: 'rs1', summary: [], encrypted_content: 'x' },
+        { type: 'message', id: 'm1', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: 'Adding.', annotations: [] }] },
+        { type: 'function_call', id: 'fc1', call_id: 'call1', name: 'reply', arguments: '{"text":"hi"}' },
+        { type: 'function_call', id: 'fc2', call_id: 'call2', name: 'reply', arguments: '{"text":' },
+      ]),
+    );
+    const response = await provider.call(input('gpt-6-luna'));
+    assert.deepEqual(response.content, [
+      { type: 'text', text: 'Adding.' },
+      { type: 'tool_call', id: 'call1', name: 'reply', args: { text: 'hi' } },
+      { type: 'tool_call', id: 'call2', name: 'reply', args: undefined },
+    ]);
+    assert.deepEqual(response.usage, { inputTokens: 1000, outputTokens: 150, cacheReadTokens: 11000, cacheWriteTokens: 0 });
+    assert.equal(response.stopReason, 'end');
+
+    const refusal = openaiResponse([{ type: 'message', id: 'm', role: 'assistant', status: 'completed', content: [{ type: 'refusal', refusal: 'no' }] }]);
+    assert.equal((await openaiStub(refusal).provider.call(input('gpt-6-luna'))).stopReason, 'refusal');
+    for (const [reason, mapped] of [
+      ['max_output_tokens', 'length'],
+      ['content_filter', 'refusal'],
+    ] as const) {
+      const r = openaiResponse([], { status: 'incomplete', incomplete_details: { reason } });
+      assert.equal((await openaiStub(r).provider.call(input('gpt-6-luna'))).stopReason, mapped, reason);
+    }
+    await assert.rejects(openaiStub(openaiResponse([], { status: 'failed' })).provider.call(input('gpt-6-luna')), (e: ProviderError) => e.kind === 'overloaded');
+  });
+
+  test('the retry sends the output back with a function_call_output per call', async () => {
+    const output = [
+      { type: 'reasoning', id: 'rs1', summary: [], encrypted_content: 'enc' },
+      { type: 'function_call', id: 'fc1', call_id: 'ok1', name: 'reply', arguments: '{"text":"hi"}' },
+      { type: 'function_call', id: 'fc2', call_id: 'bad1', name: 'decline', arguments: '{"reason":"x"}' },
+    ];
+    const { provider, sent } = openaiStub(openaiResponse(output));
+    const previous = await provider.call(input('gpt-6-luna'));
+    await provider.call(input('gpt-6-luna', { retry: { previous, feedback: [{ id: 'bad1', errors: ['/reason: must be equal to one of the allowed values'] }] } }));
+    const items = sent[1].input as Record<string, unknown>[];
+    assert.equal(items.length, 7);
+    assert.deepEqual(items.slice(1, 4), output);
+    assert.deepEqual(items[4], { type: 'function_call_output', call_id: 'ok1', output: 'Valid. Repeat this call unchanged in your corrected answer.' });
+    assert.equal(items[5].call_id, 'bad1');
+    assert.match(String(items[5].output), /allowed values/);
+    assert.equal(items[6].role, 'user');
+  });
+
+  test('typed SDK errors become ProviderError kinds; quota 429s are billing', () => {
+    const headers = new Headers();
+    const cases: [unknown, string][] = [
+      [OpenAI.APIError.generate(401, { error: { type: 'invalid_request_error' } }, 'x', headers), 'auth'],
+      [OpenAI.APIError.generate(429, { error: { code: 'insufficient_quota', type: 'insufficient_quota' } }, 'x', headers), 'billing'],
+      [OpenAI.APIError.generate(429, { error: { code: 'credit_balance_exhausted' } }, 'x', headers), 'billing'],
+      [OpenAI.APIError.generate(429, { error: { code: 'rate_limit_exceeded' } }, 'x', headers), 'rateLimit'],
+      [OpenAI.APIError.generate(500, { error: {} }, 'x', headers), 'overloaded'],
+      [OpenAI.APIError.generate(400, { error: {} }, 'x', headers), 'badRequest'],
+      [new OpenAI.APIConnectionTimeoutError(), 'network'],
+      [new Error('other'), 'badResponse'],
+    ];
+    for (const [error, kind] of cases) assert.equal(openaiMapError(error).kind, kind);
+  });
+
+  test('without a key there is no provider', () => {
+    assert.throws(() => new OpenAiProvider(''), (e: ProviderError) => e.kind === 'noKey');
   });
 });

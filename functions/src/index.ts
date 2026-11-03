@@ -12,6 +12,7 @@ import { cloudLogSink } from './log';
 import { ClaudeProvider } from './provider/claude';
 import { DeepSeekProvider } from './provider/deepseek';
 import { FakeProvider } from './provider/fake';
+import { OpenAiProvider } from './provider/openai';
 import { ProviderError, type AiProvider } from './provider/types';
 
 initializeApp();
@@ -21,6 +22,7 @@ initializeApp();
 // from the git-ignored functions/.secret.local.
 const anthropicKey = defineSecret('ANTHROPIC_API_KEY');
 const deepseekKey = defineSecret('DEEPSEEK_API_KEY');
+const openaiKey = defineSecret('OPENAI_API_KEY');
 
 /**
  * The model of this call. The emulator always uses the fake provider, so
@@ -43,6 +45,8 @@ function providerFor(model: ModelConfig): AiProvider {
         return new ClaudeProvider(anthropicKey.value());
       case 'deepseek':
         return new DeepSeekProvider(deepseekKey.value());
+      case 'openai':
+        return new OpenAiProvider(openaiKey.value());
     }
   } catch (error) {
     if (!(error instanceof ProviderError)) throw error;
@@ -62,7 +66,7 @@ export const aiCommand = onCall(
     maxInstances: 2,
     // Two provider calls (the schema self-correction) of up to 50 s each.
     timeoutSeconds: 120,
-    secrets: [anthropicKey, deepseekKey],
+    secrets: [anthropicKey, deepseekKey, openaiKey],
     memory: '256MiB',
   },
   (request) => {

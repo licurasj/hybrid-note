@@ -57,11 +57,12 @@ export interface Prices {
 /**
  * A model, its prices and limits. The per-request ceiling cost is reserved
  * before the call (D-13), so prices and token ceilings must be the provider's
- * real ones. Sources: the claude-api skill (Claude, cached 2026-10-06) and
- * api-docs.deepseek.com/quick_start/pricing (DeepSeek, read 2026-11-03).
+ * real ones. Sources: the claude-api skill (Claude, cached 2026-10-06),
+ * api-docs.deepseek.com/quick_start/pricing (DeepSeek, read 2026-11-03) and
+ * developers.openai.com/api/docs/pricing (OpenAI, read 2026-11-03).
  */
 export interface ModelConfig {
-  provider: 'fake' | 'claude' | 'deepseek';
+  provider: 'fake' | 'claude' | 'deepseek' | 'openai';
   model: string;
   prices: Prices;
   /**
@@ -147,6 +148,19 @@ export const MODELS: Record<string, ModelConfig> = {
     effort: 'high',
     // DeepSeek's strict mode (beta) needs every property required; the
     // schemas have optional ones, so DeepSeek gets the full schemas, checked here.
+    strictTools: [],
+  },
+  // OpenAI's cheapest current model (W1: a later option, not evaluated yet).
+  'gpt-6-luna': {
+    provider: 'openai',
+    model: 'gpt-6-luna',
+    // Standard tier, global processing, prompts under 272K tokens (2x above);
+    // cache write is the 30-minute rate.
+    prices: { inputUsdPerMTok: 0.1, outputUsdPerMTok: 0.5, cacheReadUsdPerMTok: 0.01, cacheWriteUsdPerMTok: 0.125 },
+    maxInputTokens: 70000,
+    maxOutputTokens: 8000,
+    effort: 'medium',
+    // Strict mode needs every property required, as at DeepSeek.
     strictTools: [],
   },
 };
