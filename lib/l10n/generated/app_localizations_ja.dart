@@ -864,4 +864,78 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get errorAiNotAllowed => 'AIはこのリストを変更できません。';
+
+  @override
+  String get listFilterAll => 'すべて';
+
+  @override
+  String get listDoneGroup => '完了';
+
+  @override
+  String listOpenDoneCount(int open, int done) {
+    return '未完了 $open · 完了 $done';
+  }
+
+  @override
+  String listItemCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 件',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get itemSheetNew => '新しい項目';
+
+  @override
+  String get itemSheetEdit => '項目を編集';
+
+  @override
+  String get settings => '設定';
+
+  @override
+  String get darkMode => 'ダークモード';
+
+  @override
+  String homeThingsToday(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '今日 $count 件',
+      zero: '今日の予定はありません',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String listColorName(String name) {
+    String _temp0 = intl.Intl.selectLogic(name, {
+      'orange': 'オレンジ',
+      'green': 'グリーン',
+      'magenta': 'マゼンタ',
+      'violet': 'バイオレット',
+      'yellow': 'イエロー',
+      'rose': 'ローズ',
+      'teal': 'ティール',
+      'blue': 'ブルー',
+      'other': '色',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String listIconName(String name) {
+    String _temp0 = intl.Intl.selectLogic(name, {
+      'pending_actions': 'クリップボード',
+      'checklist': 'チェックリスト',
+      'shopping_cart': 'ショッピングカート',
+      'book': '本',
+      'movie': '映画',
+      'local_florist': '花',
+      'other': 'リスト',
+    });
+    return '$_temp0';
+  }
 }

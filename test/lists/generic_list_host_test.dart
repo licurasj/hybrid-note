@@ -86,8 +86,8 @@ void main() {
     );
     List<ListItem> groceries() => store.current.itemsOf(BuiltinTemplates.groceryId);
 
-    expect(find.text('Current Grocery Run (2)'), findsOneWidget);
-    expect(find.text('Next Time (0)'), findsOneWidget);
+    expect(find.text('CURRENT GROCERY RUN · 2'), findsOneWidget);
+    expect(find.text('NEXT TIME · 0'), findsOneWidget);
 
     await tester.tap(find.textContaining('Clear Ticked'));
     await settle(tester);
@@ -96,7 +96,7 @@ void main() {
     final ListItem copy = groceries().firstWhere((i) => i['title'] == 'Milk');
     expect(copy['section'], 'nextTime');
     expect(copy['done'], isFalse);
-    expect(find.text('Next Time (1)'), findsOneWidget);
+    expect(find.text('NEXT TIME · 1'), findsOneWidget);
 
     // The move-all button sits on the Next Time header and points to the current run.
     await tester.tap(find.widgetWithIcon(TextButton, Icons.arrow_upward));
@@ -119,19 +119,19 @@ void main() {
     );
     List<ListItem> tasks() => store.current.itemsOf(BuiltinTemplates.tasksId);
 
-    expect(find.text('All My Tasks (2)'), findsOneWidget);
-    await tester.tap(find.text('Work (1)'));
+    expect(find.text('All 2'), findsOneWidget);
+    await tester.tap(find.text('Work 1'));
     await settle(tester);
     expect(find.text('Rent'), findsNothing);
     expect(find.text('Report'), findsOneWidget);
 
-    await tester.tap(find.text('All My Tasks (2)'));
+    await tester.tap(find.text('All 2'));
     await settle(tester);
 
-    // Sub-items live in the expandable card.
+    // Sub-items unfold under their row.
     await tester.tap(find.text('Rent'));
     await settle(tester);
-    await tester.tap(find.widgetWithText(CheckboxListTile, 'Check balance'));
+    await tester.tap(find.text('Check balance'));
     await settle(tester);
     expect(
       (tasks().firstWhere((t) => t.id == 't1')['subtasks'] as List).single['done'],
@@ -139,7 +139,7 @@ void main() {
     );
 
     // Tick Report, then clear completed from the app bar.
-    final Finder reportCard = find.ancestor(of: find.text('Report'), matching: find.byType(Card));
+    final Finder reportCard = find.byKey(const ValueKey('item-t2'));
     await tester.tap(find.descendant(of: reportCard, matching: find.byType(Checkbox)));
     await settle(tester);
     expect(tasks().firstWhere((t) => t.id == 't2')['done'], isTrue);
@@ -168,7 +168,7 @@ void main() {
       store.current.definition(BuiltinTemplates.tasksId)!.field('category')!.options.map((o) => o.value),
       contains('Garden'),
     );
-    expect(find.text('Garden (1)'), findsOneWidget);
+    expect(find.text('Garden 1'), findsOneWidget);
   });
 
   testWidgets('journal: grouped by year and month, newest first', (tester) async {
@@ -183,7 +183,7 @@ void main() {
 
     expect(find.text('2026'), findsOneWidget);
     expect(find.text('2025'), findsOneWidget);
-    expect(find.text('April'), findsOneWidget);
+    expect(find.text('APRIL'), findsOneWidget);
     expect(find.text('Spring'), findsOneWidget);
     // Older years start folded.
     expect(find.text('Winter'), findsNothing);

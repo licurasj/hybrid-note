@@ -11,8 +11,10 @@ import 'package:hybrid_note/backend/auth_service.dart';
 import 'package:hybrid_note/backend/firestore_list_store.dart';
 import 'package:hybrid_note/backend/firestore_setup.dart';
 import 'package:hybrid_note/lists/builtin_templates.dart';
+import 'package:hybrid_note/lists/generic_list_host.dart';
 import 'package:hybrid_note/lists/generic_list_screen.dart';
 import 'package:hybrid_note/lists/list_definition.dart';
+import 'package:hybrid_note/lists/list_editor_screen.dart';
 
 import 'support/fake_auth.dart';
 import 'support/firestore_store.dart';
@@ -43,6 +45,27 @@ Future<FirestoreListStore> _pumpApp(
 
 final Finder _hub = find.byKey(const ValueKey('launcher-hub'));
 
+// The account row (email, Log out) is in the settings sheet behind the home's
+// settings button (T-16 unit 5).
+Future<void> _openSettings(WidgetTester tester) async {
+  await tester.tap(find.byKey(const ValueKey('settings')));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _closeSettings(WidgetTester tester) async {
+  Navigator.of(tester.element(find.byKey(const ValueKey('settings-account')))).pop();
+  await tester.pumpAndSettle();
+}
+
+// The home no longer lists every list; the launcher (tap mode) does.
+Future<void> _expectLauncherShows(WidgetTester tester, String label) async {
+  await tester.tap(_hub);
+  await tester.pump();
+  expect(find.text(label), findsOneWidget);
+  await tester.tap(_hub);
+  await tester.pump();
+}
+
 void main() {
   testWidgets('signed in, the app starts on the home screen with the lists', (
     WidgetTester tester,
@@ -51,7 +74,9 @@ void main() {
 
     expect(find.byType(MaterialApp), findsOneWidget);
     expect(find.byKey(const ValueKey('sign-in')), findsNothing);
+    await _openSettings(tester);
     expect(find.text('owner@example.com'), findsOneWidget);
+    await _closeSettings(tester);
     expect(_hub, findsOneWidget);
 
     // Tap mode: open the hub and pick Grocery; the list opens as a page.
@@ -80,8 +105,9 @@ void main() {
     await settle(tester);
     expect(find.byKey(const ValueKey('sign-in')), findsNothing);
     expect(_hub, findsOneWidget);
-    expect(find.text('Grocery'), findsOneWidget);
+    await _expectLauncherShows(tester, 'Grocery');
 
+    await _openSettings(tester);
     await tester.tap(find.byKey(const ValueKey('sign-out')));
     await settle(tester);
     expect(auth.calls, ['signIn', 'signOut', 'clearCache']);
@@ -102,6 +128,7 @@ void main() {
     bool signInEnabled() =>
         tester.widget<ButtonStyleButton>(signIn).onPressed != null;
 
+    await _openSettings(tester);
     await tester.tap(find.byKey(const ValueKey('sign-out')));
     await settle(tester);
     // Signed out, but the lists are still on the device: no reload (on web)
@@ -147,6 +174,7 @@ void main() {
     bool signInEnabled() =>
         tester.widget<ButtonStyleButton>(signIn).onPressed != null;
 
+    await _openSettings(tester);
     await tester.tap(find.byKey(const ValueKey('sign-out')));
     await settle(tester);
     // The cache is still being cleared: sign-in waits (T-17 R2).
@@ -168,7 +196,9 @@ void main() {
       'clearCache',
       'open user-2',
     ]);
+    await _openSettings(tester);
     expect(find.text('other@example.com'), findsOneWidget);
+    await _closeSettings(tester);
     expect(_hub, findsOneWidget);
   });
 
@@ -199,7 +229,7 @@ void main() {
 
     expect(find.byKey(const ValueKey('sign-in')), findsNothing);
     expect(_hub, findsOneWidget);
-    expect(find.text('Grocery'), findsOneWidget);
+    await _expectLauncherShows(tester, 'Grocery');
   });
 
   testWidgets('settings come from this device: dark mode and language', (
@@ -462,6 +492,160 @@ void main() {
     });
   });
 
+  testWidgets('the hub floats over a list; a list opened from a list replaces it, and back goes home', (
+    WidgetTester tester,
+  ) async {
+    await _pumpApp(tester, FakeAuthService(user: testUser));
+    Finder host(String id) => find.byWidgetPredicate(
+      (widget) => widget is GenericListHost && widget.listId == id,
+    );
+    Future<void> pick(String id) async {
+      await tester.tap(_hub);
+      await tester.pump();
+      await tester.tap(find.byKey(ValueKey('launcher-note-$id')));
+      await settle(tester);
+    }
+
+    await pick(BuiltinTemplates.groceryId);
+    expect(host(BuiltinTemplates.groceryId), findsOneWidget);
+    expect(_hub, findsOneWidget);
+    // The list's add button sits just above the hub, clear of it.
+    final Rect add = tester.getRect(find.byType(FloatingActionButton));
+    final Rect hub = tester.getRect(_hub);
+    expect(add.bottom, lessThan(hub.top - 8));
+    expect(add.center.dx, closeTo(hub.center.dx, 12));
+
+    await pick(BuiltinTemplates.journalId);
+    expect(host(BuiltinTemplates.journalId), findsOneWidget);
+    expect(host(BuiltinTemplates.groceryId), findsNothing);
+
+    // Inside a list the fan starts with Home; it goes back to the home.
+    await tester.tap(_hub);
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('launcher-home')));
+    await settle(tester);
+    expect(host(BuiltinTemplates.journalId), findsNothing);
+    expect(find.byKey(const ValueKey('settings')), findsOneWidget);
+    await tester.tap(_hub);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('launcher-home')), findsNothing);
+    await tester.tap(_hub);
+    await tester.pump();
+    await pick(BuiltinTemplates.journalId);
+
+    // Android back: from list B to the home, not to list A.
+    await tester.binding.handlePopRoute();
+    await settle(tester);
+    expect(host(BuiltinTemplates.journalId), findsNothing);
+    expect(host(BuiltinTemplates.groceryId), findsNothing);
+    expect(find.byKey(const ValueKey('settings')), findsOneWidget);
+    expect(_hub, findsOneWidget);
+  });
+
+  testWidgets('a list page has Edit list at the top right', (
+    WidgetTester tester,
+  ) async {
+    await _pumpApp(tester, FakeAuthService(user: testUser));
+    await tester.tap(_hub);
+    await tester.pump();
+    await tester.tap(
+      find.byKey(ValueKey('launcher-note-${BuiltinTemplates.groceryId}')),
+    );
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('edit-list')));
+    await settle(tester);
+    expect(find.byType(ListEditorScreen), findsOneWidget);
+  });
+
+  // The add button's own size animation (under the hub) and whether any
+  // turn is applied around it.
+  Animation<double> addScale(WidgetTester tester) => tester
+      .widget<ScaleTransition>(find.byKey(const ValueKey('add-button-scale')))
+      .scale;
+  bool addTurns(WidgetTester tester) => tester
+      .widgetList<RotationTransition>(
+        find.ancestor(
+          of: find.byType(FloatingActionButton),
+          matching: find.byType(RotationTransition),
+        ),
+      )
+      .any((transition) => transition.turns.value % 1 != 0);
+
+  testWidgets('the add button of a list grows in once the page has arrived and shrinks as it leaves', (
+    WidgetTester tester,
+  ) async {
+    await _pumpApp(tester, FakeAuthService(user: testUser));
+    await tester.tap(_hub);
+    await tester.pump();
+    await tester.tap(
+      find.byKey(ValueKey('launcher-note-${BuiltinTemplates.groceryId}')),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    // Mid-transition: the page is coming in, the button is not there yet.
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is GenericListHost &&
+            widget.listId == BuiltinTemplates.groceryId,
+      ),
+      findsOneWidget,
+    );
+    expect(addScale(tester).value, 0);
+    await settle(tester);
+    expect(addScale(tester).value, 1);
+    expect(addTurns(tester), isFalse);
+
+    // Leaving for the home: the button shrinks away (size only) while the
+    // page goes.
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 20));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(addScale(tester).status, AnimationStatus.reverse);
+    expect(addScale(tester).value, lessThan(1));
+    expect(addTurns(tester), isFalse);
+    await settle(tester);
+  });
+
+  testWidgets('with reduced motion the add button is there at once', (
+    WidgetTester tester,
+  ) async {
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    await _pumpApp(tester, FakeAuthService(user: testUser));
+    await tester.tap(_hub);
+    await tester.pump();
+    await tester.tap(
+      find.byKey(ValueKey('launcher-note-${BuiltinTemplates.groceryId}')),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(addScale(tester).value, 1);
+    await settle(tester);
+  });
+
+  testWidgets('a sheet on the home or a list hides the hub until it closes', (
+    WidgetTester tester,
+  ) async {
+    await _pumpApp(tester, FakeAuthService(user: testUser));
+
+    await _openSettings(tester);
+    expect(_hub, findsNothing);
+    // Halfway through the sheet sliding away the hub is still hidden; it
+    // comes back once the sheet has gone.
+    Navigator.of(
+      tester.element(find.byKey(const ValueKey('settings-account'))),
+    ).pop();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 60));
+    expect(find.byKey(const ValueKey('settings-account')), findsOneWidget);
+    expect(_hub, findsNothing);
+    await tester.pumpAndSettle();
+    expect(_hub, findsOneWidget);
+  });
+
   testWidgets('the hub can be moved and its position is saved', (
     WidgetTester tester,
   ) async {
@@ -477,11 +661,9 @@ void main() {
       await gesture.moveTo(Offset.lerp(start, prompt, i / 6)!);
       await tester.pump(const Duration(milliseconds: 16));
     }
-    await gesture.up();
-    await tester.pump();
-
-    gesture = await tester.startGesture(start);
-    await gesture.moveTo(const Offset(120, 200));
+    // Reaching Move picked the hub up; it follows the same drag.
+    final Offset grab = tester.getCenter(_hub) - prompt;
+    await gesture.moveTo(const Offset(120, 200) - grab);
     await tester.pump();
     await gesture.up();
     await tester.pumpAndSettle();

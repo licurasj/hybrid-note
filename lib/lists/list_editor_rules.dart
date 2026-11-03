@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/generated/app_localizations.dart';
 import 'list_definition.dart';
+import 'list_editor_style.dart';
 import 'list_error.dart';
 import 'list_labels.dart';
 import 'list_patch.dart';
@@ -16,19 +17,22 @@ const List<BehaviorKind> editorAddableRules = [
 
 // The list editor's rules section. Every control hands an addBehavior or
 // removeBehavior op to [onOp], the same ops the AI uses (D-7). removeBehavior
-// works by kind, so the editor offers one rule of each kind.
+// works by kind, so the editor offers one rule of each kind. Rules are
+// hairline rows; [extraRows] (the editor's Allow AI switch) follow them.
 class ListEditorRules extends StatelessWidget {
   const ListEditorRules({
     super.key,
     required this.definition,
     required this.labels,
     required this.onOp,
+    this.extraRows = const [],
   });
 
   // The editor's current draft.
   final ListDefinition definition;
   final ListLabels labels;
   final ValueChanged<ListPatchOp> onOp;
+  final List<Widget> extraRows;
 
   static ListPatchOp addOp(BehaviorDefinition behavior) {
     return ListPatchOp(PatchOpKind.addBehavior, {'behavior': behavior.toJson()});
@@ -94,6 +98,7 @@ class ListEditorRules extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppLocalizations loc = labels.loc;
+    final EditorLook look = EditorLook.of(context);
     final List<BehaviorDefinition> others = definition.behaviors
         .where((behavior) => behavior.kind != BehaviorKind.clearCompleted)
         .toList();
@@ -110,46 +115,45 @@ class ListEditorRules extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 20, bottom: 8),
-          child: Text(loc.rules, style: Theme.of(context).textTheme.titleMedium),
-        ),
-        SwitchListTile(
-          key: const ValueKey('rule-clearCompleted'),
-          contentPadding: EdgeInsets.zero,
-          title: Text(loc.ruleClearCompleted),
-          value: _has(BehaviorKind.clearCompleted),
-          onChanged: (on) => onOp(
-            on
-                ? addOp(const BehaviorDefinition(kind: BehaviorKind.clearCompleted))
-                : removeOp(BehaviorKind.clearCompleted),
+        look.sectionLabel(loc.rules),
+        look.hairline(
+          child: SwitchListTile(
+            key: const ValueKey('rule-clearCompleted'),
+            contentPadding: EdgeInsets.zero,
+            title: Text(loc.ruleClearCompleted, style: look.label),
+            value: _has(BehaviorKind.clearCompleted),
+            onChanged: (on) => onOp(
+              on
+                  ? addOp(const BehaviorDefinition(kind: BehaviorKind.clearCompleted))
+                  : removeOp(BehaviorKind.clearCompleted),
+            ),
           ),
         ),
         for (final (int index, BehaviorDefinition behavior) in others.indexed)
-          ListTile(
-            key: ValueKey('rule-${ids[index]}'),
-            contentPadding: EdgeInsets.zero,
-            title: Text(labels.behavior(behavior.kind)),
-            subtitle: switch (_summary(behavior)) {
-              final String summary => Text(summary),
-              null => null,
-            },
-            trailing: IconButton(
-              key: ValueKey('remove-rule-${ids[index]}'),
-              tooltip: loc.delete,
-              icon: const Icon(Icons.delete_outline),
-              onPressed: () => onOp(removeOp(behavior.kind)),
+          look.hairline(
+            child: ListTile(
+              key: ValueKey('rule-${ids[index]}'),
+              contentPadding: EdgeInsets.zero,
+              title: Text(labels.behavior(behavior.kind), style: look.label),
+              subtitle: switch (_summary(behavior)) {
+                final String summary => Text(summary, style: look.type.meta),
+                null => null,
+              },
+              trailing: IconButton(
+                key: ValueKey('remove-rule-${ids[index]}'),
+                tooltip: loc.delete,
+                color: look.neutrals.muted,
+                icon: const Icon(Icons.delete_outline, size: 20),
+                onPressed: () => onOp(removeOp(behavior.kind)),
+              ),
             ),
           ),
+        ...extraRows,
         if (editorAddableRules.any((kind) => !_has(kind)))
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              key: const ValueKey('add-rule'),
-              icon: const Icon(Icons.add),
-              label: Text(loc.addRule),
-              onPressed: () => _addRule(context),
-            ),
+          look.addButton(
+            key: const ValueKey('add-rule'),
+            text: loc.addRule,
+            onPressed: () => _addRule(context),
           ),
       ],
     );

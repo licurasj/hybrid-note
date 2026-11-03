@@ -227,8 +227,8 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
               : Locale(settings.localeCode!),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          theme: AppTheme.light(),
-          darkTheme: AppTheme.dark(),
+          theme: AppTheme.light(languageCode: settings.localeCode),
+          darkTheme: AppTheme.dark(languageCode: settings.localeCode),
           themeMode: settings.isDarkMode ? ThemeMode.dark : ThemeMode.light,
           home: home,
         );

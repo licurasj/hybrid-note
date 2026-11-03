@@ -73,6 +73,23 @@ flutter:
   uses-material-design: true
 
   generate: true
+
+  # Instrument Serif and Geist, SIL Open Font License 1.1 (OFL.txt beside each).
+  fonts:
+    - family: InstrumentSerif
+      fonts:
+        - asset: assets/fonts/instrument_serif/InstrumentSerif-Regular.ttf
+        - asset: assets/fonts/instrument_serif/InstrumentSerif-Italic.ttf
+          style: italic
+    - family: Geist
+      fonts:
+        - asset: assets/fonts/geist/Geist-Regular.ttf
+        - asset: assets/fonts/geist/Geist-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/geist/Geist-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/geist/Geist-Bold.ttf
+          weight: 700
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

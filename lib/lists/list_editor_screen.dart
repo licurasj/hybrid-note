@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
+import '../app/app_theme.dart';
+import '../app_colors.dart';
 import '../l10n/generated/app_localizations.dart';
 import 'list_definition.dart';
 import 'list_editor_rules.dart';
+import 'list_editor_style.dart';
 import 'list_icons.dart';
 import 'list_item.dart';
 import 'list_labels.dart';
@@ -56,6 +59,9 @@ ListDefinition blankListDefinition(AppLocalizations loc) {
 // Edits a list's definition. Every control produces a patch operation (the
 // same ones the AI uses, D-7); the screen shows the result of applying them
 // so far, including validation errors and values that would be hidden.
+// The look is direction A "Eclipse" (docs/AESTHETICS.md): a serif title,
+// uppercase section labels, hairline rows and the eclipse ring on the chosen
+// colour.
 class ListEditorScreen extends StatefulWidget {
   const ListEditorScreen({
     super.key,
@@ -261,36 +267,86 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
     _push(ListPatchOp(PatchOpKind.setView, {'view': view}));
   }
 
-  Widget _fieldDropdown({
+  // A picked value in a row, with a chevron; on the right of a setting row,
+  // or at the start under a field's name.
+  Widget _picker<T>(
+    EditorLook look, {
+    required Key key,
+    required T? value,
+    required List<DropdownMenuItem<T>> items,
+    required ValueChanged<T?>? onChanged,
+    bool alignEnd = true,
+    TextStyle? style,
+  }) {
+    final AlignmentDirectional alignment = alignEnd
+        ? AlignmentDirectional.centerEnd
+        : AlignmentDirectional.centerStart;
+    return DropdownButtonHideUnderline(
+      child: DropdownButton<T>(
+        key: key,
+        value: value,
+        isExpanded: true,
+        icon: Icon(
+          alignEnd ? Icons.chevron_right : Icons.expand_more,
+          size: 18,
+          color: look.neutrals.muted,
+        ),
+        style: look.label,
+        dropdownColor: look.neutrals.ground,
+        borderRadius: BorderRadius.circular(AppShapes.fieldRadius),
+        selectedItemBuilder: (_) => [
+          for (final DropdownMenuItem<T> item in items)
+            Align(
+              alignment: alignment,
+              child: DefaultTextStyle.merge(
+                style: style ?? look.value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                child: item.child,
+              ),
+            ),
+        ],
+        items: items,
+        onChanged: onChanged,
+      ),
+    );
+  }
+
+  Widget _fieldDropdown(
+    EditorLook look, {
     required String label,
     required String? value,
     required Iterable<FieldDefinition> choices,
     required ValueChanged<String?> onChanged,
+    required ListLabels labels,
     List<DropdownMenuItem<String?>> extra = const [],
     String? keyName,
   }) {
     // A view can still name a field that was just removed or retyped; the
     // dropdown then shows nothing, and the validation errors say what is wrong.
-    final String? shown =
-        choices.any((field) => field.key == value) ? value : null;
-    return DropdownButtonFormField<String?>(
-      key: ValueKey('${keyName ?? label}-$shown-${choices.length}'),
-      initialValue: shown,
-      isExpanded: true,
-      decoration: InputDecoration(labelText: label),
-      items: [
-        ...extra,
-        for (final FieldDefinition field in choices)
-          DropdownMenuItem(
-            value: field.key,
-            child: Text(field.label ?? field.key),
-          ),
-      ],
-      onChanged: onChanged,
+    final String? shown = choices.any((field) => field.key == value)
+        ? value
+        : null;
+    return look.settingRow(
+      label: label,
+      value: _picker<String?>(
+        look,
+        key: ValueKey('${keyName ?? label}-$shown-${choices.length}'),
+        value: shown,
+        items: [
+          ...extra,
+          for (final FieldDefinition field in choices)
+            DropdownMenuItem(
+              value: field.key,
+              child: Text(labels.field(field)),
+            ),
+        ],
+        onChanged: onChanged,
+      ),
     );
   }
 
-  Widget _layoutSection(ListLabels labels) {
+  Widget _layoutSection(EditorLook look, ListLabels labels) {
     final AppLocalizations loc = labels.loc;
     final ViewDefinition view = _draft.view;
     Iterable<FieldDefinition> ofType(Set<FieldType> types) =>
@@ -303,25 +359,31 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _heading(loc.layout),
-        DropdownButtonFormField<ViewKind>(
-          key: const ValueKey('view-kind'),
-          initialValue: view.kind,
-          isExpanded: true,
-          decoration: InputDecoration(labelText: loc.layout),
-          items: [
-            for (final ViewKind kind in ViewKind.values)
-              DropdownMenuItem(value: kind, child: Text(labels.viewKind(kind))),
-          ],
-          onChanged: (kind) {
-            if (kind != null) {
-              _setView(kind);
-            }
-          },
+        look.sectionLabel(loc.layout),
+        look.settingRow(
+          label: loc.layout,
+          value: _picker<ViewKind>(
+            look,
+            key: const ValueKey('view-kind'),
+            value: view.kind,
+            items: [
+              for (final ViewKind kind in ViewKind.values)
+                DropdownMenuItem(
+                  value: kind,
+                  child: Text(labels.viewKind(kind)),
+                ),
+            ],
+            onChanged: (kind) {
+              if (kind != null) {
+                _setView(kind);
+              }
+            },
+          ),
         ),
-        const SizedBox(height: 12),
         if (view.kind == ViewKind.sectioned)
           _fieldDropdown(
+            look,
+            labels: labels,
             label: loc.sectionBy,
             value: view.sectionBy,
             choices: ofType({FieldType.choice}),
@@ -329,6 +391,8 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
           ),
         if (view.kind == ViewKind.grouped)
           _fieldDropdown(
+            look,
+            labels: labels,
             label: loc.groupBy,
             value: view.groupBy,
             choices: ofType({FieldType.choice, FieldType.category}),
@@ -336,6 +400,8 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
           ),
         if (view.kind == ViewKind.timeline)
           _fieldDropdown(
+            look,
+            labels: labels,
             label: loc.dateField,
             value: view.dateField,
             choices: ofType({FieldType.date, FieldType.dateTime}),
@@ -349,14 +415,17 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
           ),
         if (view.kind == ViewKind.checklist)
           _fieldDropdown(
+            look,
+            labels: labels,
             label: loc.splitByDate,
             value: view.bucketBy,
             choices: ofType({FieldType.date, FieldType.dateTime}),
             extra: [noneItem],
             onChanged: (key) => _setView(view.kind, params: {'bucketBy': key}),
           ),
-        const SizedBox(height: 12),
         _fieldDropdown(
+          look,
+          labels: labels,
           keyName: 'filter',
           label: loc.filterBy,
           value: view.filterChipsBy,
@@ -373,7 +442,11 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
     );
   }
 
-  Widget _optionsEditor(ListLabels labels, FieldDefinition field) {
+  Widget _optionsEditor(
+    EditorLook look,
+    ListLabels labels,
+    FieldDefinition field,
+  ) {
     void setOptions(List<FieldOption> options) {
       _push(
         ListPatchOp(PatchOpKind.setOptions, {
@@ -384,15 +457,18 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
     }
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsetsDirectional.fromSTEB(_handleWidth, 0, 0, 10),
       child: Wrap(
         spacing: 6,
-        runSpacing: 4,
+        runSpacing: 6,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           for (final FieldOption option in field.options)
             InputChip(
               label: Text(labels.option(option)),
+              labelStyle: look.label,
+              visualDensity: VisualDensity.compact,
+              deleteIconColor: look.neutrals.muted,
               onDeleted:
                   field.options.length > 1 || field.type != FieldType.choice
                   ? () => setOptions(
@@ -403,13 +479,22 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
                   : null,
             ),
           SizedBox(
-            width: 140,
+            width: 150,
             child: TextField(
               key: ValueKey('add-option-${field.key}'),
-              decoration: InputDecoration(
-                hintText: labels.loc.addOption,
-                isDense: true,
-              ),
+              style: look.label,
+              decoration:
+                  EditorLook.bare(
+                    hint: labels.loc.addOption,
+                    hintStyle: look.value,
+                  ).copyWith(
+                    prefixIcon: Icon(
+                      Icons.add,
+                      size: 18,
+                      color: look.neutrals.muted,
+                    ),
+                    prefixIconConstraints: const BoxConstraints(minWidth: 26),
+                  ),
               onSubmitted: (text) {
                 final String value = text.trim();
                 if (value.isNotEmpty && !field.hasOption(value)) {
@@ -426,109 +511,232 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
     );
   }
 
-  Widget _fieldCard(ListLabels labels, FieldDefinition field, int index) {
+  // Room for the drag handle; the type and options line up after it.
+  static const double _handleWidth = 36;
+
+  // One field over a hairline: the drag handle, its name and Delete, then its
+  // type and Required, then its options.
+  Widget _fieldRow(
+    EditorLook look,
+    ListLabels labels,
+    FieldDefinition field,
+    int index,
+  ) {
     final AppLocalizations loc = labels.loc;
     final bool locked = field.primary || field.role != null;
 
-    return Card(
+    return look.hairline(
       key: ValueKey('field-card-${field.key}'),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ListTile(
-            leading: ReorderableDragStartListener(
-              index: index,
-              child: const Icon(Icons.drag_indicator),
-            ),
-            title: TextFormField(
-              key: ValueKey('field-label-${field.key}'),
-              initialValue: labels.field(field),
-              decoration: InputDecoration(
-                labelText: loc.fieldName,
-                isDense: true,
-              ),
-              onChanged: (text) => _push(
-                ListPatchOp(PatchOpKind.renameField, {
-                  'key': field.key,
-                  'label': text,
-                }),
-              ),
-            ),
-            trailing: IconButton(
-              key: ValueKey('remove-field-${field.key}'),
-              tooltip: loc.delete,
-              icon: const Icon(Icons.delete_outline),
-              onPressed: field.primary
-                  ? null
-                  : () => _push(
-                      ListPatchOp(PatchOpKind.removeField, {'key': field.key}),
-                    ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Row(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
               children: [
-                Expanded(
-                  child: DropdownButtonFormField<FieldType>(
-                    key: ValueKey('field-type-${field.key}-${field.type.wire}'),
-                    initialValue: field.type,
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      labelText: loc.fieldType,
-                      isDense: true,
+                ReorderableDragStartListener(
+                  index: index,
+                  child: SizedBox(
+                    width: _handleWidth,
+                    height: 48,
+                    child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Icon(
+                        Icons.drag_indicator,
+                        size: 20,
+                        color: look.neutrals.muted,
+                      ),
                     ),
-                    items: [
-                      for (final FieldType type in FieldType.values)
-                        DropdownMenuItem(
-                          value: type,
-                          child: Text(labels.fieldType(type)),
-                        ),
-                    ],
-                    // The title and fields with a special job keep their type.
-                    onChanged: locked
-                        ? null
-                        : (type) {
-                            if (type != null && type != field.type) {
-                              _push(
-                                ListPatchOp(PatchOpKind.changeFieldType, {
-                                  'key': field.key,
-                                  'type': type.wire,
-                                }),
-                              );
-                            }
-                          },
                   ),
                 ),
-                const SizedBox(width: 12),
-                Text(loc.required),
-                Checkbox(
-                  key: ValueKey('field-required-${field.key}'),
-                  value: field.required,
-                  onChanged: field.primary
+                Expanded(
+                  child: TextFormField(
+                    key: ValueKey('field-label-${field.key}'),
+                    initialValue: labels.field(field),
+                    style: look.strong,
+                    decoration: EditorLook.bare(
+                      hint: loc.fieldName,
+                      hintStyle: look.value,
+                    ),
+                    onChanged: (text) => _push(
+                      ListPatchOp(PatchOpKind.renameField, {
+                        'key': field.key,
+                        'label': text,
+                      }),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  key: ValueKey('remove-field-${field.key}'),
+                  tooltip: loc.delete,
+                  color: look.neutrals.muted,
+                  icon: const Icon(Icons.delete_outline, size: 20),
+                  onPressed: field.primary
                       ? null
-                      : (value) => _push(
-                          ListPatchOp(PatchOpKind.setFieldProps, {
+                      : () => _push(
+                          ListPatchOp(PatchOpKind.removeField, {
                             'key': field.key,
-                            'required': value ?? false,
                           }),
                         ),
                 ),
               ],
             ),
-          ),
-          if (field.type == FieldType.choice ||
-              field.type == FieldType.category)
-            _optionsEditor(labels, field),
-        ],
+            Padding(
+              padding: const EdgeInsetsDirectional.only(start: _handleWidth),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _picker<FieldType>(
+                      look,
+                      key: ValueKey(
+                        'field-type-${field.key}-${field.type.wire}',
+                      ),
+                      value: field.type,
+                      alignEnd: false,
+                      style: look.type.meta,
+                      items: [
+                        for (final FieldType type in FieldType.values)
+                          DropdownMenuItem(
+                            value: type,
+                            child: Text(labels.fieldType(type)),
+                          ),
+                      ],
+                      // The title and fields with a special job keep their type.
+                      onChanged: locked
+                          ? null
+                          : (type) {
+                              if (type != null && type != field.type) {
+                                _push(
+                                  ListPatchOp(PatchOpKind.changeFieldType, {
+                                    'key': field.key,
+                                    'type': type.wire,
+                                  }),
+                                );
+                              }
+                            },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(loc.required, style: look.type.meta),
+                  Checkbox(
+                    key: ValueKey('field-required-${field.key}'),
+                    value: field.required,
+                    visualDensity: VisualDensity.compact,
+                    onChanged: field.primary
+                        ? null
+                        : (value) => _push(
+                            ListPatchOp(PatchOpKind.setFieldProps, {
+                              'key': field.key,
+                              'required': value ?? false,
+                            }),
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            if (field.type == FieldType.choice ||
+                field.type == FieldType.category)
+              _optionsEditor(look, labels, field),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _heading(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 20, bottom: 8),
-      child: Text(text, style: Theme.of(context).textTheme.titleMedium),
+  // An icon in a ring; the chosen one is filled with the text colour. The
+  // whole 48 dp square takes the tap.
+  Widget _iconChoice(EditorLook look, String name, IconData icon) {
+    final bool selected = _draft.icon == name;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: AppLocalizations.of(context).listIconName(name),
+      excludeSemantics: true,
+      child: InkWell(
+        key: ValueKey('icon-$name'),
+        customBorder: const CircleBorder(),
+        onTap: () =>
+            _push(ListPatchOp(PatchOpKind.setListInfo, {'icon': name})),
+        child: SizedBox.square(
+          dimension: 48,
+          child: Center(
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: selected ? look.neutrals.text : Colors.transparent,
+                shape: BoxShape.circle,
+                border: selected
+                    ? null
+                    : Border.all(color: look.neutrals.line),
+              ),
+              child: Icon(
+                icon,
+                size: 20,
+                color: selected ? look.neutrals.ground : look.neutrals.text,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // A colour disc, in its dark variant in dark mode. The chosen one gets the
+  // eclipse: a ring in the text colour overlapping it, shifted up and right.
+  // The whole 48 dp square takes the tap.
+  Widget _swatch(EditorLook look, String color) {
+    final Brightness brightness = Theme.of(context).brightness;
+    final bool selected = _draft.color.toUpperCase() == color;
+    const double disc = 36;
+    final int value = listColor(color).toARGB32();
+    final String name = listPalette
+            .where((entry) => entry.light.toARGB32() == value)
+            .firstOrNull
+            ?.name ??
+        '';
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: AppLocalizations.of(context).listColorName(name),
+      excludeSemantics: true,
+      child: InkWell(
+        key: ValueKey('color-$color'),
+        customBorder: const CircleBorder(),
+        onTap: () => _push(
+          ListPatchOp(PatchOpKind.setListInfo, {'color': color}),
+        ),
+        child: SizedBox.square(
+          dimension: 48,
+          child: Stack(
+            alignment: Alignment.center,
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: disc,
+                height: disc,
+                decoration: BoxDecoration(
+                  color: listColor(color, brightness: brightness),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              if (selected)
+                Transform.translate(
+                  offset: const Offset(6, -4),
+                  child: Container(
+                    key: const ValueKey('color-selected'),
+                    width: disc,
+                    height: disc,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: look.neutrals.text, width: 2),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -539,146 +747,176 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
     final AppLocalizations loc = AppLocalizations.of(context);
     final ListLabels labels = ListLabels(loc);
     final ListDefinition draft = _draft;
+    final EditorLook look = EditorLook.of(context);
+    final TextStyle nameStyle = look.type.row.copyWith(
+      fontSize: 22,
+      fontWeight: FontWeight.w500,
+    );
+    final Color errorColor = Theme.of(context).colorScheme.error;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isNew ? loc.newList : loc.editList),
         actions: [
-          if (!widget.isNew)
-            IconButton(
-              key: const ValueKey('delete-list'),
-              tooltip: loc.deleteList,
-              icon: const Icon(Icons.delete_outline),
-              onPressed: () =>
-                  Navigator.of(context).pop(const ListEditorOutcome.deleted()),
-            ),
           IconButton(
             key: const ValueKey('save-list'),
             tooltip: loc.save,
-            icon: const Icon(Icons.check),
+            icon: const Icon(Icons.check, size: 26),
             onPressed: _canSave
                 ? () => Navigator.of(
                     context,
                   ).pop(ListEditorOutcome.saved(List.of(_ops), _result))
                 : null,
           ),
+          const SizedBox(width: 8),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-        children: [
-          TextFormField(
-            key: const ValueKey('list-name'),
-            // A blank new list starts without a name; a template copy shows
-            // the template's.
-            initialValue:
-                (widget.definition.name ?? '').isEmpty &&
-                    widget.definition.nameKey == null
-                ? ''
-                : labels.listName(widget.definition),
-            autofocus: widget.isNew,
-            decoration: InputDecoration(labelText: loc.listName),
-            onChanged: (text) =>
-                _push(ListPatchOp(PatchOpKind.setListInfo, {'name': text})),
-          ),
-          _heading(loc.listIcon),
-          Wrap(
-            spacing: 6,
-            children: [
-              for (final MapEntry<String, IconData> icon in listIcons.entries)
-                ChoiceChip(
-                  label: Icon(icon.value, size: 20),
-                  selected: draft.icon == icon.key,
-                  onSelected: (_) => _push(
-                    ListPatchOp(PatchOpKind.setListInfo, {'icon': icon.key}),
-                  ),
+      // Built whole (no lazy list): the editor is a few screens long at most.
+      body: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          AppShapes.sideMargin,
+          0,
+          AppShapes.sideMargin,
+          32 + MediaQuery.paddingOf(context).bottom,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              widget.isNew ? loc.newList : loc.editList,
+              style: look.type.screenTitle,
+            ),
+            look.sectionLabel(loc.listName),
+            TextFormField(
+              key: const ValueKey('list-name'),
+              // A blank new list starts without a name; a template copy shows
+              // the template's.
+              initialValue:
+                  (widget.definition.name ?? '').isEmpty &&
+                      widget.definition.nameKey == null
+                  ? ''
+                  : labels.listName(widget.definition),
+              autofocus: widget.isNew,
+              style: nameStyle,
+              decoration: InputDecoration(
+                hintText: loc.listName,
+                hintStyle: nameStyle.copyWith(color: look.neutrals.muted),
+                isDense: true,
+                contentPadding: const EdgeInsets.only(top: 4, bottom: 10),
+                border: UnderlineInputBorder(
+                  borderSide: BorderSide(color: look.neutrals.line),
                 ),
-            ],
-          ),
-          _heading(loc.listColor),
-          Wrap(
-            spacing: 8,
-            children: [
-              for (final String color in listColorChoices)
-                InkWell(
-                  key: ValueKey('color-$color'),
-                  customBorder: const CircleBorder(),
-                  onTap: () => _push(
-                    ListPatchOp(PatchOpKind.setListInfo, {'color': color}),
-                  ),
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: listColor(color),
-                      shape: BoxShape.circle,
-                      border: draft.color.toUpperCase() == color
-                          ? Border.all(
-                              width: 3,
-                              color: Theme.of(context).colorScheme.onSurface,
-                            )
-                          : null,
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: look.neutrals.line),
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: look.neutrals.text, width: 1.5),
+                ),
+              ),
+              onChanged: (text) =>
+                  _push(ListPatchOp(PatchOpKind.setListInfo, {'name': text})),
+            ),
+            look.sectionLabel(loc.listIcon),
+            Wrap(
+              spacing: 4,
+              children: [
+                for (final MapEntry<String, IconData> icon in listIcons.entries)
+                  _iconChoice(look, icon.key, icon.value),
+              ],
+            ),
+            look.sectionLabel(loc.listColor),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final String color in listColorChoices)
+                  _swatch(look, color),
+              ],
+            ),
+            look.sectionLabel(loc.fields),
+            ReorderableListView(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              buildDefaultDragHandles: false,
+              onReorder: (from, to) {
+                final FieldDefinition field = draft.fields[from];
+                _push(
+                  ListPatchOp(PatchOpKind.moveField, {
+                    'key': field.key,
+                    'index': to > from ? to - 1 : to,
+                  }),
+                );
+              },
+              children: [
+                for (int index = 0; index < draft.fields.length; index++)
+                  _fieldRow(look, labels, draft.fields[index], index),
+              ],
+            ),
+            look.addButton(
+              key: const ValueKey('add-field'),
+              text: loc.addField,
+              onPressed: () => _addField(labels),
+            ),
+            _layoutSection(look, labels),
+            ListEditorRules(
+              definition: draft,
+              labels: labels,
+              onOp: _push,
+              extraRows: [
+                look.hairline(
+                  child: SwitchListTile(
+                    key: const ValueKey('allow-ai'),
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(loc.allowAi, style: look.label),
+                    value: draft.aiAllowed,
+                    onChanged: (on) => _push(
+                      ListPatchOp(PatchOpKind.setListInfo, {'aiAllowed': on}),
                     ),
                   ),
                 ),
-            ],
-          ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(loc.allowAi),
-            value: draft.aiAllowed,
-            onChanged: (on) =>
-                _push(ListPatchOp(PatchOpKind.setListInfo, {'aiAllowed': on})),
-          ),
-          _heading(loc.fields),
-          ReorderableListView(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            buildDefaultDragHandles: false,
-            onReorder: (from, to) {
-              final FieldDefinition field = draft.fields[from];
-              _push(
-                ListPatchOp(PatchOpKind.moveField, {
-                  'key': field.key,
-                  'index': to > from ? to - 1 : to,
-                }),
-              );
-            },
-            children: [
-              for (int index = 0; index < draft.fields.length; index++)
-                _fieldCard(labels, draft.fields[index], index),
-            ],
-          ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              key: const ValueKey('add-field'),
-              icon: const Icon(Icons.add),
-              label: Text(loc.addField),
-              onPressed: () => _addField(labels),
+              ],
             ),
-          ),
-          _layoutSection(labels),
-          ListEditorRules(definition: draft, labels: labels, onOp: _push),
-          if (_result.hiddenValues > 0)
-            Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: Text(
-                loc.hiddenValuesWarning(_result.hiddenValues),
-                style: TextStyle(color: Theme.of(context).colorScheme.tertiary),
+            if (_result.hiddenValues > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: Text(
+                  loc.hiddenValuesWarning(_result.hiddenValues),
+                  style: look.value,
+                ),
               ),
-            ),
-          // Problems that keep Save disabled.
-          if (!_result.isValid && (_ops.isNotEmpty || widget.isNew))
-            Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: Text(
-                _result.errors.map((error) => labels.error(error, _result.definition)).join('\n'),
-                key: const ValueKey('editor-errors'),
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+            // Problems that keep Save disabled.
+            if (!_result.isValid && (_ops.isNotEmpty || widget.isNew))
+              Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: Text(
+                  _result.errors
+                      .map((error) => labels.error(error, _result.definition))
+                      .join('\n'),
+                  key: const ValueKey('editor-errors'),
+                  style: look.label.copyWith(color: errorColor),
+                ),
               ),
-            ),
-        ],
+            if (!widget.isNew)
+              Padding(
+                padding: const EdgeInsets.only(top: 28),
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: TextButton.icon(
+                    key: const ValueKey('delete-list'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: errorColor,
+                      minimumSize: const Size(0, 48),
+                      padding: EdgeInsets.zero,
+                      textStyle: look.strong,
+                    ),
+                    icon: const Icon(Icons.delete_outline, size: 20),
+                    label: Text(loc.deleteList),
+                    onPressed: () => Navigator.of(
+                      context,
+                    ).pop(const ListEditorOutcome.deleted()),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

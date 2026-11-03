@@ -878,4 +878,80 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get errorAiNotAllowed => 'Die KI darf diese Liste nicht ändern.';
+
+  @override
+  String get listFilterAll => 'Alle';
+
+  @override
+  String get listDoneGroup => 'Erledigt';
+
+  @override
+  String listOpenDoneCount(int open, int done) {
+    return '$open offen · $done erledigt';
+  }
+
+  @override
+  String listItemCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Einträge',
+      one: '1 Eintrag',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get itemSheetNew => 'Neuer Eintrag';
+
+  @override
+  String get itemSheetEdit => 'Eintrag bearbeiten';
+
+  @override
+  String get settings => 'Einstellungen';
+
+  @override
+  String get darkMode => 'Dunkler Modus';
+
+  @override
+  String homeThingsToday(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Sachen heute',
+      one: '1 Sache heute',
+      zero: 'Heute nichts fällig',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String listColorName(String name) {
+    String _temp0 = intl.Intl.selectLogic(name, {
+      'orange': 'Orange',
+      'green': 'Grün',
+      'magenta': 'Magenta',
+      'violet': 'Violett',
+      'yellow': 'Gelb',
+      'rose': 'Rosa',
+      'teal': 'Petrol',
+      'blue': 'Blau',
+      'other': 'Farbe',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String listIconName(String name) {
+    String _temp0 = intl.Intl.selectLogic(name, {
+      'pending_actions': 'Klemmbrett',
+      'checklist': 'Checkliste',
+      'shopping_cart': 'Einkaufswagen',
+      'book': 'Buch',
+      'movie': 'Film',
+      'local_florist': 'Blume',
+      'other': 'Liste',
+    });
+    return '$_temp0';
+  }
 }

@@ -222,7 +222,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get addSubtask => 'Add Subtask';
+  String get addSubtask => 'Add subtask';
 
   @override
   String get editSubtask => 'Edit Subtask';
@@ -872,4 +872,80 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errorAiNotAllowed => 'The AI may not change this list.';
+
+  @override
+  String get listFilterAll => 'All';
+
+  @override
+  String get listDoneGroup => 'Done';
+
+  @override
+  String listOpenDoneCount(int open, int done) {
+    return '$open open · $done done';
+  }
+
+  @override
+  String listItemCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items',
+      one: '1 item',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get itemSheetNew => 'New item';
+
+  @override
+  String get itemSheetEdit => 'Edit item';
+
+  @override
+  String get settings => 'Settings';
+
+  @override
+  String get darkMode => 'Dark mode';
+
+  @override
+  String homeThingsToday(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count things today',
+      one: '1 thing today',
+      zero: 'Nothing due today',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String listColorName(String name) {
+    String _temp0 = intl.Intl.selectLogic(name, {
+      'orange': 'Orange',
+      'green': 'Green',
+      'magenta': 'Magenta',
+      'violet': 'Violet',
+      'yellow': 'Yellow',
+      'rose': 'Rose',
+      'teal': 'Teal',
+      'blue': 'Blue',
+      'other': 'Colour',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String listIconName(String name) {
+    String _temp0 = intl.Intl.selectLogic(name, {
+      'pending_actions': 'Clipboard',
+      'checklist': 'Checklist',
+      'shopping_cart': 'Shopping cart',
+      'book': 'Book',
+      'movie': 'Film',
+      'local_florist': 'Flower',
+      'other': 'List',
+    });
+    return '$_temp0';
+  }
 }

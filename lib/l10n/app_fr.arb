@@ -311,5 +311,16 @@
   "errorUnknownItem": "Un élément à modifier est introuvable dans la liste.",
   "errorUnknownField": "« {field} » n’est pas un champ de cette liste.",
   "errorListChanged": "La liste a changé depuis, cette action ne peut donc pas être annulée.",
-  "errorAiNotAllowed": "L’IA n’a pas le droit de modifier cette liste."
+  "errorAiNotAllowed": "L’IA n’a pas le droit de modifier cette liste.",
+  "listFilterAll": "Tout",
+  "listDoneGroup": "Terminé",
+  "listOpenDoneCount": "{open} en cours · {done} terminés",
+  "listItemCount": "{count, plural, =1{1 élément} other{{count} éléments}}",
+  "itemSheetNew": "Nouvel élément",
+  "itemSheetEdit": "Modifier l’élément",
+  "settings": "Réglages",
+  "darkMode": "Mode sombre",
+  "homeThingsToday": "{count, plural, =0{Rien pour aujourd'hui} =1{1 chose aujourd'hui} other{{count} choses aujourd'hui}}",
+  "listColorName": "{name, select, orange{Orange} green{Vert} magenta{Magenta} violet{Violet} yellow{Jaune} rose{Rose} teal{Bleu canard} blue{Bleu} other{Couleur}}",
+  "listIconName": "{name, select, pending_actions{Presse-papiers} checklist{Liste de contrôle} shopping_cart{Panier} book{Livre} movie{Film} local_florist{Fleur} other{Liste}}"
 }

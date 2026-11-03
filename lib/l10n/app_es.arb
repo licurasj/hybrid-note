@@ -311,5 +311,16 @@
   "errorUnknownItem": "No se encontró en la lista un elemento que se iba a cambiar.",
   "errorUnknownField": "«{field}» no es un campo de esta lista.",
   "errorListChanged": "La lista ha cambiado desde entonces, así que no se puede deshacer.",
-  "errorAiNotAllowed": "La IA no puede cambiar esta lista."
+  "errorAiNotAllowed": "La IA no puede cambiar esta lista.",
+  "listFilterAll": "Todo",
+  "listDoneGroup": "Hecho",
+  "listOpenDoneCount": "{open} pendientes · {done} hechos",
+  "listItemCount": "{count, plural, =1{1 elemento} other{{count} elementos}}",
+  "itemSheetNew": "Nuevo elemento",
+  "itemSheetEdit": "Editar elemento",
+  "settings": "Ajustes",
+  "darkMode": "Modo oscuro",
+  "homeThingsToday": "{count, plural, =0{Nada para hoy} =1{1 cosa hoy} other{{count} cosas hoy}}",
+  "listColorName": "{name, select, orange{Naranja} green{Verde} magenta{Magenta} violet{Violeta} yellow{Amarillo} rose{Rosa} teal{Verde azulado} blue{Azul} other{Color}}",
+  "listIconName": "{name, select, pending_actions{Portapapeles} checklist{Lista de control} shopping_cart{Carrito} book{Libro} movie{Película} local_florist{Flor} other{Lista}}"
 }

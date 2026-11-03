@@ -152,18 +152,21 @@ void main() {
     expect(find.byKey(const ValueKey('delete-list')), findsOneWidget);
 
     await tester.enterText(find.byKey(const ValueKey('list-name')), 'Shopping');
-    await tester.tap(find.byKey(const ValueKey('color-#E53935')));
+    await tester.tap(find.byKey(const ValueKey('color-#FF2D55')));
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('save-list')));
     await settle(tester);
 
     final ListDefinition grocery = store.current.definition(BuiltinTemplates.groceryId)!;
     expect(grocery.name, 'Shopping');
-    expect(grocery.color, '#E53935');
+    expect(grocery.color, '#FF2D55');
 
     await _openLauncher(tester);
     await tester.longPress(find.byKey(tab));
     await tester.pumpAndSettle();
+    // Delete list is at the end of the editor.
+    await tester.ensureVisible(find.byKey(const ValueKey('delete-list')));
+    await tester.pump();
     await tester.tap(find.byKey(const ValueKey('delete-list')));
     await settle(tester);
     expect(store.current.definition(BuiltinTemplates.groceryId), isNull);

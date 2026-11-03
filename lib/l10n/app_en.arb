@@ -90,7 +90,7 @@
       }
     }
   },
-  "addSubtask": "Add Subtask",
+  "addSubtask": "Add subtask",
   "editSubtask": "Edit Subtask",
   "subtaskTitleRequired": "Subtask title *",
   "subtasks": "Subtasks",
@@ -706,5 +706,54 @@
     }
   },
   "errorListChanged": "The list has changed since, so this cannot be undone.",
-  "errorAiNotAllowed": "The AI may not change this list."
+  "errorAiNotAllowed": "The AI may not change this list.",
+  "listFilterAll": "All",
+  "listDoneGroup": "Done",
+  "listOpenDoneCount": "{open} open · {done} done",
+  "@listOpenDoneCount": {
+    "placeholders": {
+      "open": {
+        "type": "int"
+      },
+      "done": {
+        "type": "int"
+      }
+    }
+  },
+  "listItemCount": "{count, plural, =1{1 item} other{{count} items}}",
+  "@listItemCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "itemSheetNew": "New item",
+  "itemSheetEdit": "Edit item",
+  "settings": "Settings",
+  "darkMode": "Dark mode",
+  "homeThingsToday": "{count, plural, =0{Nothing due today} =1{1 thing today} other{{count} things today}}",
+  "@homeThingsToday": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "listColorName": "{name, select, orange{Orange} green{Green} magenta{Magenta} violet{Violet} yellow{Yellow} rose{Rose} teal{Teal} blue{Blue} other{Colour}}",
+  "@listColorName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "listIconName": "{name, select, pending_actions{Clipboard} checklist{Checklist} shopping_cart{Shopping cart} book{Book} movie{Film} local_florist{Flower} other{List}}",
+  "@listIconName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

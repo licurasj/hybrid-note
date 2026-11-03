@@ -523,7 +523,7 @@ abstract class AppLocalizations {
   /// No description provided for @addSubtask.
   ///
   /// In en, this message translates to:
-  /// **'Add Subtask'**
+  /// **'Add subtask'**
   String get addSubtask;
 
   /// No description provided for @editSubtask.
@@ -1597,6 +1597,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The AI may not change this list.'**
   String get errorAiNotAllowed;
+
+  /// No description provided for @listFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get listFilterAll;
+
+  /// No description provided for @listDoneGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get listDoneGroup;
+
+  /// No description provided for @listOpenDoneCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{open} open · {done} done'**
+  String listOpenDoneCount(int open, int done);
+
+  /// No description provided for @listItemCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 item} other{{count} items}}'**
+  String listItemCount(int count);
+
+  /// No description provided for @itemSheetNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New item'**
+  String get itemSheetNew;
+
+  /// No description provided for @itemSheetEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit item'**
+  String get itemSheetEdit;
+
+  /// No description provided for @settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settings;
+
+  /// No description provided for @darkMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark mode'**
+  String get darkMode;
+
+  /// No description provided for @homeThingsToday.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{Nothing due today} =1{1 thing today} other{{count} things today}}'**
+  String homeThingsToday(int count);
+
+  /// No description provided for @listColorName.
+  ///
+  /// In en, this message translates to:
+  /// **'{name, select, orange{Orange} green{Green} magenta{Magenta} violet{Violet} yellow{Yellow} rose{Rose} teal{Teal} blue{Blue} other{Colour}}'**
+  String listColorName(String name);
+
+  /// No description provided for @listIconName.
+  ///
+  /// In en, this message translates to:
+  /// **'{name, select, pending_actions{Clipboard} checklist{Checklist} shopping_cart{Shopping cart} book{Book} movie{Film} local_florist{Flower} other{List}}'**
+  String listIconName(String name);
 }
 
 class _AppLocalizationsDelegate

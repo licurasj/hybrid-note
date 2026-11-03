@@ -862,4 +862,78 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get errorAiNotAllowed => 'AI 不能更改此列表。';
+
+  @override
+  String get listFilterAll => '全部';
+
+  @override
+  String get listDoneGroup => '已完成';
+
+  @override
+  String listOpenDoneCount(int open, int done) {
+    return '$open 项未完成 · $done 项已完成';
+  }
+
+  @override
+  String listItemCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 项',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get itemSheetNew => '新建项目';
+
+  @override
+  String get itemSheetEdit => '编辑项目';
+
+  @override
+  String get settings => '设置';
+
+  @override
+  String get darkMode => '深色模式';
+
+  @override
+  String homeThingsToday(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '今天 $count 件事',
+      zero: '今天没有待办',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String listColorName(String name) {
+    String _temp0 = intl.Intl.selectLogic(name, {
+      'orange': '橙色',
+      'green': '绿色',
+      'magenta': '洋红',
+      'violet': '紫罗兰',
+      'yellow': '黄色',
+      'rose': '玫红',
+      'teal': '青色',
+      'blue': '蓝色',
+      'other': '颜色',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String listIconName(String name) {
+    String _temp0 = intl.Intl.selectLogic(name, {
+      'pending_actions': '剪贴板',
+      'checklist': '清单',
+      'shopping_cart': '购物车',
+      'book': '书',
+      'movie': '电影',
+      'local_florist': '花',
+      'other': '列表',
+    });
+    return '$_temp0';
+  }
 }

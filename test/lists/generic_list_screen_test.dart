@@ -126,13 +126,13 @@ void main() {
       ], _Recorder()),
     );
 
-    final double planned = tester.getTopLeft(find.text('Planned (1)')).dy;
-    final double inProgress = tester.getTopLeft(find.text('In Progress (1)')).dy;
-    final double completed = tester.getTopLeft(find.text('Completed (1)')).dy;
+    final double planned = tester.getTopLeft(find.text('PLANNED · 1')).dy;
+    final double inProgress = tester.getTopLeft(find.text('IN PROGRESS · 1')).dy;
+    final double completed = tester.getTopLeft(find.text('COMPLETED · 1')).dy;
     expect(planned < inProgress && inProgress < completed, isTrue);
 
     expect(
-      find.text('TV Show | Season 2 | Episode 4 | Great'),
+      find.text('TV Show · Season 2 · Episode 4 · Great'),
       findsOneWidget,
     );
     expect(find.text('Book'), findsOneWidget);
