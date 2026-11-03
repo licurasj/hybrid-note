@@ -68,7 +68,41 @@ class _GenericListScreenState extends State<GenericListScreen> {
 
   late _Look _look;
 
+  // Under the floating launcher the add button pops in once the page has
+  // arrived, the same way it reappears when the hub moves (the Scaffold's
+  // button entrance).
+  bool _pageArrived = false;
+  Animation<double>? _pageAnimation;
+
   ListDefinition get _definition => widget.definition;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final Animation<double>? animation = ModalRoute.of(context)?.animation;
+    if (animation == _pageAnimation) {
+      return;
+    }
+    _pageAnimation?.removeStatusListener(_onPageAnimation);
+    _pageAnimation = animation;
+    if (animation == null || animation.isCompleted) {
+      _pageArrived = true;
+    } else {
+      animation.addStatusListener(_onPageAnimation);
+    }
+  }
+
+  void _onPageAnimation(AnimationStatus status) {
+    if (status.isCompleted && !_pageArrived) {
+      setState(() => _pageArrived = true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _pageAnimation?.removeStatusListener(_onPageAnimation);
+    super.dispose();
+  }
 
   FieldDefinition? get _completion =>
       _definition.fieldWithRole(FieldRole.completion);
@@ -1131,7 +1165,8 @@ class _GenericListScreenState extends State<GenericListScreen> {
           const SizedBox(width: 4),
         ],
       ),
-      floatingActionButton: _addButton(),
+      floatingActionButton:
+          hubArea == null || _pageArrived ? _addButton() : null,
       floatingActionButtonLocation:
           hubArea == null ? null : AboveHubButtonLocation(hubArea),
       body: RefreshIndicator(

@@ -541,6 +541,31 @@ void main() {
     expect(_hub, findsOneWidget);
   });
 
+  testWidgets('the add button of a list pops in once the page has arrived', (
+    WidgetTester tester,
+  ) async {
+    await _pumpApp(tester, FakeAuthService(user: testUser));
+    await tester.tap(_hub);
+    await tester.pump();
+    await tester.tap(
+      find.byKey(ValueKey('launcher-note-${BuiltinTemplates.groceryId}')),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    // Mid-transition: the page is coming in, the button is not there yet.
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is GenericListHost &&
+            widget.listId == BuiltinTemplates.groceryId,
+      ),
+      findsOneWidget,
+    );
+    expect(find.byType(FloatingActionButton), findsNothing);
+    await settle(tester);
+    expect(find.byType(FloatingActionButton), findsOneWidget);
+  });
+
   testWidgets('a sheet on the home or a list hides the hub until it closes', (
     WidgetTester tester,
   ) async {
