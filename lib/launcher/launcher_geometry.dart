@@ -46,13 +46,14 @@ class LauncherConfig {
     this.neighbourTabScale = 1.08,
     this.selectedSpread = 2.0,
     this.dialStepDegrees = 12,
-    this.dialSelectedSpread = 1.25,
+    this.dialSelectedSpread = 1.0,
+    this.dialFixedSpread = 1.6,
     this.dialNeighbourLength = 0.8,
     this.dialFarLength = 0.68,
     this.dialTabRoot = 16,
     this.dialTabCap = 56,
     this.dialTabGrow = 14,
-    this.dialJogAt = 0.6,
+    this.dialSelectKeep = 0.15,
     this.dialEdgeLeave = 0.25,
     this.dialEdgeDelay = const Duration(milliseconds: 350),
     this.dialEdgeInterval = const Duration(milliseconds: 280),
@@ -118,11 +119,13 @@ class LauncherConfig {
   final double selectedSpread;
 
   // The dial (owner's choices on the phone, T-16 unit 6, 2026-10-30 to
-  // 2026-11-03). Each tab takes this angle; the selected one this many times
-  // more. The selected tab reaches half the screen diagonal; its neighbours
-  // and the rest reach these shares of that.
+  // 2026-11-03). Each list takes this angle, the selected one this many
+  // times as much (1: no wider, owner 2026-11-03), New list and Home this
+  // many times as much. The selected tab reaches half the screen diagonal;
+  // its neighbours and the rest reach these shares of that.
   final double dialStepDegrees;
   final double dialSelectedSpread;
+  final double dialFixedSpread;
   final double dialNeighbourLength;
   final double dialFarLength;
   // Petal widths: at the hub, the cap at the end, and how much the selected
@@ -130,8 +133,9 @@ class LauncherConfig {
   final double dialTabRoot;
   final double dialTabCap;
   final double dialTabGrow;
-  // Turning the thumb this many steps picks the next list.
-  final double dialJogAt;
+  // The selected tab stays selected until the finger is this many steps
+  // past its sides.
+  final double dialSelectKeep;
   // At an edge the hold keeps stepping: first after the delay, then every
   // interval, shortening to the fastest. Leaving an edge takes this many
   // steps more, so the selection does not flicker on its border.

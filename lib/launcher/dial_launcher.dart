@@ -18,24 +18,23 @@ import 'radial_launcher.dart' show LauncherNote, LauncherWedgePainter;
 final List<LauncherNote> debugDialExtraNotes = [];
 
 // The launcher as a dial (owner's design, T-16 unit 6, 2026-10-30 to
-// 2026-11-03). Petal-shaped tabs in the list's colour turn around the hub so
-// that the selected one always lies along the screen's diagonal and reaches
-// halfway to the far corner, where the thumb does not cover its name.
-// Pointing at a tab picks it and turns it to the diagonal; from there,
-// turning the thumb by one step picks the next or previous list (the dial
-// follows, the finger never chases it). Later lists lie towards the bottom
-// (or top) edge. New list and Home (inside a list) ride at the two ends of
-// the lists and stop at the side and bottom edges, so they stay in reach;
-// holding the finger at an edge keeps stepping through the lists that way,
-// then picks New list or Home. Far off the dial nothing is selected and
-// letting go cancels. Rest the finger and Edit slides out from behind the
-// selected tab's end; a short swipe outwards (wherever the finger is)
-// selects it. Rest on the hub for Move.
+// 2026-11-03). Petal-shaped tabs in the list's colour stand around the hub;
+// the most recent list opens on the screen's diagonal, reaching halfway to
+// the far corner. The tab under the finger is selected and grows (owner,
+// 2026-11-03: the finger always selects in the middle); holding the finger
+// at an edge scrolls the lists that way, a step at a time and faster the
+// longer it holds, then picks New list or Home. New list and Home (inside a
+// list) ride at the two ends of the lists, wider than a list, and stop where
+// they would cross the lines that continue the hub's outer edges along the
+// screen. Far off the dial nothing is selected and letting go cancels. Rest
+// the finger on a list and Edit slides out from behind its end; a short
+// swipe outwards (wherever the finger is) selects it. Rest on the hub for
+// Move.
 //
 // A quick tap on the hub (or Enter/Space on it, or a screen reader's tap)
 // opens tap mode: tap a tab to open it, long-press or right-click to edit;
-// the arrows (and the arrow keys) step the dial through every entry; Enter
-// opens and E edits the selected one; Esc closes.
+// the arrows (and the arrow keys) step through every entry, turning the dial
+// to it; Enter opens and E edits the selected one; Esc closes.
 class DialLauncher extends StatefulWidget {
   const DialLauncher({
     super.key,
@@ -116,22 +115,25 @@ class _DialLauncherState extends State<DialLauncher>
   Offset? _restAnchor;
   Duration _restStart = Duration.zero;
 
-  // The dial: which entry is selected, where the dial stands (an entry
-  // position, easing towards the selected one) and how far the selected tab
-  // has grown (0 to 1).
+  // The dial: which entry is selected; where it stands (the list position
+  // on the diagonal), easing towards where scrolling has taken it; where the
+  // emphasis is, easing towards the selected entry; and how far the selected
+  // tab has grown (0 to 1).
   int? _selected;
   double _position = 0;
+  double _scroll = 0;
+  double _focus = 0;
   double _zoom = 0;
-  // Finger angle the next jog is measured from.
-  double _ref = 0;
-  // Which edge the finger is at after its first pick (-1 side, 1 bottom, 0
-  // neither); whether New list or Home was picked there; and the stepping
-  // while it holds: since when, when it last stepped, how often.
+  // Which edge the finger is at (-1 side, 1 bottom, 0 neither), and the
+  // stepping while it holds: since when, when it last stepped, how often.
   int _edge = 0;
-  bool _pickedAtEdge = false;
   Duration? _edgeSince;
   Duration _edgeStepped = Duration.zero;
   int _edgeSteps = 0;
+
+  // Where New list and Home stop (their outer sides), for this geometry.
+  Object? _limitsKey;
+  (double, double) _limits = (0, 0);
 
   // Edit or Move prompt.
   bool _editShown = false;
@@ -196,18 +198,20 @@ class _DialLauncherState extends State<DialLauncher>
       final int now = indexOf(old[selected].key);
       if (now >= 0) {
         _position += now - selected;
+        _scroll += now - selected;
+        _focus += now - selected;
         _selected = now;
       } else {
         _selected = _mode == _Mode.tap && _notes > 0 ? _firstList : null;
         _editShown = false;
-        _pickedAtEdge = false;
       }
     } else {
       _selected = null;
     }
-    _position = _position
-        .clamp(_firstList.toDouble(), _lastList.toDouble())
-        .toDouble();
+    double clampList(double x) =>
+        x.clamp(_firstList.toDouble(), _lastList.toDouble()).toDouble();
+    _position = clampList(_position);
+    _scroll = clampList(_scroll);
   }
 
   int get _notes => _entries.length - (widget.onHome != null ? 2 : 1);
@@ -216,25 +220,10 @@ class _DialLauncherState extends State<DialLauncher>
   int get _firstList => _notes == 0 ? 0 : 1;
   int get _lastList => _notes;
 
-  // New list and Home ride at the two ends of the lists and turn with them;
-  // when the lists run past an edge of the corner's quarter they stop there,
-  // so both stay in reach (owner, 2026-11-03).
   bool _isFixed(int index) => _entries[index].kind != _Kind.note;
 
-  // The edges: the last step of the quarter at the side edge (where New
-  // list stops) and at the bottom edge (where Home stops), and beyond.
-  double get _listsLow => math.pi / 2 + _step;
-  double get _listsHigh => math.pi - _step;
-
-  // Where the dial heads: the selected list, or the nearest list while New
-  // list or Home is selected.
-  double get _target {
-    final int? selected = _selected;
-    if (selected == null || _notes == 0) {
-      return _position;
-    }
-    return selected.clamp(_firstList, _lastList).toDouble();
-  }
+  // New list and Home are this much wider than a list.
+  double get _fixedWidth => _step * _config.dialFixedSpread;
 
   // --- Geometry, in the corner frame of LauncherGeometry -------------------
 
@@ -274,7 +263,7 @@ class _DialLauncherState extends State<DialLauncher>
         radius <= _halfDiagonal(g) + 48;
   }
 
-  // Angle offset from the diagonal of a point x entries away from the dial's
+  // Angle offset from the diagonal of a point x lists away from the dial's
   // position; the selected entry gets dialSelectedSpread times the room.
   double _offset(double x) {
     final double selected =
@@ -285,27 +274,87 @@ class _DialLauncherState extends State<DialLauncher>
     return x.sign * (selected / 2 + (x.abs() - 0.5) * _step);
   }
 
-  // Where an entry would stand on the turning dial. Later entries lie
+  // Where list `index` stands on the dial (its two sides). Later lists lie
   // towards the bottom (or top) edge, where the quarter has the most room
   // past the diagonal.
-  (double, double) _turning(LauncherGeometry g, int index) {
+  (double, double) _turning(LauncherGeometry g, double index) {
     final double diagonal = _diagonal(g);
     final double d = index - _position;
     return (diagonal + _offset(d + 0.5), diagonal + _offset(d - 0.5));
   }
 
-  // New list's sides: before the first list, stopping at the side edge.
-  (double, double) _addSides(LauncherGeometry g) {
-    final (double start, double end) = _turning(g, 0);
-    final double push = math.max(0, math.pi / 2 - end);
-    return (start + push, end + push);
+  // The lines that continue the hub's outer edges along the screen, which
+  // New list and Home (at their longest) do not cross (owner, 2026-11-03):
+  // the lowest angle of New list's outer side and the highest of Home's.
+  (double, double) _edgeLimits(LauncherGeometry g) {
+    final Object key = (g.size, g.hubCenter, _config);
+    if (key == _limitsKey) {
+      return _limits;
+    }
+    final double inner = _config.innerRadius;
+    final double outer = _halfDiagonal(g);
+    final double w = _fixedWidth;
+    // How far a petal reaches towards the side edge (x) and the bottom
+    // edge (y), from the hub's centre, as drawn (the tabs stand 7 and 4 dp
+    // in from it, on the middle of the hub's two discs).
+    (double, double) reach((double, double) sides) {
+      final double Function(double) halfAt =
+          _halfWidth(sides, inner, outer, 1, fixed: true);
+      double x = -double.infinity;
+      double y = -double.infinity;
+      for (final Offset p in _outlinePoints(g, sides, inner, outer, halfAt)) {
+        x = math.max(x, (p.dx - g.hubCenter.dx) * (g.flipX ? -1 : 1) - 7);
+        y = math.max(y, (p.dy - g.hubCenter.dy) * (g.flipY ? -1 : 1) - 4);
+      }
+      return (x, y);
+    }
+
+    final double line = _config.hubRadius;
+    double lo = math.pi / 2 - 0.8;
+    double hi = math.pi / 2 + 0.8;
+    for (int i = 0; i < 24; i++) {
+      final double mid = (lo + hi) / 2;
+      if (reach((mid + w, mid)).$1 > line) {
+        lo = mid;
+      } else {
+        hi = mid;
+      }
+    }
+    final double addLow = hi;
+    lo = math.pi - 0.8;
+    hi = math.pi + 0.8;
+    for (int i = 0; i < 24; i++) {
+      final double mid = (lo + hi) / 2;
+      if (reach((mid, mid - w)).$2 > line) {
+        hi = mid;
+      } else {
+        lo = mid;
+      }
+    }
+    _limitsKey = key;
+    _limits = (addLow, lo);
+    return _limits;
   }
 
-  // Home's sides: after the last list, stopping at the bottom edge.
+  // The edges: where New list stops (its inner side) and where Home stops
+  // (its inner side); the finger past either is at that edge.
+  double _listsLow(LauncherGeometry g) => _edgeLimits(g).$1 + _fixedWidth;
+  double _listsHigh(LauncherGeometry g) => _edgeLimits(g).$2 - _fixedWidth;
+
+  // New list's sides: just before the first list, stopping at its limit.
+  (double, double) _addSides(LauncherGeometry g) {
+    final double start = _turning(g, _firstList.toDouble()).$2;
+    final double low = _edgeLimits(g).$1;
+    final double end = math.max(low, start - _fixedWidth);
+    return (end + _fixedWidth, end);
+  }
+
+  // Home's sides: just after the last list, stopping at its limit.
   (double, double) _homeSides(LauncherGeometry g) {
-    final (double start, double end) = _turning(g, _entries.length - 1);
-    final double pull = math.max(0, start - math.pi);
-    return (start - pull, end - pull);
+    final double end = _turning(g, _lastList.toDouble()).$1;
+    final double high = _edgeLimits(g).$2;
+    final double start = math.min(high, end + _fixedWidth);
+    return (start, start - _fixedWidth);
   }
 
   // An entry's two sides, the lists cut off where they meet New list and
@@ -319,22 +368,56 @@ class _DialLauncherState extends State<DialLauncher>
       case _Kind.note:
         break;
     }
-    final (double turnStart, double turnEnd) = _turning(g, index);
-    final double high = widget.onHome != null ? _homeSides(g).$2 : math.pi;
+    final (double turnStart, double turnEnd) = _turning(g, index.toDouble());
+    final double high =
+        widget.onHome != null ? _homeSides(g).$2 : _edgeLimits(g).$2;
     final double start = math.min(high, turnStart);
     final double end = math.max(_addSides(g).$1, turnEnd);
     // A sliver cut off by New list or Home is not shown.
     return start - end > 0.3 * _step ? (start, end) : null;
   }
 
+  // The first and last lists fully shown, for where scrolling has taken the
+  // dial.
+  int _shownAt(LauncherGeometry g, int side) {
+    final double diagonal = _diagonal(g);
+    final double low = _addSidesAt(g, _scroll).$1;
+    final double high = _homeEndAt(g, _scroll);
+    final int index = side < 0
+        ? (_scroll + 0.5 + (low - diagonal) / _step - 1e-6).ceil()
+        : (_scroll - 0.5 + (high - diagonal) / _step + 1e-6).floor();
+    return index.clamp(_firstList, _lastList);
+  }
+
+  // New list's sides and Home's inner side with the dial at `position`.
+  (double, double) _addSidesAt(LauncherGeometry g, double position) {
+    final double saved = _position;
+    _position = position;
+    final (double, double) sides = _addSides(g);
+    _position = saved;
+    return sides;
+  }
+
+  double _homeEndAt(LauncherGeometry g, double position) {
+    final double saved = _position;
+    _position = position;
+    final double end =
+        widget.onHome != null ? _homeSides(g).$2 : _edgeLimits(g).$2;
+    _position = saved;
+    return end;
+  }
+
   // 1 for the selected entry, less with distance from it.
   double _emphasis(int index) {
-    if (_isFixed(index) && _selected == index) {
-      return 1;
+    if (_selected == index) {
+      return lerpDouble(_config.dialFarLength, 1, _zoom)!;
     }
     final double near = _config.dialNeighbourLength;
     final double far = _config.dialFarLength;
-    final double d = (index - _position).abs();
+    // New list and Home grow only when selected themselves.
+    final double d = _isFixed(index)
+        ? math.max(2, (index - _focus).abs())
+        : (index - _focus).abs();
     final double profile = d <= 1
         ? lerpDouble(1, near, d)!
         : lerpDouble(near, far, math.min(1, d - 1))!;
@@ -362,9 +445,27 @@ class _DialLauncherState extends State<DialLauncher>
         _grow(),
       )!;
 
-  double _outer(LauncherGeometry g, int index) {
+  // A tab's end: its share of half the diagonal, but never off the screen
+  // (with room for Edit past a list's end), now that the selected tab can be
+  // anywhere in the fan rather than on the diagonal.
+  double _outer(LauncherGeometry g, int index, double angle) {
     final double full = _halfDiagonal(g) - _config.innerRadius;
-    return _inner() + full * _emphasis(index) * lerpDouble(0.18, 1, _grow())!;
+    final double outer =
+        _inner() + full * _emphasis(index) * lerpDouble(0.18, 1, _grow())!;
+    final (double x, double y) = _frameHub(g);
+    // Towards the far side edge and the far top (or bottom) edge; the tabs
+    // stand 7 and 4 dp in from the hub's centre.
+    final double across = -math.cos(angle);
+    final double up = math.sin(angle);
+    double room = double.infinity;
+    if (across > 1e-6) {
+      room = math.min(room, (x - 7) / across);
+    }
+    if (up > 1e-6) {
+      room = math.min(room, (y - 4) / up);
+    }
+    final double margin = _isFixed(index) ? 16 : 16 + _config.dialEditDepth;
+    return math.min(outer, math.max(_inner() + 48, room - margin));
   }
 
   double _reveal() => _reduceMotion
@@ -422,15 +523,13 @@ class _DialLauncherState extends State<DialLauncher>
     });
   }
 
-  void _select(int? index, double angle) {
+  void _select(int? index) {
     if (index == _selected) {
       return;
     }
     _selected = index;
-    _ref = angle;
     _editShown = false;
     _restStart = _now;
-    _pickedAtEdge = false;
     if (index != null) {
       HapticFeedback.selectionClick();
     }
@@ -455,21 +554,26 @@ class _DialLauncherState extends State<DialLauncher>
     final LauncherGeometry? g = _geometry;
     final Offset? pointer = _pointer;
 
-    // The dial turns the selected entry to the diagonal (AppMotion.quick).
+    // The dial turns to where scrolling has taken it, and the emphasis moves
+    // to the selected entry (AppMotion.quick).
     final double t = _reduceMotion
         ? 1
         : 1 - math.exp(-seconds * 3e6 / AppMotion.quick.inMicroseconds);
     final int? selected = _selected;
-    final double position =
-        selected == null ? _position : _position + (_target - _position) * t;
-    final double zoom = _zoom + ((selected == null ? 0 : 1) - _zoom) * t;
-    final bool moving =
-        (position - _position).abs() > 1e-4 || (zoom - _zoom).abs() > 1e-4;
+    final double focusTarget = selected?.toDouble() ?? _focus;
+    final double zoomTarget = selected == null ? 0 : 1;
+    final double position = _position + (_scroll - _position) * t;
+    final double focus = _focus + (focusTarget - _focus) * t;
+    final double zoom = _zoom + (zoomTarget - _zoom) * t;
+    final bool moving = (position - _position).abs() > 1e-4 ||
+        (focus - _focus).abs() > 1e-4 ||
+        (zoom - _zoom).abs() > 1e-4;
     final bool animating = moving ||
         _now - _openedAt <= AppMotion.standard ||
         (_editShown && _now - _promptAt <= _config.revealDuration);
-    _position = moving ? position : _target;
-    _zoom = moving ? zoom : (selected == null ? 0 : 1);
+    _position = moving ? position : _scroll;
+    _focus = moving ? focus : focusTarget;
+    _zoom = moving ? zoom : zoomTarget;
 
     bool changed = animating;
     if (_mode == _Mode.hold && g != null && pointer != null) {
@@ -483,17 +587,13 @@ class _DialLauncherState extends State<DialLauncher>
     }
   }
 
-  // The finger at an edge keeps stepping through the lists that way, faster
-  // the longer it holds, so many lists need no more room than the corner
-  // has; past the last list it picks New list or Home (inside a list).
+  // The finger at an edge keeps scrolling the lists that way, a list at a
+  // time and faster the longer it holds, selecting the list at that edge, so
+  // many lists need no more room than the corner has; with none left that
+  // way it picks New list or Home (inside a list).
   bool _scrollAtEdge(LauncherGeometry g, Offset pointer) {
     final int? selected = _selected;
-    final int next = (selected ?? 0) + _edge;
-    if (_edge == 0 ||
-        selected == null ||
-        _isFixed(selected) ||
-        next < 0 ||
-        next >= _entries.length) {
+    if (_edge == 0 || selected == null || _isFixed(selected)) {
       _edgeSince = null;
       _edgeSteps = 0;
       return false;
@@ -511,12 +611,27 @@ class _DialLauncherState extends State<DialLauncher>
     if (!due) {
       return false;
     }
-    _select(next, _polar(g, pointer).$1);
-    _pickedAtEdge = _isFixed(next);
+    final bool more = _edge < 0
+        ? _shownAt(g, -1) > _firstList
+        : _shownAt(g, 1) < _lastList;
+    if (more) {
+      _scroll += _edge;
+      _select(_shownAt(g, _edge));
+    } else {
+      final int? end = _edgeEntry(_edge);
+      if (end == null) {
+        return false;
+      }
+      _select(end);
+    }
     _edgeStepped = _now;
     _edgeSteps++;
     return true;
   }
+
+  // New list at the side edge, Home (inside a list) at the bottom edge.
+  int? _edgeEntry(int edge) =>
+      edge < 0 ? 0 : (widget.onHome != null ? _entries.length - 1 : null);
 
   // After a rest: Edit on a list (not while at an edge, where the hold
   // scrolls), or Move on the hub.
@@ -567,13 +682,14 @@ class _DialLauncherState extends State<DialLauncher>
       _restStart = _now;
       _selected = null;
       _position = _firstList.toDouble();
+      _scroll = _position;
+      _focus = _position;
       _zoom = 0;
       _editShown = false;
       _moveShown = false;
       _edgeSince = null;
       _edgeSteps = 0;
       _edge = 0;
-      _pickedAtEdge = false;
     });
   }
 
@@ -630,7 +746,7 @@ class _DialLauncherState extends State<DialLauncher>
 
       // Far off the dial: nothing is selected, and letting go cancels.
       if (!onHub && !_onDial(g, angle, radius)) {
-        _select(null, angle);
+        _select(null);
         _edge = 0;
         return;
       }
@@ -654,89 +770,68 @@ class _DialLauncherState extends State<DialLauncher>
         if (radius < anchorRadius - 30 ||
             (angle - anchorAngle).abs() > 1.5 * _step) {
           _editShown = false;
-          _ref = angle;
         }
         return;
       }
 
       if (onHub) {
-        _select(null, angle);
+        _select(null);
+        _edge = 0;
         return;
       }
-      if (_selected == null) {
-        // Pointing picks the tab under the finger.
-        _select(_entryAt(g, angle), angle);
-      }
-      if (_selected == null) {
-        return;
-      }
-      _followEdge(angle);
-      if (_edge != 0) {
-        return;
-      }
-      // Back from an edge where it picked New list or Home: the list the
-      // dial stands on.
-      if (_pickedAtEdge) {
-        if (_notes > 0) {
-          _select(_position.round().clamp(_firstList, _lastList), angle);
-        }
-        return;
-      }
-      _jog(angle);
+      _followEdge(g, angle);
     });
   }
 
-  // Which edge the finger is at, with a little more needed to leave one; at
-  // an edge with no lists left that way, New list or Home is picked at once.
-  void _followEdge(double angle) {
+  // In the middle the tab under the finger is selected; at an edge the hold
+  // scrolls (see _scrollAtEdge). Arriving at an edge with no lists left that
+  // way picks New list or Home at once; pointed at straight from the hub,
+  // New list or Home stays picked.
+  void _followEdge(LauncherGeometry g, double angle) {
     final double leave = _config.dialEdgeLeave * _step;
+    final double low = _listsLow(g);
+    final double high = _listsHigh(g);
     final int edge = switch (_edge) {
-      -1 => angle < _listsLow + leave ? -1 : 0,
-      1 => angle > _listsHigh - leave ? 1 : 0,
-      _ => angle < _listsLow ? -1 : (angle > _listsHigh ? 1 : 0),
+      -1 => angle < low + leave ? -1 : 0,
+      1 => angle > high - leave ? 1 : 0,
+      _ => angle < low ? -1 : (angle > high ? 1 : 0),
     };
     if (edge != _edge) {
       _edge = edge;
       _edgeSince = null;
       _edgeSteps = 0;
     }
-    final int selected = _selected!;
-    final int next = selected + _edge;
-    if (_edge != 0 &&
-        !_isFixed(selected) &&
-        next >= 0 &&
-        next < _entries.length &&
-        _isFixed(next)) {
-      _select(next, angle);
-      _pickedAtEdge = true;
+    final int? selected = _selected;
+    if (_edge == 0 || selected == null) {
+      _select(_pointed(g, angle));
+      return;
+    }
+    if (_isFixed(selected)) {
+      return;
+    }
+    final bool more = _edge < 0
+        ? _shownAt(g, -1) > _firstList
+        : _shownAt(g, 1) < _lastList;
+    final int? end = _edgeEntry(_edge);
+    if (!more && end != null) {
+      _select(end);
     }
   }
 
-  // Turning the thumb picks the next or previous list, one step at a time;
-  // the dial follows. From New list or Home it steps onto the nearest list.
-  void _jog(double angle) {
-    double jog = (angle - _ref) / _step;
-    int index = _selected!;
-    final double at = _config.dialJogAt;
-    while (jog >= at && index < _lastList) {
-      index++;
-      _ref += _step;
-      jog -= 1;
+  // The tab under the finger, keeping the selected one until the finger is
+  // a little past its sides, so a border does not flicker.
+  int? _pointed(LauncherGeometry g, double angle) {
+    final int? current = _selected;
+    if (current != null) {
+      final (double, double)? sides = _sides(g, current);
+      final double keep = _config.dialSelectKeep * _step;
+      if (sides != null &&
+          angle <= sides.$1 + keep &&
+          angle >= sides.$2 - keep) {
+        return current;
+      }
     }
-    while (jog <= -at && index > _firstList) {
-      index--;
-      _ref -= _step;
-      jog += 1;
-    }
-    if (jog.abs() >= at) {
-      // At either end: nothing more to pick, start counting afresh.
-      _ref = angle;
-    }
-    if (index != _selected) {
-      final double ref = _ref;
-      _select(index, angle);
-      _ref = ref;
-    }
+    return _entryAt(g, angle);
   }
 
   void _act(_Entry entry) {
@@ -812,6 +907,8 @@ class _DialLauncherState extends State<DialLauncher>
       _mode = _Mode.tap;
       _selected = _firstList;
       _position = _firstList.toDouble();
+      _scroll = _position;
+      _focus = _position;
       _zoom = 1;
       _editShown = false;
       _moveShown = false;
@@ -831,7 +928,10 @@ class _DialLauncherState extends State<DialLauncher>
     if (next == selected) {
       return;
     }
-    setState(() => _selected = next);
+    setState(() {
+      _selected = next;
+      _scroll = next.clamp(_firstList, _lastList).toDouble();
+    });
     _wake();
   }
 
@@ -893,13 +993,14 @@ class _DialLauncherState extends State<DialLauncher>
     (double, double) sides,
     double inner,
     double outer,
-    double zoom,
-  ) {
+    double zoom, {
+    bool fixed = false,
+  }) {
     final double root = _config.dialTabRoot;
-    final double end = math.min(
-      _config.dialTabCap + _config.dialTabGrow * zoom,
-      (sides.$1 - sides.$2) * outer * 0.92,
-    );
+    final double share = (sides.$1 - sides.$2) * outer * 0.92;
+    final double end = fixed
+        ? share
+        : math.min(_config.dialTabCap + _config.dialTabGrow * zoom, share);
     return (double a) =>
         (root + (end - root) * (a - inner) / math.max(outer - inner, 1)) / 2;
   }
@@ -910,6 +1011,22 @@ class _DialLauncherState extends State<DialLauncher>
   // more than a cap, so the gaps between tabs close without a tab getting
   // wide, with a round end.
   (Rect, List<Offset>) _outline(
+    LauncherGeometry g,
+    (double, double) sides,
+    double from,
+    double to,
+    double Function(double) halfAt,
+  ) {
+    final List<Offset> outline = _outlinePoints(g, sides, from, to, halfAt);
+    Rect bounds = Rect.fromPoints(outline.first, outline.first);
+    for (final Offset point in outline) {
+      bounds = bounds.expandToInclude(Rect.fromPoints(point, point));
+    }
+    bounds = bounds.inflate(2);
+    return (bounds, [for (final Offset p in outline) p - bounds.topLeft]);
+  }
+
+  List<Offset> _outlinePoints(
     LauncherGeometry g,
     (double, double) sides,
     double from,
@@ -934,15 +1051,9 @@ class _DialLauncherState extends State<DialLauncher>
       ...end,
       (from, halfAt(from)),
     ];
-    final List<Offset> outline = [
+    return [
       for (final (double a, double c) in local) origin + along * a + across * c,
     ];
-    Rect bounds = Rect.fromPoints(outline.first, outline.first);
-    for (final Offset point in outline) {
-      bounds = bounds.expandToInclude(Rect.fromPoints(point, point));
-    }
-    bounds = bounds.inflate(2);
-    return (bounds, [for (final Offset p in outline) p - bounds.topLeft]);
   }
 
   // A text's height at the user's text size.
@@ -961,10 +1072,10 @@ class _DialLauncherState extends State<DialLauncher>
     final bool selected = _selected == index;
     final double angle = (sides.$1 + sides.$2) / 2;
     final double inner = _inner();
-    final double outer = _outer(g, index);
+    final double outer = _outer(g, index, angle);
     final double zoom = _closeness(index);
     final double Function(double) halfAt =
-        _halfWidth(sides, inner, outer, zoom);
+        _halfWidth(sides, inner, outer, zoom, fixed: _isFixed(index));
     final (Rect bounds, List<Offset> outline) =
         _outline(g, sides, inner, outer, halfAt);
 
@@ -1152,7 +1263,7 @@ class _DialLauncherState extends State<DialLauncher>
     // Edit continues the tab from behind its end (its inner part stays
     // hidden under the tab) and slides out as it is revealed.
     final double inner = _inner();
-    final double outer = _outer(g, selected);
+    final double outer = _outer(g, selected, angle);
     final double Function(double) halfAt =
         _halfWidth(sides, inner, outer, _closeness(selected));
     final double shown =
@@ -1359,7 +1470,7 @@ class _DialLauncherState extends State<DialLauncher>
         // Far entries first, the selected one last (on top).
         final List<int> order = [for (int i = 0; i < count; i++) i]
           ..sort(
-            (a, b) => (b - _position).abs().compareTo((a - _position).abs()),
+            (a, b) => (b - _focus).abs().compareTo((a - _focus).abs()),
           );
         final double hub = _config.hubRadius;
 

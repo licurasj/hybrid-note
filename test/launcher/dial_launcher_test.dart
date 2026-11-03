@@ -129,7 +129,7 @@ void main() {
     expect(log, ['open n0']);
   });
 
-  testWidgets('turning the thumb one step picks the next list', (
+  testWidgets('the tab under the finger is selected', (
     WidgetTester tester,
   ) async {
     final List<String> log = await _pump(tester);
@@ -137,6 +137,14 @@ void main() {
     final double diagonal = _diagonal(tester);
     // Later lists lie towards the bottom edge (larger angles).
     await _turn(tester, gesture, diagonal, diagonal + 1.1 * _step, 160);
+    await tester.pump(const Duration(milliseconds: 300));
+    // The dial does not turn under the finger: two steps on is n2, and
+    // back to n1.
+    await _turn(tester, gesture, diagonal + 1.1 * _step,
+        diagonal + 2.1 * _step, 160);
+    await tester.pump(const Duration(milliseconds: 300));
+    await _turn(tester, gesture, diagonal + 2.1 * _step,
+        diagonal + 1.1 * _step, 160);
     await tester.pump(const Duration(milliseconds: 300));
     await gesture.up();
     await tester.pump();
@@ -438,5 +446,44 @@ void main() {
         lessThanOrEqualTo(name.size.height + 0.5),
       );
     }
+  });
+
+  testWidgets('New list and Home stay inside the lines of the hub edges', (
+    WidgetTester tester,
+  ) async {
+    await _pump(tester, count: 12, inList: true);
+    final Offset hub = _hub(tester);
+    final TestGesture gesture = await tester.startGesture(hub);
+    for (int i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    // Scroll to the end so both New list and Home stop at their edges.
+    await _moveTo(tester, gesture, hub, _at(tester, _diagonal(tester), 160));
+    await _turn(tester, gesture, _diagonal(tester), math.pi - 0.05, 160);
+    for (int i = 0; i < 200; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    // The painted bounds are inflated by 2.
+    final Rect add = tester.getRect(find.byKey(const ValueKey('dial-entry-0')));
+    final Rect home =
+        tester.getRect(find.byKey(const ValueKey('dial-entry-13')));
+    expect(add.right, lessThanOrEqualTo(hub.dx + 32 + 2.5));
+    expect(home.bottom, lessThanOrEqualTo(hub.dy + 32 + 2.5));
+    await gesture.up();
+  });
+
+  testWidgets('selecting New list does not enlarge the list beside it', (
+    WidgetTester tester,
+  ) async {
+    await _pump(tester);
+    final TestGesture gesture = await _pickFirst(tester);
+    final double first =
+        tester.getSize(find.byKey(const ValueKey('dial-entry-1'))).height;
+    await _turn(tester, gesture, _diagonal(tester), math.pi / 2 + 0.05, 160);
+    await tester.pump(const Duration(milliseconds: 400));
+    final double beside =
+        tester.getSize(find.byKey(const ValueKey('dial-entry-1'))).height;
+    expect(beside, lessThan(first - 20));
+    await gesture.up();
   });
 }
