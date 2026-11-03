@@ -80,7 +80,9 @@ class AiBarController extends ChangeNotifier {
     required this.preferences,
     required this.onOpenList,
     DateTime Function()? clock,
-  }) : _clock = clock ?? DateTime.now;
+  }) : _clock = clock ?? DateTime.now {
+    focus.addListener(_focusChanged);
+  }
 
   final AiService service;
   final ListStore store;
@@ -95,6 +97,30 @@ class AiBarController extends ChangeNotifier {
 
   final TextEditingController text = TextEditingController();
   final FocusNode focus = FocusNode();
+  // The field's height as laid out, so the shell can raise the hub just
+  // above it while the bar is focused.
+  final ValueNotifier<double> fieldHeight = ValueNotifier<double>(0);
+
+  bool _focused = false;
+  // The bar is being typed in: two to four lines, full width.
+  bool get focused => _focused;
+
+  void _focusChanged() {
+    if (focus.hasFocus == _focused) {
+      return;
+    }
+    _focused = focus.hasFocus;
+    // A new request starts: an earlier answer, preview or question goes.
+    if (_focused && _phase != AiBarPhase.idle && _phase != AiBarPhase.sending) {
+      dismiss();
+      return;
+    }
+    notifyListeners();
+  }
+
+  // Leaving the bar (send, Back, keyboard closed, a tap outside, the dial):
+  // it shrinks to one line and keeps what was typed as a draft.
+  void leave() => focus.unfocus();
 
   AiBarPhase _phase = AiBarPhase.idle;
   AiBarPhase get phase => _phase;
@@ -149,8 +175,8 @@ class AiBarController extends ChangeNotifier {
     if (prompt.isEmpty || _phase == AiBarPhase.sending) {
       return;
     }
-    // The keyboard goes, so the notice or the answer has the room.
-    focus.unfocus();
+    // Sending leaves the bar; the notice or the answer gets the room.
+    leave();
     _pending = _Pending(prompt, locale, labels, openListId, _newList);
     if (!noticeSeen) {
       _set(AiBarPhase.notice);
@@ -414,9 +440,13 @@ class AiBarController extends ChangeNotifier {
     _set(AiBarPhase.idle);
   }
 
-  // Back closes the bar's panel first, then leaves "Describe a new list";
-  // only then does the shell go back (main_shell.dart).
+  // Back leaves the bar first, then closes its panel, then leaves "Describe
+  // a new list"; only then does the shell go back (main_shell.dart).
   bool handleBack() {
+    if (focus.hasFocus) {
+      leave();
+      return true;
+    }
     if (isOpen) {
       dismiss();
       return true;
@@ -433,8 +463,10 @@ class AiBarController extends ChangeNotifier {
   @override
   void dispose() {
     _doneTimer?.cancel();
+    focus.removeListener(_focusChanged);
     text.dispose();
     focus.dispose();
+    fieldHeight.dispose();
     super.dispose();
   }
 }

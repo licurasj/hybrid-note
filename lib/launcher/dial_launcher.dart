@@ -56,6 +56,7 @@ class DialLauncher extends StatefulWidget {
     this.previousLabel = 'Previous',
     this.nextLabel = 'Next',
     this.noteHint = 'Double-tap to open, long-press to edit',
+    this.onOpenChanged,
   });
 
   final List<LauncherNote> notes;
@@ -74,6 +75,10 @@ class DialLauncher extends StatefulWidget {
   final String previousLabel;
   final String nextLabel;
   final String noteHint;
+  // Told when the dial opens (pressed, tap mode or moving) and when it is
+  // closed again, after the frame (T-19 unit 4: the AI bar keeps the hub
+  // raised until then).
+  final ValueChanged<bool>? onOpenChanged;
 
   @override
   State<DialLauncher> createState() => _DialLauncherState();
@@ -181,6 +186,20 @@ class _DialLauncherState extends State<DialLauncher>
   }
 
   bool get _reduceMotion => MediaQuery.disableAnimationsOf(context);
+
+  bool _reportedOpen = false;
+
+  void _reportOpen() {
+    final bool open = _mode != _Mode.closed;
+    final ValueChanged<bool>? report = widget.onOpenChanged;
+    if (open == _reportedOpen) {
+      return;
+    }
+    _reportedOpen = open;
+    if (report != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => report(open));
+    }
+  }
 
   List<_Entry> _entriesOf(DialLauncher w) => [
         const _Entry(_Kind.add),
@@ -1469,6 +1488,7 @@ class _DialLauncherState extends State<DialLauncher>
 
   @override
   Widget build(BuildContext context) {
+    _reportOpen();
     return LayoutBuilder(
       builder: (context, constraints) {
         final Size size = constraints.biggest;

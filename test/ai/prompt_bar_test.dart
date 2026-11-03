@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:hybrid_note/ai/ai_bar_controller.dart';
 import 'package:hybrid_note/ai/ai_service.dart';
+import 'package:hybrid_note/ai/prompt_bar.dart';
 import 'package:hybrid_note/backend/firestore_list_store.dart';
 import 'package:hybrid_note/lists/builtin_templates.dart';
 import 'package:hybrid_note/lists/list_definition.dart';
@@ -66,8 +67,9 @@ Future<FirestoreListStore> _pump(
   bool noticeSeen = true,
   List<ListDefinition>? lists,
   List<ListItem> items = const [],
+  Size size = const Size(360, 780),
 }) async {
-  tester.view.physicalSize = const Size(360, 780);
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   SharedPreferences.setMockInitialValues({
@@ -89,7 +91,10 @@ Future<FirestoreListStore> _pump(
   return store;
 }
 
+// Taps the bar (which brings a draft back), types and sends.
 Future<void> _ask(WidgetTester tester, String text) async {
+  await tester.tap(find.byKey(const ValueKey('ai-bar')));
+  await tester.pumpAndSettle();
   await tester.enterText(_field, text);
   await tester.pump();
   await tester.tap(_send);
@@ -564,5 +569,217 @@ void main() {
     await tester.binding.handlePopRoute();
     await settle(tester);
     expect(find.text('Add or change'), findsOneWidget);
+  });
+  // The bar's rules at rest and focused (owner, 2026-11-03,
+  // docs/INTERACTIONS.md "AI bar").
+  group('focus, the raised hub and the draft', () {
+    final Finder bar = find.byKey(const ValueKey('ai-bar'));
+    final Finder draft = find.byKey(const ValueKey('ai-bar-draft'));
+    const Offset restHub = Offset(360 - 56, 780 - 72);
+
+    Future<void> focusBar(WidgetTester tester) async {
+      await tester.tap(bar);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a tap grows the bar to full width and two lines and raises '
+        'the hub just above it; leaving brings both back', (tester) async {
+      await _pump(tester, FakeAiService());
+      final Rect rest = tester.getRect(bar);
+      expect(rest.height, PromptBarGeometry.height);
+      expect(rest.right, lessThan(restHub.dx - 48));
+      expect(tester.getCenter(_hub), restHub);
+
+      await focusBar(tester);
+      final Rect focused = tester.getRect(bar);
+      expect(focused.left, PromptBarGeometry.margin);
+      expect(focused.right, 360 - PromptBarGeometry.margin);
+      expect(focused.height, greaterThan(PromptBarGeometry.height));
+      expect(tester.widget<TextField>(_field).minLines, 2);
+      expect(tester.widget<TextField>(_field).maxLines, 4);
+      final Offset raised = tester.getCenter(_hub);
+      expect(raised.dx, restHub.dx);
+      expect(raised.dy, lessThan(focused.top));
+      expect(raised.dy, greaterThan(focused.top - 80));
+
+      // Back leaves the bar first (the keyboard may already be gone).
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(tester.getRect(bar), rest);
+      expect(tester.getCenter(_hub), restHub);
+      expect(find.text('Add or change'), findsOneWidget);
+    });
+
+    testWidgets('typing grows the bar to four lines at most; the 1000 '
+        'character cap stays', (tester) async {
+      await _pump(tester, FakeAiService());
+      await focusBar(tester);
+      await tester.enterText(_field, 'one\ntwo');
+      await tester.pumpAndSettle();
+      final double two = tester.getRect(bar).height;
+      await tester.enterText(_field, 'one\ntwo\nthree\nfour');
+      await tester.pumpAndSettle();
+      final double four = tester.getRect(bar).height;
+      expect(four, greaterThan(two));
+      // The raised hub keeps clear of the taller bar.
+      expect(
+        tester.getCenter(_hub).dy + 48,
+        lessThanOrEqualTo(tester.getRect(bar).top),
+      );
+      await tester.enterText(_field, 'a\nb\nc\nd\ne\nf\ng');
+      await tester.pumpAndSettle();
+      expect(tester.getRect(bar).height, four);
+      expect(tester.widget<TextField>(_field).maxLength, 1000);
+    });
+
+    testWidgets('leaving keeps the text as a one-line draft ending in "…"; a '
+        'tap brings it all back', (tester) async {
+      await _pump(tester, FakeAiService());
+      await focusBar(tester);
+      const String long =
+          'milk, eggs, bread, butter, cheese, apples, pears and a lot more';
+      await tester.enterText(_field, long);
+      await tester.pumpAndSettle();
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      expect(tester.getRect(bar).height, PromptBarGeometry.height);
+      final Text shown = tester.widget<Text>(
+        find.descendant(of: draft, matching: find.byType(Text)),
+      );
+      expect(shown.data, long);
+      expect(shown.maxLines, 1);
+      expect(shown.overflow, TextOverflow.ellipsis);
+
+      await tester.tap(draft);
+      await tester.pumpAndSettle();
+      expect(draft, findsNothing);
+      expect(tester.widget<TextField>(_field).controller!.text, long);
+      expect(tester.widget<TextField>(_field).focusNode!.hasFocus, isTrue);
+    });
+
+    testWidgets('closing the keyboard leaves the bar', (tester) async {
+      await _pump(tester, FakeAiService());
+      await focusBar(tester);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      await tester.pump();
+      tester.view.resetViewInsets();
+      await tester.pumpAndSettle();
+      expect(tester.getRect(bar).height, PromptBarGeometry.height);
+      expect(tester.getCenter(_hub), restHub);
+    });
+
+    testWidgets('sending leaves the bar', (tester) async {
+      final FakeAiService ai = FakeAiService()
+        ..answers.add(
+          _calls([
+            const AiToolCall('reply', {'text': 'Fine.'}),
+          ]),
+        );
+      await _pump(tester, ai);
+      await _ask(tester, 'hello');
+      expect(find.text('Fine.'), findsOneWidget);
+      expect(tester.getRect(bar).height, PromptBarGeometry.height);
+      expect(tester.getCenter(_hub), restHub);
+    });
+
+    testWidgets('a tap outside leaves the bar and still does its own job', (
+      tester,
+    ) async {
+      final DateTime now = DateTime.now().toUtc();
+      await _pump(
+        tester,
+        FakeAiService(),
+        items: [
+          ListItem(
+            id: 'g1',
+            listId: _grocery,
+            values: {'title': 'Bread'},
+            createdAt: now,
+            updatedAt: now,
+          ),
+        ],
+      );
+      await _openList(tester, _grocery);
+      await focusBar(tester);
+      await tester.enterText(_field, 'a draft');
+      await tester.pumpAndSettle();
+
+      // The list's add button, while the keyboard is up.
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+      // The new-item sheet opened (it hides the bar) and the bar was left.
+      expect(_field.hitTestable(), findsNothing);
+      expect(
+        tester
+            .widget<TextField>(
+              find.byKey(const ValueKey('ai-bar-field'), skipOffstage: false),
+            )
+            .focusNode!
+            .hasFocus,
+        isFalse,
+      );
+      expect(
+        tester
+            .widget<TextField>(
+              find.byKey(const ValueKey('ai-bar-field'), skipOffstage: false),
+            )
+            .controller!
+            .text,
+        'a draft',
+      );
+    });
+
+    testWidgets('pressing the raised hub opens the dial there and keeps the '
+        'draft; the hub comes down when the dial closes; another list keeps '
+        'the draft', (tester) async {
+      await _pump(tester, FakeAiService());
+      await focusBar(tester);
+      await tester.enterText(_field, 'eggs');
+      await tester.pumpAndSettle();
+      final Offset raised = tester.getCenter(_hub);
+      expect(raised.dy, lessThan(restHub.dy));
+
+      // A quick tap: the dial stays open (tap mode).
+      await tester.tap(_hub);
+      await tester.pumpAndSettle();
+      expect(tester.getCenter(_hub), raised);
+      expect(
+        tester
+            .widget<TextField>(
+              find.byKey(const ValueKey('ai-bar-field'), skipOffstage: false),
+            )
+            .focusNode!
+            .hasFocus,
+        isFalse,
+      );
+      expect(draft, findsOneWidget);
+
+      // Picking a list closes the dial; the hub comes down, the draft stays
+      // and the bar now targets that list.
+      await tester.tap(find.byKey(const ValueKey('launcher-note-$_grocery')));
+      await settle(tester);
+      expect(tester.getCenter(_hub), restHub);
+      expect(find.text('eggs'), findsOneWidget);
+      await tester.tap(draft);
+      await tester.pumpAndSettle();
+      await tester.enterText(_field, '');
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Add to Grocery'), findsOneWidget);
+    });
+
+    testWidgets('on a wide screen the focused bar fits beside the hub and '
+        'nothing moves', (tester) async {
+      await _pump(tester, FakeAiService(), size: const Size(1000, 780));
+      final Offset hub = tester.getCenter(_hub);
+      final Rect rest = tester.getRect(bar);
+      expect(rest.width, PromptBarGeometry.maxWidth);
+      await focusBar(tester);
+      final Rect focused = tester.getRect(bar);
+      expect(focused.left, rest.left);
+      expect(focused.width, PromptBarGeometry.maxWidth);
+      expect(focused.height, greaterThan(rest.height));
+      expect(tester.getCenter(_hub), hub);
+    });
   });
 }

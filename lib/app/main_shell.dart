@@ -25,6 +25,7 @@ import '../lists/list_patch.dart';
 import '../lists/list_store.dart';
 import '../lists/list_template_picker.dart';
 import 'app_settings.dart';
+import 'app_theme.dart' show AppMotion;
 
 // The launcher is the dial (owner's choice, T-16 unit 6, 2026-11-03);
 // --dart-define=FAN_LAUNCHER=true shows the earlier fan instead.
@@ -49,7 +50,9 @@ class MainShell extends StatefulWidget {
 // launcher, so the open dial covers it. It hides with the hub under sheets
 // and dialogs, and on a list with AI off. Back first closes the bar's panel
 // (preview, question, answer, notice) or leaves "Describe a new list", then
-// works as before: a list goes home, the home leaves the app.
+// works as before: a list goes home, the home leaves the app. While the bar
+// is focused and too wide to sit beside the hub, the hub rises to just above
+// it (not saved); pressing the hub keeps it there until the dial closes.
 class _MainShellState extends State<MainShell> {
   // Lists in the order they were last opened, newest first, so the common
   // case never needs scrolling (plan 5.3). Kept in memory for now.
@@ -60,6 +63,14 @@ class _MainShellState extends State<MainShell> {
 
   // Null without an AiService (tests, other hosts): no bar.
   AiBarController? _ai;
+
+  // The hub's raised spot (fractions) while the bar is focused, the last one
+  // worked out, and whether a press on the raised hub keeps it there until
+  // the dial closes.
+  Offset? _lift;
+  Offset? _lastLift;
+  bool _keepLift = false;
+  bool _dialOpen = false;
 
   static const String _listRoute = 'list:';
 
@@ -160,9 +171,7 @@ class _MainShellState extends State<MainShell> {
     );
     if (mounted && describe) {
       // After the picker's route has handed focus back.
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _ai?.startNewList(),
-      );
+      WidgetsBinding.instance.addPostFrameCallback((_) => _ai?.startNewList());
       return;
     }
     if (!mounted || draft == null) {
@@ -256,23 +265,88 @@ class _MainShellState extends State<MainShell> {
   // The prompt bar for the screen on top: hidden with the hub, and on a
   // list with AI off. While its panel is open, Back is the bar's even on
   // the home (NavigatorPopHandler then hands it to handleBack above).
+  ListDefinition? _openOf(Route<dynamic>? top, ListCatalog catalog) {
+    final String? name = top?.settings.name;
+    return name != null && name.startsWith(_listRoute)
+        ? catalog.definition(name.substring(_listRoute.length))
+        : null;
+  }
+
+  bool _barHidden(Route<dynamic>? top, ListCatalog catalog) {
+    final ListDefinition? open = _openOf(top, catalog);
+    return (top != null && top is! PageRoute) ||
+        (open != null && !open.aiAllowed);
+  }
+
+  // Where the hub goes while the bar is focused (fractions of the size), or
+  // null where it rests: just above the focused bar when the bar needs the
+  // width beside it (PromptBarGeometry.hubLiftY).
+  Offset? _hubLift(
+    Size size,
+    Offset? saved,
+    double bottomInset,
+    Route<dynamic>? top,
+    ListCatalog catalog,
+  ) {
+    final AiBarController? ai = _ai;
+    if (ai == null || _barHidden(top, catalog)) {
+      return null;
+    }
+    if (ai.focused) {
+      final LauncherHubArea rest = LauncherHubArea(
+        hubPosition: saved,
+        child: const SizedBox(),
+      );
+      final double? y = PromptBarGeometry.of(
+        size,
+        hub: rest,
+        bottomInset: bottomInset,
+        focused: true,
+        fieldHeight: ai.fieldHeight.value,
+      ).hubLiftY;
+      _lastLift = y == null
+          ? null
+          : Offset(rest.hubCenter(size).dx / size.width, y / size.height);
+      return _lastLift;
+    }
+    return _keepLift ? _lastLift : null;
+  }
+
+  // The dial opened or closed. Opening it leaves the bar (the draft stays);
+  // the hub comes down once the dial has closed.
+  void _dialChanged(bool open) {
+    _dialOpen = open;
+    if (open) {
+      _ai?.leave();
+    } else if (_keepLift && mounted) {
+      setState(() => _keepLift = false);
+    }
+  }
+
+  // After a press that opened nothing the hub comes down. The dial reports
+  // its state after the frame, so this looks one frame later.
+  void _releaseLiftLater() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _keepLift && !_dialOpen) {
+          setState(() => _keepLift = false);
+        }
+      });
+      WidgetsBinding.instance.scheduleFrame();
+    });
+  }
+
   Widget _bar(AiBarController ai, ListCatalog catalog, Offset? hubPosition) {
     return ValueListenableBuilder<Route<dynamic>?>(
       valueListenable: _top.route,
       builder: (context, top, _) {
-        final String? name = top?.settings.name;
-        final ListDefinition? open = name != null && name.startsWith(_listRoute)
-            ? catalog.definition(name.substring(_listRoute.length))
-            : null;
-        final bool hidden =
-            (top != null && top is! PageRoute) ||
-            (open != null && !open.aiAllowed);
+        final ListDefinition? open = _openOf(top, catalog);
         return Offstage(
-          offstage: hidden,
+          offstage: _barHidden(top, catalog),
           child: ListenableBuilder(
             listenable: ai,
             builder: (context, child) => PopScope(
-              canPop: !ai.isOpen && !ai.newList,
+              canPop: !ai.focused && !ai.isOpen && !ai.newList,
               child: child!,
             ),
             child: LauncherHubArea(
@@ -293,97 +367,163 @@ class _MainShellState extends State<MainShell> {
             BlocBuilder<AppSettingsCubit, AppSettings>(
               builder: (context, settings) {
                 final AppLocalizations loc = AppLocalizations.of(context);
-                return Stack(
-                  children: [
-                    // Back pops the shell's navigator first (the open list,
-                    // a sheet), then leaves the app as before.
-                    LauncherHubArea(
-                      hubPosition: settings.hubPosition,
-                      // The open list's page offers Edit list too.
-                      child: ListEditAction(
-                        onEdit: _editList,
-                        child: NavigatorPopHandler(
-                          onPopWithResult: (_) {
-                            if (_ai?.handleBack() ?? false) {
-                              return;
-                            }
-                            _content.currentState?.maybePop();
-                          },
-                          child: Navigator(
-                            key: _content,
-                            observers: [_top],
-                            onGenerateInitialRoutes: (_, _) => [
-                              MaterialPageRoute<void>(
-                                settings: const RouteSettings(name: 'home'),
-                                // Room below the dashboard so the hub never
-                                // covers it.
-                                builder: (_) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 120),
-                                  child: HomeScreen(onOpenList: _openList),
-                                ),
-                              ),
-                            ],
-                          ),
+                return ListenableBuilder(
+                  listenable: Listenable.merge([
+                    _top.route,
+                    ?_ai,
+                    ?_ai?.fieldHeight,
+                  ]),
+                  builder: (context, _) => LayoutBuilder(
+                    builder: (context, constraints) {
+                      final Size size = constraints.biggest;
+                      final Offset? lift = _hubLift(
+                        size,
+                        settings.hubPosition,
+                        MediaQuery.paddingOf(context).bottom,
+                        _top.route.value,
+                        catalog,
+                      );
+                      _lift = lift;
+                      final Offset rest = LauncherHubArea(
+                        hubPosition: settings.hubPosition,
+                        child: const SizedBox(),
+                      ).hubCenter(size);
+                      final Offset restFraction = Offset(
+                        rest.dx / size.width,
+                        rest.dy / size.height,
+                      );
+                      return TweenAnimationBuilder<Offset>(
+                        tween: Tween<Offset>(end: lift ?? restFraction),
+                        duration: MediaQuery.disableAnimationsOf(context)
+                            ? Duration.zero
+                            : AppMotion.standard,
+                        curve: AppMotion.curve,
+                        builder: (context, value, _) => _stack(
+                          context,
+                          loc,
+                          catalog,
+                          settings,
+                          // At rest the saved spot itself, so the default
+                          // stays the default.
+                          lift == null && value == restFraction
+                              ? settings.hubPosition
+                              : value,
                         ),
-                      ),
-                    ),
-                    if (_ai != null)
-                      Positioned.fill(
-                        child: _bar(_ai!, catalog, settings.hubPosition),
-                      ),
-                    Positioned.fill(
-                      child: ValueListenableBuilder<Route<dynamic>?>(
-                        valueListenable: _top.route,
-                        builder: (context, top, _) => Offstage(
-                          offstage: top != null && top is! PageRoute,
-                          child: _dialLauncher
-                              ? DialLauncher(
-                                  onHome: _isList(top) ? _goHome : null,
-                                  homeLabel: loc.home,
-                                  notes: _notes(loc, catalog),
-                                  onOpen: (note) => _openList(note.id),
-                                  onEdit: (note) => _editList(note.id),
-                                  onNew: _newList,
-                                  hubTooltip: loc.launcherHub,
-                                  editLabel: loc.edit,
-                                  moveLabel: loc.moveHub,
-                                  addLabel: loc.newList,
-                                  previousLabel: loc.previous,
-                                  nextLabel: loc.next,
-                                  noteHint: loc.launcherNoteHint,
-                                  hubPosition: settings.hubPosition,
-                                  onHubMoved: context
-                                      .read<AppSettingsCubit>()
-                                      .setHubPosition,
-                                )
-                              : RadialLauncher(
-                            // Inside a list the fan starts with Home.
-                            onHome: _isList(top) ? _goHome : null,
-                            homeLabel: loc.home,
-                            notes: _notes(loc, catalog),
-                            onOpen: (note) => _openList(note.id),
-                            onEdit: (note) => _editList(note.id),
-                            onNew: _newList,
-                            hubTooltip: loc.launcherHub,
-                            editLabel: loc.edit,
-                            moveLabel: loc.moveHub,
-                            addLabel: loc.newList,
-                            previousLabel: loc.previous,
-                            nextLabel: loc.next,
-                            noteHint: loc.launcherNoteHint,
-                            hubPosition: settings.hubPosition,
-                            onHubMoved: context
-                                .read<AppSettingsCubit>()
-                                .setHubPosition,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                      );
+                    },
+                  ),
                 );
               },
             ),
       ),
+    );
+  }
+
+  Widget _stack(
+    BuildContext context,
+    AppLocalizations loc,
+    ListCatalog catalog,
+    AppSettings settings,
+    Offset? hubPosition,
+  ) {
+    return Stack(
+      children: [
+        // Back pops the shell's navigator first (the open list,
+        // a sheet), then leaves the app as before.
+        LauncherHubArea(
+          // A list's add button rides above the raised hub too.
+          hubPosition: hubPosition,
+          // The open list's page offers Edit list too.
+          child: ListEditAction(
+            onEdit: _editList,
+            child: NavigatorPopHandler(
+              onPopWithResult: (_) {
+                if (_ai?.handleBack() ?? false) {
+                  return;
+                }
+                _content.currentState?.maybePop();
+              },
+              child: Navigator(
+                key: _content,
+                observers: [_top],
+                onGenerateInitialRoutes: (_, _) => [
+                  MaterialPageRoute<void>(
+                    settings: const RouteSettings(name: 'home'),
+                    // Room below the dashboard so the hub never
+                    // covers it.
+                    builder: (_) => Padding(
+                      padding: const EdgeInsets.only(bottom: 120),
+                      child: HomeScreen(onOpenList: _openList),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (_ai != null)
+          Positioned.fill(child: _bar(_ai!, catalog, settings.hubPosition)),
+        Positioned.fill(
+          // A press on the raised hub keeps it up until the dial
+          // closes; a press that opens nothing lets it down.
+          child: Listener(
+            behavior: HitTestBehavior.deferToChild,
+            onPointerDown: (_) {
+              if (_lift != null && !_keepLift) {
+                setState(() => _keepLift = true);
+              }
+            },
+            onPointerUp: (_) => _releaseLiftLater(),
+            child: ValueListenableBuilder<Route<dynamic>?>(
+              valueListenable: _top.route,
+              builder: (context, top, _) => Offstage(
+                offstage: top != null && top is! PageRoute,
+                child: _dialLauncher
+                    ? DialLauncher(
+                        onHome: _isList(top) ? _goHome : null,
+                        homeLabel: loc.home,
+                        notes: _notes(loc, catalog),
+                        onOpen: (note) => _openList(note.id),
+                        onEdit: (note) => _editList(note.id),
+                        onNew: _newList,
+                        hubTooltip: loc.launcherHub,
+                        editLabel: loc.edit,
+                        moveLabel: loc.moveHub,
+                        addLabel: loc.newList,
+                        previousLabel: loc.previous,
+                        nextLabel: loc.next,
+                        noteHint: loc.launcherNoteHint,
+                        hubPosition: hubPosition,
+                        onHubMoved: context
+                            .read<AppSettingsCubit>()
+                            .setHubPosition,
+                        onOpenChanged: _dialChanged,
+                      )
+                    : RadialLauncher(
+                        // Inside a list the fan starts with Home.
+                        onHome: _isList(top) ? _goHome : null,
+                        homeLabel: loc.home,
+                        notes: _notes(loc, catalog),
+                        onOpen: (note) => _openList(note.id),
+                        onEdit: (note) => _editList(note.id),
+                        onNew: _newList,
+                        hubTooltip: loc.launcherHub,
+                        editLabel: loc.edit,
+                        moveLabel: loc.moveHub,
+                        addLabel: loc.newList,
+                        previousLabel: loc.previous,
+                        nextLabel: loc.next,
+                        noteHint: loc.launcherNoteHint,
+                        hubPosition: hubPosition,
+                        onHubMoved: context
+                            .read<AppSettingsCubit>()
+                            .setHubPosition,
+                      ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
