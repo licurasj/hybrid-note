@@ -1,0 +1,397 @@
+import 'package:uuid/uuid.dart';
+
+import '../l10n/generated/app_localizations.dart';
+import '../lists/list_catalog.dart';
+import '../lists/list_definition.dart';
+import '../lists/list_error.dart';
+import '../lists/list_input.dart';
+import '../lists/list_item.dart';
+import '../lists/list_labels.dart';
+import '../lists/list_patch.dart';
+import '../lists/list_rules.dart';
+import '../lists/list_vocabulary.dart';
+import 'ai_service.dart';
+
+// What the AI's answer would do, read and checked on the device (Q-34 A)
+// before anything is saved: ListInput reads each tool call, ListPatch.apply
+// dry-runs a structure change and ListDefinition.validate checks a new list.
+// Any ListError means nothing is applied; the errors go back to the AI once
+// for self-correction.
+sealed class AiStep {
+  const AiStep();
+
+  String get listId;
+}
+
+// upsert_items or delete_items on one list.
+class AiItemStep extends AiStep {
+  const AiItemStep({
+    required this.definition,
+    required this.changes,
+    required this.added,
+    required this.edited,
+    required this.deleted,
+  });
+
+  final ListDefinition definition;
+  final ListChanges changes;
+  final List<ListItem> added;
+  final List<ListItem> edited;
+  // The items as they are now, before the delete.
+  final List<ListItem> deleted;
+
+  @override
+  String get listId => definition.id;
+}
+
+// patch_list on the open list, with the dry run's result.
+class AiPatchStep extends AiStep {
+  const AiPatchStep({
+    required this.definition,
+    required this.ops,
+    required this.dryRun,
+  });
+
+  final ListDefinition definition;
+  final List<ListPatchOp> ops;
+  final ListPatchResult dryRun;
+
+  @override
+  String get listId => definition.id;
+}
+
+// create_list: a new list and its first items.
+class AiCreateStep extends AiStep {
+  const AiCreateStep({required this.definition, required this.items});
+
+  final ListDefinition definition;
+  final List<ListItem> items;
+
+  @override
+  String get listId => definition.id;
+}
+
+// choose_list: the AI asks which list (Q-36), with 2-3 of the user's lists.
+class AiQuestion {
+  const AiQuestion({required this.text, required this.candidates});
+
+  final String text;
+  final List<ListDefinition> candidates;
+}
+
+class AiPlan {
+  const AiPlan({
+    this.steps = const [],
+    this.reply,
+    this.question,
+    this.errors = const [],
+  });
+
+  // Reads [answer]'s tool calls against [catalog]. [openListId] is the list
+  // the request had open: structure changes are allowed only there.
+  factory AiPlan.read(
+    AiAnswer answer,
+    ListCatalog catalog, {
+    String? openListId,
+    String Function()? newId,
+    DateTime? now,
+  }) {
+    final String Function() id = newId ?? () => const Uuid().v4();
+    final DateTime time = now ?? DateTime.now().toUtc();
+    final List<AiStep> steps = [];
+    final List<ListError> errors = [];
+    final List<String> replies = [];
+    AiQuestion? question;
+
+    for (final AiToolCall call in answer.toolCalls) {
+      switch (call.name) {
+        case 'upsert_items':
+          final (ListChanges changes, List<ListError> found) =
+              ListInput.upsertItems(call.args, catalog, newId: id, now: time);
+          errors.addAll(found);
+          final ListDefinition? definition = found.isEmpty
+              ? catalog.definition('${(call.args as Map)['listId']}')
+              : null;
+          if (definition != null && !changes.isEmpty) {
+            final Set<String> existing = {
+              for (final ListItem item in catalog.itemsOf(definition.id))
+                item.id,
+            };
+            steps.add(
+              AiItemStep(
+                definition: definition,
+                changes: changes,
+                added: [
+                  for (final ListItem item in changes.saved)
+                    if (!existing.contains(item.id)) item,
+                ],
+                edited: [
+                  for (final ListItem item in changes.saved)
+                    if (existing.contains(item.id)) item,
+                ],
+                deleted: const [],
+              ),
+            );
+          }
+        case 'delete_items':
+          final (ListChanges changes, List<ListError> found) =
+              ListInput.deleteItems(call.args, catalog);
+          errors.addAll(found);
+          final ListDefinition? definition = found.isEmpty
+              ? catalog.definition('${(call.args as Map)['listId']}')
+              : null;
+          if (definition != null && !changes.isEmpty) {
+            final Set<String> ids = changes.deletedIds.toSet();
+            steps.add(
+              AiItemStep(
+                definition: definition,
+                changes: changes,
+                added: const [],
+                edited: const [],
+                deleted: [
+                  for (final ListItem item in catalog.itemsOf(definition.id))
+                    if (ids.contains(item.id)) item,
+                ],
+              ),
+            );
+          }
+        case 'patch_list':
+          final (String? listId, List<ListPatchOp> ops, List<ListError> found) =
+              ListInput.patchList(call.args, catalog);
+          errors.addAll(found);
+          if (listId == null || found.isNotEmpty) {
+            break;
+          }
+          if (listId != openListId) {
+            errors.add(
+              ListError(ListErrorCode.badOp, {
+                'op': 'patch_list',
+                'detail': 'structure changes only on the open list',
+              }),
+            );
+            break;
+          }
+          final ListDefinition definition = catalog.definition(listId)!;
+          final ListPatchResult dryRun = ListPatch.apply(
+            definition,
+            catalog.itemsOf(listId),
+            ops,
+            time,
+          );
+          errors.addAll(dryRun.errors);
+          if (dryRun.isValid && ops.isNotEmpty) {
+            steps.add(
+              AiPatchStep(definition: definition, ops: ops, dryRun: dryRun),
+            );
+          }
+        case 'create_list':
+          final (
+            ListDefinition? definition,
+            List<ListItem> items,
+            List<ListError> found,
+          ) = ListInput.createList(
+            call.args,
+            listId: 'list-${id()}',
+            newId: id,
+            now: time,
+          );
+          errors.addAll(found);
+          if (definition != null) {
+            steps.add(AiCreateStep(definition: definition, items: items));
+          }
+        case 'choose_list':
+          final Object? args = call.args;
+          if (args is Map && args['candidates'] is List) {
+            final List<ListDefinition> candidates = [
+              for (final Object? candidate in args['candidates'] as List)
+                if (catalog.definition('$candidate') case final ListDefinition d
+                    when d.aiAllowed)
+                  d,
+            ];
+            if (candidates.isNotEmpty) {
+              question = AiQuestion(
+                text: args['question'] is String
+                    ? args['question'] as String
+                    : '',
+                candidates: candidates,
+              );
+            }
+          }
+        case 'reply':
+          final Object? args = call.args;
+          if (args is Map && args['text'] is String) {
+            replies.add(args['text'] as String);
+          }
+      }
+    }
+
+    return AiPlan(
+      steps: steps,
+      reply: replies.isEmpty ? null : replies.join('\n'),
+      question: question,
+      errors: errors,
+    );
+  }
+
+  final List<AiStep> steps;
+  final String? reply;
+  final AiQuestion? question;
+  final List<ListError> errors;
+
+  bool get isValid => errors.isEmpty;
+  bool get isEmpty => steps.isEmpty && reply == null && question == null;
+
+  // Item adds apply at once with Undo; everything else waits for Apply:
+  // structure changes, new lists, deletes and edits always preview (Q-32),
+  // and so do adds to a list other than the open one (an injected item in
+  // the open list could steer them elsewhere, L12).
+  bool needsPreview(String? openListId) {
+    for (final AiStep step in steps) {
+      if (step is! AiItemStep ||
+          step.edited.isNotEmpty ||
+          step.deleted.isNotEmpty ||
+          (openListId != null && step.listId != openListId)) {
+        return true;
+      }
+    }
+    return false;
+  }
+}
+
+// The plain-language lines of a preview and the "Added to ..." summary.
+class AiPlanText {
+  AiPlanText(this.loc) : labels = ListLabels(loc);
+
+  final AppLocalizations loc;
+  final ListLabels labels;
+
+  // At most this many item names in one line; the rest as "+N".
+  static const int maxNames = 4;
+
+  static String itemTitle(ListDefinition definition, ListItem item) {
+    final Object? title = item['title'];
+    if (title is String && title.isNotEmpty) {
+      return title;
+    }
+    for (final FieldDefinition field in definition.fields) {
+      final Object? value = item[field.key];
+      if (value is String && value.isNotEmpty) {
+        return value;
+      }
+    }
+    return '—';
+  }
+
+  String names(ListDefinition definition, List<ListItem> items) {
+    final List<String> titles = [
+      for (final ListItem item in items.take(maxNames))
+        itemTitle(definition, item),
+    ];
+    final int more = items.length - titles.length;
+    return more > 0 ? '${titles.join(', ')} +$more' : titles.join(', ');
+  }
+
+  List<String> lines(AiPlan plan) {
+    return [for (final AiStep step in plan.steps) ...stepLines(step)];
+  }
+
+  List<String> stepLines(AiStep step) {
+    switch (step) {
+      case AiItemStep():
+        final String list = labels.listName(step.definition);
+        return [
+          if (step.added.isNotEmpty)
+            loc.aiAddItems(list, names(step.definition, step.added)),
+          if (step.edited.isNotEmpty)
+            loc.aiEditItems(list, names(step.definition, step.edited)),
+          if (step.deleted.isNotEmpty)
+            loc.aiDeleteItems(list, names(step.definition, step.deleted)),
+        ];
+      case AiPatchStep():
+        final String list = labels.listName(step.definition);
+        return [
+          for (final ListPatchOp op in step.ops) _opLine(list, step, op),
+          if (step.dryRun.hiddenValues > 0)
+            loc.aiHiddenValues(step.dryRun.hiddenValues),
+        ];
+      case AiCreateStep():
+        final ListDefinition definition = step.definition;
+        return [
+          loc.aiNewList(
+            labels.listName(definition),
+            [
+              for (final FieldDefinition field in definition.fields)
+                labels.field(field),
+            ].join(', '),
+          ),
+          if (step.items.isNotEmpty)
+            loc.aiAddItems(
+              labels.listName(definition),
+              names(definition, step.items),
+            ),
+        ];
+    }
+  }
+
+  String _fieldName(ListDefinition definition, Object? key) {
+    for (final FieldDefinition field in definition.fields) {
+      if (field.key == key) {
+        return labels.field(field);
+      }
+    }
+    return '$key';
+  }
+
+  String _opLine(String list, AiPatchStep step, ListPatchOp op) {
+    final Map<String, dynamic> args = op.args;
+    switch (op.kind) {
+      case PatchOpKind.addField:
+        final Object? field = args['field'];
+        final Object? label = field is Map
+            ? field['label'] ?? field['key']
+            : null;
+        return loc.aiOpAddField(list, '${label ?? ''}');
+      case PatchOpKind.removeField:
+        return loc.aiOpRemoveField(
+          list,
+          _fieldName(step.definition, args['key']),
+        );
+      case PatchOpKind.renameField:
+        return loc.aiOpRenameField(
+          list,
+          _fieldName(step.definition, args['key']),
+          '${args['label']}',
+        );
+      case PatchOpKind.changeFieldType:
+      case PatchOpKind.setFieldProps:
+      case PatchOpKind.setOptions:
+      case PatchOpKind.moveField:
+        return loc.aiOpChangeField(
+          list,
+          _fieldName(step.definition, args['key']),
+        );
+      case PatchOpKind.setView:
+        final Object? view = args['view'];
+        final ViewKind? kind = view is Map
+            ? enumFromWire(ViewKind.values, view['kind'])
+            : null;
+        return loc.aiOpSetView(
+          list,
+          kind == null ? '${view ?? ''}' : labels.viewKind(kind),
+        );
+      case PatchOpKind.addBehavior:
+      case PatchOpKind.removeBehavior:
+        final Object? behavior = args['behavior'];
+        final BehaviorKind? kind = enumFromWire(
+          BehaviorKind.values,
+          behavior is Map ? behavior['kind'] : args['kind'],
+        );
+        return loc.aiOpBehavior(
+          list,
+          kind == null ? '' : labels.behavior(kind),
+        );
+      case PatchOpKind.setListInfo:
+        return loc.aiOpListInfo(list);
+    }
+  }
+}

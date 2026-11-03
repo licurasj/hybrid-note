@@ -755,5 +755,190 @@
         "type": "String"
       }
     }
-  }
+  },
+  "aiBarHint": "Add or change",
+  "aiBarHintList": "Add to {list}",
+  "@aiBarHintList": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      }
+    }
+  },
+  "aiBarHintNewList": "Describe the list",
+  "aiSend": "Send",
+  "aiBarLabel": "AI request",
+  "aiDescribeNewList": "Describe a new list",
+  "aiDescribeNewListMeta": "The AI picks its fields",
+  "aiNoticeTitle": "Before your first request",
+  "aiNoticeDeepSeek": "Your request, the names and fields of your lists, and the open list with up to 20 recent items go to DeepSeek, an AI provider that processes and stores data in China. Lists with AI turned off are never sent. Your request text is kept for about 7 days to find problems, then deleted.",
+  "aiNoticeContinue": "Continue",
+  "aiApply": "Apply",
+  "aiAddItems": "{list}: add {items}",
+  "@aiAddItems": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      },
+      "items": {
+        "type": "String"
+      }
+    }
+  },
+  "aiEditItems": "{list}: change {items}",
+  "@aiEditItems": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      },
+      "items": {
+        "type": "String"
+      }
+    }
+  },
+  "aiDeleteItems": "{list}: delete {items}",
+  "@aiDeleteItems": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      },
+      "items": {
+        "type": "String"
+      }
+    }
+  },
+  "aiOpAddField": "{list}: add the field {field}",
+  "@aiOpAddField": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      },
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "aiOpRemoveField": "{list}: remove the field {field}",
+  "@aiOpRemoveField": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      },
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "aiOpRenameField": "{list}: rename {field} to {label}",
+  "@aiOpRenameField": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      },
+      "field": {
+        "type": "String"
+      },
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "aiOpChangeField": "{list}: change the field {field}",
+  "@aiOpChangeField": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      },
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "aiOpSetView": "{list}: show as {view}",
+  "@aiOpSetView": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      },
+      "view": {
+        "type": "String"
+      }
+    }
+  },
+  "aiOpBehavior": "{list}: change {behavior}",
+  "@aiOpBehavior": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      },
+      "behavior": {
+        "type": "String"
+      }
+    }
+  },
+  "aiOpListInfo": "{list}: change the name, icon or colour",
+  "@aiOpListInfo": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      }
+    }
+  },
+  "aiHiddenValues": "{count, plural, =1{1 value no longer fits and is kept hidden} other{{count} values no longer fit and are kept hidden}}",
+  "@aiHiddenValues": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "aiNewList": "New list {name}: {fields}",
+  "@aiNewList": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "fields": {
+        "type": "String"
+      }
+    }
+  },
+  "aiDoneAdded": "Added to {lists}",
+  "@aiDoneAdded": {
+    "placeholders": {
+      "lists": {
+        "type": "String"
+      }
+    }
+  },
+  "aiDoneChanged": "Changed {lists}",
+  "@aiDoneChanged": {
+    "placeholders": {
+      "lists": {
+        "type": "String"
+      }
+    }
+  },
+  "aiDoneCreated": "Created {list}",
+  "@aiDoneCreated": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      }
+    }
+  },
+  "aiUndone": "Undone",
+  "aiDeclinedOffTopic": "I can only help with your lists.",
+  "aiDeclinedNotSupported": "That is not a change I can make.",
+  "aiRefusedAiNotAllowed": "AI is turned off for this list.",
+  "aiRefusedOutputTooLong": "The answer was too long. Try a shorter request.",
+  "aiRefusedNoValidTool": "The answer could not be used. Try other words.",
+  "aiRefusedDailyCount": "You have reached today’s limit of AI requests.",
+  "aiRefusedBudget": "The AI is paused until tomorrow.",
+  "aiRefusedPromptTooLong": "The request is too long.",
+  "aiRefusedContextTooLarge": "Your lists are too large to send.",
+  "aiRefusedAccess": "This account or app may not use the AI.",
+  "aiRefusedUnavailable": "The AI is not available right now. Try again later.",
+  "aiRefusedBadRequest": "The request could not be sent.",
+  "aiInvalidAnswer": "The changes do not fit the list, so nothing was applied."
 }

@@ -936,4 +936,162 @@ class AppLocalizationsZh extends AppLocalizations {
     });
     return '$_temp0';
   }
+
+  @override
+  String get aiBarHint => '添加或更改';
+
+  @override
+  String aiBarHintList(String list) {
+    return '添加到$list';
+  }
+
+  @override
+  String get aiBarHintNewList => '描述列表';
+
+  @override
+  String get aiSend => '发送';
+
+  @override
+  String get aiBarLabel => 'AI 请求';
+
+  @override
+  String get aiDescribeNewList => '描述新列表';
+
+  @override
+  String get aiDescribeNewListMeta => '由 AI 选择字段';
+
+  @override
+  String get aiNoticeTitle => '首次请求之前';
+
+  @override
+  String get aiNoticeDeepSeek =>
+      '你的请求、各列表的名称和字段，以及打开的列表和最多 20 条最近条目会发送给 DeepSeek。DeepSeek 是一家在中国处理和存储数据的 AI 提供商。关闭了 AI 的列表绝不会发送。请求文字会保留约 7 天用于排查问题，之后删除。';
+
+  @override
+  String get aiNoticeContinue => '继续';
+
+  @override
+  String get aiApply => '应用';
+
+  @override
+  String aiAddItems(String list, String items) {
+    return '$list：添加$items';
+  }
+
+  @override
+  String aiEditItems(String list, String items) {
+    return '$list：更改$items';
+  }
+
+  @override
+  String aiDeleteItems(String list, String items) {
+    return '$list：删除$items';
+  }
+
+  @override
+  String aiOpAddField(String list, String field) {
+    return '$list：添加字段“$field”';
+  }
+
+  @override
+  String aiOpRemoveField(String list, String field) {
+    return '$list：移除字段“$field”';
+  }
+
+  @override
+  String aiOpRenameField(String list, String field, String label) {
+    return '$list：将“$field”重命名为“$label”';
+  }
+
+  @override
+  String aiOpChangeField(String list, String field) {
+    return '$list：更改字段“$field”';
+  }
+
+  @override
+  String aiOpSetView(String list, String view) {
+    return '$list：显示为$view';
+  }
+
+  @override
+  String aiOpBehavior(String list, String behavior) {
+    return '$list：更改$behavior';
+  }
+
+  @override
+  String aiOpListInfo(String list) {
+    return '$list：更改名称、图标或颜色';
+  }
+
+  @override
+  String aiHiddenValues(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 个值不再适用，已隐藏保存',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String aiNewList(String name, String fields) {
+    return '新列表“$name”：$fields';
+  }
+
+  @override
+  String aiDoneAdded(String lists) {
+    return '已添加到$lists';
+  }
+
+  @override
+  String aiDoneChanged(String lists) {
+    return '已更改$lists';
+  }
+
+  @override
+  String aiDoneCreated(String list) {
+    return '已创建$list';
+  }
+
+  @override
+  String get aiUndone => '已撤销';
+
+  @override
+  String get aiDeclinedOffTopic => '我只能帮你处理列表。';
+
+  @override
+  String get aiDeclinedNotSupported => '我无法做这项更改。';
+
+  @override
+  String get aiRefusedAiNotAllowed => '此列表已关闭 AI。';
+
+  @override
+  String get aiRefusedOutputTooLong => '回答太长。请尝试更短的请求。';
+
+  @override
+  String get aiRefusedNoValidTool => '无法使用该回答。请换种说法。';
+
+  @override
+  String get aiRefusedDailyCount => '你已达到今天的 AI 请求上限。';
+
+  @override
+  String get aiRefusedBudget => 'AI 暂停到明天。';
+
+  @override
+  String get aiRefusedPromptTooLong => '请求太长。';
+
+  @override
+  String get aiRefusedContextTooLarge => '你的列表太大，无法发送。';
+
+  @override
+  String get aiRefusedAccess => '此账号或应用不能使用 AI。';
+
+  @override
+  String get aiRefusedUnavailable => 'AI 目前不可用。请稍后再试。';
+
+  @override
+  String get aiRefusedBadRequest => '请求无法发送。';
+
+  @override
+  String get aiInvalidAnswer => '这些更改与列表不符，因此没有应用任何内容。';
 }

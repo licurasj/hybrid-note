@@ -15,15 +15,22 @@ import 'list_labels.dart';
 // definition for the editor, or null when the picker is dismissed. It opens as
 // a sheet in direction A "Eclipse" (docs/AESTHETICS.md): a serif title, then
 // hairline rows, each template with its icon in its colour disc.
-Future<ListDefinition?> showListTemplatePicker(BuildContext context) {
+// [onDescribe] adds "Describe a new list" (T-19): it closes the picker
+// (returning null) and lets the AI design the list from a description.
+Future<ListDefinition?> showListTemplatePicker(
+  BuildContext context, {
+  VoidCallback? onDescribe,
+}) {
   return showSlideUpSheet<ListDefinition>(
     context: context,
-    builder: (_) => const _TemplatePicker(),
+    builder: (_) => _TemplatePicker(onDescribe: onDescribe),
   );
 }
 
 class _TemplatePicker extends StatelessWidget {
-  const _TemplatePicker();
+  const _TemplatePicker({this.onDescribe});
+
+  final VoidCallback? onDescribe;
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +45,7 @@ class _TemplatePicker extends StatelessWidget {
       required Widget disc,
       required String title,
       String? meta,
-      required ListDefinition Function() pick,
+      required ListDefinition? Function() pick,
     }) {
       return InkWell(
         key: key,
@@ -132,6 +139,27 @@ class _TemplatePicker extends StatelessWidget {
                     title: loc.blankList,
                     pick: () => blankListDefinition(loc),
                   ),
+                  if (onDescribe != null) ...[
+                    hairline(),
+                    row(
+                      key: const ValueKey('template-describe'),
+                      disc: Container(
+                        width: disc,
+                        height: disc,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: n.text, width: 1.5),
+                        ),
+                        child: Icon(Icons.edit_outlined, size: 20, color: n.text),
+                      ),
+                      title: loc.aiDescribeNewList,
+                      meta: loc.aiDescribeNewListMeta,
+                      pick: () {
+                        onDescribe!();
+                        return null;
+                      },
+                    ),
+                  ],
                   for (final ListDefinition template in templates) ...[
                     hairline(),
                     row(

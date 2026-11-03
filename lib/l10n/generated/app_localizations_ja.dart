@@ -938,4 +938,162 @@ class AppLocalizationsJa extends AppLocalizations {
     });
     return '$_temp0';
   }
+
+  @override
+  String get aiBarHint => '追加・変更';
+
+  @override
+  String aiBarHintList(String list) {
+    return '$listに追加';
+  }
+
+  @override
+  String get aiBarHintNewList => 'リストを説明';
+
+  @override
+  String get aiSend => '送信';
+
+  @override
+  String get aiBarLabel => 'AIへのリクエスト';
+
+  @override
+  String get aiDescribeNewList => '新しいリストを説明する';
+
+  @override
+  String get aiDescribeNewListMeta => 'AIが項目を選びます';
+
+  @override
+  String get aiNoticeTitle => '最初のリクエストの前に';
+
+  @override
+  String get aiNoticeDeepSeek =>
+      'リクエスト、リストの名前と項目、開いているリストと最近の項目最大20件がDeepSeekに送られます。DeepSeekはデータを中国で処理・保存するAIプロバイダーです。AIをオフにしたリストは送信されません。リクエストの文章は不具合調査のため約7日間保存され、その後削除されます。';
+
+  @override
+  String get aiNoticeContinue => '続ける';
+
+  @override
+  String get aiApply => '適用';
+
+  @override
+  String aiAddItems(String list, String items) {
+    return '$list：$itemsを追加';
+  }
+
+  @override
+  String aiEditItems(String list, String items) {
+    return '$list：$itemsを変更';
+  }
+
+  @override
+  String aiDeleteItems(String list, String items) {
+    return '$list：$itemsを削除';
+  }
+
+  @override
+  String aiOpAddField(String list, String field) {
+    return '$list：項目「$field」を追加';
+  }
+
+  @override
+  String aiOpRemoveField(String list, String field) {
+    return '$list：項目「$field」を削除';
+  }
+
+  @override
+  String aiOpRenameField(String list, String field, String label) {
+    return '$list：「$field」を「$label」に名前変更';
+  }
+
+  @override
+  String aiOpChangeField(String list, String field) {
+    return '$list：項目「$field」を変更';
+  }
+
+  @override
+  String aiOpSetView(String list, String view) {
+    return '$list：$viewで表示';
+  }
+
+  @override
+  String aiOpBehavior(String list, String behavior) {
+    return '$list：$behaviorを変更';
+  }
+
+  @override
+  String aiOpListInfo(String list) {
+    return '$list：名前・アイコン・色を変更';
+  }
+
+  @override
+  String aiHiddenValues(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count件の値が合わなくなり、非表示で保存されます',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String aiNewList(String name, String fields) {
+    return '新しいリスト「$name」：$fields';
+  }
+
+  @override
+  String aiDoneAdded(String lists) {
+    return '$listsに追加しました';
+  }
+
+  @override
+  String aiDoneChanged(String lists) {
+    return '$listsを変更しました';
+  }
+
+  @override
+  String aiDoneCreated(String list) {
+    return '$listを作成しました';
+  }
+
+  @override
+  String get aiUndone => '元に戻しました';
+
+  @override
+  String get aiDeclinedOffTopic => 'お手伝いできるのはリストのことだけです。';
+
+  @override
+  String get aiDeclinedNotSupported => 'その変更はできません。';
+
+  @override
+  String get aiRefusedAiNotAllowed => 'このリストではAIがオフになっています。';
+
+  @override
+  String get aiRefusedOutputTooLong => '回答が長すぎました。短いリクエストでお試しください。';
+
+  @override
+  String get aiRefusedNoValidTool => '回答を使えませんでした。別の言葉でお試しください。';
+
+  @override
+  String get aiRefusedDailyCount => '本日のAIリクエストの上限に達しました。';
+
+  @override
+  String get aiRefusedBudget => 'AIは明日まで停止中です。';
+
+  @override
+  String get aiRefusedPromptTooLong => 'リクエストが長すぎます。';
+
+  @override
+  String get aiRefusedContextTooLarge => 'リストが大きすぎて送信できません。';
+
+  @override
+  String get aiRefusedAccess => 'このアカウントまたはアプリはAIを使えません。';
+
+  @override
+  String get aiRefusedUnavailable => 'AIは現在利用できません。後でもう一度お試しください。';
+
+  @override
+  String get aiRefusedBadRequest => 'リクエストを送信できませんでした。';
+
+  @override
+  String get aiInvalidAnswer => '変更がリストに合わないため、何も適用されませんでした。';
 }

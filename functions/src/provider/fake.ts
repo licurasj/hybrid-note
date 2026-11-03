@@ -1,3 +1,4 @@
+import { loadExamples } from '../schemas';
 import { ProviderError, type AiProvider, type ContentBlock, type ProviderCall, type ProviderResponse } from './types';
 
 /**
@@ -16,6 +17,17 @@ import { ProviderError, type AiProvider, type ContentBlock, type ProviderCall, t
  *   [fake:badtwice]  both answers break the tool schema
  *   [fake:billing]   the provider answers 402 (no credit): an error that is not billed
  *   [fake:retryfail] the first answer breaks the schema and the retry call fails
+ *
+ * For the app's emulator run (T-19 unit 4):
+ *   [fake:ask]       with no list open, asks which of the first two lists
+ *                    (choose_list); with one open (the answer), adds there
+ *   [fake:newlist]   creates the run log of the examples
+ *   [fake:field]     adds a "Price" number field to the open list
+ *   [fake:delete]    deletes the open list's first item
+ *   [fake:reply]     answers with a short reply
+ *   [fake:devicebad] adds items with a field key no list has (the device
+ *                    refuses them), unless the request carries the device's
+ *                    correction round, then adds them properly
  *
  * An item whose text contains "[fake:inject]" makes the fake "obey" it, as a
  * model fooled by a prompt injection would: it calls tools the function must
@@ -59,6 +71,38 @@ export class FakeProvider implements AiProvider {
     if (prompt.includes('[fake:badtwice]') || (badFirst && retry === undefined)) {
       // Values as a map, the shape the strict schema does not allow.
       return answer([tool('upsert_items', { listId: target, items: words.map((word) => ({ values: { title: word } })) })]);
+    }
+    if (prompt.includes('[fake:ask]') && request.openList === null && request.lists.length >= 2) {
+      return answer([
+        tool('choose_list', { question: 'Which list?', candidates: request.lists.slice(0, 2).map((list) => list.id) }),
+      ]);
+    }
+    if (prompt.includes('[fake:newlist]')) {
+      const runLog = loadExamples().find((example) => example.id === 'runLog');
+      return answer([tool('create_list', runLog?.input ?? {})]);
+    }
+    if (prompt.includes('[fake:field]')) {
+      return answer([
+        tool('patch_list', {
+          listId: target,
+          ops: [{ op: 'addField', field: { key: 'price', type: 'number', label: 'Price', min: 0 } }],
+        }),
+      ]);
+    }
+    if (prompt.includes('[fake:delete]')) {
+      const first = request.openList?.items[0]?.id;
+      return answer([tool('delete_items', { listId: target, ids: first === undefined ? [] : [first] })]);
+    }
+    if (prompt.includes('[fake:reply]')) {
+      return answer([tool('reply', { text: 'Grocery has 3 items open.' })]);
+    }
+    if (prompt.includes('[fake:devicebad]') && request.correction === undefined) {
+      return answer([
+        tool('upsert_items', {
+          listId: target,
+          items: words.map((word) => ({ values: [{ field: 'name', value: word }] })),
+        }),
+      ]);
     }
     if (prompt.includes('[fake:decline]')) {
       return answer([tool('decline', { reason: 'offTopic' })]);

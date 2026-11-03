@@ -950,4 +950,169 @@ class AppLocalizationsEs extends AppLocalizations {
     });
     return '$_temp0';
   }
+
+  @override
+  String get aiBarHint => 'Añadir o cambiar';
+
+  @override
+  String aiBarHintList(String list) {
+    return 'Añadir a $list';
+  }
+
+  @override
+  String get aiBarHintNewList => 'Describe la lista';
+
+  @override
+  String get aiSend => 'Enviar';
+
+  @override
+  String get aiBarLabel => 'Solicitud a la IA';
+
+  @override
+  String get aiDescribeNewList => 'Describir una lista nueva';
+
+  @override
+  String get aiDescribeNewListMeta => 'La IA elige sus campos';
+
+  @override
+  String get aiNoticeTitle => 'Antes de tu primera solicitud';
+
+  @override
+  String get aiNoticeDeepSeek =>
+      'Tu solicitud, los nombres y campos de tus listas y la lista abierta con hasta 20 elementos recientes se envían a DeepSeek, un proveedor de IA que procesa y almacena los datos en China. Las listas con la IA desactivada nunca se envían. El texto de tu solicitud se guarda unos 7 días para buscar errores y después se borra.';
+
+  @override
+  String get aiNoticeContinue => 'Continuar';
+
+  @override
+  String get aiApply => 'Aplicar';
+
+  @override
+  String aiAddItems(String list, String items) {
+    return '$list: añadir $items';
+  }
+
+  @override
+  String aiEditItems(String list, String items) {
+    return '$list: cambiar $items';
+  }
+
+  @override
+  String aiDeleteItems(String list, String items) {
+    return '$list: eliminar $items';
+  }
+
+  @override
+  String aiOpAddField(String list, String field) {
+    return '$list: añadir el campo $field';
+  }
+
+  @override
+  String aiOpRemoveField(String list, String field) {
+    return '$list: quitar el campo $field';
+  }
+
+  @override
+  String aiOpRenameField(String list, String field, String label) {
+    return '$list: renombrar $field como $label';
+  }
+
+  @override
+  String aiOpChangeField(String list, String field) {
+    return '$list: cambiar el campo $field';
+  }
+
+  @override
+  String aiOpSetView(String list, String view) {
+    return '$list: mostrar como $view';
+  }
+
+  @override
+  String aiOpBehavior(String list, String behavior) {
+    return '$list: cambiar $behavior';
+  }
+
+  @override
+  String aiOpListInfo(String list) {
+    return '$list: cambiar el nombre, el icono o el color';
+  }
+
+  @override
+  String aiHiddenValues(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count valores ya no encajan y se guardan ocultos',
+      one: '1 valor ya no encaja y se guarda oculto',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String aiNewList(String name, String fields) {
+    return 'Lista nueva $name: $fields';
+  }
+
+  @override
+  String aiDoneAdded(String lists) {
+    return 'Añadido a $lists';
+  }
+
+  @override
+  String aiDoneChanged(String lists) {
+    return 'Cambios en $lists';
+  }
+
+  @override
+  String aiDoneCreated(String list) {
+    return 'Creada: $list';
+  }
+
+  @override
+  String get aiUndone => 'Deshecho';
+
+  @override
+  String get aiDeclinedOffTopic => 'Solo puedo ayudarte con tus listas.';
+
+  @override
+  String get aiDeclinedNotSupported => 'No puedo hacer ese cambio.';
+
+  @override
+  String get aiRefusedAiNotAllowed => 'La IA está desactivada para esta lista.';
+
+  @override
+  String get aiRefusedOutputTooLong =>
+      'La respuesta era demasiado larga. Prueba con una solicitud más corta.';
+
+  @override
+  String get aiRefusedNoValidTool =>
+      'No se pudo usar la respuesta. Prueba con otras palabras.';
+
+  @override
+  String get aiRefusedDailyCount =>
+      'Has alcanzado el límite de hoy de solicitudes a la IA.';
+
+  @override
+  String get aiRefusedBudget => 'La IA está en pausa hasta mañana.';
+
+  @override
+  String get aiRefusedPromptTooLong => 'La solicitud es demasiado larga.';
+
+  @override
+  String get aiRefusedContextTooLarge =>
+      'Tus listas son demasiado grandes para enviarlas.';
+
+  @override
+  String get aiRefusedAccess => 'Esta cuenta o esta app no puede usar la IA.';
+
+  @override
+  String get aiRefusedUnavailable =>
+      'La IA no está disponible ahora. Inténtalo más tarde.';
+
+  @override
+  String get aiRefusedBadRequest => 'No se pudo enviar la solicitud.';
+
+  @override
+  String get aiInvalidAnswer =>
+      'Los cambios no encajan en la lista, así que no se aplicó nada.';
 }

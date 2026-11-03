@@ -93,11 +93,25 @@ export function buildUserMessage(request: AiRequest, now: Date): string {
     `The user's lists (id, name, fields):\n${data(lists)}`,
     open,
     '</context>',
+    ...(request.correction === undefined
+      ? []
+      : [
+          '<previous_answer>',
+          `Your tool calls:\n${data(request.correction.toolCalls)}`,
+          `The app rejected them, so nothing was applied:\n${data(request.correction.errors)}`,
+          '</previous_answer>',
+          deviceRetryInstruction,
+        ]),
     '<request>',
     request.prompt,
     '</request>',
   ].join('\n');
 }
+
+// The device's self-correction round (Q-34 A): the app found ListErrors.
+export const deviceRetryInstruction =
+  'Answer the request below again with all your tool calls, the rejected ones corrected. ' +
+  'Use only the tools, list ids, item ids and field keys given in the context.';
 
 // The self-correction round (Q-34 A), shared by the adapters.
 export const retryValidText = 'Valid. Repeat this call unchanged in your corrected answer.';

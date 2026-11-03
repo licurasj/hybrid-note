@@ -954,4 +954,172 @@ class AppLocalizationsDe extends AppLocalizations {
     });
     return '$_temp0';
   }
+
+  @override
+  String get aiBarHint => 'Hinzufügen oder ändern';
+
+  @override
+  String aiBarHintList(String list) {
+    return 'Zu $list hinzufügen';
+  }
+
+  @override
+  String get aiBarHintNewList => 'Liste beschreiben';
+
+  @override
+  String get aiSend => 'Senden';
+
+  @override
+  String get aiBarLabel => 'KI-Anfrage';
+
+  @override
+  String get aiDescribeNewList => 'Neue Liste beschreiben';
+
+  @override
+  String get aiDescribeNewListMeta => 'Die KI wählt ihre Felder';
+
+  @override
+  String get aiNoticeTitle => 'Vor deiner ersten Anfrage';
+
+  @override
+  String get aiNoticeDeepSeek =>
+      'Deine Anfrage, die Namen und Felder deiner Listen und die offene Liste mit bis zu 20 neueren Einträgen gehen an DeepSeek, einen KI-Anbieter, der Daten in China verarbeitet und speichert. Listen mit ausgeschalteter KI werden nie gesendet. Der Text deiner Anfrage wird etwa 7 Tage zur Fehlersuche aufbewahrt und dann gelöscht.';
+
+  @override
+  String get aiNoticeContinue => 'Weiter';
+
+  @override
+  String get aiApply => 'Übernehmen';
+
+  @override
+  String aiAddItems(String list, String items) {
+    return '$list: $items hinzufügen';
+  }
+
+  @override
+  String aiEditItems(String list, String items) {
+    return '$list: $items ändern';
+  }
+
+  @override
+  String aiDeleteItems(String list, String items) {
+    return '$list: $items löschen';
+  }
+
+  @override
+  String aiOpAddField(String list, String field) {
+    return '$list: Feld $field hinzufügen';
+  }
+
+  @override
+  String aiOpRemoveField(String list, String field) {
+    return '$list: Feld $field entfernen';
+  }
+
+  @override
+  String aiOpRenameField(String list, String field, String label) {
+    return '$list: $field in $label umbenennen';
+  }
+
+  @override
+  String aiOpChangeField(String list, String field) {
+    return '$list: Feld $field ändern';
+  }
+
+  @override
+  String aiOpSetView(String list, String view) {
+    return '$list: als $view anzeigen';
+  }
+
+  @override
+  String aiOpBehavior(String list, String behavior) {
+    return '$list: $behavior ändern';
+  }
+
+  @override
+  String aiOpListInfo(String list) {
+    return '$list: Name, Symbol oder Farbe ändern';
+  }
+
+  @override
+  String aiHiddenValues(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Werte passen nicht mehr und werden verborgen aufbewahrt',
+      one: '1 Wert passt nicht mehr und wird verborgen aufbewahrt',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String aiNewList(String name, String fields) {
+    return 'Neue Liste $name: $fields';
+  }
+
+  @override
+  String aiDoneAdded(String lists) {
+    return 'Zu $lists hinzugefügt';
+  }
+
+  @override
+  String aiDoneChanged(String lists) {
+    return '$lists geändert';
+  }
+
+  @override
+  String aiDoneCreated(String list) {
+    return '$list erstellt';
+  }
+
+  @override
+  String get aiUndone => 'Rückgängig gemacht';
+
+  @override
+  String get aiDeclinedOffTopic => 'Ich kann nur bei deinen Listen helfen.';
+
+  @override
+  String get aiDeclinedNotSupported =>
+      'Diese Änderung kann ich nicht vornehmen.';
+
+  @override
+  String get aiRefusedAiNotAllowed =>
+      'Die KI ist für diese Liste ausgeschaltet.';
+
+  @override
+  String get aiRefusedOutputTooLong =>
+      'Die Antwort war zu lang. Versuche eine kürzere Anfrage.';
+
+  @override
+  String get aiRefusedNoValidTool =>
+      'Die Antwort ließ sich nicht verwenden. Versuche andere Worte.';
+
+  @override
+  String get aiRefusedDailyCount =>
+      'Du hast das heutige Limit für KI-Anfragen erreicht.';
+
+  @override
+  String get aiRefusedBudget => 'Die KI pausiert bis morgen.';
+
+  @override
+  String get aiRefusedPromptTooLong => 'Die Anfrage ist zu lang.';
+
+  @override
+  String get aiRefusedContextTooLarge =>
+      'Deine Listen sind zu groß zum Senden.';
+
+  @override
+  String get aiRefusedAccess =>
+      'Dieses Konto oder diese App darf die KI nicht nutzen.';
+
+  @override
+  String get aiRefusedUnavailable =>
+      'Die KI ist gerade nicht erreichbar. Versuche es später noch einmal.';
+
+  @override
+  String get aiRefusedBadRequest => 'Die Anfrage konnte nicht gesendet werden.';
+
+  @override
+  String get aiInvalidAnswer =>
+      'Die Änderungen passen nicht zur Liste, daher wurde nichts übernommen.';
 }

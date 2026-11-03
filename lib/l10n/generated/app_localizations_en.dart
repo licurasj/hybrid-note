@@ -948,4 +948,168 @@ class AppLocalizationsEn extends AppLocalizations {
     });
     return '$_temp0';
   }
+
+  @override
+  String get aiBarHint => 'Add or change';
+
+  @override
+  String aiBarHintList(String list) {
+    return 'Add to $list';
+  }
+
+  @override
+  String get aiBarHintNewList => 'Describe the list';
+
+  @override
+  String get aiSend => 'Send';
+
+  @override
+  String get aiBarLabel => 'AI request';
+
+  @override
+  String get aiDescribeNewList => 'Describe a new list';
+
+  @override
+  String get aiDescribeNewListMeta => 'The AI picks its fields';
+
+  @override
+  String get aiNoticeTitle => 'Before your first request';
+
+  @override
+  String get aiNoticeDeepSeek =>
+      'Your request, the names and fields of your lists, and the open list with up to 20 recent items go to DeepSeek, an AI provider that processes and stores data in China. Lists with AI turned off are never sent. Your request text is kept for about 7 days to find problems, then deleted.';
+
+  @override
+  String get aiNoticeContinue => 'Continue';
+
+  @override
+  String get aiApply => 'Apply';
+
+  @override
+  String aiAddItems(String list, String items) {
+    return '$list: add $items';
+  }
+
+  @override
+  String aiEditItems(String list, String items) {
+    return '$list: change $items';
+  }
+
+  @override
+  String aiDeleteItems(String list, String items) {
+    return '$list: delete $items';
+  }
+
+  @override
+  String aiOpAddField(String list, String field) {
+    return '$list: add the field $field';
+  }
+
+  @override
+  String aiOpRemoveField(String list, String field) {
+    return '$list: remove the field $field';
+  }
+
+  @override
+  String aiOpRenameField(String list, String field, String label) {
+    return '$list: rename $field to $label';
+  }
+
+  @override
+  String aiOpChangeField(String list, String field) {
+    return '$list: change the field $field';
+  }
+
+  @override
+  String aiOpSetView(String list, String view) {
+    return '$list: show as $view';
+  }
+
+  @override
+  String aiOpBehavior(String list, String behavior) {
+    return '$list: change $behavior';
+  }
+
+  @override
+  String aiOpListInfo(String list) {
+    return '$list: change the name, icon or colour';
+  }
+
+  @override
+  String aiHiddenValues(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count values no longer fit and are kept hidden',
+      one: '1 value no longer fits and is kept hidden',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String aiNewList(String name, String fields) {
+    return 'New list $name: $fields';
+  }
+
+  @override
+  String aiDoneAdded(String lists) {
+    return 'Added to $lists';
+  }
+
+  @override
+  String aiDoneChanged(String lists) {
+    return 'Changed $lists';
+  }
+
+  @override
+  String aiDoneCreated(String list) {
+    return 'Created $list';
+  }
+
+  @override
+  String get aiUndone => 'Undone';
+
+  @override
+  String get aiDeclinedOffTopic => 'I can only help with your lists.';
+
+  @override
+  String get aiDeclinedNotSupported => 'That is not a change I can make.';
+
+  @override
+  String get aiRefusedAiNotAllowed => 'AI is turned off for this list.';
+
+  @override
+  String get aiRefusedOutputTooLong =>
+      'The answer was too long. Try a shorter request.';
+
+  @override
+  String get aiRefusedNoValidTool =>
+      'The answer could not be used. Try other words.';
+
+  @override
+  String get aiRefusedDailyCount =>
+      'You have reached today’s limit of AI requests.';
+
+  @override
+  String get aiRefusedBudget => 'The AI is paused until tomorrow.';
+
+  @override
+  String get aiRefusedPromptTooLong => 'The request is too long.';
+
+  @override
+  String get aiRefusedContextTooLarge => 'Your lists are too large to send.';
+
+  @override
+  String get aiRefusedAccess => 'This account or app may not use the AI.';
+
+  @override
+  String get aiRefusedUnavailable =>
+      'The AI is not available right now. Try again later.';
+
+  @override
+  String get aiRefusedBadRequest => 'The request could not be sent.';
+
+  @override
+  String get aiInvalidAnswer =>
+      'The changes do not fit the list, so nothing was applied.';
 }

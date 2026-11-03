@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../ai/ai_bar_controller.dart';
+import '../ai/ai_service.dart';
+import '../ai/prompt_bar.dart';
 import '../home_screen.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../launcher/dial_launcher.dart';
@@ -41,6 +44,12 @@ class MainShell extends StatefulWidget {
 // list replaces it, so back always leads to the home. Sheets and dialogs on
 // that navigator hide the hub; the list editor and the New list picker open
 // on the app's navigator, above all of it.
+//
+// The AI prompt bar (T-19 unit 4, Q-36 A) sits between the screens and the
+// launcher, so the open dial covers it. It hides with the hub under sheets
+// and dialogs, and on a list with AI off. Back first closes the bar's panel
+// (preview, question, answer, notice) or leaves "Describe a new list", then
+// works as before: a list goes home, the home leaves the app.
 class _MainShellState extends State<MainShell> {
   // Lists in the order they were last opened, newest first, so the common
   // case never needs scrolling (plan 5.3). Kept in memory for now.
@@ -48,6 +57,9 @@ class _MainShellState extends State<MainShell> {
 
   final GlobalKey<NavigatorState> _content = GlobalKey<NavigatorState>();
   final _TopRoute _top = _TopRoute();
+
+  // Null without an AiService (tests, other hosts): no bar.
+  AiBarController? _ai;
 
   static const String _listRoute = 'list:';
 
@@ -60,7 +72,22 @@ class _MainShellState extends State<MainShell> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final AiService? service = context.read<AiService?>();
+    if (_ai == null && service != null) {
+      _ai = AiBarController(
+        service: service,
+        store: context.read<ListStore>(),
+        preferences: context.read<AppSettingsCubit>().preferences,
+        onOpenList: _openList,
+      );
+    }
+  }
+
+  @override
   void dispose() {
+    _ai?.dispose();
     _top.dispose();
     super.dispose();
   }
@@ -126,7 +153,18 @@ class _MainShellState extends State<MainShell> {
   // Blank or a template first, then the editor on that fresh copy, which can
   // be changed before saving (Q-22 D).
   Future<void> _newList() async {
-    final ListDefinition? draft = await showListTemplatePicker(context);
+    bool describe = false;
+    final ListDefinition? draft = await showListTemplatePicker(
+      context,
+      onDescribe: _ai == null ? null : () => describe = true,
+    );
+    if (mounted && describe) {
+      // After the picker's route has handed focus back.
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _ai?.startNewList(),
+      );
+      return;
+    }
     if (!mounted || draft == null) {
       return;
     }
@@ -215,6 +253,38 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
+  // The prompt bar for the screen on top: hidden with the hub, and on a
+  // list with AI off. While its panel is open, Back is the bar's even on
+  // the home (NavigatorPopHandler then hands it to handleBack above).
+  Widget _bar(AiBarController ai, ListCatalog catalog, Offset? hubPosition) {
+    return ValueListenableBuilder<Route<dynamic>?>(
+      valueListenable: _top.route,
+      builder: (context, top, _) {
+        final String? name = top?.settings.name;
+        final ListDefinition? open = name != null && name.startsWith(_listRoute)
+            ? catalog.definition(name.substring(_listRoute.length))
+            : null;
+        final bool hidden =
+            (top != null && top is! PageRoute) ||
+            (open != null && !open.aiAllowed);
+        return Offstage(
+          offstage: hidden,
+          child: ListenableBuilder(
+            listenable: ai,
+            builder: (context, child) => PopScope(
+              canPop: !ai.isOpen && !ai.newList,
+              child: child!,
+            ),
+            child: LauncherHubArea(
+              hubPosition: hubPosition,
+              child: PromptBar(controller: ai, openList: open),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -233,8 +303,12 @@ class _MainShellState extends State<MainShell> {
                       child: ListEditAction(
                         onEdit: _editList,
                         child: NavigatorPopHandler(
-                          onPopWithResult: (_) =>
-                              _content.currentState?.maybePop(),
+                          onPopWithResult: (_) {
+                            if (_ai?.handleBack() ?? false) {
+                              return;
+                            }
+                            _content.currentState?.maybePop();
+                          },
                           child: Navigator(
                             key: _content,
                             observers: [_top],
@@ -253,6 +327,10 @@ class _MainShellState extends State<MainShell> {
                         ),
                       ),
                     ),
+                    if (_ai != null)
+                      Positioned.fill(
+                        child: _bar(_ai!, catalog, settings.hubPosition),
+                      ),
                     Positioned.fill(
                       child: ValueListenableBuilder<Route<dynamic>?>(
                         valueListenable: _top.route,

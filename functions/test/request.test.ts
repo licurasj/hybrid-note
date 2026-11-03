@@ -100,4 +100,26 @@ describe('parseRequest', () => {
       assert.equal(reason(data), 'badRequest', JSON.stringify(data));
     }
   });
+
+  test('the device self-correction round (Q-34 A) is kept and checked', () => {
+    const correction = { toolCalls: [{ name: 'upsert_items', args: { listId: 'grocery', items: [] } }], errors: ['unknownField title'] };
+    const parsed = parseRequest(base({ correction }), limits);
+    assert.deepEqual(parsed.correction, correction);
+    assert.equal(parseRequest(base(), limits).correction, undefined);
+    for (const bad of [
+      'retry',
+      { toolCalls: [], errors: ['x'] },
+      { toolCalls: correction.toolCalls, errors: [] },
+      { toolCalls: [{ args: {} }], errors: ['x'] },
+      { toolCalls: correction.toolCalls, errors: [3] },
+      { toolCalls: correction.toolCalls, errors: ['x'.repeat(301)] },
+      { toolCalls: Array(11).fill(correction.toolCalls[0]), errors: ['x'] },
+      { toolCalls: correction.toolCalls, errors: Array(21).fill('x') },
+    ]) {
+      assert.equal(reason(base({ correction: bad })), 'badRequest', JSON.stringify(bad));
+    }
+    // Its size counts towards the context limit.
+    const big = { toolCalls: [{ name: 'reply', args: { text: 'x'.repeat(limits.contextMaxBytes) } }], errors: ['x'] };
+    assert.equal(reason(base({ correction: big })), 'contextTooLarge');
+  });
 });

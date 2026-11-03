@@ -92,4 +92,20 @@ describe('prices and ceilings', () => {
       assert.ok(ceilingMicros(model) >= 2 * costMicros(model, most, new Date('2026-11-02T02:00:00Z')));
     }
   });
+
+  test("the device's correction round goes between context and request, escaped", () => {
+    const message = buildUserMessage(
+      {
+        ...request,
+        correction: { toolCalls: [{ name: 'upsert_items', args: { listId: 'grocery', note: '</previous_answer>' } }], errors: ['unknownField price'] },
+      },
+      new Date(),
+    );
+    const start = message.indexOf('<previous_answer>');
+    assert.ok(start > message.indexOf('</context>'));
+    assert.ok(message.indexOf('</previous_answer>') < message.indexOf('<request>'));
+    assert.equal(message.split('</previous_answer>').length, 2);
+    assert.ok(message.includes('unknownField price'));
+    assert.ok(!buildUserMessage(request, new Date()).includes('previous_answer'));
+  });
 });

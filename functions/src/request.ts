@@ -28,7 +28,23 @@ export interface AiRequest {
   lists: ListSummary[];
   /** Absent or null when no list is open (Q-36): the AI routes to a list. */
   openList: OpenList | null;
+  /**
+   * The device's self-correction round (Q-34 A): the tool calls of the
+   * previous answer to this request and the ListErrors the device's
+   * validation found in them (English). A new request, counted like any.
+   */
+  correction?: Correction;
 }
+
+export interface Correction {
+  toolCalls: { name: string; args: unknown }[];
+  errors: string[];
+}
+
+/** Limits of the correction part; its JSON also counts towards contextMaxBytes. */
+export const CORRECTION_MAX_CALLS = 10;
+export const CORRECTION_MAX_ERRORS = 20;
+export const CORRECTION_ERROR_MAX_CHARS = 300;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -70,6 +86,22 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
   if (new Set(lists.map((list) => list.id)).size !== lists.length) {
     throw refuse('badRequest', 'list ids must be unique');
   }
+  const correction = data.correction ?? undefined;
+  if (correction !== undefined) {
+    if (
+      !isRecord(correction) ||
+      !Array.isArray(correction.toolCalls) ||
+      !Array.isArray(correction.errors) ||
+      correction.toolCalls.length === 0 ||
+      correction.toolCalls.length > CORRECTION_MAX_CALLS ||
+      !correction.toolCalls.every((call) => isRecord(call) && typeof call.name === 'string' && call.name.length <= 64) ||
+      correction.errors.length === 0 ||
+      correction.errors.length > CORRECTION_MAX_ERRORS ||
+      !correction.errors.every((error) => typeof error === 'string' && error.length <= CORRECTION_ERROR_MAX_CHARS)
+    ) {
+      throw refuse('badRequest', 'correction needs 1-10 tool calls and 1-20 short errors');
+    }
+  }
   if (openList !== null) {
     if (!isRecord(openList) || !isRecord(openList.definition) || !Array.isArray(openList.items)) {
       throw refuse('badRequest', 'openList needs definition and items');
@@ -90,7 +122,7 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
   if (openList !== null && (openList.items as unknown[]).length > limits.maxItems) {
     throw refuse('contextTooLarge', `more than ${limits.maxItems} items`);
   }
-  const contextBytes = Buffer.byteLength(JSON.stringify({ lists, openList }), 'utf8');
+  const contextBytes = Buffer.byteLength(JSON.stringify({ lists, openList, correction }), 'utf8');
   if (contextBytes > limits.contextMaxBytes) {
     throw refuse('contextTooLarge', `context is over ${limits.contextMaxBytes} bytes`);
   }
@@ -109,5 +141,13 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
     ...(today !== undefined ? { today } : {}),
     lists: allowed as unknown as ListSummary[],
     openList: openList as OpenList | null,
+    ...(correction !== undefined
+      ? {
+          correction: {
+            toolCalls: (correction.toolCalls as Record<string, unknown>[]).map((call) => ({ name: call.name as string, args: call.args })),
+            errors: correction.errors as string[],
+          },
+        }
+      : {}),
   };
 }
