@@ -842,4 +842,35 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get startEmpty => 'Commencer sans listes';
+
+  @override
+  String errorMissingArg(String arg) {
+    return 'Il manque « $arg » à une modification.';
+  }
+
+  @override
+  String errorWrongArgType(String arg) {
+    return 'Une modification a une valeur du mauvais type pour « $arg ».';
+  }
+
+  @override
+  String errorUnknownArg(String arg) {
+    return 'Une modification a un paramètre inconnu « $arg ».';
+  }
+
+  @override
+  String get errorUnknownList => 'La liste est introuvable.';
+
+  @override
+  String get errorUnknownItem =>
+      'Un élément à modifier est introuvable dans la liste.';
+
+  @override
+  String errorUnknownField(String field) {
+    return '« $field » n’est pas un champ de cette liste.';
+  }
+
+  @override
+  String get errorListChanged =>
+      'La liste a changé depuis, cette action ne peut donc pas être annulée.';
 }

@@ -69,7 +69,23 @@ enum ListErrorCode implements WireName {
   listExists('listExists'), // {list}
   duplicateItemId('duplicateItemId'),
   itemIdTaken('itemIdTaken'),
-  itemInOtherList('itemInOtherList'); // {list}
+  itemInOtherList('itemInOtherList'), // {list}
+
+  // Malformed arguments of a patch op or an AI tool call (T-19): {op, arg}
+  // where op is the op kind or tool name and arg the argument's path, for
+  // example "field.colour"; wrongArgType also {expected}: string, boolean,
+  // integer, number, object or list.
+  missingArg('missingArg'),
+  wrongArgType('wrongArgType'),
+  unknownArg('unknownArg'),
+
+  // AI tool calls that name what is not there (T-19, Q-36).
+  unknownList('unknownList'), // {list}
+  unknownItem('unknownItem'), // {item, list}
+  unknownField('unknownField'), // {field, list}
+
+  // Undo of an AI change (Q-35 A).
+  listChanged('listChanged'); // {list}
 
   const ListErrorCode(this.wire);
 
@@ -209,6 +225,35 @@ class ListError {
         return 'id already used by another list';
       case ListErrorCode.itemInOtherList:
         return 'belongs to list "${arg('list')}"';
+      case ListErrorCode.missingArg:
+        return '${arg('op')}: missing "${arg('arg')}"';
+      case ListErrorCode.wrongArgType:
+        return '${arg('op')}: "${arg('arg')}" must be ${_argShape(arg('expected'))}';
+      case ListErrorCode.unknownArg:
+        return '${arg('op')}: unknown "${arg('arg')}"';
+      case ListErrorCode.unknownList:
+        return 'no list "${arg('list')}" among the user lists';
+      case ListErrorCode.unknownItem:
+        return 'no item "${arg('item')}" in list "${arg('list')}"';
+      case ListErrorCode.unknownField:
+        return '$field is not a field of list "${arg('list')}"';
+      case ListErrorCode.listChanged:
+        return 'list "${arg('list')}" changed since the change was applied; nothing was undone';
+    }
+  }
+
+  static String _argShape(String expected) {
+    switch (expected) {
+      case 'object':
+        return 'a JSON object';
+      case 'list':
+        return 'a list';
+      case 'integer':
+        return 'a whole number';
+      case 'boolean':
+        return 'true or false';
+      default:
+        return 'a $expected';
     }
   }
 

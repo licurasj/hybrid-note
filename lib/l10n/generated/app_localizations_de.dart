@@ -844,4 +844,35 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get startEmpty => 'Leer beginnen';
+
+  @override
+  String errorMissingArg(String arg) {
+    return 'Einer Änderung fehlt „$arg“.';
+  }
+
+  @override
+  String errorWrongArgType(String arg) {
+    return 'Eine Änderung hat für „$arg“ einen Wert der falschen Art.';
+  }
+
+  @override
+  String errorUnknownArg(String arg) {
+    return 'Eine Änderung hat eine unbekannte Einstellung „$arg“.';
+  }
+
+  @override
+  String get errorUnknownList => 'Die Liste wurde nicht gefunden.';
+
+  @override
+  String get errorUnknownItem =>
+      'Ein zu ändernder Eintrag wurde in der Liste nicht gefunden.';
+
+  @override
+  String errorUnknownField(String field) {
+    return '„$field“ ist kein Feld dieser Liste.';
+  }
+
+  @override
+  String get errorListChanged =>
+      'Die Liste hat sich inzwischen geändert, daher kann dies nicht rückgängig gemacht werden.';
 }

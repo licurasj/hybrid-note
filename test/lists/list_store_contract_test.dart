@@ -255,6 +255,158 @@ void listStoreContract(
       expect(catalog.definition(groceryId)!.name, 'Shopping');
     });
 
+    // Undo of an AI change (Q-35 A).
+    group('restoreSnapshot', () {
+      Future<(ListDefinition, List<ListItem>)> plantsWith(List<ListItem> items) async {
+        await store.createList(_plants(), items: items);
+        final ListCatalog catalog = await until(
+          (c) => c.definition(_plantsId) != null && c.itemsOf(_plantsId).length == items.length,
+        );
+        return (catalog.definition(_plantsId)!, catalog.itemsOf(_plantsId));
+      }
+
+      test('undoes a patch: the definition and the items it changed', () async {
+        final (ListDefinition before, List<ListItem> items) =
+            await plantsWith([_plant('fern', 'fern'), _plant('cactus', 'cactus')]);
+        final ListPatchResult result = (await store.patchList(_plantsId, const [
+          ListPatchOp(PatchOpKind.changeFieldType, {'key': 'kind', 'type': 'counter'}),
+          ListPatchOp(PatchOpKind.addField, {
+            'field': {'key': 'water', 'type': 'text', 'label': 'Water every'},
+          }),
+        ]))!;
+        expect(result.errors, isEmpty);
+        await until(
+          (c) =>
+              c.definition(_plantsId)!.field('water') != null &&
+              c.itemsOf(_plantsId).every((item) => item[ListPatch.legacyKey] != null),
+        );
+
+        final List<ListError> errors = await store.restoreSnapshot(ListSnapshot.ofPatch(before, items, result));
+        expect(errors, isEmpty);
+
+        final ListCatalog catalog = await until(
+          (c) =>
+              c.definition(_plantsId)!.field('water') == null &&
+              c.itemsOf(_plantsId).length == 2 &&
+              c.itemsOf(_plantsId).every((item) => item[ListPatch.legacyKey] == null),
+        );
+        final ListDefinition restored = catalog.definition(_plantsId)!;
+        expect(restored.fields.map((f) => f.toJson()), before.fields.map((f) => f.toJson()));
+        expect(restored.schemaRevision, result.definition.schemaRevision + 1);
+        expect(
+          {for (final ListItem item in catalog.itemsOf(_plantsId)) item.id: item.toJson()},
+          {for (final ListItem item in items) item.id: item.toJson()},
+        );
+      });
+
+      test('undoes item changes: an added item goes, edited and deleted ones come back', () async {
+        final (ListDefinition definition, List<ListItem> items) =
+            await plantsWith([_plant('fern', 'fern'), _plant('cactus', 'cactus')]);
+        final ListChanges changes = ListChanges(
+          saved: [
+            _plant('moss', 'fern'),
+            ListRules.withValues(items.firstWhere((i) => i.id == 'fern'), {'title': 'Big fern'}, _t0),
+          ],
+          deletedIds: const ['cactus'],
+        );
+        await store.apply(changes);
+        await until(
+          (c) =>
+              c.itemsOf(_plantsId).map((i) => i.id).toSet().containsAll({'moss', 'fern'}) &&
+              c.itemsOf(_plantsId).length == 2 &&
+              c.itemsOf(_plantsId).any((i) => i['title'] == 'Big fern'),
+        );
+
+        expect(await store.restoreSnapshot(ListSnapshot.ofChanges(definition, items, changes)), isEmpty);
+
+        final ListCatalog catalog = await until(
+          (c) =>
+              c.itemsOf(_plantsId).length == 2 &&
+              c.itemsOf(_plantsId).map((i) => i.id).toSet().containsAll({'fern', 'cactus'}) &&
+              c.itemsOf(_plantsId).every((i) => i['title'] != 'Big fern'),
+        );
+        expect(
+          {for (final ListItem item in catalog.itemsOf(_plantsId)) item.id: item.toJson()},
+          {for (final ListItem item in items) item.id: item.toJson()},
+        );
+        // An item change leaves the definition as it is.
+        expect(catalog.definition(_plantsId)!.toJson(), definition.toJson());
+      });
+
+      test('an edit of an item the change did not touch does not block it', () async {
+        final (ListDefinition definition, List<ListItem> items) =
+            await plantsWith([_plant('fern', 'fern'), _plant('cactus', 'cactus')]);
+        final ListChanges changes = ListChanges(saved: [_plant('moss', 'fern')]);
+        await store.apply(changes);
+        await store.apply(ListChanges(saved: [_plant('cactus', 'fern')]));
+        await until(
+          (c) => c.itemsOf(_plantsId).length == 3 && c.itemsOf(_plantsId).every((i) => i['kind'] == 'fern'),
+        );
+
+        expect(await store.restoreSnapshot(ListSnapshot.ofChanges(definition, items, changes)), isEmpty);
+        final ListCatalog catalog = await until((c) => c.itemsOf(_plantsId).length == 2);
+        expect(catalog.itemsOf(_plantsId).firstWhere((i) => i.id == 'cactus')['kind'], 'fern');
+      });
+
+      Future<void> expectRefused(ListSnapshot snapshot, ListCatalog Function() now) async {
+        final ListCatalog seen = now();
+        final List<ListError> errors = await store.restoreSnapshot(snapshot);
+        expect(errors.map((error) => error.code), [ListErrorCode.listChanged]);
+        expect('${errors.single}', contains('nothing was undone'));
+        await pumpEventQueue();
+        expect(store.current.definition(_plantsId)?.toJson(), seen.definition(_plantsId)?.toJson());
+        expect(
+          store.current.itemsOf(_plantsId).map((i) => i.toJson()),
+          unorderedEquals(seen.itemsOf(_plantsId).map((i) => i.toJson())),
+        );
+      }
+
+      test('refuses, changing nothing, when the definition changed since', () async {
+        final (ListDefinition before, List<ListItem> items) = await plantsWith([_plant('fern', 'fern')]);
+        final ListPatchResult result = (await store.patchList(_plantsId, const [
+          ListPatchOp(PatchOpKind.renameField, {'key': 'kind', 'label': 'Sort'}),
+        ]))!;
+        await store.patchList(_plantsId, const [
+          ListPatchOp(PatchOpKind.setListInfo, {'name': 'House plants'}),
+        ]);
+        await until((c) => c.definition(_plantsId)!.name == 'House plants');
+
+        await expectRefused(ListSnapshot.ofPatch(before, items, result), () => store.current);
+      });
+
+      test('refuses, changing nothing, when a touched item changed since', () async {
+        final (ListDefinition definition, List<ListItem> items) = await plantsWith([_plant('fern', 'fern')]);
+        final ListChanges changes = ListChanges(saved: [_plant('moss', 'fern')]);
+        await store.apply(changes);
+        await store.apply(ListChanges(saved: [_plant('moss', 'cactus')]));
+        await until((c) => c.itemsOf(_plantsId).any((i) => i.id == 'moss' && i['kind'] == 'cactus'));
+
+        await expectRefused(ListSnapshot.ofChanges(definition, items, changes), () => store.current);
+      });
+
+      test('refuses when a deleted item is back or an added one is gone', () async {
+        final (ListDefinition definition, List<ListItem> items) =
+            await plantsWith([_plant('fern', 'fern'), _plant('cactus', 'cactus')]);
+        final ListChanges changes = ListChanges(saved: [_plant('moss', 'fern')], deletedIds: const ['cactus']);
+        await store.apply(changes);
+        await store.apply(const ListChanges(deletedIds: ['moss']));
+        await until((c) => c.itemsOf(_plantsId).map((i) => i.id).toList().join() == 'fern');
+
+        await expectRefused(ListSnapshot.ofChanges(definition, items, changes), () => store.current);
+      });
+
+      test('refuses when the list is gone', () async {
+        final (ListDefinition definition, List<ListItem> items) = await plantsWith([_plant('fern', 'fern')]);
+        final ListChanges changes = ListChanges(saved: [_plant('moss', 'fern')]);
+        await store.apply(changes);
+        await until((c) => c.itemsOf(_plantsId).length == 2);
+        await store.deleteList(_plantsId);
+        await until((c) => c.definition(_plantsId) == null && c.itemsOf(_plantsId).isEmpty);
+
+        await expectRefused(ListSnapshot.ofChanges(definition, items, changes), () => store.current);
+      });
+    });
+
     test('add and remove a user option', () async {
       await store.createList(_plants());
       await until((c) => c.definition(_plantsId) != null);
@@ -451,6 +603,9 @@ class StaggeredListStore implements ListStore {
 
   @override
   Future<void> restoreList(DeletedList deleted) => inner.restoreList(deleted);
+
+  @override
+  Future<List<ListError>> restoreSnapshot(ListSnapshot snapshot) => inner.restoreSnapshot(snapshot);
 }
 
 void main() {

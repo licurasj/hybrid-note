@@ -309,6 +309,20 @@ class ListLabels {
         return loc.errorItemIdTaken;
       case ListErrorCode.itemInOtherList:
         return loc.errorItemInOtherList;
+      case ListErrorCode.missingArg:
+        return loc.errorMissingArg(error.arg('arg'));
+      case ListErrorCode.wrongArgType:
+        return loc.errorWrongArgType(error.arg('arg'));
+      case ListErrorCode.unknownArg:
+        return loc.errorUnknownArg(error.arg('arg'));
+      case ListErrorCode.unknownList:
+        return loc.errorUnknownList;
+      case ListErrorCode.unknownItem:
+        return loc.errorUnknownItem;
+      case ListErrorCode.unknownField:
+        return loc.errorUnknownField(name);
+      case ListErrorCode.listChanged:
+        return loc.errorListChanged;
     }
   }
 

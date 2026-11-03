@@ -832,4 +832,33 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get startEmpty => '空で始める';
+
+  @override
+  String errorMissingArg(String arg) {
+    return '変更に「$arg」がありません。';
+  }
+
+  @override
+  String errorWrongArgType(String arg) {
+    return '変更の「$arg」の値の種類が正しくありません。';
+  }
+
+  @override
+  String errorUnknownArg(String arg) {
+    return '変更に不明な設定「$arg」があります。';
+  }
+
+  @override
+  String get errorUnknownList => 'リストが見つかりません。';
+
+  @override
+  String get errorUnknownItem => '変更する項目がリストに見つかりません。';
+
+  @override
+  String errorUnknownField(String field) {
+    return '「$field」はこのリストのフィールドではありません。';
+  }
+
+  @override
+  String get errorListChanged => 'リストがその後変更されたため、元に戻せません。';
 }

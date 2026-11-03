@@ -303,5 +303,12 @@
   "tryAgain": "再試行",
   "listChangeNotSaved": "リストの変更を保存できなかったため、元に戻しました。",
   "starterListsFailed": "初期リストを作成できませんでした。",
-  "startEmpty": "空で始める"
+  "startEmpty": "空で始める",
+  "errorMissingArg": "変更に「{arg}」がありません。",
+  "errorWrongArgType": "変更の「{arg}」の値の種類が正しくありません。",
+  "errorUnknownArg": "変更に不明な設定「{arg}」があります。",
+  "errorUnknownList": "リストが見つかりません。",
+  "errorUnknownItem": "変更する項目がリストに見つかりません。",
+  "errorUnknownField": "「{field}」はこのリストのフィールドではありません。",
+  "errorListChanged": "リストがその後変更されたため、元に戻せません。"
 }

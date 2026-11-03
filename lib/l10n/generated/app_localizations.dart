@@ -1549,6 +1549,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Start empty'**
   String get startEmpty;
+
+  /// No description provided for @errorMissingArg.
+  ///
+  /// In en, this message translates to:
+  /// **'A change is missing \"{arg}\".'**
+  String errorMissingArg(String arg);
+
+  /// No description provided for @errorWrongArgType.
+  ///
+  /// In en, this message translates to:
+  /// **'A change has the wrong kind of value for \"{arg}\".'**
+  String errorWrongArgType(String arg);
+
+  /// No description provided for @errorUnknownArg.
+  ///
+  /// In en, this message translates to:
+  /// **'A change has an unknown setting \"{arg}\".'**
+  String errorUnknownArg(String arg);
+
+  /// No description provided for @errorUnknownList.
+  ///
+  /// In en, this message translates to:
+  /// **'The list was not found.'**
+  String get errorUnknownList;
+
+  /// No description provided for @errorUnknownItem.
+  ///
+  /// In en, this message translates to:
+  /// **'An item to change was not found in the list.'**
+  String get errorUnknownItem;
+
+  /// No description provided for @errorUnknownField.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{field}\" is not a field of this list.'**
+  String errorUnknownField(String field);
+
+  /// No description provided for @errorListChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'The list has changed since, so this cannot be undone.'**
+  String get errorListChanged;
 }
 
 class _AppLocalizationsDelegate

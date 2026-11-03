@@ -303,5 +303,12 @@
   "tryAgain": "重试",
   "listChangeNotSaved": "列表更改无法保存，已撤销。",
   "starterListsFailed": "无法创建初始列表。",
-  "startEmpty": "从空白开始"
+  "startEmpty": "从空白开始",
+  "errorMissingArg": "某项更改缺少“{arg}”。",
+  "errorWrongArgType": "某项更改中“{arg}”的值类型不正确。",
+  "errorUnknownArg": "某项更改包含未知设置“{arg}”。",
+  "errorUnknownList": "未找到该列表。",
+  "errorUnknownItem": "在列表中未找到要更改的条目。",
+  "errorUnknownField": "“{field}”不是此列表的字段。",
+  "errorListChanged": "列表在此之后已更改，因此无法撤销。"
 }

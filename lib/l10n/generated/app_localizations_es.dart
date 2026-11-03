@@ -840,4 +840,35 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get startEmpty => 'Empezar sin listas';
+
+  @override
+  String errorMissingArg(String arg) {
+    return 'A un cambio le falta «$arg».';
+  }
+
+  @override
+  String errorWrongArgType(String arg) {
+    return 'Un cambio tiene un valor de tipo incorrecto para «$arg».';
+  }
+
+  @override
+  String errorUnknownArg(String arg) {
+    return 'Un cambio tiene un ajuste desconocido «$arg».';
+  }
+
+  @override
+  String get errorUnknownList => 'No se encontró la lista.';
+
+  @override
+  String get errorUnknownItem =>
+      'No se encontró en la lista un elemento que se iba a cambiar.';
+
+  @override
+  String errorUnknownField(String field) {
+    return '«$field» no es un campo de esta lista.';
+  }
+
+  @override
+  String get errorListChanged =>
+      'La lista ha cambiado desde entonces, así que no se puede deshacer.';
 }
