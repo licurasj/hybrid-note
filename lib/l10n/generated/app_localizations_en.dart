@@ -885,4 +885,34 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String listColorName(String name) {
+    String _temp0 = intl.Intl.selectLogic(name, {
+      'orange': 'Orange',
+      'green': 'Green',
+      'magenta': 'Magenta',
+      'violet': 'Violet',
+      'yellow': 'Yellow',
+      'rose': 'Rose',
+      'teal': 'Teal',
+      'blue': 'Blue',
+      'other': 'Colour',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String listIconName(String name) {
+    String _temp0 = intl.Intl.selectLogic(name, {
+      'pending_actions': 'Clipboard',
+      'checklist': 'Checklist',
+      'shopping_cart': 'Shopping cart',
+      'book': 'Book',
+      'movie': 'Film',
+      'local_florist': 'Flower',
+      'other': 'List',
+    });
+    return '$_temp0';
+  }
 }

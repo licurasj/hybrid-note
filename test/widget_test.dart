@@ -557,7 +557,21 @@ void main() {
     expect(find.byType(ListEditorScreen), findsOneWidget);
   });
 
-  testWidgets('the add button of a list pops in once the page has arrived and out as it leaves', (
+  // The add button's own size animation (under the hub) and whether any
+  // turn is applied around it.
+  Animation<double> addScale(WidgetTester tester) => tester
+      .widget<ScaleTransition>(find.byKey(const ValueKey('add-button-scale')))
+      .scale;
+  bool addTurns(WidgetTester tester) => tester
+      .widgetList<RotationTransition>(
+        find.ancestor(
+          of: find.byType(FloatingActionButton),
+          matching: find.byType(RotationTransition),
+        ),
+      )
+      .any((transition) => transition.turns.value % 1 != 0);
+
+  testWidgets('the add button of a list grows in once the page has arrived and shrinks as it leaves', (
     WidgetTester tester,
   ) async {
     await _pumpApp(tester, FakeAuthService(user: testUser));
@@ -577,28 +591,38 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.byType(FloatingActionButton), findsNothing);
+    expect(addScale(tester).value, 0);
     await settle(tester);
-    expect(find.byType(FloatingActionButton), findsOneWidget);
+    expect(addScale(tester).value, 1);
+    expect(addTurns(tester), isFalse);
 
-    // Leaving for the home: the button shrinks away while the page goes.
+    // Leaving for the home: the button shrinks away (size only) while the
+    // page goes.
     await tester.binding.handlePopRoute();
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 20));
     await tester.pump(const Duration(milliseconds: 50));
-    final Finder add = find.byType(FloatingActionButton);
-    expect(
-      add.evaluate().isEmpty ||
-          tester
-                  .widget<ScaleTransition>(
-                    find
-                        .ancestor(of: add, matching: find.byType(ScaleTransition))
-                        .first,
-                  )
-                  .scale
-                  .status ==
-              AnimationStatus.reverse,
-      isTrue,
+    expect(addScale(tester).status, AnimationStatus.reverse);
+    expect(addScale(tester).value, lessThan(1));
+    expect(addTurns(tester), isFalse);
+    await settle(tester);
+  });
+
+  testWidgets('with reduced motion the add button is there at once', (
+    WidgetTester tester,
+  ) async {
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    await _pumpApp(tester, FakeAuthService(user: testUser));
+    await tester.tap(_hub);
+    await tester.pump();
+    await tester.tap(
+      find.byKey(ValueKey('launcher-note-${BuiltinTemplates.groceryId}')),
     );
+    await tester.pump();
+    await tester.pump();
+    expect(addScale(tester).value, 1);
     await settle(tester);
   });
 
@@ -609,7 +633,16 @@ void main() {
 
     await _openSettings(tester);
     expect(_hub, findsNothing);
-    await _closeSettings(tester);
+    // Halfway through the sheet sliding away the hub is still hidden; it
+    // comes back once the sheet has gone.
+    Navigator.of(
+      tester.element(find.byKey(const ValueKey('settings-account'))),
+    ).pop();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 60));
+    expect(find.byKey(const ValueKey('settings-account')), findsOneWidget);
+    expect(_hub, findsNothing);
+    await tester.pumpAndSettle();
     expect(_hub, findsOneWidget);
   });
 

@@ -874,4 +874,34 @@ class AppLocalizationsZh extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String listColorName(String name) {
+    String _temp0 = intl.Intl.selectLogic(name, {
+      'orange': '橙色',
+      'green': '绿色',
+      'magenta': '洋红',
+      'violet': '紫罗兰',
+      'yellow': '黄色',
+      'rose': '玫红',
+      'teal': '青色',
+      'blue': '蓝色',
+      'other': '颜色',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String listIconName(String name) {
+    String _temp0 = intl.Intl.selectLogic(name, {
+      'pending_actions': '剪贴板',
+      'checklist': '清单',
+      'shopping_cart': '购物车',
+      'book': '书',
+      'movie': '电影',
+      'local_florist': '花',
+      'other': '列表',
+    });
+    return '$_temp0';
+  }
 }

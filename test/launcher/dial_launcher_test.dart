@@ -1,6 +1,9 @@
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:hybrid_note/launcher/dial_launcher.dart';
@@ -26,7 +29,12 @@ Future<List<String>> _pump(
   int count = 4,
   bool inList = false,
   bool reduceMotion = false,
+  double textScale = 1,
+  // To change the lists while the dial is open (as a sync would).
+  ValueNotifier<List<LauncherNote>>? lists,
 }) async {
+  final ValueNotifier<List<LauncherNote>> notes =
+      lists ?? ValueNotifier(_notes(count));
   final List<String> log = [];
   tester.view.physicalSize = const Size(400, 800);
   tester.view.devicePixelRatio = 1;
@@ -38,15 +46,19 @@ Future<List<String>> _pump(
         data: MediaQueryData(
           size: const Size(400, 800),
           disableAnimations: reduceMotion,
+          textScaler: TextScaler.linear(textScale),
         ),
         child: Scaffold(
-          body: DialLauncher(
-            notes: _notes(count),
-            onOpen: (note) => log.add('open ${note.id}'),
-            onEdit: (note) => log.add('edit ${note.id}'),
-            onNew: () => log.add('new'),
-            onHome: inList ? () => log.add('home') : null,
-            onHubMoved: (position) => log.add('moved'),
+          body: ValueListenableBuilder<List<LauncherNote>>(
+            valueListenable: notes,
+            builder: (context, value, _) => DialLauncher(
+              notes: value,
+              onOpen: (note) => log.add('open ${note.id}'),
+              onEdit: (note) => log.add('edit ${note.id}'),
+              onNew: () => log.add('new'),
+              onHome: inList ? () => log.add('home') : null,
+              onHubMoved: (position) => log.add('moved'),
+            ),
           ),
         ),
       ),
@@ -270,5 +282,161 @@ void main() {
       first,
     );
     await gesture.up();
+  });
+
+  testWidgets('a list removed elsewhere during a hold keeps the pick on it', (
+    WidgetTester tester,
+  ) async {
+    final ValueNotifier<List<LauncherNote>> lists = ValueNotifier(_notes(4));
+    final List<String> log = await _pump(tester, lists: lists);
+    final TestGesture gesture = await _pickFirst(tester);
+    final double diagonal = _diagonal(tester);
+    await _turn(tester, gesture, diagonal, diagonal + 2.1 * _step, 160);
+    await tester.pump(const Duration(milliseconds: 300));
+    // n2 is selected; another device deletes n0.
+    lists.value = _notes(4).sublist(1);
+    await tester.pump(const Duration(milliseconds: 50));
+    await gesture.up();
+    await tester.pump();
+    expect(log, ['open n2']);
+  });
+
+  testWidgets('the selected list removed elsewhere is let go, not swapped', (
+    WidgetTester tester,
+  ) async {
+    final ValueNotifier<List<LauncherNote>> lists = ValueNotifier(_notes(4));
+    final List<String> log = await _pump(tester, lists: lists);
+    final TestGesture gesture = await _pickFirst(tester);
+    final double diagonal = _diagonal(tester);
+    await _turn(tester, gesture, diagonal, diagonal + 3.1 * _step, 160);
+    await tester.pump(const Duration(milliseconds: 300));
+    // n3, the last, is selected; it is deleted.
+    lists.value = _notes(3);
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(tester.takeException(), isNull);
+    await gesture.up();
+    await tester.pump();
+    expect(log, isEmpty);
+  });
+
+  testWidgets('dragging off the dial and letting go cancels', (
+    WidgetTester tester,
+  ) async {
+    final List<String> log = await _pump(tester);
+    TestGesture gesture = await _pickFirst(tester);
+    // Far past the longest tab.
+    await _moveTo(
+      tester,
+      gesture,
+      _at(tester, _diagonal(tester), 160),
+      const Offset(20, 20),
+    );
+    await gesture.up();
+    await tester.pump();
+    // Out past the side edge, beyond the quarter.
+    gesture = await _pickFirst(tester);
+    await _moveTo(
+      tester,
+      gesture,
+      _at(tester, _diagonal(tester), 160),
+      _at(tester, -0.6, 60),
+    );
+    await gesture.up();
+    await tester.pump();
+    expect(log, isEmpty);
+  });
+
+  testWidgets('tap mode reaches every list with the arrows and the keys', (
+    WidgetTester tester,
+  ) async {
+    final List<String> log = await _pump(tester, count: 12);
+    await tester.tap(find.byKey(const ValueKey('launcher-hub')));
+    await tester.pumpAndSettle();
+    for (int i = 0; i < 11; i++) {
+      await tester.tap(find.byKey(const ValueKey('launcher-next')));
+      await tester.pumpAndSettle();
+    }
+    expect(find.byKey(const ValueKey('launcher-note-n11')), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(log, ['open n11']);
+
+    // Keys: arrows step, E edits.
+    await tester.tap(find.byKey(const ValueKey('launcher-hub')));
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
+    await tester.pump();
+    expect(log, ['open n11', 'edit n2']);
+
+    // Enter on the closed dial opens tap mode; Esc closes it.
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('launcher-barrier')), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('launcher-barrier')), findsNothing);
+
+    // A right-click on a tab edits it.
+    await tester.tap(find.byKey(const ValueKey('launcher-hub')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('launcher-note-n0')),
+      buttons: kSecondaryButton,
+    );
+    await tester.pump();
+    expect(log, ['open n11', 'edit n2', 'edit n0']);
+  });
+
+  testWidgets('tap mode stops animating once settled', (
+    WidgetTester tester,
+  ) async {
+    await _pump(tester);
+    await tester.tap(find.byKey(const ValueKey('launcher-hub')));
+    // pumpAndSettle would time out if the dial kept ticking.
+    await tester.pumpAndSettle();
+    expect(tester.binding.hasScheduledFrame, isFalse);
+  });
+
+  testWidgets('screen readers can open the dial and each tab has its name', (
+    WidgetTester tester,
+  ) async {
+    final SemanticsHandle handle = tester.ensureSemantics();
+    final List<String> log = await _pump(tester);
+    final SemanticsNode hub =
+        tester.getSemantics(find.bySemanticsLabel('Lists'));
+    expect(hub.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+    tester.semantics.tap(find.semantics.byLabel('Lists'));
+    await tester.pumpAndSettle();
+
+    final SemanticsNode note =
+        tester.getSemantics(find.bySemanticsLabel('Note 1'));
+    final SemanticsData data = note.getSemanticsData();
+    expect(data.hasAction(SemanticsAction.tap), isTrue);
+    expect(data.hasAction(SemanticsAction.longPress), isTrue);
+    expect(find.bySemanticsLabel('New list'), findsOneWidget);
+    tester.semantics.tap(find.semantics.byLabel('Note 1'));
+    await tester.pump();
+    expect(log, ['open n1']);
+    handle.dispose();
+  });
+
+  testWidgets('at twice the text size the names fit their boxes', (
+    WidgetTester tester,
+  ) async {
+    await _pump(tester, textScale: 2);
+    await tester.tap(find.byKey(const ValueKey('launcher-hub')));
+    await tester.pumpAndSettle();
+    final Iterable<RenderParagraph> names = tester
+        .renderObjectList<RenderParagraph>(find.textContaining('Note'));
+    expect(names, isNotEmpty);
+    for (final RenderParagraph name in names) {
+      expect(
+        name.getMaxIntrinsicHeight(double.infinity),
+        lessThanOrEqualTo(name.size.height + 0.5),
+      );
+    }
   });
 }

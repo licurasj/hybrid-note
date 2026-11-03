@@ -270,6 +270,9 @@ class _MainShellState extends State<MainShell> {
                                   editLabel: loc.edit,
                                   moveLabel: loc.moveHub,
                                   addLabel: loc.newList,
+                                  previousLabel: loc.previous,
+                                  nextLabel: loc.next,
+                                  noteHint: loc.launcherNoteHint,
                                   hubPosition: settings.hubPosition,
                                   onHubMoved: context
                                       .read<AppSettingsCubit>()
@@ -337,8 +340,21 @@ class _TopRoute extends NavigatorObserver {
       _set(route);
 
   @override
-  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) =>
-      _set(previousRoute);
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    // A sheet or dialog still covers the page while it slides away: the
+    // shell knows at once what is on top, but the hub stays hidden until
+    // the sheet has gone.
+    if (route is TransitionRoute && route is! PageRoute) {
+      _top = previousRoute;
+      route.completed.whenComplete(() {
+        if (!_disposed && identical(_top, previousRoute)) {
+          _set(previousRoute);
+        }
+      });
+      return;
+    }
+    _set(previousRoute);
+  }
 
   @override
   void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {

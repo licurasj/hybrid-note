@@ -643,33 +643,37 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
     );
   }
 
-  // An icon in a ring; the chosen one is filled with the text colour.
+  // An icon in a ring; the chosen one is filled with the text colour. The
+  // whole 48 dp square takes the tap.
   Widget _iconChoice(EditorLook look, String name, IconData icon) {
     final bool selected = _draft.icon == name;
     return Semantics(
+      button: true,
       selected: selected,
-      child: SizedBox.square(
-        dimension: 48,
-        child: Center(
-          child: Material(
-            color: selected ? look.neutrals.text : Colors.transparent,
-            shape: CircleBorder(
-              side: selected
-                  ? BorderSide.none
-                  : BorderSide(color: look.neutrals.line),
-            ),
-            child: InkWell(
-              key: ValueKey('icon-$name'),
-              customBorder: const CircleBorder(),
-              onTap: () =>
-                  _push(ListPatchOp(PatchOpKind.setListInfo, {'icon': name})),
-              child: SizedBox.square(
-                dimension: 44,
-                child: Icon(
-                  icon,
-                  size: 20,
-                  color: selected ? look.neutrals.ground : look.neutrals.text,
-                ),
+      label: AppLocalizations.of(context).listIconName(name),
+      excludeSemantics: true,
+      child: InkWell(
+        key: ValueKey('icon-$name'),
+        customBorder: const CircleBorder(),
+        onTap: () =>
+            _push(ListPatchOp(PatchOpKind.setListInfo, {'icon': name})),
+        child: SizedBox.square(
+          dimension: 48,
+          child: Center(
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: selected ? look.neutrals.text : Colors.transparent,
+                shape: BoxShape.circle,
+                border: selected
+                    ? null
+                    : Border.all(color: look.neutrals.line),
+              ),
+              child: Icon(
+                icon,
+                size: 20,
+                color: selected ? look.neutrals.ground : look.neutrals.text,
               ),
             ),
           ),
@@ -680,38 +684,44 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
 
   // A colour disc, in its dark variant in dark mode. The chosen one gets the
   // eclipse: a ring in the text colour overlapping it, shifted up and right.
+  // The whole 48 dp square takes the tap.
   Widget _swatch(EditorLook look, String color) {
     final Brightness brightness = Theme.of(context).brightness;
     final bool selected = _draft.color.toUpperCase() == color;
     const double disc = 36;
-    final String? name = listPalette
-        .where((entry) => listColor(color).toARGB32() == entry.light.toARGB32())
-        .firstOrNull
-        ?.name;
+    final int value = listColor(color).toARGB32();
+    final String name = listPalette
+            .where((entry) => entry.light.toARGB32() == value)
+            .firstOrNull
+            ?.name ??
+        '';
     return Semantics(
+      button: true,
       selected: selected,
-      label: name,
-      child: SizedBox.square(
-        dimension: 48,
-        child: Stack(
-          alignment: Alignment.center,
-          clipBehavior: Clip.none,
-          children: [
-            Material(
-              color: listColor(color, brightness: brightness),
-              shape: const CircleBorder(),
-              child: InkWell(
-                key: ValueKey('color-$color'),
-                customBorder: const CircleBorder(),
-                onTap: () => _push(
-                  ListPatchOp(PatchOpKind.setListInfo, {'color': color}),
+      label: AppLocalizations.of(context).listColorName(name),
+      excludeSemantics: true,
+      child: InkWell(
+        key: ValueKey('color-$color'),
+        customBorder: const CircleBorder(),
+        onTap: () => _push(
+          ListPatchOp(PatchOpKind.setListInfo, {'color': color}),
+        ),
+        child: SizedBox.square(
+          dimension: 48,
+          child: Stack(
+            alignment: Alignment.center,
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: disc,
+                height: disc,
+                decoration: BoxDecoration(
+                  color: listColor(color, brightness: brightness),
+                  shape: BoxShape.circle,
                 ),
-                child: const SizedBox.square(dimension: disc),
               ),
-            ),
-            if (selected)
-              IgnorePointer(
-                child: Transform.translate(
+              if (selected)
+                Transform.translate(
                   offset: const Offset(6, -4),
                   child: Container(
                     key: const ValueKey('color-selected'),
@@ -723,8 +733,8 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
                     ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );

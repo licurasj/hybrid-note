@@ -312,5 +312,7 @@
   "startEmpty": "Leer beginnen",
   "settings": "Einstellungen",
   "darkMode": "Dunkler Modus",
-  "homeThingsToday": "{count, plural, =0{Heute nichts fällig} =1{1 Sache heute} other{{count} Sachen heute}}"
+  "homeThingsToday": "{count, plural, =0{Heute nichts fällig} =1{1 Sache heute} other{{count} Sachen heute}}",
+  "listColorName": "{name, select, orange{Orange} green{Grün} magenta{Magenta} violet{Violett} yellow{Gelb} rose{Rosa} teal{Petrol} blue{Blau} other{Farbe}}",
+  "listIconName": "{name, select, pending_actions{Klemmbrett} checklist{Checkliste} shopping_cart{Einkaufswagen} book{Buch} movie{Film} local_florist{Blume} other{Liste}}"
 }

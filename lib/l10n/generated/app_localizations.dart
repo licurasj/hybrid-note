@@ -1603,6 +1603,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =0{Nothing due today} =1{1 thing today} other{{count} things today}}'**
   String homeThingsToday(int count);
+
+  /// No description provided for @listColorName.
+  ///
+  /// In en, this message translates to:
+  /// **'{name, select, orange{Orange} green{Green} magenta{Magenta} violet{Violet} yellow{Yellow} rose{Rose} teal{Teal} blue{Blue} other{Colour}}'**
+  String listColorName(String name);
+
+  /// No description provided for @listIconName.
+  ///
+  /// In en, this message translates to:
+  /// **'{name, select, pending_actions{Clipboard} checklist{Checklist} shopping_cart{Shopping cart} book{Book} movie{Film} local_florist{Flower} other{List}}'**
+  String listIconName(String name);
 }
 
 class _AppLocalizationsDelegate

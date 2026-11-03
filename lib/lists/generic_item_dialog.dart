@@ -58,6 +58,9 @@ class _GenericItemDialogState extends State<GenericItemDialog> {
   late final Map<String, dynamic> _values;
   final Map<String, TextEditingController> _controllers = {};
   final Map<String, List<_SubItemDraft>> _subItems = {};
+  // Removed subtask drafts, kept until the sheet closes: their text field may
+  // still be unmounting when they are removed.
+  final List<_SubItemDraft> _removedDrafts = [];
   final Map<String, TextEditingController> _customDays = {};
   String? _error;
 
@@ -129,13 +132,15 @@ class _GenericItemDialogState extends State<GenericItemDialog> {
       ..._customDays.values,
       for (final List<_SubItemDraft> drafts in _subItems.values)
         for (final _SubItemDraft draft in drafts) draft.controller,
+      for (final _SubItemDraft draft in _removedDrafts) draft.controller,
     ]) {
       controller.dispose();
     }
-    for (final List<_SubItemDraft> drafts in _subItems.values) {
-      for (final _SubItemDraft draft in drafts) {
-        draft.focus.dispose();
-      }
+    for (final _SubItemDraft draft in [
+      for (final List<_SubItemDraft> drafts in _subItems.values) ...drafts,
+      ..._removedDrafts,
+    ]) {
+      draft.focus.dispose();
     }
     super.dispose();
   }
@@ -842,6 +847,7 @@ class _GenericItemDialogState extends State<GenericItemDialog> {
                       onPressed: () {
                         setState(() {
                           drafts.remove(draft);
+                          _removedDrafts.add(draft);
                         });
                       },
                     ),

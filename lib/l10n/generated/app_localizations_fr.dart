@@ -888,4 +888,34 @@ class AppLocalizationsFr extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String listColorName(String name) {
+    String _temp0 = intl.Intl.selectLogic(name, {
+      'orange': 'Orange',
+      'green': 'Vert',
+      'magenta': 'Magenta',
+      'violet': 'Violet',
+      'yellow': 'Jaune',
+      'rose': 'Rose',
+      'teal': 'Bleu canard',
+      'blue': 'Bleu',
+      'other': 'Couleur',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String listIconName(String name) {
+    String _temp0 = intl.Intl.selectLogic(name, {
+      'pending_actions': 'Presse-papiers',
+      'checklist': 'Liste de contrôle',
+      'shopping_cart': 'Panier',
+      'book': 'Livre',
+      'movie': 'Film',
+      'local_florist': 'Fleur',
+      'other': 'Liste',
+    });
+    return '$_temp0';
+  }
 }

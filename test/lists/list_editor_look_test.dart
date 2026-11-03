@@ -51,17 +51,17 @@ Future<void> _pumpEditor(
   await tester.pumpAndSettle();
 }
 
+// The swatch's disc: the first circle inside its 48 dp target.
 Color _discColor(WidgetTester tester, String hex) {
-  return tester
-      .widget<Material>(
-        find
-            .ancestor(
-              of: find.byKey(ValueKey('color-$hex')),
-              matching: find.byType(Material),
-            )
-            .first,
-      )
-      .color!;
+  final Container disc = tester.widget<Container>(
+    find
+        .descendant(
+          of: find.byKey(ValueKey('color-$hex')),
+          matching: find.byType(Container),
+        )
+        .first,
+  );
+  return (disc.decoration! as BoxDecoration).color!;
 }
 
 void main() {
@@ -71,12 +71,7 @@ void main() {
       await _pumpEditor(tester, _grocery);
 
       Finder ringOn(String hex) => find.descendant(
-        of: find
-            .ancestor(
-              of: find.byKey(ValueKey('color-$hex')),
-              matching: find.byType(Stack),
-            )
-            .first,
+        of: find.byKey(ValueKey('color-$hex')),
         matching: find.byKey(const ValueKey('color-selected')),
       );
 
@@ -88,6 +83,33 @@ void main() {
       expect(find.byKey(const ValueKey('color-selected')), findsOneWidget);
       expect(ringOn('#6B3BFF'), findsOneWidget);
       expect(ringOn(_grocery.color), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a colour or icon takes a tap anywhere in its 48 dp square and has a name',
+    (tester) async {
+      final SemanticsHandle handle = tester.ensureSemantics();
+      await _pumpEditor(tester, _grocery);
+      // Just inside the square's left edge, outside the 36 dp disc.
+      final Rect violet =
+          tester.getRect(find.byKey(const ValueKey('color-#6B3BFF')));
+      expect(violet.width, 48);
+      await tester.tapAt(violet.centerLeft + const Offset(3, 0));
+      await tester.pump();
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('color-#6B3BFF')),
+          matching: find.byKey(const ValueKey('color-selected')),
+        ),
+        findsOneWidget,
+      );
+      expect(find.bySemanticsLabel('Violet'), findsOneWidget);
+
+      final Rect book = tester.getRect(find.byKey(const ValueKey('icon-book')));
+      expect(book.width, 48);
+      expect(find.bySemanticsLabel('Book'), findsOneWidget);
+      handle.dispose();
     },
   );
 

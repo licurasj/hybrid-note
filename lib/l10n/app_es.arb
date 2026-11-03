@@ -312,5 +312,7 @@
   "startEmpty": "Empezar sin listas",
   "settings": "Ajustes",
   "darkMode": "Modo oscuro",
-  "homeThingsToday": "{count, plural, =0{Nada para hoy} =1{1 cosa hoy} other{{count} cosas hoy}}"
+  "homeThingsToday": "{count, plural, =0{Nada para hoy} =1{1 cosa hoy} other{{count} cosas hoy}}",
+  "listColorName": "{name, select, orange{Naranja} green{Verde} magenta{Magenta} violet{Violeta} yellow{Amarillo} rose{Rosa} teal{Verde azulado} blue{Azul} other{Color}}",
+  "listIconName": "{name, select, pending_actions{Portapapeles} checklist{Lista de control} shopping_cart{Carrito} book{Libro} movie{Película} local_florist{Flor} other{Lista}}"
 }

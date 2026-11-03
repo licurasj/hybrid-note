@@ -312,5 +312,7 @@
   "startEmpty": "从空白开始",
   "settings": "设置",
   "darkMode": "深色模式",
-  "homeThingsToday": "{count, plural, =0{今天没有待办} other{今天 {count} 件事}}"
+  "homeThingsToday": "{count, plural, =0{今天没有待办} other{今天 {count} 件事}}",
+  "listColorName": "{name, select, orange{橙色} green{绿色} magenta{洋红} violet{紫罗兰} yellow{黄色} rose{玫红} teal{青色} blue{蓝色} other{颜色}}",
+  "listIconName": "{name, select, pending_actions{剪贴板} checklist{清单} shopping_cart{购物车} book{书} movie{电影} local_florist{花} other{列表}}"
 }

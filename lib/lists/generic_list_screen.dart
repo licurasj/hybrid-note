@@ -72,7 +72,8 @@ class GenericListScreen extends StatefulWidget {
   }
 }
 
-class _GenericListScreenState extends State<GenericListScreen> {
+class _GenericListScreenState extends State<GenericListScreen>
+    with SingleTickerProviderStateMixin {
   // Text and headers sit on the side margin. Rows sit 12 px outside it, so
   // their 48 px checkbox and menu targets line up with it visually.
   static const double _margin = AppShapes.sideMargin;
@@ -85,20 +86,34 @@ class _GenericListScreenState extends State<GenericListScreen> {
 
   late _Look _look;
 
-  // Under the floating launcher the add button pops in once the page has
+  // Under the floating launcher the add button grows in once the page has
   // arrived and shrinks away as soon as the page starts to leave (going
-  // home, or another list replacing it), the same way it moves with the hub
-  // (the Scaffold's button entrance and exit).
+  // home, or another list replacing it), as it does when the hub moves: size
+  // only, and at once with reduced motion (docs/AESTHETICS.md, Motion).
   bool _pageArrived = false;
   bool _pageLeaving = false;
+  bool _reduceMotion = false;
   Animation<double>? _pageAnimation;
   Animation<double>? _coverAnimation;
+  late final AnimationController _addIn = AnimationController(
+    vsync: this,
+    duration: AppMotion.standard,
+  );
+  late final CurvedAnimation _addScale = CurvedAnimation(
+    parent: _addIn,
+    curve: AppMotion.curve,
+    // Leaving starts at once, as the page starts to go.
+    reverseCurve: AppMotion.curve.flipped,
+  );
 
   ListDefinition get _definition => widget.definition;
+
+  bool get _addShown => _pageArrived && !_pageLeaving;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _reduceMotion = MediaQuery.disableAnimationsOf(context);
     final ModalRoute<Object?>? route = ModalRoute.of(context);
     final Animation<double>? animation = route?.animation;
     if (animation != _pageAnimation) {
@@ -113,6 +128,21 @@ class _GenericListScreenState extends State<GenericListScreen> {
       _coverAnimation = cover;
       cover?.addStatusListener(_onCoverAnimation);
     }
+    // With reduced motion there is no page transition to wait for.
+    if (_reduceMotion) {
+      _pageArrived = true;
+    }
+    _showAddButton();
+  }
+
+  void _showAddButton() {
+    if (_reduceMotion) {
+      _addIn.value = _addShown ? 1 : 0;
+    } else if (_addShown) {
+      _addIn.forward();
+    } else {
+      _addIn.reverse();
+    }
   }
 
   void _onPageAnimation(AnimationStatus status) {
@@ -123,6 +153,7 @@ class _GenericListScreenState extends State<GenericListScreen> {
         _pageArrived = arrived;
         _pageLeaving = leaving;
       });
+      _showAddButton();
     }
   }
 
@@ -131,6 +162,7 @@ class _GenericListScreenState extends State<GenericListScreen> {
     final bool leaving = status.isForwardOrCompleted;
     if (leaving != _pageLeaving) {
       setState(() => _pageLeaving = leaving);
+      _showAddButton();
     }
   }
 
@@ -138,6 +170,8 @@ class _GenericListScreenState extends State<GenericListScreen> {
   void dispose() {
     _pageAnimation?.removeStatusListener(_onPageAnimation);
     _coverAnimation?.removeStatusListener(_onCoverAnimation);
+    _addScale.dispose();
+    _addIn.dispose();
     super.dispose();
   }
 
@@ -1210,12 +1244,20 @@ class _GenericListScreenState extends State<GenericListScreen> {
           const SizedBox(width: 4),
         ],
       ),
-      floatingActionButton:
-          hubArea == null || (_pageArrived && !_pageLeaving)
-              ? _addButton()
-              : null,
+      floatingActionButton: hubArea == null
+          ? _addButton()
+          : ScaleTransition(
+              key: const ValueKey('add-button-scale'),
+              scale: _addScale,
+              child: IgnorePointer(ignoring: !_addShown, child: _addButton()),
+            ),
       floatingActionButtonLocation:
           hubArea == null ? null : AboveHubButtonLocation(hubArea),
+      floatingActionButtonAnimator: hubArea == null
+          ? null
+          : _reduceMotion
+              ? FloatingActionButtonAnimator.noAnimation
+              : const _SizeOnlyButtonAnimator(),
       body: RefreshIndicator(
         onRefresh: widget.store.refresh,
         color: _look.color,
@@ -1267,4 +1309,46 @@ class _Look {
   final Color color;
   final Color onColor;
   final List<BoxShadow> shadow;
+}
+
+// Moves the add button when the hub moves by shrinking it away and growing
+// it back at its new place: size only, without the default turn
+// (docs/AESTHETICS.md, Motion).
+class _SizeOnlyButtonAnimator extends FloatingActionButtonAnimator {
+  const _SizeOnlyButtonAnimator();
+
+  @override
+  Offset getOffset({
+    required Offset begin,
+    required Offset end,
+    required double progress,
+  }) =>
+      progress < 0.5 ? begin : end;
+
+  @override
+  Animation<double> getScaleAnimation({required Animation<double> parent}) {
+    return parent.drive(
+      TweenSequence<double>([
+        TweenSequenceItem(
+          tween: Tween<double>(begin: 1, end: 0)
+              .chain(CurveTween(curve: Curves.easeIn)),
+          weight: 1,
+        ),
+        TweenSequenceItem(
+          tween: Tween<double>(begin: 0, end: 1)
+              .chain(CurveTween(curve: AppMotion.curve)),
+          weight: 1,
+        ),
+      ]),
+    );
+  }
+
+  @override
+  Animation<double> getRotationAnimation({required Animation<double> parent}) =>
+      const AlwaysStoppedAnimation<double>(1);
+
+  // Continues from where an interrupted move left off.
+  @override
+  double getAnimationRestart(double previousValue) =>
+      previousValue < 0.5 ? previousValue : 1 - previousValue;
 }

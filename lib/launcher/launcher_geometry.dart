@@ -1,19 +1,22 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
-// Tunable numbers for the radial launcher (plan section 5). They need tuning
-// on a real phone (Q-3), so they all live here.
+// Tunable numbers for the launchers (plan section 5). They need tuning on a
+// real phone (Q-3), so they all live here. The dial (DialLauncher, the
+// default since T-16 unit 6) uses the hub, prompt and tap settings and the
+// dial* ones; the fan settings below are for RadialLauncher, kept behind
+// --dart-define=FAN_LAUNCHER=true.
 //
-// Layout, described for a hub nearest the bottom-right corner: list tabs fan
-// out to the hub's upper left as wedges that share the quarter between them.
-// The fan starts `startMarginDegrees` above the bottom edge (the first wedge
-// lies along it) and turns clockwise until `endMarginDegrees` before the right
-// edge. The tab under the finger widens and pushes its neighbours aside
-// (`selectedSpread`). The last `addDegrees` of the fan are the New list ("+")
-// wedge and, while a list is open, the first `homeDegrees` are the Home
-// wedge; neither scrolls. Tabs start behind the hub. For a hub nearer
-// another corner the whole layout is mirrored so the fan always opens away
-// from that corner.
+// Fan layout, described for a hub nearest the bottom-right corner: list tabs
+// fan out to the hub's upper left as wedges that share the quarter between
+// them. The fan starts `startMarginDegrees` above the bottom edge (the first
+// wedge lies along it) and turns clockwise until `endMarginDegrees` before
+// the right edge. The tab under the finger widens and pushes its neighbours
+// aside (`selectedSpread`). The last `addDegrees` of the fan are the New list
+// ("+") wedge and, while a list is open, the first `homeDegrees` are the Home
+// wedge; neither scrolls. Tabs start behind the hub. For a hub nearer another
+// corner the whole layout is mirrored so the fan always opens away from that
+// corner.
 class LauncherConfig {
   const LauncherConfig({
     this.hubRadius = 32,
@@ -42,6 +45,21 @@ class LauncherConfig {
     this.selectedTabScale = 1.3,
     this.neighbourTabScale = 1.08,
     this.selectedSpread = 2.0,
+    this.dialStepDegrees = 12,
+    this.dialSelectedSpread = 1.25,
+    this.dialNeighbourLength = 0.8,
+    this.dialFarLength = 0.68,
+    this.dialTabRoot = 16,
+    this.dialTabCap = 56,
+    this.dialTabGrow = 14,
+    this.dialJogAt = 0.6,
+    this.dialEdgeLeave = 0.25,
+    this.dialEdgeDelay = const Duration(milliseconds: 350),
+    this.dialEdgeInterval = const Duration(milliseconds: 280),
+    this.dialEdgeFastest = const Duration(milliseconds: 110),
+    this.dialOffDialDegrees = 30,
+    this.dialEditDepth = 40,
+    this.dialEditSwipe = 28,
   });
 
   final double hubRadius;
@@ -98,6 +116,36 @@ class LauncherConfig {
   // The selected tab's angle compared with an unselected one; its neighbours
   // widen a little too and the rest give up the room.
   final double selectedSpread;
+
+  // The dial (owner's choices on the phone, T-16 unit 6, 2026-10-30 to
+  // 2026-11-03). Each tab takes this angle; the selected one this many times
+  // more. The selected tab reaches half the screen diagonal; its neighbours
+  // and the rest reach these shares of that.
+  final double dialStepDegrees;
+  final double dialSelectedSpread;
+  final double dialNeighbourLength;
+  final double dialFarLength;
+  // Petal widths: at the hub, the cap at the end, and how much the selected
+  // tab's cap adds.
+  final double dialTabRoot;
+  final double dialTabCap;
+  final double dialTabGrow;
+  // Turning the thumb this many steps picks the next list.
+  final double dialJogAt;
+  // At an edge the hold keeps stepping: first after the delay, then every
+  // interval, shortening to the fastest. Leaving an edge takes this many
+  // steps more, so the selection does not flicker on its border.
+  final double dialEdgeLeave;
+  final Duration dialEdgeDelay;
+  final Duration dialEdgeInterval;
+  final Duration dialEdgeFastest;
+  // Further than this past either edge (or past the longest tab) the finger
+  // is off the dial: nothing is selected, and letting go cancels.
+  final double dialOffDialDegrees;
+  // Edit shows this far beyond the selected tab's end; a swipe this far
+  // outwards selects it.
+  final double dialEditDepth;
+  final double dialEditSwipe;
 
   double get outerRadius => innerRadius + tabLength;
 }

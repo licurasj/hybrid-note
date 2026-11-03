@@ -703,5 +703,21 @@
         "type": "int"
       }
     }
+  },
+  "listColorName": "{name, select, orange{Orange} green{Green} magenta{Magenta} violet{Violet} yellow{Yellow} rose{Rose} teal{Teal} blue{Blue} other{Colour}}",
+  "@listColorName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "listIconName": "{name, select, pending_actions{Clipboard} checklist{Checklist} shopping_cart{Shopping cart} book{Book} movie{Film} local_florist{Flower} other{List}}",
+  "@listIconName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   }
 }
