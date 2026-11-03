@@ -16,9 +16,11 @@ import 'backend/auth_service.dart';
 import 'backend/firestore_setup.dart';
 import 'firebase_options.dart';
 
-// The web App Check site key (reCAPTCHA v3), set at build time once it is
-// registered (T-19 unit 6). Without it the web build sends no App Check
-// token and the function refuses web requests (web is on "enforce").
+// The web App Check site key (Fraud Defense, formerly reCAPTCHA Enterprise;
+// the console no longer offers reCAPTCHA v3), set at build time with
+// --dart-define=RECAPTCHA_SITE_KEY (T-19 unit 6). The site key is public;
+// Fraud Defense has no secret key. Without it the web build sends no App
+// Check token and the function refuses web requests (web is on "enforce").
 const String _recaptchaSiteKey = String.fromEnvironment('RECAPTCHA_SITE_KEY');
 
 Future<void> main() => startApp();
@@ -62,7 +64,7 @@ Future<void> startApp({
 }
 
 // App Check for the AI function (Q-34 1): Play Integrity on Android (the
-// debug provider in debug builds) and reCAPTCHA v3 on web. The function
+// debug provider in debug builds) and Fraud Defense on web. The function
 // decides per app whether a missing token is refused; a failure here never
 // stops the app.
 Future<void> _activateAppCheck() async {
@@ -71,7 +73,9 @@ Future<void> _activateAppCheck() async {
   }
   try {
     await FirebaseAppCheck.instance.activate(
-      providerWeb: kIsWeb ? ReCaptchaV3Provider(_recaptchaSiteKey) : null,
+      providerWeb: kIsWeb
+          ? ReCaptchaEnterpriseProvider(_recaptchaSiteKey)
+          : null,
       providerAndroid: kDebugMode
           ? const AndroidDebugProvider()
           : const AndroidPlayIntegrityProvider(),
