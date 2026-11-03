@@ -35,10 +35,8 @@
         "firebase-debug.log",
         "firebase-debug.*.log",
         "*.local",
-        "src",
+        "*.log",
         "test",
-        "lib/test",
-        "lib/eval",
         "eval"
       ],
       "predeploy": [
