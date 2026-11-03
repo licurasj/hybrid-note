@@ -6,8 +6,12 @@ export interface ListSummary {
   id: string;
   name: string;
   fields: unknown[];
-  /** false: the user turned AI off for this list; it is dropped before the model sees anything. */
-  aiAllowed?: boolean;
+  /**
+   * Required (fail closed, L16 of the unit 5 follow-up review). false: the
+   * user turned AI off for this list; it is dropped before the model sees
+   * anything. Unit 4 leaves such lists out altogether.
+   */
+  aiAllowed: boolean;
 }
 
 /** The list open on screen, if any: its definition and recent items. */
@@ -59,8 +63,8 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
     if (!isRecord(list) || !isId(list.id) || typeof list.name !== 'string' || !Array.isArray(list.fields)) {
       throw refuse('badRequest', 'each list needs id, name and fields');
     }
-    if (list.aiAllowed !== undefined && typeof list.aiAllowed !== 'boolean') {
-      throw refuse('badRequest', 'aiAllowed must be true or false');
+    if (typeof list.aiAllowed !== 'boolean') {
+      throw refuse('badRequest', 'each list needs aiAllowed true or false');
     }
   }
   if (new Set(lists.map((list) => list.id)).size !== lists.length) {

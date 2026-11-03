@@ -21,7 +21,14 @@ import { uidHash, type LogSink, type RequestMeta } from './log';
 import { filterOutput, retryFeedback, type DeclineReason, type SchemaCheck, type ToolCall } from './output';
 import { writePromptLog } from './promptLog';
 import { buildUserMessage, systemPrompt } from './prompt';
-import { ProviderError, type AiProvider, type ProviderCall, type ProviderResponse } from './provider/types';
+import {
+  ProviderError,
+  TOOL_NAMES,
+  type AiProvider,
+  type ProviderCall,
+  type ProviderResponse,
+  type ToolName,
+} from './provider/types';
 import { parseRequest, type AiRequest } from './request';
 import { loadTools, schemaErrors } from './schemas';
 
@@ -82,22 +89,34 @@ export function unbilled(error: unknown): boolean {
     case 'noKey':
       return true;
     case 'overloaded':
-      return error.status !== undefined;
+      return error.status !== undefined && !SLOW_FAILURES.has(error.status);
     default:
       return false;
   }
 }
 
+/**
+ * Gateway timeouts: the answer came after a long wait, maybe after the model
+ * generated (and billed) output, so they count as possibly billed and are not
+ * retried (L15 of the unit 5 follow-up review). Other 5xx answers are fast
+ * refusals: unbilled, retried once.
+ */
+const SLOW_FAILURES = new Set([504, 524]);
+
 /** Errors worth one more try: "busy, try again" answers, which cost nothing. */
 function transient(error: unknown): boolean {
-  return error instanceof ProviderError && (error.kind === 'rateLimit' || (error.kind === 'overloaded' && error.status !== undefined));
+  return error instanceof ProviderError && (error.kind === 'rateLimit' || (error.kind === 'overloaded' && unbilled(error)));
 }
 
 export interface ModelRun {
   response: ProviderResponse;
   usage: Usage;
   attempts: number;
-  /** The self-correction call failed or was skipped; the first answer was used. */
+  /**
+   * Why the first answer was used although the self-correction ran or should
+   * have: its error kind, noTime, or the second answer's flaw (length,
+   * refusal, fewerCalls).
+   */
   retryError?: string;
   /** The failed self-correction call may have been billed (cost unknown). */
   retryMaybeBilled?: boolean;
@@ -153,9 +172,9 @@ export async function runModel(
   if (feedback.length === 0) return { response: first, usage: first.usage, attempts: 1 };
   if (left() < MIN_ATTEMPT_MS) return { response: first, usage: first.usage, attempts: 1, retryError: 'noTime' };
   options.onAttempt?.(2);
+  let second: ProviderResponse;
   try {
-    const second = await attempt({ ...call, retry: { previous: first, feedback } });
-    return { response: second, usage: addUsage(first.usage, second.usage), attempts: 2 };
+    second = await attempt({ ...call, retry: { previous: first, feedback } });
   } catch (error) {
     return {
       response: first,
@@ -165,6 +184,29 @@ export async function runModel(
       retryMaybeBilled: !unbilled(error),
     };
   }
+  // The second answer replaces the first only when it is complete and keeps at
+  // least as many valid calls (L14 of the unit 5 follow-up review); both are paid.
+  const usage = addUsage(first.usage, second.usage);
+  const validFirst = knownCalls(first) - feedback.length;
+  const flaw =
+    second.stopReason !== 'end' ? second.stopReason : validCalls(second, schemaCheck) < validFirst ? 'fewerCalls' : undefined;
+  if (flaw !== undefined) return { response: first, usage, attempts: 2, retryError: flaw };
+  return { response: second, usage, attempts: 2 };
+}
+
+/** Calls to the known tools in an answer. */
+function knownCalls(response: ProviderResponse): number {
+  return response.content.filter((b) => b.type === 'tool_call' && (TOOL_NAMES as readonly string[]).includes(b.name)).length;
+}
+
+/** Calls to the known tools whose arguments pass the schema check. */
+function validCalls(response: ProviderResponse, schemaCheck: SchemaCheck): number {
+  return response.content.filter(
+    (b) =>
+      b.type === 'tool_call' &&
+      (TOOL_NAMES as readonly string[]).includes(b.name) &&
+      schemaCheck(b.name as ToolName, b.args).length === 0,
+  ).length;
 }
 
 /** Finds the caller's tier on the server-only allowlist; T-18 adds the demo tier here. */

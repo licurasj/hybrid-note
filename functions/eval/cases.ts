@@ -57,6 +57,7 @@ function summary(id: string) {
   return {
     id,
     name: LISTS[id].name,
+    aiAllowed: true,
     fields: LISTS[id].fields.map((f) => ({
       key: f.key,
       type: f.type,

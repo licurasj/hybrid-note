@@ -20,7 +20,7 @@ function data(prompt: string) {
     prompt,
     platform: 'android',
     locale: 'en',
-    lists: [{ id: 'grocery', name: 'Grocery', fields: [] }],
+    lists: [{ id: 'grocery', name: 'Grocery', fields: [], aiAllowed: true }],
     openList: { definition: { id: 'grocery', aiAllowed: true, fields: [] }, items: [] },
   };
 }

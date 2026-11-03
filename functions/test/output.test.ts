@@ -15,8 +15,8 @@ const open: AiRequest = parseRequest(
     prompt: 'p',
     locale: 'en',
     lists: [
-      { id: 'grocery', name: 'Grocery', fields: [] },
-      { id: 'todo', name: 'To do', fields: [] },
+      { id: 'grocery', name: 'Grocery', fields: [], aiAllowed: true },
+      { id: 'todo', name: 'To do', fields: [], aiAllowed: true },
     ],
     openList: { definition: { id: 'grocery' }, items: [] },
   },
@@ -39,7 +39,7 @@ describe('filterOutput', () => {
         prompt: 'add milk',
         locale: 'en',
         lists: [
-          { id: 'grocery', name: 'Grocery', fields: [] },
+          { id: 'grocery', name: 'Grocery', fields: [], aiAllowed: true },
           { id: 'diary', name: 'Diary', fields: [], aiAllowed: false },
         ],
         openList: null,

@@ -11,8 +11,8 @@ const request: AiRequest = {
   prompt: 'eggs on Friday',
   locale: 'de',
   lists: [
-    { id: 'grocery', name: 'Grocery', fields: [{ key: 'title', type: 'text' }] },
-    { id: 'tasks', name: 'Tasks', fields: [] },
+    { id: 'grocery', name: 'Grocery', fields: [{ key: 'title', type: 'text' }], aiAllowed: true },
+    { id: 'tasks', name: 'Tasks', fields: [], aiAllowed: true },
   ],
   openList: null,
 };

@@ -10,7 +10,7 @@ import { structuralCheck, type SchemaCheck } from '../src/output';
 import { ProviderError, type AiProvider, type ProviderCall, type ProviderResponse } from '../src/provider/types';
 import type { AiRequest } from '../src/request';
 
-const request: AiRequest = { prompt: 'eggs', locale: 'en', lists: [{ id: 'g', name: 'Grocery', fields: [] }], openList: null };
+const request: AiRequest = { prompt: 'eggs', locale: 'en', lists: [{ id: 'g', name: 'Grocery', fields: [], aiAllowed: true }], openList: null };
 const usage = { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 };
 const ok: ProviderResponse = {
   content: [{ type: 'tool_call', id: 'c1', name: 'reply', args: { text: 'hi' } }],
@@ -103,6 +103,47 @@ describe('runModel', () => {
       assert.equal(result.attempts, 2);
       assert.equal(result.retryError, error.kind);
       assert.equal(result.retryMaybeBilled, billed);
+    }
+  });
+
+  test('a cut, refused or narrower second answer leaves the first in place (L14)', async () => {
+    const two: ProviderResponse = {
+      content: [
+        { type: 'tool_call', id: 'a', name: 'reply', args: { text: 'a' } },
+        { type: 'tool_call', id: 'b', name: 'decline', args: { reason: 'offTopic' } },
+      ],
+      usage,
+      stopReason: 'end',
+    };
+    // The check rejects call b of the first answer only.
+    const onlyB = (): SchemaCheck => {
+      let first = true;
+      return (name) => (first && name === 'decline' ? ((first = false), ['bad']) : []);
+    };
+    const cases: [ProviderResponse, string | undefined][] = [
+      [{ ...ok, stopReason: 'length' }, 'length'],
+      [{ ...ok, stopReason: 'refusal' }, 'refusal'],
+      [{ ...ok, content: [] }, 'fewerCalls'],
+      [ok, undefined], // one valid call, as many as the first answer had
+    ];
+    for (const [second, flaw] of cases) {
+      const clock = { now: 0 };
+      const { provider } = scripted([two, second], clock);
+      const result = await run(provider, onlyB(), clock);
+      assert.equal(result.attempts, 2);
+      assert.equal(result.retryError, flaw);
+      assert.equal(result.response, flaw === undefined ? second : two);
+      assert.deepEqual(result.usage, { inputTokens: 20, outputTokens: 10, cacheReadTokens: 0, cacheWriteTokens: 0 });
+    }
+  });
+
+  test('gateway timeouts (504, 524) count as possibly billed and are not retried (L15)', async () => {
+    for (const status of [504, 524]) {
+      assert.ok(!unbilled(new ProviderError('overloaded', status)));
+      const clock = { now: 0 };
+      const { provider, calls } = scripted([new ProviderError('overloaded', status), ok], clock);
+      await assert.rejects(run(provider, structuralCheck, clock));
+      assert.equal(calls.length, 1);
     }
   });
 

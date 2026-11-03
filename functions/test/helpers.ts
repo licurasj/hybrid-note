@@ -98,8 +98,8 @@ export function request(prompt: string, extra: Record<string, unknown> = {}) {
     platform: 'android',
     locale: 'en',
     lists: [
-      { id: GROCERY, name: 'Grocery', fields: [{ key: 'name', type: 'text' }] },
-      { id: TODO, name: 'To do', fields: [{ key: 'title', type: 'text' }] },
+      { id: GROCERY, name: 'Grocery', fields: [{ key: 'name', type: 'text' }], aiAllowed: true },
+      { id: TODO, name: 'To do', fields: [{ key: 'title', type: 'text' }], aiAllowed: true },
     ],
     openList: {
       definition: { id: GROCERY, name: 'Grocery', aiAllowed: true, fields: [{ key: 'name', type: 'text' }] },

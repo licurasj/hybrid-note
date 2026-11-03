@@ -12,7 +12,7 @@ function base(extra: Record<string, unknown> = {}) {
   return {
     prompt: 'add milk',
     locale: 'en',
-    lists: [{ id: 'grocery', name: 'Grocery', fields: [] }],
+    lists: [{ id: 'grocery', name: 'Grocery', fields: [], aiAllowed: true }],
     openList: { definition: { id: 'grocery', aiAllowed: true }, items: [] },
     ...extra,
   };
@@ -33,11 +33,13 @@ describe('parseRequest', () => {
       lists: [
         { id: 'grocery', name: 'Grocery', fields: [], aiAllowed: true },
         { id: 'diary', name: 'Diary', fields: [], aiAllowed: false },
-        { id: 'tasks', name: 'Tasks', fields: [] },
+        { id: 'tasks', name: 'Tasks', fields: [], aiAllowed: true },
       ],
     });
     assert.deepEqual(parseRequest(data, limits).lists.map((list) => list.id), ['grocery', 'tasks']);
     assert.equal(reason(base({ lists: [{ id: 'grocery', name: 'Grocery', fields: [], aiAllowed: 'no' }] })), 'badRequest');
+    // A summary without the flag is refused, not taken as allowed (fail closed).
+    assert.equal(reason(base({ lists: [{ id: 'grocery', name: 'Grocery', fields: [] }] })), 'badRequest');
   });
 
   test('an open list whose summary says AI off is refused', () => {
@@ -70,9 +72,9 @@ describe('parseRequest', () => {
   test('context limits: items, lists and bytes', () => {
     const items = Array.from({ length: 21 }, (_, i) => ({ id: `i${i}` }));
     assert.equal(reason(base({ openList: { definition: { id: 'grocery' }, items } })), 'contextTooLarge');
-    const lists = Array.from({ length: 101 }, (_, i) => ({ id: `l${i}`, name: 'L', fields: [] }));
+    const lists = Array.from({ length: 101 }, (_, i) => ({ id: `l${i}`, name: 'L', fields: [], aiAllowed: true }));
     assert.equal(reason(base({ lists, openList: null })), 'contextTooLarge');
-    const big = [{ id: 'grocery', name: 'x'.repeat(40000), fields: [] }];
+    const big = [{ id: 'grocery', name: 'x'.repeat(40000), fields: [], aiAllowed: true }];
     assert.equal(reason(base({ lists: big })), 'contextTooLarge');
   });
 
@@ -91,7 +93,7 @@ describe('parseRequest', () => {
       base({ locale: undefined }),
       base({ lists: 'grocery' }),
       base({ lists: [{ id: 'grocery' }] }),
-      base({ lists: [{ id: 'a', name: 'A', fields: [] }, { id: 'a', name: 'B', fields: [] }] }),
+      base({ lists: [{ id: 'a', name: 'A', fields: [], aiAllowed: true }, { id: 'a', name: 'B', fields: [], aiAllowed: true }] }),
       base({ openList: { definition: { id: 'elsewhere' }, items: [] } }),
       base({ openList: { definition: { id: 'grocery' }, items: ['text'] } }),
     ]) {

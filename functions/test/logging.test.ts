@@ -25,8 +25,8 @@ function data(prompt: string, extra: Record<string, unknown> = {}) {
     platform: 'android',
     locale: 'en',
     lists: [
-      { id: 'grocery', name: `Grocery ${LIST_SECRET}`, fields: [{ key: 'name', type: 'text', label: LIST_SECRET }] },
-      { id: 'todo', name: 'To do', fields: [] },
+      { id: 'grocery', name: `Grocery ${LIST_SECRET}`, fields: [{ key: 'name', type: 'text', label: LIST_SECRET }], aiAllowed: true },
+      { id: 'todo', name: 'To do', fields: [], aiAllowed: true },
     ],
     openList: {
       definition: { id: 'grocery', name: `Grocery ${LIST_SECRET}`, aiAllowed: true, fields: [] },
