@@ -508,10 +508,29 @@ void main() {
     await pick(BuiltinTemplates.groceryId);
     expect(host(BuiltinTemplates.groceryId), findsOneWidget);
     expect(_hub, findsOneWidget);
+    // The list's add button sits just above the hub, clear of it.
+    final Rect add = tester.getRect(find.byType(FloatingActionButton));
+    final Rect hub = tester.getRect(_hub);
+    expect(add.bottom, lessThan(hub.top - 8));
+    expect(add.center.dx, closeTo(hub.center.dx, 12));
 
     await pick(BuiltinTemplates.journalId);
     expect(host(BuiltinTemplates.journalId), findsOneWidget);
     expect(host(BuiltinTemplates.groceryId), findsNothing);
+
+    // Inside a list the fan starts with Home; it goes back to the home.
+    await tester.tap(_hub);
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('launcher-home')));
+    await settle(tester);
+    expect(host(BuiltinTemplates.journalId), findsNothing);
+    expect(find.byKey(const ValueKey('settings')), findsOneWidget);
+    await tester.tap(_hub);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('launcher-home')), findsNothing);
+    await tester.tap(_hub);
+    await tester.pump();
+    await pick(BuiltinTemplates.journalId);
 
     // Android back: from list B to the home, not to list A.
     await tester.binding.handlePopRoute();

@@ -9,26 +9,29 @@ import 'dart:ui';
 // The fan starts `startMarginDegrees` above the bottom edge (the first wedge
 // lies along it) and turns clockwise until `endMarginDegrees` before the right
 // edge. The tab under the finger widens and pushes its neighbours aside
-// (`selectedSpread`). "+" sits right next to the hub on the corner side. For a
-// hub nearer another corner the whole layout is mirrored so the fan always
-// opens away from that corner.
+// (`selectedSpread`). The last `addDegrees` of the fan are the New list ("+")
+// wedge and, while a list is open, the first `homeDegrees` are the Home
+// wedge; neither scrolls. Tabs start behind the hub. For a hub nearer
+// another corner the whole layout is mirrored so the fan always opens away
+// from that corner.
 class LauncherConfig {
   const LauncherConfig({
     this.hubRadius = 32,
-    this.defaultHubInsetX = 88,
-    this.defaultHubInsetY = 110,
-    this.screenMargin = 40,
-    this.addRadius = 20,
-    this.addGap = 6,
+    this.defaultHubInsetX = 56,
+    this.defaultHubInsetY = 72,
+    this.screenMargin = 48,
+    this.addDegrees = 12,
+    this.homeDegrees = 12,
     this.startMarginDegrees = 0,
     this.endMarginDegrees = 0,
     this.overscrollDegrees = 20,
-    this.innerRadius = 56,
-    this.tabLength = 170,
-    this.visibleTabs = 5,
+    this.innerRadius = 24,
+    this.tabLength = 150,
+    this.visibleTabs = 4,
     this.promptDelay = const Duration(milliseconds: 1200),
     this.revealDuration = const Duration(milliseconds: 250),
-    this.promptGap = 34,
+    this.editGap = 4,
+    this.editDepth = 36,
     this.promptHitRadius = 26,
     this.promptSelectAt = 0.8,
     this.promptUnselectAt = 0.6,
@@ -36,27 +39,31 @@ class LauncherConfig {
     this.endZoneFraction = 0.15,
     this.maxScrollSpeed = 4,
     this.tapMaxDuration = const Duration(milliseconds: 250),
-    this.selectedTabScale = 1.22,
+    this.selectedTabScale = 1.3,
     this.neighbourTabScale = 1.08,
-    this.selectedSpread = 1.9,
+    this.selectedSpread = 2.0,
   });
 
   final double hubRadius;
   // Where the hub starts before the user moves it, measured from the
-  // bottom-right corner. High enough that the Move prompt fits below it.
+  // bottom-right corner.
   final double defaultHubInsetX;
   final double defaultHubInsetY;
-  // A moved hub stays at least this far from every screen edge.
+  // A moved hub stays at least this far from every screen edge (and never
+  // closer than its own disc and the blue one behind it allow).
   final double screenMargin;
-  final double addRadius;
-  final double addGap;
+  // Angles of the New list wedge at the end of the fan and the Home wedge at
+  // its start.
+  final double addDegrees;
+  final double homeDegrees;
   // Gaps between the fan and the edge it starts from (bottom or top) and the
   // edge it ends at (right or left).
   final double startMarginDegrees;
   final double endMarginDegrees;
   // Past either end of the fan, this far still scrolls it.
   final double overscrollDegrees;
-  // Tabs start at this distance from the hub centre and run outward.
+  // Tabs start at this distance from the hub centre (behind the hub when
+  // smaller than hubRadius) and run outward.
   final double innerRadius;
   final double tabLength;
   // Tabs shown across the fan at once.
@@ -66,8 +73,10 @@ class LauncherConfig {
   final Duration promptDelay;
   // How long a prompt takes to slide out from under its element.
   final Duration revealDuration;
-  // Distance from the element's edge to the prompt's centre.
-  final double promptGap;
+  // The Edit prompt is a further piece of its tab's wedge: this far past the
+  // selected tab's outer end, and this deep.
+  final double editGap;
+  final double editDepth;
   // A finger this close to a prompt's centre has reached it.
   final double promptHitRadius;
   // Progress at which a prompt counts as selected, and below which it lets go
@@ -93,7 +102,7 @@ class LauncherConfig {
   double get outerRadius => innerRadius + tabLength;
 }
 
-enum LauncherTargetKind { none, hub, note, add }
+enum LauncherTargetKind { none, hub, note, add, home }
 
 class LauncherTarget {
   const LauncherTarget(this.kind, [this.noteIndex]);
@@ -101,6 +110,7 @@ class LauncherTarget {
   static const LauncherTarget none = LauncherTarget(LauncherTargetKind.none);
   static const LauncherTarget hub = LauncherTarget(LauncherTargetKind.hub);
   static const LauncherTarget add = LauncherTarget(LauncherTargetKind.add);
+  static const LauncherTarget home = LauncherTarget(LauncherTargetKind.home);
 
   final LauncherTargetKind kind;
   // Index into the full tab strip (not the visible slot).
@@ -128,6 +138,7 @@ class LauncherGeometry {
     Offset? hubPosition,
     this.focus,
     this.focusAmount = 1,
+    this.showHome = false,
   }) : hubCenter = clampHub(config, size, hubPosition ?? defaultHub(config, size));
 
   final LauncherConfig config;
@@ -139,6 +150,8 @@ class LauncherGeometry {
   // keeps every tab the same width.
   final double? focus;
   final double focusAmount;
+  // Whether the fan starts with the Home wedge (a list is open).
+  final bool showHome;
 
   static const double _degree = math.pi / 180;
 
@@ -149,20 +162,12 @@ class LauncherGeometry {
     );
   }
 
-  // Keeps the hub far enough from every edge that "+" (beside it) and the
-  // Move prompt (below or above it) always fit on screen.
+  // Keeps the hub and the blue disc behind it on screen.
   static Offset clampHub(LauncherConfig config, Size size, Offset hub) {
-    final double marginX = math.max(
-      config.screenMargin,
-      config.hubRadius + config.addGap + 2 * config.addRadius + 8,
-    );
-    final double marginY = math.max(
-      config.screenMargin,
-      config.hubRadius + config.promptGap + 18,
-    );
+    final double margin = math.max(config.screenMargin, config.hubRadius + 16);
     return Offset(
-      hub.dx.clamp(marginX, math.max(marginX, size.width - marginX)).toDouble(),
-      hub.dy.clamp(marginY, math.max(marginY, size.height - marginY)).toDouble(),
+      hub.dx.clamp(margin, math.max(margin, size.width - margin)).toDouble(),
+      hub.dy.clamp(margin, math.max(margin, size.height - margin)).toDouble(),
     );
   }
 
@@ -181,16 +186,36 @@ class LauncherGeometry {
 
   double get startAngle => math.pi - config.startMarginDegrees * _degree;
   double get endAngle => math.pi / 2 + config.endMarginDegrees * _degree;
-  double get _span => startAngle - endAngle;
+  // Where the lists begin (after the Home wedge, when shown) and end (where
+  // the New list wedge begins).
+  double get listStartAngle =>
+      startAngle - (showHome ? config.homeDegrees * _degree : 0);
+  double get listEndAngle => endAngle + config.addDegrees * _degree;
+  double get _span => listStartAngle - listEndAngle;
 
-  Offset get addCenter => _flip(
-        _hubFrame +
-            Offset(config.hubRadius + config.addGap + config.addRadius, 0),
+  // The Home wedge's sides and the middle of it (meaningful with showHome).
+  (double, double) get homeSides => (startAngle, listStartAngle);
+
+  Offset get homeCenter => pointAt(
+        (startAngle + listStartAngle) / 2,
+        config.innerRadius + config.tabLength / 2,
+      );
+
+  // The New list wedge's sides and the middle of it.
+  (double, double) get addSides => (listEndAngle, endAngle);
+
+  Offset get addCenter => pointAt(
+        (listEndAngle + endAngle) / 2,
+        config.innerRadius + config.tabLength / 2,
       );
 
   // Outer end of the selected tab, which is scaled up from its hub end.
   double get selectedOuterRadius =>
       config.innerRadius + config.tabLength * config.selectedTabScale;
+
+  // Middle of the Edit segment when nothing pulls it in.
+  double get editRadius =>
+      selectedOuterRadius + config.editGap + config.editDepth / 2;
 
   // Edit prompt: just past the outer end of the (selected, enlarged) tab,
   // along its spoke; pulled in along the spoke when that is off screen.
@@ -201,17 +226,18 @@ class LauncherGeometry {
         point.dx <= size.width - margin &&
         point.dy >= margin &&
         point.dy <= size.height - margin;
-    double radius = selectedOuterRadius + config.promptGap;
+    double radius = editRadius;
     while (!fits(pointAt(angle, radius)) && radius > selectedOuterRadius) {
       radius -= 2;
     }
     return _keepOnScreen(pointAt(angle, radius));
   }
 
-  // Move prompt: below the hub in the corner frame (towards the near edge).
+  // Move prompt: below and inward of the hub in the corner frame, under the
+  // first wedge (which lies along the hub's level), clear of the hub itself.
   Offset get movePromptCenter {
     return _keepOnScreen(
-      _flip(_hubFrame + Offset(0, config.hubRadius + config.promptGap - 8)),
+      _flip(_hubFrame + Offset(-(config.hubRadius + 40), 40)),
     );
   }
 
@@ -285,7 +311,7 @@ class LauncherGeometry {
   }
 
   // Frame angle of a slot coordinate.
-  double _edgeAngle(double x) => startAngle - _warp(x) * _step;
+  double _edgeAngle(double x) => listStartAngle - _warp(x) * _step;
 
   // Frame angle of a (possibly fractional) slot's centre line.
   double slotAngle(double slot) => _edgeAngle(slot + 0.5);
@@ -370,20 +396,26 @@ class LauncherGeometry {
     if (angle < -math.pi / 2) {
       angle += 2 * math.pi;
     }
-    return (startAngle - angle) / _span;
+    return (listStartAngle - angle) / _span;
   }
 
   LauncherTarget hitTest(Offset point, double scrollOffset) {
     if ((point - hubCenter).distance <= config.hubRadius) {
       return LauncherTarget.hub;
     }
-    if ((point - addCenter).distance <= config.addRadius * 1.4) {
-      return LauncherTarget.add;
-    }
-
     final double? position = fanPosition(point);
-    if (position == null || position < 0 || position > 1) {
+    if (position == null) {
       return LauncherTarget.none;
+    }
+    if (position < 0) {
+      return showHome && position >= (listStartAngle - startAngle) / _span
+          ? LauncherTarget.home
+          : LauncherTarget.none;
+    }
+    if (position > 1) {
+      return position <= (listStartAngle - endAngle) / _span
+          ? LauncherTarget.add
+          : LauncherTarget.none;
     }
 
     final int slot =
@@ -396,7 +428,8 @@ class LauncherGeometry {
   }
 
   // Auto-scroll velocity (tabs per second): negative near the start of the
-  // fan, positive near its end, strongest in the margins beyond either end.
+  // lists (strongest in the margin beyond them, unless Home is there),
+  // positive near their end. The New list and Home wedges never scroll.
   double scrollVelocity(Offset point) {
     final double? position = fanPosition(point);
     if (position == null || maxScrollOffset == 0) {
@@ -405,7 +438,7 @@ class LauncherGeometry {
 
     final double zone = config.endZoneFraction;
     final double margin = config.overscrollDegrees * _degree / _span;
-    if (position < -margin || position > 1 + margin) {
+    if (position < (showHome ? 0 : -margin) || position > 1) {
       return 0;
     }
     if (position < zone) {

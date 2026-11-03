@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../app/app_theme.dart';
 import '../app_colors.dart';
 import '../l10n/generated/app_localizations.dart';
+import '../launcher/launcher_hub_area.dart';
 import 'generic_item_dialog.dart';
 import 'list_definition.dart';
 import 'list_icons.dart';
@@ -1111,6 +1112,8 @@ class _GenericListScreenState extends State<GenericListScreen> {
 
     final bool showEmpty =
         visible.isEmpty && _definition.view.kind != ViewKind.sectioned;
+    // Under the floating launcher the add button sits just above its hub.
+    final LauncherHubArea? hubArea = LauncherHubArea.maybeOf(context);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -1129,6 +1132,8 @@ class _GenericListScreenState extends State<GenericListScreen> {
         ],
       ),
       floatingActionButton: _addButton(),
+      floatingActionButtonLocation:
+          hubArea == null ? null : AboveHubButtonLocation(hubArea),
       body: RefreshIndicator(
         onRefresh: widget.store.refresh,
         color: _look.color,

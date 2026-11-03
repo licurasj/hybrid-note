@@ -40,11 +40,11 @@ class LauncherNote {
 // element, moving towards it fills it with colour, releasing on it acts.
 //
 // Hold mode: press the hub and drag onto a tab, release to open. Rest on a
-// tab and "Edit" comes out past its outer end, along its spoke; slide onto it
-// and release to edit, or release anywhere else on the way to open. "+" comes
-// out from under the hub on every press; drag onto it for a new list. Rest on
-// the hub and "Move" comes out below it; reaching it picks the hub up, which
-// then follows the finger until release.
+// tab and "Edit" comes out past its outer end as a further piece of its
+// wedge; slide onto it and release to edit, or release anywhere else on the
+// way to open. The last wedge of the fan is New list ("+"); release on it for
+// a new list. With onHome (a list is open) the first wedge is Home. Rest on the hub and "Move" comes out below it; reaching it
+// picks the hub up, which then follows the finger until release.
 // Release on the hub or off the fan to cancel; resting near either end of the
 // fan scrolls it.
 // Tap mode: a quick tap on the hub keeps the fan open with arrow buttons; tap
@@ -57,11 +57,13 @@ class RadialLauncher extends StatefulWidget {
     required this.onOpen,
     required this.onEdit,
     this.onNew,
+    this.onHome,
     this.hubPosition,
     this.onHubMoved,
     this.config = const LauncherConfig(),
     this.hubTooltip = 'Lists',
     this.addLabel = 'New list',
+    this.homeLabel = 'Home',
     this.editLabel = 'Edit',
     this.moveLabel = 'Move',
     this.previousLabel = 'Previous',
@@ -74,6 +76,8 @@ class RadialLauncher extends StatefulWidget {
   final ValueChanged<LauncherNote> onEdit;
   // Null shows the "+" dimmed and inactive.
   final VoidCallback? onNew;
+  // Non-null puts a Home wedge at the start of the fan.
+  final VoidCallback? onHome;
   // Saved hub centre as a fraction of the launcher's size; null = default.
   final Offset? hubPosition;
   // Receives the dropped hub centre as a fraction of the launcher's size.
@@ -82,6 +86,7 @@ class RadialLauncher extends StatefulWidget {
   final LauncherConfig config;
   final String hubTooltip;
   final String addLabel;
+  final String homeLabel;
   final String editLabel;
   final String moveLabel;
   final String previousLabel;
@@ -131,7 +136,6 @@ class RadialLauncherState extends State<RadialLauncher>
   Duration _openedAt = Duration.zero;
   bool _leftHub = false;
   _Prompt? _prompt;
-  double _addProgress = 0;
 
   // Hub dragged by the user, in pixels; wins over widget.hubPosition until
   // the parent catches up.
@@ -180,7 +184,6 @@ class RadialLauncherState extends State<RadialLauncher>
       _hover = LauncherTarget.none;
       _pointer = null;
       _prompt = null;
-      _addProgress = 0;
       _focusAmount = 0;
     });
   }
@@ -330,7 +333,6 @@ class RadialLauncherState extends State<RadialLauncher>
       _openedAt = _now;
       _leftHub = false;
       _prompt = null;
-      _addProgress = 0;
       _hover = LauncherTarget.hub;
       _restAnchor = event.position;
       _restStart = _now;
@@ -365,7 +367,6 @@ class RadialLauncherState extends State<RadialLauncher>
       if (target != LauncherTarget.hub) {
         _leftHub = true;
       }
-      _addProgress = _progress(finger, geometry.hubCenter, geometry.addCenter);
 
       final _Prompt? prompt = _prompt;
       if (prompt != null) {
@@ -396,7 +397,9 @@ class RadialLauncherState extends State<RadialLauncher>
         _hover = target;
         _restAnchor = finger;
         _restStart = _now;
-        if (target.kind == LauncherTargetKind.note) {
+        if (target.kind == LauncherTargetKind.note ||
+            target == LauncherTarget.add ||
+            target == LauncherTarget.home) {
           HapticFeedback.selectionClick();
         }
       } else if ((finger - (_restAnchor ?? finger)).distance >
@@ -471,6 +474,8 @@ class RadialLauncherState extends State<RadialLauncher>
         widget.onOpen(widget.notes[target.noteIndex!]);
       case LauncherTargetKind.add:
         widget.onNew?.call();
+      case LauncherTargetKind.home:
+        widget.onHome?.call();
       case LauncherTargetKind.hub:
       case LauncherTargetKind.none:
         break;
@@ -567,6 +572,36 @@ class RadialLauncherState extends State<RadialLauncher>
     return AppMotion.curve.transform(t.clamp(0, 1).toDouble());
   }
 
+  // The outline of a wedge between two sides and two radii, and its bounds;
+  // the outline is relative to the bounds' top left.
+  (Rect, List<Offset>) _wedge(
+    LauncherGeometry geometry,
+    (double, double) sides,
+    double inner,
+    double outer,
+  ) {
+    const int steps = 12;
+    final List<Offset> outline = [
+      for (int i = 0; i <= steps; i++)
+        geometry.pointAt(lerpDouble(sides.$1, sides.$2, i / steps)!, outer),
+      for (int i = steps; i >= 0; i--)
+        geometry.pointAt(lerpDouble(sides.$1, sides.$2, i / steps)!, inner),
+    ];
+    Rect bounds = Rect.fromPoints(outline.first, outline.first);
+    for (final Offset point in outline) {
+      bounds = bounds.expandToInclude(Rect.fromPoints(point, point));
+    }
+    bounds = bounds.inflate(2);
+    return (
+      bounds,
+      [for (final Offset point in outline) point - bounds.topLeft],
+    );
+  }
+
+  // Where a tab's label may start: clear of the hub and the blue disc behind
+  // it, which cover the tab's inner end.
+  double get _labelStart => widget.config.hubRadius + 22;
+
   // A wedge in the text colour between the tab's two sides, with the list's
   // colour disc at its outer end and the label along the spoke; a thin
   // ground-coloured edge keeps neighbours apart. Returns the wedge (which
@@ -594,24 +629,14 @@ class RadialLauncherState extends State<RadialLauncher>
         config.tabLength * lerpDouble(0.18, 1, grow)! * geometry.tabScale(slot);
     final double outer = inner + length;
 
-    const int steps = 12;
-    final List<Offset> outline = [
-      for (int i = 0; i <= steps; i++)
-        geometry.pointAt(lerpDouble(sides.$1, sides.$2, i / steps)!, outer),
-      for (int i = steps; i >= 0; i--)
-        geometry.pointAt(lerpDouble(sides.$1, sides.$2, i / steps)!, inner),
-    ];
-    Rect bounds = Rect.fromPoints(outline.first, outline.first);
-    for (final Offset point in outline) {
-      bounds = bounds.expandToInclude(Rect.fromPoints(point, point));
-    }
-    bounds = bounds.inflate(2);
+    final (Rect bounds, List<Offset> outline) =
+        _wedge(geometry, sides, inner, outer);
 
     Widget wedge = CustomPaint(
       key: ValueKey('launcher-wedge-${note.id}'),
       size: bounds.size,
-      painter: _WedgePainter(
-        outline: [for (final Offset point in outline) point - bounds.topLeft],
+      painter: LauncherWedgePainter(
+        outline: outline,
         fill: neutrals.text,
         edge: neutrals.ground,
         shadow: selected,
@@ -643,14 +668,22 @@ class RadialLauncherState extends State<RadialLauncher>
       );
     }
 
-    const double disc = 30;
-    final double labelStart = inner + 12;
-    final double labelEnd = outer - disc - 14;
+    // The selected tab's label and disc zoom with it so they stay readable
+    // beside the thumb; its neighbours a little.
+    final double zoom = config.selectedTabScale > 1
+        ? ((geometry.tabScale(slot) - 1) / (config.selectedTabScale - 1))
+            .clamp(0, 1)
+            .toDouble()
+        : 0;
+    final double disc = 26 + 6 * zoom;
+    final double fontSize = 14 + 4 * zoom;
+    final double labelStart = math.max(inner, _labelStart);
+    final double labelEnd = outer - disc - 10;
     final double labelLength = labelEnd - labelStart;
     final bool outward = geometry.readsOutward(angle);
     final Offset labelCenter =
         geometry.pointAt(angle, (labelStart + labelEnd) / 2);
-    final Offset discCenter = geometry.pointAt(angle, outer - 6 - disc / 2);
+    final Offset discCenter = geometry.pointAt(angle, outer - 5 - disc / 2);
 
     return [
       Positioned(
@@ -662,9 +695,9 @@ class RadialLauncherState extends State<RadialLauncher>
       if (labelLength > 24)
         Positioned(
           left: labelCenter.dx - labelLength / 2,
-          top: labelCenter.dy - 11,
+          top: labelCenter.dy - (fontSize + 8) / 2,
           width: labelLength,
-          height: 22,
+          height: fontSize + 8,
           child: IgnorePointer(
             child: Transform.rotate(
               angle: geometry.tabRotation(angle),
@@ -676,7 +709,7 @@ class RadialLauncherState extends State<RadialLauncher>
                 textAlign: outward ? TextAlign.right : TextAlign.left,
                 style: TextStyle(
                   fontFamily: AppFonts.sans,
-                  fontSize: 15,
+                  fontSize: fontSize,
                   fontWeight: FontWeight.w500,
                   color: neutrals.ground,
                 ),
@@ -694,7 +727,11 @@ class RadialLauncherState extends State<RadialLauncher>
               width: disc,
               height: disc,
               decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-              child: Icon(note.icon, size: 17, color: AppColors.onColor(color)),
+              child: Icon(
+                note.icon,
+                size: 15 + 4 * zoom,
+                color: AppColors.onColor(color),
+              ),
             ),
           ),
         ),
@@ -705,7 +742,7 @@ class RadialLauncherState extends State<RadialLauncher>
   // closeness to it, so the stack shifts as the finger moves along the fan.
   // The Edit prompt comes out from behind its own tab, so it is painted just
   // below that tab (and above the others, which would otherwise hide it).
-  List<Widget> _tabs(LauncherGeometry geometry, {Widget? editPrompt}) {
+  List<Widget> _tabs(LauncherGeometry geometry, {List<Widget>? editPrompt}) {
     final List<(int, (double, double))> visible = [
       for (int index = 0; index < widget.notes.length; index++)
         if (geometry.tabSides(index, _scrollOffset)
@@ -734,7 +771,7 @@ class RadialLauncherState extends State<RadialLauncher>
         _prompt?.kind == _PromptKind.edit ? _prompt!.noteIndex : null;
     return [
       for (final (int index, (double, double) sides) in visible) ...[
-        if (index == prompted && editPrompt != null) editPrompt,
+        if (index == prompted && editPrompt != null) ...editPrompt,
         ..._noteWidgets(geometry, widget.notes[index], index, sides),
       ],
     ];
@@ -812,51 +849,207 @@ class RadialLauncherState extends State<RadialLauncher>
     );
   }
 
-  Widget _addWidget(LauncherGeometry geometry) {
-    final bool enabled = widget.onNew != null;
-    final Positioned pill = _promptPill(
-      key: const ValueKey('launcher-add-prompt'),
-      from: geometry.hubCenter,
-      to: geometry.addCenter,
-      // Tap mode (the accessible path) shows everything at once.
-      reveal: _mode == _Mode.tap ? 1 : _reveal(_openedAt),
-      progress: _mode == _Mode.tap ? 0 : (enabled ? _addProgress : 0),
-      lit: AppColors.appBlue,
-      icon: Icons.add,
-      enabled: enabled,
-    );
+  // A fixed, narrower wedge (New list at the end of the fan, Home at its
+  // start) with a disc and glyph instead of a label. It lengthens like a
+  // selected tab while the finger is on it.
+  List<Widget> _fixedWedge(
+    LauncherGeometry geometry, {
+    required String name,
+    required LauncherTarget target,
+    required (double, double) sides,
+    required double slot,
+    required IconData icon,
+    required Color disc,
+    required Color glyph,
+    required String label,
+    required VoidCallback? onTap,
+  }) {
+    final LauncherConfig config = widget.config;
+    final AppNeutrals neutrals =
+        AppColors.neutrals(Theme.of(context).brightness);
+    final bool hovered = _hover == target;
+    final double grow = _growth(slot);
+    final double inner =
+        lerpDouble(config.hubRadius * 0.4, config.innerRadius, grow)!;
+    final double outer = inner +
+        config.tabLength *
+            lerpDouble(0.18, 1, grow)! *
+            (hovered ? config.selectedTabScale : 1);
+    final double angle = (sides.$1 + sides.$2) / 2;
+    final (Rect bounds, List<Offset> outline) =
+        _wedge(geometry, sides, inner, outer);
 
-    if (_mode != _Mode.tap) {
-      return pill;
-    }
-    // In tap mode the "+" is a plain button around the same pill.
-    return Positioned(
-      left: geometry.addCenter.dx - 24,
-      top: geometry.addCenter.dy - 24,
-      child: Semantics(
+    Widget wedge = CustomPaint(
+      key: ValueKey('launcher-wedge-$name'),
+      size: bounds.size,
+      painter: LauncherWedgePainter(
+        outline: outline,
+        fill: neutrals.text,
+        edge: neutrals.ground,
+        shadow: hovered,
+        scale: hovered ? config.selectedTabScale : 1,
+      ),
+    );
+    if (_mode == _Mode.tap) {
+      wedge = Semantics(
         button: true,
-        enabled: enabled,
-        label: widget.addLabel,
+        enabled: onTap != null,
+        label: label,
         excludeSemantics: true,
         child: GestureDetector(
-          key: const ValueKey('launcher-add'),
+          key: ValueKey('launcher-$name'),
+          // The whole box: the wedge alone is a thin target.
           behavior: HitTestBehavior.opaque,
-          onTap: enabled
-              ? () {
+          onTap: onTap == null
+              ? null
+              : () {
                   _close();
-                  widget.onNew!();
-                }
-              : null,
-          child: SizedBox(
-            width: 48,
-            height: 48,
-            child: Center(child: pill.child),
+                  onTap();
+                },
+          child: wedge,
+        ),
+      );
+    }
+
+    const double size = 24;
+    final Offset discCenter = geometry.pointAt(angle, outer - 5 - size / 2);
+    return [
+      Positioned(
+        key: ValueKey('launcher-$name-tab'),
+        left: bounds.left,
+        top: bounds.top,
+        child: wedge,
+      ),
+      if (outer - inner > size + 20)
+        Positioned(
+          left: discCenter.dx - size / 2,
+          top: discCenter.dy - size / 2,
+          child: IgnorePointer(
+            child: Container(
+              key: ValueKey('launcher-$name-disc'),
+              width: size,
+              height: size,
+              decoration: BoxDecoration(color: disc, shape: BoxShape.circle),
+              child: Icon(icon, size: 17, color: glyph),
+            ),
           ),
         ),
-      ),
+    ];
+  }
+
+  // New list: the last wedge of the fan, with a blue "+" disc.
+  List<Widget> _addWidgets(LauncherGeometry geometry) {
+    final AppNeutrals neutrals =
+        AppColors.neutrals(Theme.of(context).brightness);
+    final bool enabled = widget.onNew != null;
+    final Color disc = enabled ? AppColors.appBlue : neutrals.line;
+    return _fixedWedge(
+      geometry,
+      name: 'add',
+      target: LauncherTarget.add,
+      sides: geometry.addSides,
+      slot: geometry.slotCount.toDouble(),
+      icon: Icons.add,
+      disc: disc,
+      glyph: enabled ? AppColors.onColor(disc) : neutrals.muted,
+      label: widget.addLabel,
+      onTap: widget.onNew,
     );
   }
 
+  // Home: the first wedge of the fan while a list is open, with a disc in the
+  // ground colour.
+  List<Widget> _homeWidgets(LauncherGeometry geometry) {
+    final AppNeutrals neutrals =
+        AppColors.neutrals(Theme.of(context).brightness);
+    return _fixedWedge(
+      geometry,
+      name: 'home',
+      target: LauncherTarget.home,
+      sides: geometry.homeSides,
+      slot: 0,
+      icon: Icons.home_outlined,
+      disc: neutrals.ground,
+      glyph: neutrals.text,
+      label: widget.homeLabel,
+      onTap: widget.onHome,
+    );
+  }
+
+  // Edit: a further piece of the selected tab's wedge just past its outer
+  // end, sliding out from behind the tab. It starts dark, fills with the
+  // list's colour and deepens as the finger comes (interaction law). "Edit"
+  // runs along the spoke like the tab's label.
+  List<Widget>? _editWidgets(LauncherGeometry geometry, _Prompt prompt) {
+    final LauncherConfig config = widget.config;
+    final (double, double)? sides =
+        geometry.tabSides(prompt.noteIndex!, _scrollOffset);
+    if (sides == null) {
+      return null;
+    }
+    final double angle = (sides.$1 + sides.$2) / 2;
+    final AppNeutrals neutrals =
+        AppColors.neutrals(Theme.of(context).brightness);
+    final Color lit = resolveListColor(
+      widget.notes[prompt.noteIndex!].color,
+      Theme.of(context).brightness,
+    );
+    final Color fill = Color.lerp(neutrals.promptDark, lit, prompt.progress)!;
+    final double depth = config.editDepth * (1 + 0.22 * prompt.progress);
+    final double target =
+        (geometry.editPromptCenter(angle) - geometry.hubCenter).distance;
+    final double middle = lerpDouble(
+      geometry.selectedOuterRadius - depth / 2,
+      target,
+      _reveal(prompt.shownAt),
+    )!;
+    final (Rect bounds, List<Offset> outline) =
+        _wedge(geometry, sides, middle - depth / 2, middle + depth / 2);
+    final Offset labelCenter = geometry.pointAt(angle, middle);
+
+    return [
+      Positioned(
+        key: const ValueKey('launcher-edit-prompt'),
+        left: bounds.left,
+        top: bounds.top,
+        child: CustomPaint(
+          key: const ValueKey('launcher-edit-prompt-fill'),
+          size: bounds.size,
+          painter: LauncherWedgePainter(
+            outline: outline,
+            fill: fill,
+            edge: neutrals.ground,
+            shadow: false,
+            scale: depth,
+          ),
+        ),
+      ),
+      Positioned(
+        left: labelCenter.dx - 40,
+        top: labelCenter.dy - 10,
+        width: 80,
+        height: 20,
+        child: IgnorePointer(
+          child: Transform.rotate(
+            angle: geometry.tabRotation(angle),
+            child: Text(
+              widget.editLabel,
+              maxLines: 1,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: AppFonts.sans,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.onColor(fill),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ];
+  }
+
+  // The Move prompt (a pill below the hub); Edit is _editWidgets.
   Widget? _promptWidget(LauncherGeometry geometry) {
     final _Prompt? prompt = _prompt;
     if (prompt == null) {
@@ -875,28 +1068,11 @@ class RadialLauncherState extends State<RadialLauncher>
       );
     }
 
-    final double? angle = geometry.tabAngle(prompt.noteIndex!, _scrollOffset);
-    if (angle == null) {
-      return null;
-    }
-    return _promptPill(
-      key: const ValueKey('launcher-edit-prompt'),
-      from: geometry.pointAt(angle, geometry.selectedOuterRadius - 30),
-      to: geometry.editPromptCenter(angle),
-      reveal: _reveal(prompt.shownAt),
-      progress: prompt.progress,
-      lit: resolveListColor(
-        widget.notes[prompt.noteIndex!].color,
-        Theme.of(context).brightness,
-      ),
-      label: widget.editLabel,
-      // Along the tab's spoke, upright like its label.
-      rotation: geometry.tabRotation(angle),
-    );
+    return null;
   }
 
   // The eclipse: a disc in the text colour over a blue one that peeks out
-  // towards the fan, with the one floating shadow.
+  // towards the fan, with the one floating shadow and a ground-coloured ring.
   Widget _hub(LauncherGeometry geometry, bool moveMode) {
     final Brightness brightness = Theme.of(context).brightness;
     final AppNeutrals neutrals = AppColors.neutrals(brightness);
@@ -904,6 +1080,12 @@ class RadialLauncherState extends State<RadialLauncher>
     final Offset back = Offset(
       geometry.flipX ? 14 : -14,
       geometry.flipY ? 8 : -8,
+    );
+    // The tabs start behind the hub; this ring keeps the two apart.
+    final Border ring = Border.all(
+      color: neutrals.ground,
+      width: 2.5,
+      strokeAlign: BorderSide.strokeAlignOutside,
     );
     return SizedBox(
       width: size,
@@ -916,11 +1098,12 @@ class RadialLauncherState extends State<RadialLauncher>
             top: back.dy,
             width: size,
             height: size,
-            child: const DecoratedBox(
-              key: ValueKey('launcher-hub-back'),
+            child: DecoratedBox(
+              key: const ValueKey('launcher-hub-back'),
               decoration: BoxDecoration(
                 color: AppColors.appBlue,
                 shape: BoxShape.circle,
+                border: ring,
               ),
             ),
           ),
@@ -931,6 +1114,7 @@ class RadialLauncherState extends State<RadialLauncher>
             decoration: BoxDecoration(
               color: neutrals.text,
               shape: BoxShape.circle,
+              border: ring,
               boxShadow: AppShadows.floating(brightness),
             ),
             child: moveMode
@@ -946,10 +1130,11 @@ class RadialLauncherState extends State<RadialLauncher>
     final bool enabled = direction < 0
         ? _scrollOffset > 0
         : _scrollOffset < geometry.maxScrollOffset;
-    // In the margins just past each end of the fan.
+    // Just past the tips of the first and the last list tab (the New list
+    // wedge takes the end of the fan).
     final Offset spot = geometry.pointAt(
-      geometry.slotAngle(direction < 0 ? -0.9 : geometry.slotCount - 0.1),
-      widget.config.innerRadius + widget.config.tabLength / 2,
+      geometry.slotAngle(direction < 0 ? 0 : geometry.slotCount - 1.0),
+      widget.config.outerRadius + 28,
     );
     return Positioned(
       left: spot.dx - 24,
@@ -978,6 +1163,7 @@ class RadialLauncherState extends State<RadialLauncher>
           noteCount: widget.notes.length,
           focus: _focusAmount > 0 ? _focusSlot : null,
           focusAmount: _focusAmount,
+          showHome: widget.onHome != null,
           hubPosition: _movedHub ??
               (saved == null
                   ? null
@@ -989,6 +1175,9 @@ class RadialLauncherState extends State<RadialLauncher>
         final double hub = widget.config.hubRadius;
         final bool moveMode = _mode == _Mode.moving;
         final Widget? prompt = _promptWidget(geometry);
+        final List<Widget>? edit = _prompt?.kind == _PromptKind.edit
+            ? _editWidgets(geometry, _prompt!)
+            : null;
 
         return Focus(
           focusNode: _focusNode,
@@ -1005,8 +1194,9 @@ class RadialLauncherState extends State<RadialLauncher>
                   ),
                 ),
               if (isOpen) ...[
-                ..._tabs(geometry, editPrompt: prompt),
-                _addWidget(geometry),
+                ..._tabs(geometry, editPrompt: edit),
+                ..._addWidgets(geometry),
+                if (widget.onHome != null) ..._homeWidgets(geometry),
                 if (_mode == _Mode.tap && geometry.maxScrollOffset > 0) ...[
                   _arrow(geometry, -1),
                   _arrow(geometry, 1),
@@ -1049,8 +1239,8 @@ class RadialLauncherState extends State<RadialLauncher>
   }
 }
 
-class _WedgePainter extends CustomPainter {
-  _WedgePainter({
+class LauncherWedgePainter extends CustomPainter {
+  LauncherWedgePainter({
     required this.outline,
     required this.fill,
     required this.edge,
@@ -1088,7 +1278,7 @@ class _WedgePainter extends CustomPainter {
   bool hitTest(Offset position) => _path.contains(position);
 
   @override
-  bool shouldRepaint(_WedgePainter old) =>
+  bool shouldRepaint(LauncherWedgePainter old) =>
       old.fill != fill ||
       old.edge != edge ||
       old.shadow != shadow ||

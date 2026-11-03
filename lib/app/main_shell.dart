@@ -6,6 +6,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../home_screen.dart';
 import '../l10n/generated/app_localizations.dart';
+import '../launcher/dial_launcher.dart';
+import '../launcher/launcher_hub_area.dart';
 import '../launcher/radial_launcher.dart';
 import '../lists/generic_list_host.dart';
 import '../lists/list_catalog.dart';
@@ -19,6 +21,10 @@ import '../lists/list_patch.dart';
 import '../lists/list_store.dart';
 import '../lists/list_template_picker.dart';
 import 'app_settings.dart';
+
+// T-16 unit 6 prototype switch: --dart-define=DIAL_LAUNCHER=true shows the
+// dial instead of the fan (to compare on the phone; not for release).
+const bool _dialLauncher = bool.fromEnvironment('DIAL_LAUNCHER');
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -56,6 +62,13 @@ class _MainShellState extends State<MainShell> {
   void dispose() {
     _top.dispose();
     super.dispose();
+  }
+
+  bool _isList(Route<dynamic>? route) =>
+      route?.settings.name?.startsWith(_listRoute) ?? false;
+
+  void _goHome() {
+    _content.currentState?.popUntil((route) => route.isFirst);
   }
 
   void _openList(String listId) {
@@ -184,7 +197,7 @@ class _MainShellState extends State<MainShell> {
 
     setState(() => _recent.remove(listId));
     if (_openListId == listId) {
-      _content.currentState?.popUntil((route) => route.isFirst);
+      _goHome();
     }
     messenger.showSnackBar(
       SnackBar(
@@ -213,47 +226,69 @@ class _MainShellState extends State<MainShell> {
                   children: [
                     // Back pops the shell's navigator first (the open list,
                     // a sheet), then leaves the app as before.
-                    NavigatorPopHandler(
-                      onPopWithResult: (_) => _content.currentState?.maybePop(),
-                      child: Navigator(
-                        key: _content,
-                        observers: [_top],
-                        onGenerateInitialRoutes: (_, _) => [
-                          MaterialPageRoute<void>(
-                            settings: const RouteSettings(name: 'home'),
-                            // Room below the dashboard so the hub never
-                            // covers it.
-                            builder: (_) => Padding(
-                              padding: const EdgeInsets.only(bottom: 88),
-                              child: HomeScreen(onOpenList: _openList),
+                    LauncherHubArea(
+                      hubPosition: settings.hubPosition,
+                      child: NavigatorPopHandler(
+                        onPopWithResult: (_) => _content.currentState?.maybePop(),
+                        child: Navigator(
+                          key: _content,
+                          observers: [_top],
+                          onGenerateInitialRoutes: (_, _) => [
+                            MaterialPageRoute<void>(
+                              settings: const RouteSettings(name: 'home'),
+                              // Room below the dashboard so the hub never
+                              // covers it.
+                              builder: (_) => Padding(
+                                padding: const EdgeInsets.only(bottom: 120),
+                                child: HomeScreen(onOpenList: _openList),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                     Positioned.fill(
                       child: ValueListenableBuilder<Route<dynamic>?>(
                         valueListenable: _top.route,
-                        builder: (context, top, launcher) => Offstage(
+                        builder: (context, top, _) => Offstage(
                           offstage: top != null && top is! PageRoute,
-                          child: launcher,
-                        ),
-                        child: RadialLauncher(
-                          notes: _notes(loc, catalog),
-                          onOpen: (note) => _openList(note.id),
-                          onEdit: (note) => _editList(note.id),
-                          onNew: _newList,
-                          hubTooltip: loc.launcherHub,
-                          editLabel: loc.edit,
-                          moveLabel: loc.moveHub,
-                          addLabel: loc.newList,
-                          previousLabel: loc.previous,
-                          nextLabel: loc.next,
-                          noteHint: loc.launcherNoteHint,
-                          hubPosition: settings.hubPosition,
-                          onHubMoved: context
-                              .read<AppSettingsCubit>()
-                              .setHubPosition,
+                          child: _dialLauncher
+                              ? DialLauncher(
+                                  onHome: _isList(top) ? _goHome : null,
+                                  homeLabel: loc.home,
+                                  notes: _notes(loc, catalog),
+                                  onOpen: (note) => _openList(note.id),
+                                  onEdit: (note) => _editList(note.id),
+                                  onNew: _newList,
+                                  hubTooltip: loc.launcherHub,
+                                  editLabel: loc.edit,
+                                  moveLabel: loc.moveHub,
+                                  addLabel: loc.newList,
+                                  hubPosition: settings.hubPosition,
+                                  onHubMoved: context
+                                      .read<AppSettingsCubit>()
+                                      .setHubPosition,
+                                )
+                              : RadialLauncher(
+                            // Inside a list the fan starts with Home.
+                            onHome: _isList(top) ? _goHome : null,
+                            homeLabel: loc.home,
+                            notes: _notes(loc, catalog),
+                            onOpen: (note) => _openList(note.id),
+                            onEdit: (note) => _editList(note.id),
+                            onNew: _newList,
+                            hubTooltip: loc.launcherHub,
+                            editLabel: loc.edit,
+                            moveLabel: loc.moveHub,
+                            addLabel: loc.newList,
+                            previousLabel: loc.previous,
+                            nextLabel: loc.next,
+                            noteHint: loc.launcherNoteHint,
+                            hubPosition: settings.hubPosition,
+                            onHubMoved: context
+                                .read<AppSettingsCubit>()
+                                .setHubPosition,
+                          ),
                         ),
                       ),
                     ),

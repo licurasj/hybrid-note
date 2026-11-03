@@ -66,8 +66,8 @@ final LauncherGeometry _geometry = LauncherGeometry(
 );
 
 Color _fill(WidgetTester tester, String key) {
-  final Container pill = tester.widget(find.byKey(ValueKey('$key-fill')));
-  return (pill.decoration! as BoxDecoration).color!;
+  final CustomPaint paint = tester.widget(find.byKey(ValueKey('$key-fill')));
+  return (paint.painter! as LauncherWedgePainter).fill;
 }
 
 // The disc sits at a tab's outer end, so its distance from the hub gives the
@@ -77,7 +77,9 @@ double _tabScale(WidgetTester tester, String id) {
       (tester.getCenter(find.byKey(ValueKey('launcher-disc-$id'))) -
               _geometry.hubCenter)
           .distance;
-  return (out + 6 + 15 - _config.innerRadius) / _config.tabLength;
+  final double disc =
+      tester.getSize(find.byKey(ValueKey('launcher-disc-$id'))).width;
+  return (out + 5 + disc / 2 - _config.innerRadius) / _config.tabLength;
 }
 
 Future<void> _rest(WidgetTester tester, [int ms = 1400]) async {
@@ -110,22 +112,28 @@ void main() {
   ) async {
     await _pump(tester);
     final TestGesture gesture = await tester.startGesture(_geometry.hubCenter);
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 40));
 
-    double out(String id) =>
-        (tester.getCenter(find.byKey(ValueKey('launcher-tab-$id'))) -
-                _geometry.hubCenter)
-            .distance;
+    // Distance from the hub to the wedge's outer end.
+    double out(String id) {
+      final Finder wedge = find.byKey(ValueKey('launcher-wedge-$id'));
+      final LauncherWedgePainter painter =
+          tester.widget<CustomPaint>(wedge).painter! as LauncherWedgePainter;
+      return (tester.getTopLeft(wedge) + painter.outline.first -
+              _geometry.hubCenter)
+          .distance;
+    }
     final double first = out('n0');
-    final double last = out('n4');
+    final double last = out('n3');
     // Later tabs start later (16 ms stagger), so they are further behind.
     expect(last, lessThan(first));
 
     await tester.pump(const Duration(milliseconds: 300));
     final double full = out('n0');
     expect(first, lessThan(full));
-    // The fan is symmetric, so the first and last end up alike.
-    expect(out('n4'), closeTo(full, 0.5));
+    expect(full, closeTo(_config.outerRadius, 0.5));
+    expect(out('n3'), closeTo(full, 0.5));
     await tester.pump(const Duration(milliseconds: 300));
     expect(out('n0'), closeTo(full, 0.01));
     expect(find.byType(Opacity), findsNothing);
@@ -146,12 +154,11 @@ void main() {
     expect(_tabScale(tester, 'n1'), closeTo(_config.neighbourTabScale, 0.005));
     expect(_tabScale(tester, 'n3'), closeTo(_config.neighbourTabScale, 0.005));
     expect(_tabScale(tester, 'n0'), closeTo(1, 0.005));
-    expect(_tabScale(tester, 'n4'), closeTo(1, 0.005));
     // And it is the widest wedge.
     final Size selected = tester.getSize(find.byKey(const ValueKey('launcher-wedge-n2')));
     final Size far = tester.getSize(find.byKey(const ValueKey('launcher-wedge-n0')));
     expect(selected.width * selected.height, greaterThan(far.width * far.height));
-    expect(_config.selectedTabScale, 1.22);
+    expect(_config.selectedTabScale, 1.3);
     expect(_config.neighbourTabScale, 1.08);
     await gesture.up();
   });
@@ -176,25 +183,19 @@ void main() {
     await gesture.up();
   });
 
-  testWidgets('"+" fills with the app blue; in dark the tab disc is the dark variant', (
+  testWidgets('"+" carries an app-blue disc; in dark the tab disc is the dark variant', (
     tester,
   ) async {
     await _pump(tester, brightness: Brightness.dark);
     final TestGesture gesture = await tester.startGesture(_geometry.hubCenter);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(_fill(tester, 'launcher-add-prompt'), AppNeutrals.dark.promptDark);
+    final Container add = tester.widget(find.byKey(const ValueKey('launcher-add-disc')));
+    expect((add.decoration! as BoxDecoration).color, AppColors.appBlue);
 
     final Container disc = tester.widget(find.byKey(const ValueKey('launcher-disc-n0')));
     expect((disc.decoration! as BoxDecoration).color, _orangeDark);
 
-    for (int i = 1; i <= 6; i++) {
-      await gesture.moveTo(
-        Offset.lerp(_geometry.hubCenter, _geometry.addCenter, i / 6)!,
-      );
-      await tester.pump(const Duration(milliseconds: 16));
-    }
-    expect(_fill(tester, 'launcher-add-prompt'), AppColors.appBlue);
     await gesture.up();
   });
 
@@ -206,18 +207,25 @@ void main() {
     await tester.pump();
 
     expect(
-      tester.getCenter(find.byKey(const ValueKey('launcher-disc-n4'))),
+      tester.getCenter(find.byKey(const ValueKey('launcher-disc-n3'))),
       offsetMoreOrLessEquals(
         _geometry.pointAt(
-          _geometry.tabAngle(4, 0)!,
-          _config.innerRadius + _config.tabLength - 6 - 15,
+          _geometry.tabAngle(3, 0)!,
+          _config.innerRadius + _config.tabLength - 5 - 13,
         ),
         epsilon: 0.5,
       ),
     );
+    final (double, double) add = _geometry.addSides;
     expect(
-      tester.getCenter(find.byKey(const ValueKey('launcher-add-prompt'))),
-      offsetMoreOrLessEquals(_geometry.addCenter, epsilon: 0.5),
+      tester.getCenter(find.byKey(const ValueKey('launcher-add-disc'))),
+      offsetMoreOrLessEquals(
+        _geometry.pointAt(
+          (add.$1 + add.$2) / 2,
+          _config.innerRadius + _config.tabLength - 5 - 12,
+        ),
+        epsilon: 0.5,
+      ),
     );
 
     // The Move prompt is already out the frame it appears.
