@@ -63,6 +63,11 @@ export const aiCommand = onCall(
   {
     region: 'us-central1',
     enforceAppCheck: false,
+    // Callables are reached with a Firebase ID token, not a Google IAM one, so
+    // Cloud Run must let every caller in; handleAiCommand does the checks.
+    // Declared here so every deploy keeps it (the first create failed before
+    // the CLI set it, T-19 unit 6).
+    invoker: 'public',
     maxInstances: 2,
     // runModel's deadline is 100 s for every provider call together; the rest settles and logs.
     timeoutSeconds: 120,
