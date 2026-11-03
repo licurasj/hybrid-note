@@ -10,6 +10,7 @@ import '../launcher/dial_launcher.dart';
 import '../launcher/launcher_hub_area.dart';
 import '../launcher/radial_launcher.dart';
 import '../lists/generic_list_host.dart';
+import '../lists/generic_list_screen.dart' show ListEditAction;
 import '../lists/list_catalog.dart';
 import '../lists/list_catalog_builder.dart';
 import '../lists/list_definition.dart';
@@ -228,22 +229,27 @@ class _MainShellState extends State<MainShell> {
                     // a sheet), then leaves the app as before.
                     LauncherHubArea(
                       hubPosition: settings.hubPosition,
-                      child: NavigatorPopHandler(
-                        onPopWithResult: (_) => _content.currentState?.maybePop(),
-                        child: Navigator(
-                          key: _content,
-                          observers: [_top],
-                          onGenerateInitialRoutes: (_, _) => [
-                            MaterialPageRoute<void>(
-                              settings: const RouteSettings(name: 'home'),
-                              // Room below the dashboard so the hub never
-                              // covers it.
-                              builder: (_) => Padding(
-                                padding: const EdgeInsets.only(bottom: 120),
-                                child: HomeScreen(onOpenList: _openList),
+                      // The open list's page offers Edit list too.
+                      child: ListEditAction(
+                        onEdit: _editList,
+                        child: NavigatorPopHandler(
+                          onPopWithResult: (_) =>
+                              _content.currentState?.maybePop(),
+                          child: Navigator(
+                            key: _content,
+                            observers: [_top],
+                            onGenerateInitialRoutes: (_, _) => [
+                              MaterialPageRoute<void>(
+                                settings: const RouteSettings(name: 'home'),
+                                // Room below the dashboard so the hub never
+                                // covers it.
+                                builder: (_) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 120),
+                                  child: HomeScreen(onOpenList: _openList),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),

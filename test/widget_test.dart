@@ -14,6 +14,7 @@ import 'package:hybrid_note/lists/builtin_templates.dart';
 import 'package:hybrid_note/lists/generic_list_host.dart';
 import 'package:hybrid_note/lists/generic_list_screen.dart';
 import 'package:hybrid_note/lists/list_definition.dart';
+import 'package:hybrid_note/lists/list_editor_screen.dart';
 
 import 'support/fake_auth.dart';
 import 'support/firestore_store.dart';
@@ -539,6 +540,21 @@ void main() {
     expect(host(BuiltinTemplates.groceryId), findsNothing);
     expect(find.byKey(const ValueKey('settings')), findsOneWidget);
     expect(_hub, findsOneWidget);
+  });
+
+  testWidgets('a list page has Edit list at the top right', (
+    WidgetTester tester,
+  ) async {
+    await _pumpApp(tester, FakeAuthService(user: testUser));
+    await tester.tap(_hub);
+    await tester.pump();
+    await tester.tap(
+      find.byKey(ValueKey('launcher-note-${BuiltinTemplates.groceryId}')),
+    );
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('edit-list')));
+    await settle(tester);
+    expect(find.byType(ListEditorScreen), findsOneWidget);
   });
 
   testWidgets('the add button of a list pops in once the page has arrived and out as it leaves', (

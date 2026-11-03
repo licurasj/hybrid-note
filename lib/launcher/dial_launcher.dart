@@ -107,10 +107,10 @@ class _DialLauncherState extends State<DialLauncher>
   static const double _tabGrow = 14;
   // Turning the thumb this many steps picks the next tab.
   static const double _jogAt = 0.6;
-  // Holding in the end zone (this many steps of the lists' room next to New
-  // list or Home) keeps stepping: first after the delay, then every
-  // interval, shortening to the fastest.
-  static const double _endZone = 0.6;
+  // Holding the finger at an edge keeps stepping: first after the delay,
+  // then every interval, shortening to the fastest. Leaving the edge takes
+  // this many steps more (so the finger does not flicker on its border).
+  static const double _edgeLeave = 0.25;
   static const Duration _endDelay = Duration(milliseconds: 350);
   static const Duration _endInterval = Duration(milliseconds: 280);
   static const Duration _endFastest = Duration(milliseconds: 110);
@@ -203,14 +203,14 @@ class _DialLauncherState extends State<DialLauncher>
   // so both stay in reach (owner, 2026-11-03).
   bool _isFixed(int index) => _entries[index].kind != _Kind.note;
 
-  // Where New list and Home stop: the end zones for scrolling lie next to
-  // these.
+  // The edges: the last step of the quarter at the side edge (where New
+  // list stops) and at the bottom edge (where Home stops), and beyond.
   double get _listsLow => math.pi / 2 + _step;
-  double get _listsHigh => math.pi - (widget.onHome != null ? _step : 0);
+  double get _listsHigh => math.pi - _step;
 
-  // Whether the finger picked New list or Home where it stopped at an edge
-  // (leaving it goes back to the list the dial stands on).
-  bool _edgePick = false;
+  // Which edge the finger is at after its first pick: -1 side, 1 bottom,
+  // 0 neither.
+  int _edge = 0;
 
   // Where the dial heads: the selected list, or the nearest list while New
   // list or Home is selected.
@@ -277,19 +277,12 @@ class _DialLauncherState extends State<DialLauncher>
     return (start + push, end + push);
   }
 
-  bool _addAtEdge(LauncherGeometry g) =>
-      _turning(g, 0).$2 <= math.pi / 2 + 0.001;
-
   // Home's sides: after the last list, stopping at the bottom edge.
   (double, double) _homeSides(LauncherGeometry g) {
     final (double start, double end) = _turning(g, _entries.length - 1);
     final double pull = math.max(0, start - math.pi);
     return (start - pull, end - pull);
   }
-
-  bool _homeAtEdge(LauncherGeometry g) =>
-      widget.onHome != null &&
-      _turning(g, _entries.length - 1).$1 >= math.pi - 0.001;
 
   // An entry's two sides, the lists cut off where they meet New list and
   // Home; null when nothing of it shows.
@@ -433,7 +426,7 @@ class _DialLauncherState extends State<DialLauncher>
       if (selected != null &&
           _entries[selected].kind == _Kind.note &&
           radius > widget.config.hubRadius &&
-          _endDirection(g, pointer) == 0) {
+          _edge == 0) {
         _editShown = true;
         _promptAnchor = pointer;
         _promptAt = _now;
@@ -451,15 +444,17 @@ class _DialLauncherState extends State<DialLauncher>
     });
   }
 
-  // Holding the finger in the end zone next to New list or Home keeps
-  // stepping through the lists that way, faster the longer it holds, so many
-  // lists need no more room than the corner has.
+  // The finger at an edge keeps stepping through the lists that way, faster
+  // the longer it holds, so many lists need no more room than the corner
+  // has; past the last list it picks New list or Home (inside a list).
   void _scrollAtEnds(LauncherGeometry g, Offset pointer) {
     final int? selected = _selected;
-    final int direction = _endDirection(g, pointer);
-    final (double angle, double _) = _polar(g, pointer);
-    final int next = (selected ?? 0) + direction;
-    if (direction == 0 || next < _firstList || next > _lastList) {
+    final int next = (selected ?? 0) + _edge;
+    if (_edge == 0 ||
+        selected == null ||
+        _isFixed(selected) ||
+        next < 0 ||
+        next >= _entries.length) {
       _endSince = null;
       _endSteps = 0;
       return;
@@ -475,30 +470,10 @@ class _DialLauncherState extends State<DialLauncher>
         ? _now - since >= _endDelay
         : _now - _endStepped >= interval;
     if (due) {
-      _select(next, angle);
+      _select(next, _polar(g, pointer).$1);
       _endStepped = _now;
       _endSteps++;
     }
-  }
-
-  // -1 or 1 while the finger is in the end zone next to New list or Home
-  // with a list selected, else 0.
-  int _endDirection(LauncherGeometry g, Offset pointer) {
-    final int? selected = _selected;
-    final (double angle, double radius) = _polar(g, pointer);
-    if (selected == null ||
-        _isFixed(selected) ||
-        _editShown ||
-        radius <= widget.config.hubRadius) {
-      return 0;
-    }
-    if (angle >= _listsLow && angle < _listsLow + _endZone * _step) {
-      return -1;
-    }
-    if (angle <= _listsHigh && angle > _listsHigh - _endZone * _step) {
-      return 1;
-    }
-    return 0;
   }
 
   void _onPointerDown(PointerDownEvent event) {
@@ -525,7 +500,7 @@ class _DialLauncherState extends State<DialLauncher>
       _moveShown = false;
       _endSince = null;
       _endSteps = 0;
-      _edgePick = false;
+      _edge = 0;
     });
   }
 
@@ -610,35 +585,45 @@ class _DialLauncherState extends State<DialLauncher>
         _select(_entryAt(g, angle), angle);
         return;
       }
-      // New list or Home stopped at an edge: the finger there picks it;
-      // leaving it goes back to the list the dial stands on.
-      if (angle < _listsLow && _addAtEdge(g)) {
-        _select(0, angle);
-        _edgePick = true;
+      // At an edge the hold scrolls (see _scrollAtEnds); with no lists left
+      // that way, New list or Home is picked at once.
+      final int edge = _edge == -1
+          ? (angle < _listsLow + _edgeLeave * _step ? -1 : 0)
+          : _edge == 1
+              ? (angle > _listsHigh - _edgeLeave * _step ? 1 : 0)
+              : (angle < _listsLow ? -1 : (angle > _listsHigh ? 1 : 0));
+      if (edge != _edge) {
+        _edge = edge;
+        _endSince = null;
+        _endSteps = 0;
+      }
+      if (_edge != 0) {
+        final int next = _selected! + _edge;
+        if (!_isFixed(_selected!) &&
+            next >= 0 &&
+            next < _entries.length &&
+            _isFixed(next)) {
+          _select(next, angle);
+        }
         return;
       }
-      if (angle > _listsHigh && _homeAtEdge(g)) {
-        _select(_entries.length - 1, angle);
-        _edgePick = true;
-        return;
-      }
-      if (_edgePick) {
-        _edgePick = false;
+      // Back from an edge on New list or Home: the list the dial stands on.
+      if (_isFixed(_selected!)) {
         if (_notes.isNotEmpty) {
           _select(_position.round().clamp(_firstList, _lastList), angle);
         }
         return;
       }
-      // Turning the thumb picks the next or previous entry, one step at a
-      // time; the dial follows (New list and Home are the ends).
+      // Turning the thumb picks the next or previous list, one step at a
+      // time; the dial follows.
       double jog = (angle - _ref) / _step;
       int index = _selected!;
-      while (jog >= _jogAt && index < _entries.length - 1) {
+      while (jog >= _jogAt && index < _lastList) {
         index++;
         _ref += _step;
         jog -= 1;
       }
-      while (jog <= -_jogAt && index > 0) {
+      while (jog <= -_jogAt && index > _firstList) {
         index--;
         _ref -= _step;
         jog += 1;

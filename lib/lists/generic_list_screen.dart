@@ -31,6 +31,23 @@ class GenericListTexts {
   final String editDialogTitle;
 }
 
+// Lets the open list's page offer "Edit list" (top right): the shell puts it
+// above its navigator with its own way of editing a list. Without it (tests,
+// other hosts) the page has no such button.
+class ListEditAction extends InheritedWidget {
+  const ListEditAction({super.key, required this.onEdit, required super.child});
+
+  final ValueChanged<String> onEdit;
+
+  static ListEditAction? maybeOf(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType<ListEditAction>();
+  }
+
+  @override
+  bool updateShouldNotify(ListEditAction oldWidget) =>
+      onEdit != oldWidget.onEdit;
+}
+
 // Shows any list from its definition and writes every change through a
 // ListStore. The look is direction A "Eclipse" (docs/AESTHETICS.md): a giant
 // cropped title, text filters, hairline rows and the eclipse add button, in
@@ -1168,6 +1185,7 @@ class _GenericListScreenState extends State<GenericListScreen> {
         visible.isEmpty && _definition.view.kind != ViewKind.sectioned;
     // Under the floating launcher the add button sits just above its hub.
     final LauncherHubArea? hubArea = LauncherHubArea.maybeOf(context);
+    final ListEditAction? editAction = ListEditAction.maybeOf(context);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -1181,6 +1199,13 @@ class _GenericListScreenState extends State<GenericListScreen> {
               tooltip: loc.clear,
               icon: const Icon(Icons.cleaning_services_outlined),
               onPressed: () => _clearCompleted(_matchesFilter),
+            ),
+          if (editAction != null)
+            IconButton(
+              key: const ValueKey('edit-list'),
+              tooltip: loc.editList,
+              icon: const Icon(Icons.tune),
+              onPressed: () => editAction.onEdit(_definition.id),
             ),
           const SizedBox(width: 4),
         ],
