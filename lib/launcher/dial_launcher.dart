@@ -75,14 +75,15 @@ class _DialLauncherState extends State<DialLauncher>
   // Angle per unselected tab, and how many times wider the selected one is.
   static const double _step = 12 * math.pi / 180;
   static const double _spread = 1.25;
-  // Edit: its gap beyond the tab's end, its depth, and how far outwards the
+  // Edit: how far it shows beyond the tab's end, and how far outwards the
   // finger swipes to select it.
-  static const double _editGap = 4;
   static const double _editDepth = 40;
   static const double _editSwipe = 28;
-  // Tab widths: any tab, and how much the selected one adds.
-  static const double _stripWidth = 38;
-  static const double _stripGrow = 14;
+  // Tab widths: at the hub, the cap at the end, and how much the selected
+  // tab's cap adds.
+  static const double _tabRoot = 16;
+  static const double _tabCap = 56;
+  static const double _tabGrow = 14;
   // Turning the thumb this many steps picks the next tab.
   static const double _jogAt = 0.6;
 
@@ -534,35 +535,53 @@ class _DialLauncherState extends State<DialLauncher>
 
   // --- Drawing --------------------------------------------------------------
 
-  // A tab (owner's pick of the shape experiment, 2026-11-01): a paint-chip
-  // strip of the given width along the middle of `sides`, from inner to
-  // outer, with rounded outer corners.
-  (Rect, List<Offset>) _outline(
-    LauncherGeometry g,
+  // Half the tab's width at a distance from the hub (beyond its end too,
+  // for Edit, which continues the tab).
+  double Function(double) _halfWidth(
     (double, double) sides,
     double inner,
     double outer,
-    double width,
+    double zoom,
+  ) {
+    final double end = math.min(
+      _tabCap + _tabGrow * zoom,
+      (sides.$1 - sides.$2) * outer * 0.92,
+    );
+    return (double a) =>
+        (_tabRoot +
+            (end - _tabRoot) * (a - inner) / math.max(outer - inner, 1)) /
+        2;
+  }
+
+  // A tab's outline (the owner's pick of two shape experiments, 2026-11-03:
+  // the petal) along the middle of `sides`, from `from` to `to`: a slim
+  // wedge, narrow at the hub and widening to its share of the fan but no
+  // more than a cap, so the gaps between tabs close without a tab getting
+  // wide, with a round end.
+  (Rect, List<Offset>) _outline(
+    LauncherGeometry g,
+    (double, double) sides,
+    double from,
+    double to,
+    double Function(double) halfAt,
   ) {
     final double angle = (sides.$1 + sides.$2) / 2;
     final Offset origin = g.pointAt(angle, 0);
     final Offset along = g.pointAt(angle, 1) - origin;
     final Offset across = Offset(-along.dy, along.dx);
-    final double half = width / 2;
-    final double r = math.min(8, math.min(half, (outer - inner) / 2));
+    final double half = halfAt(to);
+    final double r = math.min(half, (to - from) / 2);
+    final List<(double, double)> end = [
+      for (int i = 0; i <= 12; i++)
+        (
+          to - r + r * math.cos(-math.pi / 2 + i * math.pi / 12),
+          half * math.sin(-math.pi / 2 + i * math.pi / 12),
+        ),
+    ];
     final List<(double, double)> local = [
-      (inner, -half),
-      for (int i = 0; i <= 6; i++)
-        (
-          outer - r + r * math.cos(-math.pi / 2 + i * math.pi / 12),
-          -half + r + r * math.sin(-math.pi / 2 + i * math.pi / 12),
-        ),
-      for (int i = 0; i <= 6; i++)
-        (
-          outer - r + r * math.cos(i * math.pi / 12),
-          half - r + r * math.sin(i * math.pi / 12),
-        ),
-      (inner, half),
+      (from, -halfAt(from)),
+      ...end,
+      (from, halfAt(from)),
     ];
     final List<Offset> outline = [
       for (final (double a, double c) in local) origin + along * a + across * c,
@@ -590,9 +609,10 @@ class _DialLauncherState extends State<DialLauncher>
     // 0 far from the selected entry, 1 on it.
     final double zoom =
         ((_emphasis(index) - 0.68) / 0.32).clamp(0, 1).toDouble();
-    final double width = _stripWidth + _stripGrow * zoom;
+    final double Function(double) halfAt =
+        _halfWidth(sides, inner, outer, zoom);
     final (Rect bounds, List<Offset> outline) =
-        _outline(g, sides, inner, outer, width);
+        _outline(g, sides, inner, outer, halfAt);
 
     // The tab takes its list's colour (New list blue, Home the text colour);
     // the disc is a ground-coloured hole with the icon in that colour.
@@ -639,14 +659,18 @@ class _DialLauncherState extends State<DialLauncher>
     // The icon and name keep clear of the tab's end.
     final double end = outer - 18;
     final double labelEnd = end - discSize - 14;
-    final double clear = widget.config.hubRadius + 22;
+    // Text starts where the tab is wide enough for it.
+    double clear = widget.config.hubRadius + 22;
+    while (clear < outer && 2 * halfAt(clear) < fontSize + 6) {
+      clear += 4;
+    }
     final double labelLength =
         math.min(labelEnd - math.max(inner, clear), 260);
     final double labelStart = labelEnd - labelLength;
     final bool outward = g.readsOutward(angle);
     final Offset labelCenter = g.pointAt(angle, (labelStart + labelEnd) / 2);
     final Offset discCenter = g.pointAt(angle, end - discSize / 2);
-    final bool fits = width > fontSize + 4;
+    final bool fits = 2 * halfAt(labelEnd) > fontSize + 4;
 
     return [
       Positioned(
@@ -725,17 +749,24 @@ class _DialLauncherState extends State<DialLauncher>
                 .clamp(0, 1)
                 .toDouble(),
           );
-    final double depth = _editDepth * (1 + 0.22 * _progress);
-    final double start =
-        _outer(g, selected) + _editGap - (depth + _editGap) * (1 - reveal);
+    // Edit continues the tab from behind its end (its inner part stays
+    // hidden under the tab) and slides out as it is revealed.
+    final double inner = _inner();
+    final double outer = _outer(g, selected);
+    final double zoom =
+        ((_emphasis(selected) - 0.68) / 0.32).clamp(0, 1).toDouble();
+    final double Function(double) halfAt =
+        _halfWidth(sides, inner, outer, zoom);
+    final double shown = _editDepth * (1 + 0.22 * _progress) * reveal;
+    final double tuck = halfAt(outer) + 2;
     final (Rect bounds, List<Offset> outline) = _outline(
       g,
       sides,
-      start,
-      start + depth,
-      _stripWidth + _stripGrow,
+      outer - tuck,
+      outer + math.max(shown, 1),
+      halfAt,
     );
-    final Offset center = g.pointAt(angle, start + depth / 2);
+    final Offset center = g.pointAt(angle, outer + shown / 2);
     return [
       Positioned(
         key: const ValueKey('dial-edit'),
@@ -748,7 +779,7 @@ class _DialLauncherState extends State<DialLauncher>
             fill: fill,
             edge: neutrals.ground,
             shadow: true,
-            scale: depth,
+            scale: shown,
           ),
         ),
       ),
