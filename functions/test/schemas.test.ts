@@ -8,11 +8,13 @@ import { loadExamples, loadTools, schemaErrors } from '../src/schemas';
 const value = (field: string, v: unknown) => ({ field, value: v });
 
 describe('tool schemas', () => {
-  test('both variants load in TOOL_NAMES order; only the strict one is marked strict', () => {
-    assert.deepEqual(loadTools(false).map((t) => t.name), [...TOOL_NAMES]);
-    assert.deepEqual(loadTools(true).map((t) => t.name), [...TOOL_NAMES]);
-    assert.ok(loadTools(true).every((t) => t.strict === true));
-    assert.ok(loadTools(false).every((t) => t.strict === undefined));
+  test('tools load in TOOL_NAMES order, strict only where named', () => {
+    assert.deepEqual(loadTools().map((t) => t.name), [...TOOL_NAMES]);
+    assert.ok(loadTools().every((t) => t.strict === undefined));
+    const mixed = loadTools(['reply', 'decline']);
+    assert.deepEqual(mixed.map((t) => t.name), [...TOOL_NAMES]);
+    assert.deepEqual(mixed.filter((t) => t.strict === true).map((t) => t.name), ['reply', 'decline']);
+    assert.ok(loadTools([...TOOL_NAMES]).every((t) => t.strict === true));
   });
 
   test('every example design is a valid create_list call', () => {

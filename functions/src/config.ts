@@ -76,8 +76,11 @@ export interface ModelConfig {
   maxOutputTokens: number;
   /** Claude: output_config.effort. DeepSeek: reasoning_effort. */
   effort?: 'low' | 'medium' | 'high';
-  /** Send the strict tool variant (schema/ai_tools.strict.json) instead of the full one. */
-  strictTools: boolean;
+  /**
+   * Tools sent in their strict variant (schema/ai_tools.strict.json); the
+   * others go as full schemas, checked here (schemas.ts) with one retry.
+   */
+  strictTools: readonly string[];
 }
 
 /** Provider calls per request: the first one plus one schema self-correction (Q-34 A). */
@@ -91,6 +94,11 @@ const HAIKU_5_5: Prices = {
   cacheWriteUsdPerMTok: 0.125,
 };
 
+// Claude compiles all strict tools into one grammar and refuses ours as too
+// large with create_list and patch_list in it (400 "The compiled grammar is
+// too large", measured 2026-11-03); the five small tools stay strict.
+const CLAUDE_STRICT = ['upsert_items', 'delete_items', 'choose_list', 'reply', 'decline'];
+
 // Q-28: Claude Haiku 5.5 and DeepSeek V4.1 Flash are evaluated side by side
 // (T-19 unit 3); Claude Sonnet 5.5 is the fallback by config. The fake model is
 // priced and sized like Haiku 5.5 so the caps behave as they will in production.
@@ -101,7 +109,7 @@ export const MODELS: Record<string, ModelConfig> = {
     prices: HAIKU_5_5,
     maxInputTokens: 70000,
     maxOutputTokens: 8000,
-    strictTools: true,
+    strictTools: CLAUDE_STRICT,
   },
   'claude-haiku-5-5': {
     provider: 'claude',
@@ -110,7 +118,7 @@ export const MODELS: Record<string, ModelConfig> = {
     maxInputTokens: 70000,
     maxOutputTokens: 8000,
     effort: 'medium',
-    strictTools: true,
+    strictTools: CLAUDE_STRICT,
   },
   'claude-sonnet-5-5': {
     provider: 'claude',
@@ -119,7 +127,7 @@ export const MODELS: Record<string, ModelConfig> = {
     maxInputTokens: 70000,
     maxOutputTokens: 8000,
     effort: 'medium',
-    strictTools: true,
+    strictTools: CLAUDE_STRICT,
   },
   'deepseek-flash': {
     provider: 'deepseek',
@@ -139,7 +147,7 @@ export const MODELS: Record<string, ModelConfig> = {
     effort: 'high',
     // DeepSeek's strict mode (beta) needs every property required; the
     // schemas have optional ones, so DeepSeek gets the full schemas, checked here.
-    strictTools: false,
+    strictTools: [],
   },
 };
 

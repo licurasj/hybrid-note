@@ -62,7 +62,9 @@ describe('ClaudeProvider', () => {
     assert.deepEqual(params.output_config, { effort: 'medium' });
     const tools = params.tools as { name: string; strict?: boolean; input_schema: unknown }[];
     assert.equal(tools.length, 7);
-    assert.ok(tools.every((t) => t.strict === true && typeof t.input_schema === 'object'));
+    assert.ok(tools.every((t) => typeof t.input_schema === 'object'));
+    // The two large tools go without strict: Claude refuses the grammar of all seven.
+    assert.deepEqual(tools.filter((t) => t.strict === true).map((t) => t.name), ['upsert_items', 'delete_items', 'choose_list', 'reply', 'decline']);
     assert.deepEqual(params.messages, [{ role: 'user', content: 'USER' }]);
     for (const key of ['temperature', 'top_p', 'top_k', 'thinking']) assert.ok(!(key in params), key);
   });

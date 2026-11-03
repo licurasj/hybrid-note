@@ -19,10 +19,11 @@ let full: ToolDef[] | undefined;
 let strict: ToolDef[] | undefined;
 let validators: Map<string, ValidateFunction> | undefined;
 
-/** The tools as sent: the strict variant for providers whose strict mode accepts it. */
-export function loadTools(strictVariant: boolean): ToolDef[] {
-  if (strictVariant) return (strict ??= checkNames(read<ToolDef[]>('ai_tools.strict.json')));
-  return (full ??= checkNames(read<ToolDef[]>('ai_tools.bundle.json')));
+/** The tools as sent, in TOOL_NAMES order: the strict variant for the named tools, the full one for the rest. */
+export function loadTools(strictNames: readonly string[] = []): ToolDef[] {
+  full ??= checkNames(read<ToolDef[]>('ai_tools.bundle.json'));
+  strict ??= checkNames(read<ToolDef[]>('ai_tools.strict.json'));
+  return full.map((tool, i) => (strictNames.includes(tool.name) ? strict![i] : tool));
 }
 
 export interface Example {
@@ -50,7 +51,7 @@ function checkNames(tools: ToolDef[]): ToolDef[] {
 export function schemaErrors(name: ToolName, args: unknown): string[] {
   if (validators === undefined) {
     const ajv = new Ajv2020({ allErrors: true, strict: false });
-    validators = new Map(loadTools(false).map((tool) => [tool.name, ajv.compile(tool.input_schema)]));
+    validators = new Map(loadTools().map((tool) => [tool.name, ajv.compile(tool.input_schema)]));
   }
   const validate = validators.get(name);
   if (validate === undefined) return [`unknown tool ${name}`];
