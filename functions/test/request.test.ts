@@ -62,6 +62,13 @@ describe('parseRequest', () => {
     assert.equal(reason(base({ askLevel: 'always' })), 'badRequest');
   });
 
+  test('chosenList is true and needs the open list (Q-45)', () => {
+    assert.equal(parseRequest(base({ chosenList: true }), limits).chosenList, true);
+    assert.equal(parseRequest(base(), limits).chosenList, undefined);
+    assert.equal(reason(base({ chosenList: 'yes' })), 'badRequest');
+    assert.equal(reason(base({ chosenList: true, openList: null })), 'badRequest');
+  });
+
   test('a normal request is accepted', () => {
     assert.equal(reason(base()), 'accepted');
   });

@@ -108,6 +108,9 @@ export function buildUserMessage(request: AiRequest, now: Date): string {
     `Today: ${today} (${weekday}). UI language: ${request.locale}. How often to ask first: ${request.askLevel}.`,
     `The user's lists (id, name, fields):\n${data(lists)}`,
     open,
+    ...(request.chosenList === true
+      ? ['The user picked the open list as the answer to "which list?": use it and do not ask which list again.']
+      : []),
     '</context>',
     ...(request.followUp === undefined
       ? []

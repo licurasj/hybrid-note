@@ -410,6 +410,9 @@ void main() {
     expect(ai.requests, hasLength(2));
     expect(ai.requests.last.prompt, 'new running shoes');
     expect(ai.requests.last.openList!.id, _tasks);
+    // The pick is final: the AI is told not to ask again (Q-45).
+    expect(ai.requests.first.toJson().containsKey('chosenList'), isFalse);
+    expect(ai.requests.last.toJson()['chosenList'], isTrue);
     expect(_titles(store, _tasks), contains('New running shoes'));
   });
 

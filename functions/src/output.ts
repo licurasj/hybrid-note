@@ -48,7 +48,7 @@ export function retryFeedback(response: ProviderResponse, schemaCheck: SchemaChe
     const name = block.name as ToolName;
     const args = name === 'reply' ? cutReply(block.args, REPLY_SCHEMA_MAX_CHARS) : block.args;
     const errors = [
-      ...(request !== undefined && isRecord(args) ? targetErrors(name, args, listIds, openId, openItemIds(request)) : []),
+      ...(request !== undefined && isRecord(args) ? targetErrors(name, args, listIds, openId, openItemIds(request), request?.chosenList === true) : []),
       ...schemaCheck(name, args),
     ];
     if (errors.length > 0) feedback.push({ id: block.id, errors });
@@ -84,6 +84,7 @@ function targetErrors(
   listIds: Set<string>,
   openId: string | undefined,
   openItemIds?: string[],
+  chosen = false,
 ): string[] {
   switch (name) {
     case 'patch_list':
@@ -104,6 +105,7 @@ function targetErrors(
       return errors;
     }
     case 'choose_list': {
+      if (chosen) return ['choose_list: the user already picked the open list; use it'];
       const ids = args.candidates;
       // With New list as a choice one list is enough (Q-43).
       const ok =
@@ -168,7 +170,7 @@ export function filterOutput(
       result.droppedText++;
       continue;
     }
-    const call = acceptCall(block.name, block.args, listIds, openId, openItemIds(request), limits, schemaCheck, result);
+    const call = acceptCall(block.name, block.args, listIds, openId, openItemIds(request), request.chosenList === true, limits, schemaCheck, result);
     if (call === null) {
       result.droppedTools++;
     } else if (call.name === 'decline') {
@@ -192,13 +194,14 @@ function acceptCall(
   listIds: Set<string>,
   openId: string | undefined,
   itemIds: string[],
+  chosen: boolean,
   limits: TierLimits,
   schemaCheck: SchemaCheck,
   result: FilteredOutput,
 ): ToolCall | null {
   if (!(TOOL_NAMES as readonly string[]).includes(name) || !isRecord(args)) return null;
   const tool = name as ToolName;
-  if (targetErrors(tool, args, listIds, openId, itemIds).length > 0) return null;
+  if (targetErrors(tool, args, listIds, openId, itemIds, chosen).length > 0) return null;
   let checked = args;
   if (tool === 'reply') {
     if (typeof args.text !== 'string') return null;

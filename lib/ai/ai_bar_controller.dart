@@ -549,7 +549,10 @@ class AiBarController extends ChangeNotifier {
     // is the one the user meant (Q-45 D).
     _followUp = null;
     _homeListId = listId;
-    await _run(request.withOpenList(store.current, listId), correct: true);
+    await _run(
+      request.withOpenList(store.current, listId, chosen: true),
+      correct: true,
+    );
   }
 
   // "New list" as the answer to "which list?" (Q-43).

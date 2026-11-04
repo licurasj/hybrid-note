@@ -41,6 +41,11 @@ export interface AiRequest {
   followUp?: FollowUp;
   /** How often the AI asks before acting, the user's setting (Q-43); balanced when absent. */
   askLevel: AskLevel;
+  /**
+   * The open list is the user's answer to "which list?" (choose_list): the
+   * AI must use it and not ask again (Q-45; it looped on 2026-11-04).
+   */
+  chosenList?: true;
 }
 
 export const ASK_LEVELS = ['more', 'balanced', 'less'] as const;
@@ -126,6 +131,10 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
   if (!(ASK_LEVELS as readonly unknown[]).includes(askLevel)) {
     throw refuse('badRequest', 'askLevel must be more, balanced or less');
   }
+  const chosenList = data.chosenList ?? undefined;
+  if (chosenList !== undefined && (chosenList !== true || data.openList == null)) {
+    throw refuse('badRequest', 'chosenList must be true and come with the open list');
+  }
   const followUp = data.followUp ?? undefined;
   if (followUp !== undefined) {
     if (
@@ -178,6 +187,7 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
     ...(today !== undefined ? { today } : {}),
     lists: allowed as unknown as ListSummary[],
     askLevel: askLevel as AskLevel,
+    ...(chosenList === true ? { chosenList: true as const } : {}),
     openList: openList as OpenList | null,
     ...(correction !== undefined
       ? {

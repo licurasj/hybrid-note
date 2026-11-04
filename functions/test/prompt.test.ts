@@ -46,6 +46,14 @@ describe('the open list first (Q-45)', () => {
 });
 
 describe('user message', () => {
+  test('a picked list is said to be final (Q-45 loop)', () => {
+    const open = { definition: { id: 'grocery' }, items: [] };
+    const message = buildUserMessage({ ...request, openList: open, chosenList: true }, new Date());
+    assert.ok(message.includes('The user picked the open list as the answer to "which list?"'));
+    assert.ok(message.indexOf('picked the open list') < message.indexOf('</context>'));
+    assert.ok(!buildUserMessage({ ...request, openList: open }, new Date()).includes('picked the open list'));
+  });
+
   test("states the user's ask-first setting; the system prompt explains each level (Q-43)", () => {
     assert.match(buildUserMessage({ ...request, askLevel: 'more' }, new Date()), /How often to ask first: more\./);
     const system = systemPrompt();

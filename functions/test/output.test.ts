@@ -153,6 +153,15 @@ describe('filterOutput', () => {
 });
 
 describe('retryFeedback', () => {
+  test('after the user picked the list, another choose_list goes back to the model (Q-45 loop)', () => {
+    const chosen: AiRequest = { ...open, chosenList: true };
+    const ask = answer([call('choose_list', { question: 'Grocery or To do?', candidates: ['grocery', 'todo'] })]);
+    assert.match(retryFeedback(ask, structuralCheck, chosen)[0].errors[0], /already picked/);
+    assert.deepEqual(retryFeedback(ask, structuralCheck, open), []);
+    const out = filterOutput(ask, chosen, limits);
+    assert.equal(out.toolCalls.length, 0);
+  });
+
   test('choose_list with newList may offer one list (Q-43)', () => {
     const choose = (args: Record<string, unknown>) =>
       retryFeedback(answer([call('choose_list', { question: 'Tasks or a new list?', ...args })]), structuralCheck, open);

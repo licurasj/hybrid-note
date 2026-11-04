@@ -108,6 +108,7 @@ class AiRequest {
     this.correction,
     this.followUp,
     this.askLevel = 'balanced',
+    this.chosenList = false,
   });
 
   // At most this many of the open list's items are sent (Q-31).
@@ -180,6 +181,9 @@ class AiRequest {
   final AiFollowUp? followUp;
   // How often the AI asks first (Q-43): more, balanced or less.
   final String askLevel;
+  // The open list is the user's answer to "which list?" (Q-45): the AI
+  // uses it and does not ask again.
+  final bool chosenList;
 
   AiRequest withCorrection(AiCorrection correction) => AiRequest(
     prompt: prompt,
@@ -191,6 +195,7 @@ class AiRequest {
     correction: correction,
     followUp: followUp,
     askLevel: askLevel,
+    chosenList: chosenList,
   );
 
   // The answer "New list" to the AI's question (Q-43): the same words as a
@@ -204,8 +209,13 @@ class AiRequest {
   );
 
   // The same request with [listId] as the open list: the answer to the AI's
-  // "which list?" (choose_list).
-  AiRequest withOpenList(ListCatalog catalog, String listId) {
+  // "which list?" (choose_list), or with [chosen] false the phone's second
+  // round for items it could not match (Q-39).
+  AiRequest withOpenList(
+    ListCatalog catalog,
+    String listId, {
+    bool chosen = false,
+  }) {
     final ListDefinition? open = catalog.definition(listId);
     if (open == null || !open.aiAllowed) {
       return this;
@@ -221,6 +231,7 @@ class AiRequest {
       openItems: items.take(maxItems).toList(),
       followUp: followUp,
       askLevel: askLevel,
+      chosenList: chosen,
     );
   }
 
@@ -245,6 +256,7 @@ class AiRequest {
                 {'id': item.id, 'values': item.values},
             ],
           },
+    if (chosenList) 'chosenList': true,
     if (correction != null) 'correction': correction!.toJson(),
     if (followUp != null) 'followUp': followUp!.toJson(),
   };
