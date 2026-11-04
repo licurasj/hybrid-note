@@ -331,7 +331,7 @@
   "aiDescribeNewList": "新しいリストを説明する",
   "aiDescribeNewListMeta": "AIが項目を選びます",
   "aiNoticeTitle": "最初のリクエストの前に",
-  "aiNoticeDeepSeek": "リクエスト、リストの名前と項目、開いているリストと最近の項目最大20件がDeepSeekに送られます。DeepSeekはデータを中国で処理・保存するAIプロバイダーです。AIをオフにしたリストは送信されません。リクエストの文章は不具合調査のため約7日間保存され、その後削除されます。",
+  "aiNoticeDeepSeek": "リクエスト、リストの名前と項目、開いているリスト（またはリクエストが対象とするリスト）と最近の項目最大20件がDeepSeekに送られます。DeepSeekはデータを中国で処理・保存するAIプロバイダーです。AIをオフにしたリストは送信されません。リクエストの文章は不具合調査のため約7日間保存され、その後削除されます。",
   "aiNoticeContinue": "続ける",
   "aiApply": "適用",
   "aiAddItems": "{list}：{items}を追加",
@@ -365,5 +365,10 @@
   "aiInvalidAnswer": "変更がリストに合わないため、何も適用されませんでした。",
   "errorUndoTooLarge": "この変更は項目が多すぎるため、元に戻せません。",
   "aiPartlyNotDone": "リクエストの一部は実行できませんでした。",
-  "aiRefusedProviderAccount": "AIプロバイダーのアカウントに問題があります。キーまたは残高を確認してください。"
+  "aiRefusedProviderAccount": "AIプロバイダーのアカウントに問題があります。キーまたは残高を確認してください。",
+  "aiListOff": "「{list}」はAIがオフです。",
+  "aiAutoApplyOffer": "今後このような変更を確認せずに適用しますか？元に戻すは引き続き使えます。",
+  "aiAutoApplyYes": "はい",
+  "aiAutoApplyNo": "今はしない",
+  "settingsAiAutoApply": "AIの変更を確認せずに適用"
 }

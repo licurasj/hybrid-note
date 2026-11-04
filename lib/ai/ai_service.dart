@@ -18,7 +18,7 @@ abstract interface class AiService {
 
 // The provider named in the one-time notice. It changes with ACTIVE_MODEL
 // in functions/src/config.ts; a change here shows the notice again.
-const String aiNoticeId = 'deepseek-1';
+const String aiNoticeId = 'deepseek-2';
 
 // One of the user's lists as the function sees it (Q-36): id, name and a
 // short field summary, no items.
@@ -244,6 +244,14 @@ class AiAnswer {
   final int droppedTools;
 
   bool get declined => declineReason != null;
+
+  // The same answer with [calls], for the phone's item matching (Q-39).
+  AiAnswer withToolCalls(List<AiToolCall> calls) => AiAnswer(
+    requestId: requestId,
+    toolCalls: calls,
+    declineReason: declineReason,
+    droppedTools: droppedTools,
+  );
 
   // The platform channel hands back Map<Object?, Object?>; ListInput reads
   // Map and List, so only the keys need to become strings.

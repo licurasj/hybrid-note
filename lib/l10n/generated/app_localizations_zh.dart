@@ -965,7 +965,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiNoticeDeepSeek =>
-      '你的请求、各列表的名称和字段，以及打开的列表和最多 20 条最近条目会发送给 DeepSeek。DeepSeek 是一家在中国处理和存储数据的 AI 提供商。关闭了 AI 的列表绝不会发送。请求文字会保留约 7 天用于排查问题，之后删除。';
+      '你的请求、各列表的名称和字段，以及打开的列表（或请求涉及的列表）和最多 20 条最近条目会发送给 DeepSeek。DeepSeek 是一家在中国处理和存储数据的 AI 提供商。关闭了 AI 的列表绝不会发送。请求文字会保留约 7 天用于排查问题，之后删除。';
 
   @override
   String get aiNoticeContinue => '继续';
@@ -1103,4 +1103,21 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiRefusedProviderAccount => 'AI 服务商账户需要处理：请检查密钥或余额。';
+
+  @override
+  String aiListOff(String list) {
+    return '“$list”已关闭 AI。';
+  }
+
+  @override
+  String get aiAutoApplyOffer => '以后像这样的更改不再询问直接应用？仍可撤销。';
+
+  @override
+  String get aiAutoApplyYes => '是';
+
+  @override
+  String get aiAutoApplyNo => '暂不';
+
+  @override
+  String get settingsAiAutoApply => '不询问直接应用 AI 更改';
 }

@@ -70,7 +70,8 @@ function cutReply(args: unknown, max: number): unknown {
 /**
  * Which lists a call may name (Q-32, Q-36): item tools any of the user's
  * lists in the context, `patch_list` only the open list, `choose_list` 2 or
- * 3 distinct ones of them. English, for the self-correction round.
+ * 3 distinct ones of them; `delete_items` names its items by ids or by match
+ * (Q-39). English, for the self-correction round.
  */
 function targetErrors(name: ToolName, args: Record<string, unknown>, listIds: Set<string>, openId: string | undefined): string[] {
   switch (name) {
@@ -79,10 +80,18 @@ function targetErrors(name: ToolName, args: Record<string, unknown>, listIds: Se
         ? []
         : ['patch_list may only change the open list; use create_list for a new one'];
     case 'upsert_items':
-    case 'delete_items':
-      return typeof args.listId === 'string' && listIds.has(args.listId)
-        ? []
-        : [`${name}: listId must be the id of one of the user's lists`];
+    case 'delete_items': {
+      const errors =
+        typeof args.listId === 'string' && listIds.has(args.listId)
+          ? []
+          : [`${name}: listId must be the id of one of the user's lists`];
+      // By id when the list's items are in the context, else by the items'
+      // words, which the app matches (Q-39); the schema cannot say "one of".
+      if (name === 'delete_items' && (args.ids === undefined) === (args.match === undefined)) {
+        errors.push('delete_items needs either ids or match, not both');
+      }
+      return errors;
+    }
     case 'choose_list': {
       const ids = args.candidates;
       const ok =

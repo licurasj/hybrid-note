@@ -967,7 +967,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get aiNoticeDeepSeek =>
-      'リクエスト、リストの名前と項目、開いているリストと最近の項目最大20件がDeepSeekに送られます。DeepSeekはデータを中国で処理・保存するAIプロバイダーです。AIをオフにしたリストは送信されません。リクエストの文章は不具合調査のため約7日間保存され、その後削除されます。';
+      'リクエスト、リストの名前と項目、開いているリスト（またはリクエストが対象とするリスト）と最近の項目最大20件がDeepSeekに送られます。DeepSeekはデータを中国で処理・保存するAIプロバイダーです。AIをオフにしたリストは送信されません。リクエストの文章は不具合調査のため約7日間保存され、その後削除されます。';
 
   @override
   String get aiNoticeContinue => '続ける';
@@ -1106,4 +1106,21 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get aiRefusedProviderAccount =>
       'AIプロバイダーのアカウントに問題があります。キーまたは残高を確認してください。';
+
+  @override
+  String aiListOff(String list) {
+    return '「$list」はAIがオフです。';
+  }
+
+  @override
+  String get aiAutoApplyOffer => '今後このような変更を確認せずに適用しますか？元に戻すは引き続き使えます。';
+
+  @override
+  String get aiAutoApplyYes => 'はい';
+
+  @override
+  String get aiAutoApplyNo => '今はしない';
+
+  @override
+  String get settingsAiAutoApply => 'AIの変更を確認せずに適用';
 }

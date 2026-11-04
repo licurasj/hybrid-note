@@ -291,7 +291,10 @@ final Map<String, List<Map<String, dynamic>>> _bad = {
     },
   ],
   'delete_items': [
-    {'listId': 'builtin.grocery'},
+    // ids or match is checked by the function and the device, not the
+    // schema (Q-39); ListInput reads ids only, after the phone turned match
+    // into ids (lib/ai/ai_match.dart).
+    {'listId': 'builtin.grocery', 'match': <String>[]},
     {
       'listId': 'builtin.grocery',
       'ids': [3],

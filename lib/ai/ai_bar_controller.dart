@@ -1,15 +1,18 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../app/app_settings.dart';
 import '../lists/list_definition.dart';
 import '../lists/list_error.dart';
 import '../lists/list_item.dart';
 import '../lists/list_labels.dart';
 import '../lists/list_patch.dart';
 import '../lists/list_store.dart';
+import 'ai_match.dart';
 import 'ai_plan.dart';
 import 'ai_service.dart';
 
@@ -33,15 +36,24 @@ enum AiBarPhase {
   done,
 }
 
-// Why there is nothing to apply. Exactly one of the three is set.
+// Why there is nothing to apply. Exactly one of the four is set.
 class AiProblem {
   const AiProblem.refusal(String this.refusal)
     : decline = null,
+      listOff = null,
       errors = const [];
   const AiProblem.decline(String this.decline)
     : refusal = null,
+      listOff = null,
       errors = const [];
-  const AiProblem.invalid(this.errors) : refusal = null, decline = null;
+  const AiProblem.invalid(this.errors)
+    : refusal = null,
+      decline = null,
+      listOff = null;
+  const AiProblem.listOff(String this.listOff)
+    : refusal = null,
+      decline = null,
+      errors = const [];
 
   // functions/src/errors.ts reasons, a FirebaseFunctionsException code, or
   // `unavailable`.
@@ -51,6 +63,9 @@ class AiProblem {
   // ListErrors that remained after the self-correction round, or a store
   // refusal while applying or undoing.
   final List<ListError> errors;
+  // The name of a list with AI turned off that the request named, or that
+  // a new list would copy (Q-41): nothing about it was sent.
+  final String? listOff;
 }
 
 enum AiDoneKind { added, changed, created, undone }
@@ -79,9 +94,12 @@ class AiBarController extends ChangeNotifier {
     required this.store,
     required this.preferences,
     required this.onOpenList,
+    this.saveAutoApply,
     DateTime Function()? clock,
   }) : _clock = clock ?? DateTime.now {
     focus.addListener(_focusChanged);
+    focus.onKeyEvent = _key;
+    text.addListener(_textChanged);
   }
 
   final AiService service;
@@ -89,9 +107,16 @@ class AiBarController extends ChangeNotifier {
   final SharedPreferences preferences;
   // Opens a list the AI just created.
   final void Function(String listId) onOpenList;
+  // Saves the auto-apply setting through the settings cubit, so the
+  // Settings switch shows it; without it the preference is written here.
+  final Future<void> Function(bool value)? saveAutoApply;
   final DateTime Function() _clock;
 
   static const String noticeKey = 'ai.noticeSeen';
+  // Q-40 A: changes apply at once, with Undo, instead of waiting for Apply;
+  // a device setting like the others (Q-24 A). Offered once, after the
+  // first Apply.
+  static const String autoApplyAskedKey = 'ai.autoApplyAsked';
   // How long "Added to ... · Undo" stays (as the list delete's Undo).
   static const Duration doneFor = Duration(seconds: 8);
 
@@ -152,6 +177,63 @@ class AiBarController extends ChangeNotifier {
 
   bool get noticeSeen => preferences.getString(noticeKey) == aiNoticeId;
 
+  bool get autoApply =>
+      preferences.getBool(AppSettingsCubit.aiAutoApplyKey) ?? false;
+
+  Future<void> setAutoApply(bool value) async {
+    final Future<void> Function(bool value)? save = saveAutoApply;
+    if (save != null) {
+      await save(value);
+    } else {
+      await preferences.setBool(AppSettingsCubit.aiAutoApplyKey, value);
+    }
+    await preferences.setBool(autoApplyAskedKey, true);
+    notifyListeners();
+  }
+
+  bool _offerAutoApply = false;
+  // The done line asks once whether to apply without asking from now on.
+  bool get offerAutoApply => _offerAutoApply;
+
+  Future<void> answerAutoApply(bool yes) async {
+    _offerAutoApply = false;
+    await setAutoApply(yes);
+    _doneTimer?.cancel();
+    _doneTimer = Timer(doneFor, dismiss);
+  }
+
+  // The last request's words, put back in the bar after its Undo.
+  String? _lastPrompt;
+  // Text put back by Undo and not touched since: one Backspace or Delete at
+  // its end clears all of it.
+  String? _refilled;
+
+  void _textChanged() {
+    final String? refilled = _refilled;
+    if (refilled == null || text.text == refilled) {
+      return;
+    }
+    _refilled = null;
+    if (text.text == refilled.substring(0, refilled.length - 1) &&
+        text.selection.isCollapsed &&
+        text.selection.baseOffset == text.text.length) {
+      text.clear();
+    }
+  }
+
+  KeyEventResult _key(FocusNode node, KeyEvent event) {
+    if (_refilled != null &&
+        event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.delete &&
+        text.selection.isCollapsed &&
+        text.selection.baseOffset == text.text.length) {
+      _refilled = null;
+      text.clear();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
   // The panel above the field is open.
   bool get isOpen => _phase != AiBarPhase.idle;
 
@@ -201,6 +283,15 @@ class AiBarController extends ChangeNotifier {
     }
     _pending = null;
     _labels = pending.labels;
+    _lastPrompt = pending.prompt;
+    // A request that names a list with AI off is answered here and sends
+    // nothing (Q-41 A).
+    final String? off = _aiOffNamed(pending.prompt, pending.labels);
+    if (off != null) {
+      _problem = AiProblem.listOff(off);
+      _set(AiBarPhase.problem);
+      return;
+    }
     final AiRequest request = AiRequest.of(
       // A new list from a description: the AI designs it (Q-32).
       prompt: pending.newList
@@ -248,27 +339,60 @@ class AiBarController extends ChangeNotifier {
     }
 
     final String? openListId = request.openList?.id;
-    final AiPlan plan = AiPlan.read(
+    // Items named by their words (Q-39 D): the phone finds them; when it
+    // cannot tell, the request goes again with that list's items.
+    final AiMatchResult matched = AiMatch.resolve(
       answer,
+      store.current,
+      itemsSent: openListId,
+    );
+    final String? unclear = matched.unclearListId;
+    if (unclear != null) {
+      final AiRequest second = request.withOpenList(store.current, unclear);
+      if (second.openList?.id == unclear) {
+        await _run(second, correct: correct);
+        return;
+      }
+    }
+    final AiPlan plan = AiPlan.read(
+      matched.answer,
       store.current,
       openListId: openListId,
     );
-    if (!plan.isValid) {
+    final List<ListError> errors = [...matched.errors, ...plan.errors];
+    if (errors.isNotEmpty) {
       if (correct) {
         await _run(
           request.withCorrection(
             AiCorrection(
               toolCalls: answer.toolCalls,
-              errors: [for (final ListError error in plan.errors) '$error'],
+              errors: [for (final ListError error in errors) '$error'],
             ),
           ),
           correct: false,
         );
       } else {
-        _problem = AiProblem.invalid(plan.errors);
+        _problem = AiProblem.invalid(errors);
         _set(AiBarPhase.problem);
       }
       return;
+    }
+    // A new list named like a list with AI off (Q-41 A).
+    for (final AiStep step in plan.steps) {
+      if (step is AiCreateStep) {
+        final String? off = _aiOffNamed(
+          _labels?.listName(step.definition) ??
+              step.definition.name ??
+              step.definition.id,
+          _labels,
+          whole: true,
+        );
+        if (off != null) {
+          _problem = AiProblem.listOff(off);
+          _set(AiBarPhase.problem);
+          return;
+        }
+      }
     }
 
     _plan = plan;
@@ -286,11 +410,32 @@ class AiBarController extends ChangeNotifier {
       }
       return;
     }
-    if (plan.needsPreview(openListId)) {
+    if (plan.needsPreview(openListId) && !autoApply) {
       _set(AiBarPhase.preview);
       return;
     }
     await apply();
+  }
+
+  // The name of a list with AI off that [text] names (its words in a row),
+  // or, with [whole], that [text] is.
+  String? _aiOffNamed(String text, ListLabels? labels, {bool whole = false}) {
+    final String said = ' ${AiMatch.words(text).join(' ')} ';
+    for (final ListDefinition definition in store.current.definitions) {
+      if (definition.aiAllowed) {
+        continue;
+      }
+      final String name =
+          labels?.listName(definition) ?? definition.name ?? definition.id;
+      final String words = AiMatch.words(name).join(' ');
+      if (words.isEmpty) {
+        continue;
+      }
+      if (whole ? said.trim() == words : said.contains(' $words ')) {
+        return name;
+      }
+    }
+    return null;
   }
 
   // The answer to "which list?": the same request with that list open.
@@ -309,6 +454,10 @@ class AiBarController extends ChangeNotifier {
     if (plan == null || plan.steps.isEmpty) {
       return;
     }
+    // The first Apply offers to skip it from now on (Q-40 A).
+    final bool offer =
+        _phase == AiBarPhase.preview &&
+        !(preferences.getBool(autoApplyAskedKey) ?? false);
     final int generation = ++_generation;
     _set(AiBarPhase.sending);
     final List<_Undo> undo = [];
@@ -389,8 +538,15 @@ class AiBarController extends ChangeNotifier {
     }
     _undo = undo;
     _done = AiDone(kind, names);
+    _offerAutoApply = offer;
+    if (offer) {
+      await preferences.setBool(autoApplyAskedKey, true);
+    }
     _set(AiBarPhase.done);
-    _doneTimer = Timer(doneFor, dismiss);
+    // The offer stays until it is answered.
+    if (!offer) {
+      _doneTimer = Timer(doneFor, dismiss);
+    }
     if (created != null) {
       onOpenList(created);
     }
@@ -429,6 +585,17 @@ class AiBarController extends ChangeNotifier {
       return;
     }
     _done = const AiDone(AiDoneKind.undone, []);
+    _offerAutoApply = false;
+    // The request's words come back as a draft, not focused, to send again
+    // or clear with one Backspace (owner, 2026-11-04).
+    final String? prompt = _lastPrompt;
+    if (prompt != null && prompt.isNotEmpty && text.text.isEmpty) {
+      _refilled = prompt;
+      text.value = TextEditingValue(
+        text: prompt,
+        selection: TextSelection.collapsed(offset: prompt.length),
+      );
+    }
     _set(AiBarPhase.done);
     _doneTimer = Timer(const Duration(seconds: 2), dismiss);
   }
@@ -441,6 +608,7 @@ class AiBarController extends ChangeNotifier {
     _problem = null;
     _done = null;
     _partial = false;
+    _offerAutoApply = false;
     _pending = null;
     _undo = const [];
     _set(AiBarPhase.idle);
@@ -470,6 +638,7 @@ class AiBarController extends ChangeNotifier {
   void dispose() {
     _doneTimer?.cancel();
     focus.removeListener(_focusChanged);
+    text.removeListener(_textChanged);
     text.dispose();
     focus.dispose();
     fieldHeight.dispose();

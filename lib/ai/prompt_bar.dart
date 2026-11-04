@@ -351,26 +351,26 @@ class _FieldState extends State<_Field> with WidgetsBindingObserver {
             Expanded(
               child: Padding(
                 padding: EdgeInsets.only(bottom: focused ? 12 : 0),
-                child: draft
-                    ? Stack(
-                        children: [
-                          Offstage(child: field),
-                          GestureDetector(
-                            key: const ValueKey('ai-bar-draft'),
-                            behavior: HitTestBehavior.opaque,
-                            onTap: sending
-                                ? null
-                                : controller.focus.requestFocus,
-                            child: Text(
-                              controller.text.text.replaceAll('\n', ' '),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: textStyle,
-                            ),
-                          ),
-                        ],
-                      )
-                    : field,
+                // The field keeps its place whether or not the draft shows:
+                // rebuilt elsewhere, it would drop the keyboard on a phone
+                // and the bar would close again (T-19 unit 8).
+                child: Stack(
+                  children: [
+                    Offstage(offstage: draft, child: field),
+                    if (draft)
+                      GestureDetector(
+                        key: const ValueKey('ai-bar-draft'),
+                        behavior: HitTestBehavior.opaque,
+                        onTap: sending ? null : controller.focus.requestFocus,
+                        child: Text(
+                          controller.text.text.replaceAll('\n', ' '),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: textStyle,
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
             SizedBox(
@@ -571,13 +571,35 @@ class _Panel extends StatelessWidget {
                       key: const ValueKey('ai-partial'),
                       style: type.meta,
                     ),
+                  if (controller.offerAutoApply)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        loc.aiAutoApplyOffer,
+                        key: const ValueKey('ai-auto-apply-offer'),
+                        style: type.meta,
+                      ),
+                    ),
                 ],
               ),
             ),
             if (controller.canUndo) undo,
           ],
         ),
-        const <Widget>[],
+        [
+          if (controller.offerAutoApply) ...[
+            TextButton(
+              key: const ValueKey('ai-auto-apply-no'),
+              onPressed: () => controller.answerAutoApply(false),
+              child: Text(loc.aiAutoApplyNo),
+            ),
+            FilledButton(
+              key: const ValueKey('ai-auto-apply-yes'),
+              onPressed: () => controller.answerAutoApply(true),
+              child: Text(loc.aiAutoApplyYes),
+            ),
+          ],
+        ],
       ),
       _ => (const SizedBox.shrink(), const <Widget>[]),
     };
@@ -658,6 +680,10 @@ List<String> _problemTexts(
   final String? refusal = problem.refusal;
   if (refusal != null) {
     return [aiRefusalText(loc, refusal)];
+  }
+  final String? listOff = problem.listOff;
+  if (listOff != null) {
+    return [loc.aiListOff(listOff)];
   }
   final List<ListError> errors = problem.errors;
   // A refused undo is the one store error with its own sentence.

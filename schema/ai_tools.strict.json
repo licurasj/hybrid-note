@@ -982,7 +982,7 @@
   },
   {
     "name": "upsert_items",
-    "description": "Use to add items (no id) or change items (id from the context) in one of the user's lists (\"add milk, eggs and 2 lb chicken\", \"mark the dentist done\"). Choose the list the request clearly belongs to: the open list when the request fits it, otherwise the one whose name and fields fit; if two or three lists fit about equally, call choose_list instead. Use the list's field keys; split several things into several items.",
+    "description": "Use to add items (no id) or change items (id from the context, or match with the item's words when that list's items are not in the context) in one of the user's lists (\"add milk, eggs and 2 lb chicken\", \"mark the dentist done\"). Choose the list the request clearly belongs to: the open list when the request fits it, otherwise the one whose name and fields fit; if two or three lists fit about equally, call choose_list instead. Use the list's field keys; split several things into several items.",
     "strict": true,
     "input_schema": {
       "type": "object",
@@ -1009,7 +1009,7 @@
         },
         "aiItemChange": {
           "type": "object",
-          "description": "Without id: a new item (fields left out get their defaults). With id: changes only the given fields of that item.",
+          "description": "Without id or match: a new item (fields left out get their defaults). With id, or with match when the list's items are not in the context: changes only the given fields of that item.",
           "required": [
             "values"
           ],
@@ -1017,6 +1017,9 @@
           "properties": {
             "id": {
               "$ref": "#/$defs/itemId"
+            },
+            "match": {
+              "$ref": "#/$defs/itemMatch"
             },
             "values": {
               "type": "array",
@@ -1111,6 +1114,10 @@
           "type": "string",
           "description": "The id of an existing item of the target list, exactly as given in the context."
         },
+        "itemMatch": {
+          "type": "string",
+          "description": "The words of an existing item of the target list as the user named it (\"milk\"), when that list's items are not in the context; the app finds the item. When the item is in the context, use its id instead."
+        },
         "listId": {
           "type": "string",
           "description": "The id of one of the user's lists, exactly as given in the context."
@@ -1131,13 +1138,12 @@
   },
   {
     "name": "delete_items",
-    "description": "Use when the user asks to remove items from one of their lists. ids are item ids from the context. Never deletes a list.",
+    "description": "Use when the user asks to remove items from one of their lists. ids are item ids from the context; when that list's items are not in the context, give the items' words in match instead (\"milk\", \"eggs\"). Never deletes a list.",
     "strict": true,
     "input_schema": {
       "type": "object",
       "required": [
-        "listId",
-        "ids"
+        "listId"
       ],
       "additionalProperties": false,
       "properties": {
@@ -1149,12 +1155,22 @@
           "items": {
             "$ref": "#/$defs/itemId"
           }
+        },
+        "match": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/itemMatch"
+          }
         }
       },
       "$defs": {
         "itemId": {
           "type": "string",
           "description": "The id of an existing item of the target list, exactly as given in the context."
+        },
+        "itemMatch": {
+          "type": "string",
+          "description": "The words of an existing item of the target list as the user named it (\"milk\"), when that list's items are not in the context; the app finds the item. When the item is in the context, use its id instead."
         },
         "listId": {
           "type": "string",

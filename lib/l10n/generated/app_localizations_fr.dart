@@ -982,7 +982,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get aiNoticeDeepSeek =>
-      'Votre demande, les noms et champs de vos listes et la liste ouverte avec jusqu’à 20 éléments récents sont envoyés à DeepSeek, un fournisseur d’IA qui traite et stocke les données en Chine. Les listes dont l’IA est désactivée ne sont jamais envoyées. Le texte de votre demande est conservé environ 7 jours pour trouver les problèmes, puis supprimé.';
+      'Votre demande, les noms et champs de vos listes et la liste ouverte, ou une liste dont parle votre demande, avec jusqu’à 20 éléments récents sont envoyés à DeepSeek, un fournisseur d’IA qui traite et stocke les données en Chine. Les listes dont l’IA est désactivée ne sont jamais envoyées. Le texte de votre demande est conservé environ 7 jours pour trouver les problèmes, puis supprimé.';
 
   @override
   String get aiNoticeContinue => 'Continuer';
@@ -1132,4 +1132,23 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get aiRefusedProviderAccount =>
       'Le compte du fournisseur d’IA demande votre attention : vérifiez la clé ou le solde.';
+
+  @override
+  String aiListOff(String list) {
+    return 'L’IA est désactivée pour « $list ».';
+  }
+
+  @override
+  String get aiAutoApplyOffer =>
+      'Appliquer désormais les changements de ce type sans demander ? Annuler reste possible.';
+
+  @override
+  String get aiAutoApplyYes => 'Oui';
+
+  @override
+  String get aiAutoApplyNo => 'Pas maintenant';
+
+  @override
+  String get settingsAiAutoApply =>
+      'Appliquer les changements de l’IA sans demander';
 }

@@ -771,7 +771,7 @@
   "aiDescribeNewList": "Describe a new list",
   "aiDescribeNewListMeta": "The AI picks its fields",
   "aiNoticeTitle": "Before your first request",
-  "aiNoticeDeepSeek": "Your request, the names and fields of your lists, and the open list with up to 20 recent items go to DeepSeek, an AI provider that processes and stores data in China. Lists with AI turned off are never sent. Your request text is kept for about 7 days to find problems, then deleted.",
+  "aiNoticeDeepSeek": "Your request, the names and fields of your lists, and the open list, or a list your request is about, with up to 20 recent items go to DeepSeek, an AI provider that processes and stores data in China. Lists with AI turned off are never sent. Your request text is kept for about 7 days to find problems, then deleted.",
   "aiNoticeContinue": "Continue",
   "aiApply": "Apply",
   "aiAddItems": "{list}: add {items}",
@@ -943,5 +943,17 @@
   "aiInvalidAnswer": "The changes do not fit the list, so nothing was applied.",
   "errorUndoTooLarge": "This change touched too many items to be undone.",
   "aiPartlyNotDone": "Part of the request could not be done.",
-  "aiRefusedProviderAccount": "The AI provider account needs attention: check its key or balance."
+  "aiRefusedProviderAccount": "The AI provider account needs attention: check its key or balance.",
+  "aiListOff": "\"{list}\" has AI turned off.",
+  "@aiListOff": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      }
+    }
+  },
+  "aiAutoApplyOffer": "Apply changes like this without asking from now on? Undo stays.",
+  "aiAutoApplyYes": "Yes",
+  "aiAutoApplyNo": "Not now",
+  "settingsAiAutoApply": "Apply AI changes without asking"
 }

@@ -153,6 +153,21 @@ describe('filterOutput', () => {
 });
 
 describe('retryFeedback', () => {
+  test('delete_items names its items by ids or by match, not both or neither (Q-39)', () => {
+    const feedback = retryFeedback(
+      answer([
+        call('delete_items', { listId: 'grocery', match: ['milk'] }),
+        call('delete_items', { listId: 'grocery', ids: ['i1'] }),
+        call('delete_items', { listId: 'grocery' }),
+        call('delete_items', { listId: 'grocery', ids: ['i1'], match: ['milk'] }),
+      ]),
+      structuralCheck,
+      open,
+    );
+    assert.equal(feedback.length, 2);
+    assert.ok(feedback.every((f) => /either ids or match/.test(f.errors[0])));
+  });
+
   test('a reply that is only too long is not retried: filterOutput cuts it (L2)', () => {
     const long = answer([call('reply', { text: 'x'.repeat(600) })]);
     const maxLength = (_: string, args: unknown) =>

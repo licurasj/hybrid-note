@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hybrid_note/ai/ai_bar_controller.dart';
 import 'package:hybrid_note/ai/ai_service.dart';
 import 'package:hybrid_note/ai/prompt_bar.dart';
+import 'package:hybrid_note/app/app_settings.dart';
 import 'package:hybrid_note/backend/firestore_list_store.dart';
 import 'package:hybrid_note/lists/builtin_templates.dart';
 import 'package:hybrid_note/lists/list_definition.dart';
@@ -490,6 +491,33 @@ void main() {
     }
   });
 
+  testWidgets('a tap on the bar after a decline opens it (T-19 unit 8)', (
+    tester,
+  ) async {
+    final FakeAiService ai = FakeAiService()
+      ..answers.add(
+        const AiAnswer(
+          requestId: 'r',
+          toolCalls: [],
+          declineReason: 'offTopic',
+        ),
+      );
+    await _pump(tester, ai);
+    await _ask(tester, 'weather in Paris?');
+    expect(find.text('I can only help with your lists.'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('ai-bar')));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<TextField>(
+            find.byKey(const ValueKey('ai-bar-field'), skipOffstage: false),
+          )
+          .focusNode!
+          .hasFocus,
+      isTrue,
+    );
+  });
+
   testWidgets('an answer the function left part out of says so (L3)', (
     tester,
   ) async {
@@ -503,7 +531,11 @@ void main() {
           droppedTools: 1,
         ),
       )
-      ..answers.add(_calls([_add(_grocery, ['Eggs'])]));
+      ..answers.add(
+        _calls([
+          _add(_grocery, ['Eggs']),
+        ]),
+      );
     final FirestoreListStore store = await _pump(tester, ai);
 
     await _ask(tester, 'milk and a price column');
@@ -609,6 +641,254 @@ void main() {
   });
   // The bar's rules at rest and focused (owner, 2026-11-03,
   // docs/INTERACTIONS.md "AI bar").
+  group('T-19 unit 8', () {
+    ListItem item(String id, String title) {
+      final DateTime now = DateTime.now().toUtc();
+      return ListItem(
+        id: id,
+        listId: _grocery,
+        values: {'title': title},
+        createdAt: now,
+        updatedAt: now,
+      );
+    }
+
+    testWidgets('from the home, items named by their words are found on the '
+        'phone: one request, a preview, then deleted (Q-39)', (tester) async {
+      final FakeAiService ai = FakeAiService()
+        ..answers.add(
+          _calls([
+            const AiToolCall('delete_items', {
+              'listId': _grocery,
+              'match': ['milk', 'eggs'],
+            }),
+          ]),
+        );
+      final FirestoreListStore store = await _pump(
+        tester,
+        ai,
+        items: [item('g1', 'Milk'), item('g2', 'Eggs'), item('g3', 'Bread')],
+      );
+
+      await _ask(tester, 'remove milk and eggs');
+      expect(ai.requests, hasLength(1));
+      expect(find.textContaining('delete'), findsOneWidget);
+      await _tapKey(tester, 'ai-apply');
+      expect(_titles(store, _grocery), ['Bread']);
+    });
+
+    testWidgets('an unclear match sends the request again with that list\'s '
+        'items (Q-39 D)', (tester) async {
+      final FakeAiService ai = FakeAiService()
+        ..answers.addAll([
+          _calls([
+            const AiToolCall('delete_items', {
+              'listId': _grocery,
+              'match': ['the dairy stuff'],
+            }),
+          ]),
+          _calls([
+            const AiToolCall('delete_items', {
+              'listId': _grocery,
+              'ids': ['g1', 'g2'],
+            }),
+          ]),
+        ]);
+      final FirestoreListStore store = await _pump(
+        tester,
+        ai,
+        items: [item('g1', 'Milk'), item('g2', 'Cheese'), item('g3', 'Bread')],
+      );
+
+      await _ask(tester, 'remove the dairy stuff');
+      expect(ai.requests, hasLength(2));
+      expect(ai.requests.first.openList, isNull);
+      expect(ai.requests.last.openList!.id, _grocery);
+      expect(ai.requests.last.openItems, hasLength(3));
+      await _tapKey(tester, 'ai-apply');
+      expect(_titles(store, _grocery), ['Bread']);
+    });
+
+    testWidgets('the first Apply offers auto-apply; after a yes changes apply '
+        'at once with Undo, and Settings shows it (Q-40)', (tester) async {
+      final FakeAiService ai = FakeAiService()
+        ..answers.addAll([
+          _calls([
+            const AiToolCall('delete_items', {
+              'listId': _grocery,
+              'ids': ['g1'],
+            }),
+          ]),
+          _calls([
+            const AiToolCall('delete_items', {
+              'listId': _grocery,
+              'ids': ['g2'],
+            }),
+          ]),
+        ]);
+      final FirestoreListStore store = await _pump(
+        tester,
+        ai,
+        items: [item('g1', 'Milk'), item('g2', 'Eggs')],
+      );
+
+      await _ask(tester, 'remove milk');
+      await _tapKey(tester, 'ai-apply');
+      expect(find.byKey(const ValueKey('ai-auto-apply-offer')), findsOneWidget);
+      // The offer waits for an answer.
+      await tester.pump(AiBarController.doneFor * 2);
+      expect(find.byKey(const ValueKey('ai-auto-apply-offer')), findsOneWidget);
+      await _tapKey(tester, 'ai-auto-apply-yes');
+      final SharedPreferences preferences =
+          await SharedPreferences.getInstance();
+      expect(preferences.getBool(AppSettingsCubit.aiAutoApplyKey), isTrue);
+      expect(
+        tester
+            .element(find.byKey(const ValueKey('ai-bar')))
+            .read<AppSettingsCubit>()
+            .state
+            .aiAutoApply,
+        isTrue,
+      );
+
+      await _ask(tester, 'remove eggs');
+      expect(find.byKey(const ValueKey('ai-apply')), findsNothing);
+      expect(_titles(store, _grocery), isEmpty);
+      expect(find.byKey(const ValueKey('ai-undo')), findsOneWidget);
+      expect(find.byKey(const ValueKey('ai-auto-apply-offer')), findsNothing);
+    });
+
+    testWidgets('"Not now" keeps the preview and is not asked again', (
+      tester,
+    ) async {
+      final FakeAiService ai = FakeAiService()
+        ..answers.addAll([
+          _calls([
+            const AiToolCall('delete_items', {
+              'listId': _grocery,
+              'ids': ['g1'],
+            }),
+          ]),
+          _calls([
+            const AiToolCall('delete_items', {
+              'listId': _grocery,
+              'ids': ['g2'],
+            }),
+          ]),
+        ]);
+      await _pump(tester, ai, items: [item('g1', 'Milk'), item('g2', 'Eggs')]);
+      await _ask(tester, 'remove milk');
+      await _tapKey(tester, 'ai-apply');
+      await _tapKey(tester, 'ai-auto-apply-no');
+      await _ask(tester, 'remove eggs');
+      expect(find.byKey(const ValueKey('ai-apply')), findsOneWidget);
+      await _tapKey(tester, 'ai-apply');
+      expect(find.byKey(const ValueKey('ai-auto-apply-offer')), findsNothing);
+    });
+
+    testWidgets('a request naming a list with AI off says so and sends '
+        'nothing; a new list named like it is not made (Q-41)', (tester) async {
+      final List<ListDefinition> lists = [
+        for (final ListDefinition list in starterLists())
+          list.id == _grocery ? _aiOff(list) : list,
+      ];
+      final FakeAiService ai = FakeAiService()
+        ..answers.add(
+          _calls([
+            AiToolCall('create_list', {
+              'list': {..._runLog()['list']! as Map, 'name': 'Grocery'},
+            }),
+          ]),
+        );
+      await _pump(tester, ai, lists: lists);
+
+      await _ask(tester, 'add milk to Grocery');
+      expect(ai.requests, isEmpty);
+      expect(find.text('"Grocery" has AI turned off.'), findsOneWidget);
+      await _tapKey(tester, 'ai-close');
+
+      await _ask(tester, 'I need a shopping list');
+      expect(ai.requests, hasLength(1));
+      expect(find.text('"Grocery" has AI turned off.'), findsOneWidget);
+      expect(find.byKey(const ValueKey('ai-apply')), findsNothing);
+    });
+
+    testWidgets('after Undo the request comes back as a draft, not focused; '
+        'one Backspace at its end clears it', (tester) async {
+      final FakeAiService ai = FakeAiService()
+        ..answers.add(
+          _calls([
+            _add(_grocery, ['Milk']),
+          ]),
+        );
+      await _pump(tester, ai);
+      await _ask(tester, 'add milk');
+      await _tapKey(tester, 'ai-undo');
+
+      final TextField field = tester.widget<TextField>(
+        find.byKey(const ValueKey('ai-bar-field'), skipOffstage: false),
+      );
+      expect(field.controller!.text, 'add milk');
+      expect(field.focusNode!.hasFocus, isFalse);
+      expect(find.byKey(const ValueKey('ai-bar-draft')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('ai-bar-draft')));
+      await tester.pumpAndSettle();
+      expect(field.focusNode!.hasFocus, isTrue);
+      // What a soft keyboard's Backspace does at the end of the text.
+      tester.testTextInput.updateEditingValue(
+        const TextEditingValue(
+          text: 'add mil',
+          selection: TextSelection.collapsed(offset: 7),
+        ),
+      );
+      await tester.pump();
+      expect(field.controller!.text, isEmpty);
+    });
+
+    testWidgets('Delete at the end clears the refilled text; an edit makes '
+        'Backspace ordinary again', (tester) async {
+      final FakeAiService ai = FakeAiService()
+        ..answers.addAll([
+          _calls([
+            _add(_grocery, ['Milk']),
+          ]),
+          _calls([
+            _add(_grocery, ['Milk']),
+          ]),
+        ]);
+      await _pump(tester, ai);
+      await _ask(tester, 'add milk');
+      await _tapKey(tester, 'ai-undo');
+      await tester.tap(find.byKey(const ValueKey('ai-bar-draft')));
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+      await tester.pump();
+      final TextField field = tester.widget<TextField>(_field);
+      expect(field.controller!.text, isEmpty);
+
+      await _ask(tester, 'add milk');
+      await _tapKey(tester, 'ai-undo');
+      await tester.tap(find.byKey(const ValueKey('ai-bar-draft')));
+      await tester.pumpAndSettle();
+      tester.testTextInput.updateEditingValue(
+        const TextEditingValue(
+          text: 'add milks',
+          selection: TextSelection.collapsed(offset: 9),
+        ),
+      );
+      await tester.pump();
+      tester.testTextInput.updateEditingValue(
+        const TextEditingValue(
+          text: 'add milk',
+          selection: TextSelection.collapsed(offset: 8),
+        ),
+      );
+      await tester.pump();
+      expect(field.controller!.text, 'add milk');
+    });
+  });
+
   group('focus, the raised hub and the draft', () {
     final Finder bar = find.byKey(const ValueKey('ai-bar'));
     final Finder draft = find.byKey(const ValueKey('ai-bar-draft'));

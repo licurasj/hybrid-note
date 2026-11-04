@@ -983,7 +983,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get aiNoticeDeepSeek =>
-      'Deine Anfrage, die Namen und Felder deiner Listen und die offene Liste mit bis zu 20 neueren Einträgen gehen an DeepSeek, einen KI-Anbieter, der Daten in China verarbeitet und speichert. Listen mit ausgeschalteter KI werden nie gesendet. Der Text deiner Anfrage wird etwa 7 Tage zur Fehlersuche aufbewahrt und dann gelöscht.';
+      'Deine Anfrage, die Namen und Felder deiner Listen und die offene Liste oder eine Liste, um die es in deiner Anfrage geht, mit bis zu 20 neueren Einträgen gehen an DeepSeek, einen KI-Anbieter, der Daten in China verarbeitet und speichert. Listen mit ausgeschalteter KI werden nie gesendet. Der Text deiner Anfrage wird etwa 7 Tage zur Fehlersuche aufbewahrt und dann gelöscht.';
 
   @override
   String get aiNoticeContinue => 'Weiter';
@@ -1134,4 +1134,22 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get aiRefusedProviderAccount =>
       'Das Konto beim KI-Anbieter braucht Aufmerksamkeit: Schlüssel oder Guthaben prüfen.';
+
+  @override
+  String aiListOff(String list) {
+    return 'Für „$list“ ist die KI ausgeschaltet.';
+  }
+
+  @override
+  String get aiAutoApplyOffer =>
+      'Änderungen wie diese künftig ohne Nachfrage übernehmen? Rückgängig bleibt möglich.';
+
+  @override
+  String get aiAutoApplyYes => 'Ja';
+
+  @override
+  String get aiAutoApplyNo => 'Jetzt nicht';
+
+  @override
+  String get settingsAiAutoApply => 'KI-Änderungen ohne Nachfrage übernehmen';
 }

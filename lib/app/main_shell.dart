@@ -92,6 +92,7 @@ class _MainShellState extends State<MainShell> {
         store: context.read<ListStore>(),
         preferences: context.read<AppSettingsCubit>().preferences,
         onOpenList: _openList,
+        saveAutoApply: context.read<AppSettingsCubit>().setAiAutoApply,
       );
     }
   }

@@ -474,6 +474,21 @@ class _SettingsSheet extends StatelessWidget {
                             context.read<AppSettingsCubit>().toggleDarkMode(),
                       ),
                       hairline(),
+                      row(
+                        key: const ValueKey('settings-ai-auto-apply'),
+                        icon: Icons.auto_awesome_outlined,
+                        label: Text(loc.settingsAiAutoApply, style: type.row),
+                        trailing: Switch(
+                          value: settings.aiAutoApply,
+                          onChanged: (value) => context
+                              .read<AppSettingsCubit>()
+                              .setAiAutoApply(value),
+                        ),
+                        onTap: () => context
+                            .read<AppSettingsCubit>()
+                            .setAiAutoApply(!settings.aiAutoApply),
+                      ),
+                      hairline(),
                       Padding(
                         padding: const EdgeInsets.fromLTRB(
                           AppShapes.sideMargin,

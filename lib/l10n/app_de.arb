@@ -331,7 +331,7 @@
   "aiDescribeNewList": "Neue Liste beschreiben",
   "aiDescribeNewListMeta": "Die KI wählt ihre Felder",
   "aiNoticeTitle": "Vor deiner ersten Anfrage",
-  "aiNoticeDeepSeek": "Deine Anfrage, die Namen und Felder deiner Listen und die offene Liste mit bis zu 20 neueren Einträgen gehen an DeepSeek, einen KI-Anbieter, der Daten in China verarbeitet und speichert. Listen mit ausgeschalteter KI werden nie gesendet. Der Text deiner Anfrage wird etwa 7 Tage zur Fehlersuche aufbewahrt und dann gelöscht.",
+  "aiNoticeDeepSeek": "Deine Anfrage, die Namen und Felder deiner Listen und die offene Liste oder eine Liste, um die es in deiner Anfrage geht, mit bis zu 20 neueren Einträgen gehen an DeepSeek, einen KI-Anbieter, der Daten in China verarbeitet und speichert. Listen mit ausgeschalteter KI werden nie gesendet. Der Text deiner Anfrage wird etwa 7 Tage zur Fehlersuche aufbewahrt und dann gelöscht.",
   "aiNoticeContinue": "Weiter",
   "aiApply": "Übernehmen",
   "aiAddItems": "{list}: {items} hinzufügen",
@@ -365,5 +365,10 @@
   "aiInvalidAnswer": "Die Änderungen passen nicht zur Liste, daher wurde nichts übernommen.",
   "errorUndoTooLarge": "Diese Änderung betraf zu viele Einträge, um rückgängig gemacht zu werden.",
   "aiPartlyNotDone": "Ein Teil der Anfrage konnte nicht ausgeführt werden.",
-  "aiRefusedProviderAccount": "Das Konto beim KI-Anbieter braucht Aufmerksamkeit: Schlüssel oder Guthaben prüfen."
+  "aiRefusedProviderAccount": "Das Konto beim KI-Anbieter braucht Aufmerksamkeit: Schlüssel oder Guthaben prüfen.",
+  "aiListOff": "Für „{list}“ ist die KI ausgeschaltet.",
+  "aiAutoApplyOffer": "Änderungen wie diese künftig ohne Nachfrage übernehmen? Rückgängig bleibt möglich.",
+  "aiAutoApplyYes": "Ja",
+  "aiAutoApplyNo": "Jetzt nicht",
+  "settingsAiAutoApply": "KI-Änderungen ohne Nachfrage übernehmen"
 }

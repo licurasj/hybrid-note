@@ -331,7 +331,7 @@
   "aiDescribeNewList": "描述新列表",
   "aiDescribeNewListMeta": "由 AI 选择字段",
   "aiNoticeTitle": "首次请求之前",
-  "aiNoticeDeepSeek": "你的请求、各列表的名称和字段，以及打开的列表和最多 20 条最近条目会发送给 DeepSeek。DeepSeek 是一家在中国处理和存储数据的 AI 提供商。关闭了 AI 的列表绝不会发送。请求文字会保留约 7 天用于排查问题，之后删除。",
+  "aiNoticeDeepSeek": "你的请求、各列表的名称和字段，以及打开的列表（或请求涉及的列表）和最多 20 条最近条目会发送给 DeepSeek。DeepSeek 是一家在中国处理和存储数据的 AI 提供商。关闭了 AI 的列表绝不会发送。请求文字会保留约 7 天用于排查问题，之后删除。",
   "aiNoticeContinue": "继续",
   "aiApply": "应用",
   "aiAddItems": "{list}：添加{items}",
@@ -365,5 +365,10 @@
   "aiInvalidAnswer": "这些更改与列表不符，因此没有应用任何内容。",
   "errorUndoTooLarge": "此更改涉及的项目太多，无法撤销。",
   "aiPartlyNotDone": "请求的一部分无法完成。",
-  "aiRefusedProviderAccount": "AI 服务商账户需要处理：请检查密钥或余额。"
+  "aiRefusedProviderAccount": "AI 服务商账户需要处理：请检查密钥或余额。",
+  "aiListOff": "“{list}”已关闭 AI。",
+  "aiAutoApplyOffer": "以后像这样的更改不再询问直接应用？仍可撤销。",
+  "aiAutoApplyYes": "是",
+  "aiAutoApplyNo": "暂不",
+  "settingsAiAutoApply": "不询问直接应用 AI 更改"
 }

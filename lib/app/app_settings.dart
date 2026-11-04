@@ -4,12 +4,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // Choices that belong to this device, not to the account (Q-24 A): the app
-// language, dark mode and where the launcher hub sits.
+// language, dark mode, where the launcher hub sits and whether AI changes
+// apply without asking (Q-40 A).
 class AppSettings {
   const AppSettings({
     this.localeCode,
     this.isDarkMode = false,
     this.hubPosition,
+    this.aiAutoApply = false,
   });
 
   // A language code such as "de"; null follows the system.
@@ -17,17 +19,22 @@ class AppSettings {
   final bool isDarkMode;
   // Launcher hub position as fractions of the screen; null = default corner.
   final Offset? hubPosition;
+  // The prompt bar applies every change at once, with Undo, instead of
+  // showing Apply and Cancel.
+  final bool aiAutoApply;
 
   AppSettings copyWith({
     String? localeCode,
     bool clearLocale = false,
     bool? isDarkMode,
     Offset? hubPosition,
+    bool? aiAutoApply,
   }) {
     return AppSettings(
       localeCode: clearLocale ? null : localeCode ?? this.localeCode,
       isDarkMode: isDarkMode ?? this.isDarkMode,
       hubPosition: hubPosition ?? this.hubPosition,
+      aiAutoApply: aiAutoApply ?? this.aiAutoApply,
     );
   }
 }
@@ -44,6 +51,7 @@ class AppSettingsCubit extends Cubit<AppSettings> {
   static const String darkModeKey = 'settings.darkMode';
   static const String hubXKey = 'settings.hubX';
   static const String hubYKey = 'settings.hubY';
+  static const String aiAutoApplyKey = 'settings.aiAutoApply';
 
   static AppSettings _read(SharedPreferences preferences) {
     final double? hubX = preferences.getDouble(hubXKey);
@@ -52,6 +60,7 @@ class AppSettingsCubit extends Cubit<AppSettings> {
       localeCode: preferences.getString(localeKey),
       isDarkMode: preferences.getBool(darkModeKey) ?? false,
       hubPosition: hubX == null || hubY == null ? null : Offset(hubX, hubY),
+      aiAutoApply: preferences.getBool(aiAutoApplyKey) ?? false,
     );
   }
 
@@ -76,5 +85,10 @@ class AppSettingsCubit extends Cubit<AppSettings> {
     emit(state.copyWith(hubPosition: position));
     await preferences.setDouble(hubXKey, position.dx);
     await preferences.setDouble(hubYKey, position.dy);
+  }
+
+  Future<void> setAiAutoApply(bool value) async {
+    emit(state.copyWith(aiAutoApply: value));
+    await preferences.setBool(aiAutoApplyKey, value);
   }
 }

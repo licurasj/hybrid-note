@@ -1715,7 +1715,7 @@ abstract class AppLocalizations {
   /// No description provided for @aiNoticeDeepSeek.
   ///
   /// In en, this message translates to:
-  /// **'Your request, the names and fields of your lists, and the open list with up to 20 recent items go to DeepSeek, an AI provider that processes and stores data in China. Lists with AI turned off are never sent. Your request text is kept for about 7 days to find problems, then deleted.'**
+  /// **'Your request, the names and fields of your lists, and the open list, or a list your request is about, with up to 20 recent items go to DeepSeek, an AI provider that processes and stores data in China. Lists with AI turned off are never sent. Your request text is kept for about 7 days to find problems, then deleted.'**
   String get aiNoticeDeepSeek;
 
   /// No description provided for @aiNoticeContinue.
@@ -1921,6 +1921,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The AI provider account needs attention: check its key or balance.'**
   String get aiRefusedProviderAccount;
+
+  /// No description provided for @aiListOff.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{list}\" has AI turned off.'**
+  String aiListOff(String list);
+
+  /// No description provided for @aiAutoApplyOffer.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply changes like this without asking from now on? Undo stays.'**
+  String get aiAutoApplyOffer;
+
+  /// No description provided for @aiAutoApplyYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get aiAutoApplyYes;
+
+  /// No description provided for @aiAutoApplyNo.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get aiAutoApplyNo;
+
+  /// No description provided for @settingsAiAutoApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply AI changes without asking'**
+  String get settingsAiAutoApply;
 }
 
 class _AppLocalizationsDelegate

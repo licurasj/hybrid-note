@@ -977,7 +977,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiNoticeDeepSeek =>
-      'Your request, the names and fields of your lists, and the open list with up to 20 recent items go to DeepSeek, an AI provider that processes and stores data in China. Lists with AI turned off are never sent. Your request text is kept for about 7 days to find problems, then deleted.';
+      'Your request, the names and fields of your lists, and the open list, or a list your request is about, with up to 20 recent items go to DeepSeek, an AI provider that processes and stores data in China. Lists with AI turned off are never sent. Your request text is kept for about 7 days to find problems, then deleted.';
 
   @override
   String get aiNoticeContinue => 'Continue';
@@ -1123,4 +1123,22 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get aiRefusedProviderAccount =>
       'The AI provider account needs attention: check its key or balance.';
+
+  @override
+  String aiListOff(String list) {
+    return '\"$list\" has AI turned off.';
+  }
+
+  @override
+  String get aiAutoApplyOffer =>
+      'Apply changes like this without asking from now on? Undo stays.';
+
+  @override
+  String get aiAutoApplyYes => 'Yes';
+
+  @override
+  String get aiAutoApplyNo => 'Not now';
+
+  @override
+  String get settingsAiAutoApply => 'Apply AI changes without asking';
 }

@@ -29,6 +29,8 @@ describe('tool schemas', () => {
     const good: [(typeof TOOL_NAMES)[number], unknown][] = [
       ['upsert_items', { listId: 'g', items: [{ values: [value('title', 'eggs'), value('qty', 2)] }, { id: 'i1', values: [value('done', true)] }] }],
       ['delete_items', { listId: 'g', ids: ['i1'] }],
+      ['delete_items', { listId: 'g', match: ['milk'] }],
+      ['upsert_items', { listId: 'g', items: [{ match: 'milk', values: [] }] }],
       ['patch_list', { listId: 'g', ops: [{ op: 'removeField', key: 'qty' }] }],
       ['choose_list', { question: 'Grocery or Tasks?', candidates: ['g', 't'] }],
       ['reply', { text: 'You have 3 items.' }],
@@ -42,7 +44,7 @@ describe('tool schemas', () => {
       ['upsert_items', { listId: 'g', items: [{ values: { title: 'eggs' } }] }], // values as a map
       ['upsert_items', { listId: 'g', items: [] }], // minItems
       ['upsert_items', { listId: 'g', items: [{ values: [value('1bad', 'x')] }] }], // key pattern
-      ['delete_items', { listId: 'g' }], // ids missing
+      ['delete_items', { listId: 'g', match: [] }], // minItems (ids or match: output.ts, Q-39)
       ['choose_list', { question: 'Which?', candidates: ['g'] }], // minItems 2
       ['reply', { text: 'x'.repeat(501) }], // maxLength
       ['decline', { reason: 'bored' }], // enum
