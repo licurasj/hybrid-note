@@ -1141,4 +1141,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsAiAutoApply => 'Apply AI changes without asking';
+
+  @override
+  String get aiAnswerHint => 'Your answer';
+
+  @override
+  String aiAnswering(String reply) {
+    return 'Answering: $reply';
+  }
+
+  @override
+  String get aiNewRequest => 'New request';
 }

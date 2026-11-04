@@ -153,6 +153,24 @@ describe('filterOutput', () => {
 });
 
 describe('retryFeedback', () => {
+  test('choose_items offers 2 to 6 items of the open list in the context (Q-42)', () => {
+    const withItems: AiRequest = {
+      ...open,
+      openList: { definition: { id: 'grocery' }, items: [{ id: 'i1' }, { id: 'i2' }, { id: 'i3' }] },
+    };
+    const choose = (args: Record<string, unknown>) =>
+      retryFeedback(answer([call('choose_items', { question: 'Which?', ...args })]), structuralCheck, withItems);
+    assert.deepEqual(choose({ listId: 'grocery', candidates: ['i1', 'i2'] }), []);
+    assert.equal(choose({ listId: 'grocery', candidates: ['i1'] }).length, 1);
+    assert.equal(choose({ listId: 'grocery', candidates: ['i1', 'nope'] }).length, 1);
+    assert.equal(choose({ listId: 'todo', candidates: ['i1', 'i2'] }).length, 1);
+    assert.equal(
+      retryFeedback(answer([call('choose_items', { question: 'Which?', listId: 'grocery', candidates: ['i1', 'i2'] })]), structuralCheck, closed)
+        .length,
+      1,
+    );
+  });
+
   test('delete_items names its items by ids or by match, not both or neither (Q-39)', () => {
     const feedback = retryFeedback(
       answer([

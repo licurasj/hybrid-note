@@ -1951,6 +1951,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Apply AI changes without asking'**
   String get settingsAiAutoApply;
+
+  /// No description provided for @aiAnswerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Your answer'**
+  String get aiAnswerHint;
+
+  /// No description provided for @aiAnswering.
+  ///
+  /// In en, this message translates to:
+  /// **'Answering: {reply}'**
+  String aiAnswering(String reply);
+
+  /// No description provided for @aiNewRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'New request'**
+  String get aiNewRequest;
 }
 
 class _AppLocalizationsDelegate

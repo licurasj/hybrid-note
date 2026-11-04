@@ -1120,4 +1120,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsAiAutoApply => '不询问直接应用 AI 更改';
+
+  @override
+  String get aiAnswerHint => '你的回答';
+
+  @override
+  String aiAnswering(String reply) {
+    return '回答：$reply';
+  }
+
+  @override
+  String get aiNewRequest => '新请求';
 }

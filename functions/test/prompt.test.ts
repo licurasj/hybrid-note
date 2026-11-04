@@ -35,6 +35,19 @@ describe('system prompt', () => {
 });
 
 describe('user message', () => {
+  test('a follow-up quotes the earlier request and the reply before the new request (Q-42)', () => {
+    const message = buildUserMessage(
+      { ...request, prompt: 'milk', followUp: { prompt: 'remove the dairy', reply: 'Milk or eggs?' } },
+      new Date('2026-11-03T22:00:00Z'),
+    );
+    const turn = message.indexOf('<previous_turn>');
+    assert.ok(turn > message.indexOf('</context>'));
+    assert.ok(message.indexOf('"remove the dairy"') > turn);
+    assert.ok(message.indexOf('"Milk or eggs?"') > turn);
+    assert.ok(message.indexOf('<request>\nmilk') > message.indexOf('</previous_turn>'));
+    assert.ok(!buildUserMessage(request, new Date()).includes('<previous_turn>'));
+  });
+
   test('carries the date, locale, lists and prompt; no open list said so', () => {
     const message = buildUserMessage(request, new Date('2026-11-03T22:00:00Z'));
     assert.ok(message.includes('Today: 2026-11-03 (Tuesday). UI language: de.'));

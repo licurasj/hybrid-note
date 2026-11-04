@@ -370,5 +370,8 @@
   "aiAutoApplyOffer": "¿Aplicar cambios como este sin preguntar a partir de ahora? Deshacer sigue disponible.",
   "aiAutoApplyYes": "Sí",
   "aiAutoApplyNo": "Ahora no",
-  "settingsAiAutoApply": "Aplicar cambios de la IA sin preguntar"
+  "settingsAiAutoApply": "Aplicar cambios de la IA sin preguntar",
+  "aiAnswerHint": "Tu respuesta",
+  "aiAnswering": "Respondiendo a: {reply}",
+  "aiNewRequest": "Nueva solicitud"
 }

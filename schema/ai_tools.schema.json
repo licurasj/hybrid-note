@@ -407,6 +407,21 @@
       }
     },
     {
+      "name": "choose_items",
+      "description": "Use instead of upsert_items or delete_items when the words fit two to six items of a list whose items are in the context and none is clearly right (\"remove the milk\" with Milk and Oat milk). Do not ask with reply in that case. The app shows the items as buttons; the user picks one or more and the app deletes them, or, with values, sets those fields on them.",
+      "input_schema": {
+        "type": "object",
+        "required": ["question", "listId", "candidates"],
+        "additionalProperties": false,
+        "properties": {
+          "question": { "type": "string", "minLength": 1, "maxLength": 120, "description": "A short question in the user's language, for example \"Which milk?\"." },
+          "listId": { "$ref": "#/$defs/listId" },
+          "candidates": { "type": "array", "minItems": 2, "maxItems": 6, "items": { "$ref": "#/$defs/itemId" } },
+          "values": { "type": "array", "description": "Leave out to delete the picked items; otherwise the fields to set on each of them.", "items": { "$ref": "#/$defs/aiItemValue" } }
+        }
+      }
+    },
+    {
       "name": "reply",
       "description": "Use when the user asks something about their lists that needs no change (\"what is left on my grocery list?\"). A short answer in the user's language.",
       "input_schema": {

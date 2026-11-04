@@ -1152,4 +1152,15 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get settingsAiAutoApply => 'KI-Änderungen ohne Nachfrage übernehmen';
+
+  @override
+  String get aiAnswerHint => 'Deine Antwort';
+
+  @override
+  String aiAnswering(String reply) {
+    return 'Antwort auf: $reply';
+  }
+
+  @override
+  String get aiNewRequest => 'Neue Anfrage';
 }

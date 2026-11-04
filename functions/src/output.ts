@@ -48,7 +48,7 @@ export function retryFeedback(response: ProviderResponse, schemaCheck: SchemaChe
     const name = block.name as ToolName;
     const args = name === 'reply' ? cutReply(block.args, REPLY_SCHEMA_MAX_CHARS) : block.args;
     const errors = [
-      ...(request !== undefined && isRecord(args) ? targetErrors(name, args, listIds, openId) : []),
+      ...(request !== undefined && isRecord(args) ? targetErrors(name, args, listIds, openId, openItemIds(request)) : []),
       ...schemaCheck(name, args),
     ];
     if (errors.length > 0) feedback.push({ id: block.id, errors });
@@ -58,6 +58,11 @@ export function retryFeedback(response: ProviderResponse, schemaCheck: SchemaChe
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** The ids of the open list's items in the context (choose_items may offer only these). */
+function openItemIds(request: AiRequest | undefined): string[] {
+  return (request?.openList?.items ?? []).map((item) => item.id).filter((id): id is string => typeof id === 'string');
 }
 
 /** A reply's text cut to `max` characters; anything else unchanged. */
@@ -73,7 +78,13 @@ function cutReply(args: unknown, max: number): unknown {
  * 3 distinct ones of them; `delete_items` names its items by ids or by match
  * (Q-39). English, for the self-correction round.
  */
-function targetErrors(name: ToolName, args: Record<string, unknown>, listIds: Set<string>, openId: string | undefined): string[] {
+function targetErrors(
+  name: ToolName,
+  args: Record<string, unknown>,
+  listIds: Set<string>,
+  openId: string | undefined,
+  openItemIds?: string[],
+): string[] {
   switch (name) {
     case 'patch_list':
       return openId !== undefined && args.listId === openId
@@ -101,6 +112,20 @@ function targetErrors(name: ToolName, args: Record<string, unknown>, listIds: Se
         new Set(ids).size === ids.length &&
         ids.every((id) => typeof id === 'string' && listIds.has(id));
       return ok ? [] : ["choose_list: candidates must be 2 or 3 different ids of the user's lists"];
+    }
+    case 'choose_items': {
+      // Only items the context shows, so only the open list (Q-42).
+      const ids = args.candidates;
+      const known = new Set(openItemIds ?? []);
+      const ok =
+        openId !== undefined &&
+        args.listId === openId &&
+        Array.isArray(ids) &&
+        ids.length >= 2 &&
+        ids.length <= 6 &&
+        new Set(ids).size === ids.length &&
+        ids.every((id) => typeof id === 'string' && known.has(id));
+      return ok ? [] : ["choose_items: listId must be the open list and candidates 2 to 6 different ids of its items in the context"];
     }
     default:
       return [];
@@ -142,7 +167,7 @@ export function filterOutput(
       result.droppedText++;
       continue;
     }
-    const call = acceptCall(block.name, block.args, listIds, openId, limits, schemaCheck, result);
+    const call = acceptCall(block.name, block.args, listIds, openId, openItemIds(request), limits, schemaCheck, result);
     if (call === null) {
       result.droppedTools++;
     } else if (call.name === 'decline') {
@@ -165,13 +190,14 @@ function acceptCall(
   args: unknown,
   listIds: Set<string>,
   openId: string | undefined,
+  itemIds: string[],
   limits: TierLimits,
   schemaCheck: SchemaCheck,
   result: FilteredOutput,
 ): ToolCall | null {
   if (!(TOOL_NAMES as readonly string[]).includes(name) || !isRecord(args)) return null;
   const tool = name as ToolName;
-  if (targetErrors(tool, args, listIds, openId).length > 0) return null;
+  if (targetErrors(tool, args, listIds, openId, itemIds).length > 0) return null;
   let checked = args;
   if (tool === 'reply') {
     if (typeof args.text !== 'string') return null;

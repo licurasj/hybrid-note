@@ -429,6 +429,39 @@ void main() {
     );
   });
 
+  testWidgets('renaming the open list in the edit screen shows on its page '
+      'at once', (tester) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues(const {});
+    final FirestoreListStore store = await widgetTestStore(tester);
+    await tester.pumpWidget(
+      await testApp(
+        auth: FakeAuthService(user: testUser),
+        openStore: (_) => store,
+      ),
+    );
+    await settle(tester);
+    const String grocery = BuiltinTemplates.groceryId;
+
+    await tester.tap(_hub);
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('launcher-note-$grocery')));
+    await settle(tester);
+    await tester.tap(_hub);
+    await tester.pump();
+    await tester.longPress(find.byKey(const ValueKey('launcher-note-$grocery')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('list-name')), 'Shops');
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('save-list')));
+    await settle(tester);
+
+    expect(store.current.definition(grocery)!.name, 'Shops');
+    expect(find.text('Shops'), findsWidgets);
+  });
+
   group('starter lists could not be written (Q-27)', () {
     // An empty account whose seeding failed once; [seeds] records each
     // later attempt (empty = "Start empty").

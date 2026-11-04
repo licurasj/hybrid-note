@@ -1256,6 +1256,156 @@
     }
   },
   {
+    "name": "choose_items",
+    "description": "Use instead of upsert_items or delete_items when the words fit two to six items of a list whose items are in the context and none is clearly right (\"remove the milk\" with Milk and Oat milk). Do not ask with reply in that case. The app shows the items as buttons; the user picks one or more and the app deletes them, or, with values, sets those fields on them.",
+    "input_schema": {
+      "type": "object",
+      "required": [
+        "question",
+        "listId",
+        "candidates"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "question": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "A short question in the user's language, for example \"Which milk?\"."
+        },
+        "listId": {
+          "$ref": "#/$defs/listId"
+        },
+        "candidates": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 6,
+          "items": {
+            "$ref": "#/$defs/itemId"
+          }
+        },
+        "values": {
+          "type": "array",
+          "description": "Leave out to delete the picked items; otherwise the fields to set on each of them.",
+          "items": {
+            "$ref": "#/$defs/aiItemValue"
+          }
+        }
+      },
+      "$defs": {
+        "aiFieldKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+          "maxLength": 40,
+          "description": "A field key: starts with a letter, then letters, digits or _ (for example km, dueDate). Not createdAt or updatedAt."
+        },
+        "aiItemValue": {
+          "type": "object",
+          "description": "The value of one field of an item; null clears it. text, longText, url, category: a string; enum: one option value; checkbox, toggle: true or false; number: a number; counter, rating: a whole number; date: YYYY-MM-DD; dateTime: an ISO date and time; tags: a list of strings; checklist: a list of sub-steps; recurrence: {frequency, customDays}.",
+          "required": [
+            "field",
+            "value"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "$ref": "#/$defs/aiFieldKey"
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/aiSubItem"
+                  }
+                },
+                {
+                  "$ref": "#/$defs/aiRecurrence"
+                }
+              ]
+            }
+          }
+        },
+        "aiRecurrence": {
+          "type": "object",
+          "required": [
+            "frequency"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "frequency": {
+              "$ref": "#/$defs/recurrenceFrequency"
+            },
+            "customDays": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "aiSubItem": {
+          "type": "object",
+          "description": "One sub-step of a checklist field.",
+          "required": [
+            "title",
+            "done"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Only when keeping an existing sub-step."
+            },
+            "title": {
+              "type": "string"
+            },
+            "done": {
+              "type": "boolean"
+            }
+          }
+        },
+        "itemId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The id of an existing item of the target list, exactly as given in the context."
+        },
+        "listId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The id of one of the user's lists, exactly as given in the context."
+        },
+        "recurrenceFrequency": {
+          "description": "How often an item repeats; custom repeats every customDays days.",
+          "enum": [
+            "none",
+            "daily",
+            "weekly",
+            "monthly",
+            "yearly",
+            "custom"
+          ]
+        }
+      }
+    }
+  },
+  {
     "name": "reply",
     "description": "Use when the user asks something about their lists that needs no change (\"what is left on my grocery list?\"). A short answer in the user's language.",
     "input_schema": {

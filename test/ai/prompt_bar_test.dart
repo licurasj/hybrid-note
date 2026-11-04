@@ -813,6 +813,108 @@ void main() {
       expect(find.byKey(const ValueKey('ai-apply')), findsNothing);
     });
 
+    testWidgets('"Which items?" shows the items as buttons; the picked ones '
+        'are deleted with Undo (Q-42)', (tester) async {
+      final FakeAiService ai = FakeAiService()
+        ..answers.add(
+          _calls([
+            const AiToolCall('choose_items', {
+              'question': 'Which milk?',
+              'listId': _grocery,
+              'candidates': ['g1', 'g2'],
+            }),
+          ]),
+        );
+      final FirestoreListStore store = await _pump(
+        tester,
+        ai,
+        items: [
+          item('g1', 'Milk'),
+          item('g2', 'Oat milk'),
+          item('g3', 'Bread'),
+        ],
+      );
+      await _openList(tester, _grocery);
+
+      await _ask(tester, 'remove the milk');
+      expect(find.text('Which milk?'), findsOneWidget);
+      final Finder apply = find.byKey(const ValueKey('ai-apply'));
+      expect(tester.widget<FilledButton>(apply).onPressed, isNull);
+      await _tapKey(tester, 'ai-item-g2');
+      await _tapKey(tester, 'ai-apply');
+      expect(ai.requests, hasLength(1));
+      expect(_titles(store, _grocery), ['Milk', 'Bread']);
+      await _tapKey(tester, 'ai-undo');
+      expect(_titles(store, _grocery), containsAll(['Milk', 'Oat milk']));
+    });
+
+    testWidgets('typing after a reply answers it: the bar says so and the '
+        'request carries the reply; closing makes a fresh one (Q-42)', (
+      tester,
+    ) async {
+      final FakeAiService ai = FakeAiService()
+        ..answers.addAll([
+          _calls([
+            const AiToolCall('reply', {'text': 'Milk or eggs?'}),
+          ]),
+          _calls([
+            const AiToolCall('reply', {'text': 'Fine.'}),
+          ]),
+          _calls([
+            const AiToolCall('reply', {'text': 'Fine again.'}),
+          ]),
+        ]);
+      await _pump(tester, ai);
+
+      await _ask(tester, 'remove the dairy');
+      expect(find.text('Milk or eggs?'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('ai-bar')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('ai-follow-up')), findsOneWidget);
+      expect(find.text('Answering: Milk or eggs?'), findsOneWidget);
+      expect(find.text('Your answer'), findsOneWidget);
+      await tester.enterText(_field, 'milk');
+      await tester.pump();
+      await tester.tap(_send);
+      await settle(tester);
+      final Map<String, Object?> answer = ai.requests[1].toJson();
+      expect(answer['followUp'], {
+        'prompt': 'remove the dairy',
+        'reply': 'Milk or eggs?',
+      });
+      expect(find.byKey(const ValueKey('ai-follow-up')), findsNothing);
+
+      // A new reply; the close button on the line makes the next request
+      // a fresh one.
+      await tester.tap(find.byKey(const ValueKey('ai-bar')));
+      await tester.pumpAndSettle();
+      await _tapKey(tester, 'ai-follow-up-close');
+      expect(find.byKey(const ValueKey('ai-follow-up')), findsNothing);
+      await tester.enterText(_field, 'something else');
+      await tester.pump();
+      await tester.tap(_send);
+      await settle(tester);
+      expect(ai.requests[2].toJson().containsKey('followUp'), isFalse);
+    });
+
+    testWidgets('a tap anywhere on a draft bar opens it', (tester) async {
+      await _pump(tester, FakeAiService());
+      final Finder bar = find.byKey(const ValueKey('ai-bar'));
+      await tester.tap(bar);
+      await tester.pumpAndSettle();
+      await tester.enterText(_field, 'eggs');
+      await tester.pumpAndSettle();
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('ai-bar-draft')), findsOneWidget);
+      // Right of the short draft text, where the old draft line did not
+      // reach.
+      final Rect rect = tester.getRect(bar);
+      await tester.tapAt(Offset(rect.right - 80, rect.center.dy));
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(_field).focusNode!.hasFocus, isTrue);
+    });
+
     testWidgets('after Undo the request comes back as a draft, not focused; '
         'one Backspace at its end clears it', (tester) async {
       final FakeAiService ai = FakeAiService()
@@ -862,9 +964,11 @@ void main() {
       await _tapKey(tester, 'ai-undo');
       await tester.tap(find.byKey(const ValueKey('ai-bar-draft')));
       await tester.pumpAndSettle();
+      // The cursor at the end, as a tap right of the text puts it.
+      final TextField field = tester.widget<TextField>(_field);
+      field.controller!.selection = const TextSelection.collapsed(offset: 8);
       await tester.sendKeyEvent(LogicalKeyboardKey.delete);
       await tester.pump();
-      final TextField field = tester.widget<TextField>(_field);
       expect(field.controller!.text, isEmpty);
 
       await _ask(tester, 'add milk');
@@ -887,6 +991,28 @@ void main() {
       await tester.pump();
       expect(field.controller!.text, 'add milk');
     });
+  });
+
+  testWidgets('a rename through the bar shows on the open list at once', (
+    tester,
+  ) async {
+    final FakeAiService ai = FakeAiService()
+      ..answers.add(
+        _calls([
+          const AiToolCall('patch_list', {
+            'listId': _tasks,
+            'ops': [
+              {'op': 'setListInfo', 'name': 'Chores'},
+            ],
+          }),
+        ]),
+      );
+    await _pump(tester, ai);
+    await _openList(tester, _tasks);
+    expect(find.text('Chores'), findsNothing);
+    await _ask(tester, 'rename this list to Chores');
+    await _tapKey(tester, 'ai-apply');
+    expect(find.text('Chores'), findsWidgets);
   });
 
   group('focus, the raised hub and the draft', () {
@@ -961,9 +1087,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(tester.getRect(bar).height, PromptBarGeometry.height);
-      final Text shown = tester.widget<Text>(
-        find.descendant(of: draft, matching: find.byType(Text)),
-      );
+      final Text shown = tester.widget<Text>(draft);
       expect(shown.data, long);
       expect(shown.maxLines, 1);
       expect(shown.overflow, TextOverflow.ellipsis);
@@ -1077,7 +1201,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('launcher-note-$_grocery')));
       await settle(tester);
       expect(tester.getCenter(_hub), restHub);
-      expect(find.text('eggs'), findsOneWidget);
+      expect(tester.widget<Text>(draft).data, 'eggs');
       await tester.tap(draft);
       await tester.pumpAndSettle();
       await tester.enterText(_field, '');

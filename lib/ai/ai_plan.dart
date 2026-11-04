@@ -79,11 +79,39 @@ class AiQuestion {
   final List<ListDefinition> candidates;
 }
 
+// choose_items: the AI asks which items (Q-42), with 2-6 items of the open
+// list; the picked ones are deleted, or get [values].
+class AiItemQuestion {
+  const AiItemQuestion({
+    required this.text,
+    required this.definition,
+    required this.candidates,
+    required this.values,
+  });
+
+  final String text;
+  final ListDefinition definition;
+  final List<ListItem> candidates;
+  // Null: delete the picked items; otherwise upsert_items values entries.
+  final List<Object?>? values;
+
+  // The tool call the picked items make, read like any other answer.
+  AiToolCall callFor(List<String> ids) => values == null
+      ? AiToolCall('delete_items', {'listId': definition.id, 'ids': ids})
+      : AiToolCall('upsert_items', {
+          'listId': definition.id,
+          'items': [
+            for (final String id in ids) {'id': id, 'values': values},
+          ],
+        });
+}
+
 class AiPlan {
   const AiPlan({
     this.steps = const [],
     this.reply,
     this.question,
+    this.itemQuestion,
     this.errors = const [],
   });
 
@@ -102,6 +130,7 @@ class AiPlan {
     final List<ListError> errors = [];
     final List<String> replies = [];
     AiQuestion? question;
+    AiItemQuestion? itemQuestion;
 
     for (final AiToolCall call in answer.toolCalls) {
       switch (call.name) {
@@ -217,6 +246,33 @@ class AiPlan {
               );
             }
           }
+        case 'choose_items':
+          final Object? args = call.args;
+          if (args is! Map || args['candidates'] is! List) {
+            break;
+          }
+          final ListDefinition? d = catalog.definition('${args['listId']}');
+          if (d != null && d.aiAllowed) {
+            final Set<String> ids = {
+              for (final Object? id in args['candidates'] as List) '$id',
+            };
+            final List<ListItem> candidates = [
+              for (final ListItem item in catalog.itemsOf(d.id))
+                if (ids.contains(item.id)) item,
+            ];
+            if (candidates.isNotEmpty) {
+              itemQuestion = AiItemQuestion(
+                text: args['question'] is String
+                    ? args['question'] as String
+                    : '',
+                definition: d,
+                candidates: candidates,
+                values: args['values'] is List
+                    ? args['values'] as List<Object?>
+                    : null,
+              );
+            }
+          }
         case 'reply':
           final Object? args = call.args;
           if (args is Map && args['text'] is String) {
@@ -229,6 +285,7 @@ class AiPlan {
       steps: steps,
       reply: replies.isEmpty ? null : replies.join('\n'),
       question: question,
+      itemQuestion: itemQuestion,
       errors: errors,
     );
   }
@@ -236,10 +293,15 @@ class AiPlan {
   final List<AiStep> steps;
   final String? reply;
   final AiQuestion? question;
+  final AiItemQuestion? itemQuestion;
   final List<ListError> errors;
 
   bool get isValid => errors.isEmpty;
-  bool get isEmpty => steps.isEmpty && reply == null && question == null;
+  bool get isEmpty =>
+      steps.isEmpty &&
+      reply == null &&
+      question == null &&
+      itemQuestion == null;
 
   // Item adds apply at once with Undo; everything else waits for Apply:
   // structure changes, new lists, deletes and edits always preview (Q-32),

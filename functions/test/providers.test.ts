@@ -66,7 +66,7 @@ describe('ClaudeProvider', () => {
     assert.deepEqual(params.tool_choice, { type: 'auto' });
     assert.deepEqual(params.output_config, { effort: 'medium' });
     const tools = params.tools as { name: string; strict?: boolean; input_schema: unknown }[];
-    assert.equal(tools.length, 7);
+    assert.equal(tools.length, 8);
     assert.ok(tools.every((t) => typeof t.input_schema === 'object'));
     // The two large tools go without strict: Claude refuses the grammar of all seven.
     assert.deepEqual(tools.filter((t) => t.strict === true).map((t) => t.name), ['upsert_items', 'delete_items', 'choose_list', 'reply', 'decline']);
@@ -192,7 +192,7 @@ describe('DeepSeekProvider', () => {
       { role: 'system', content: 'SYSTEM' },
       { role: 'user', content: 'USER' },
     ]);
-    assert.equal(body.tools.length, 7);
+    assert.equal(body.tools.length, 8);
     assert.equal(body.tools[0].type, 'function');
     assert.deepEqual(Object.keys(body.tools[0].function), ['name', 'description', 'parameters']);
     assert.equal(body.tools[0].function.strict, undefined);
@@ -331,7 +331,7 @@ describe('OpenAiProvider', () => {
     assert.equal(params.store, false);
     assert.deepEqual(params.include, ['reasoning.encrypted_content']);
     const tools = params.tools as Record<string, unknown>[];
-    assert.equal(tools.length, 7);
+    assert.equal(tools.length, 8);
     assert.deepEqual(Object.keys(tools[0]), ['type', 'name', 'description', 'parameters', 'strict']);
     assert.ok(tools.every((t) => t.type === 'function' && t.strict === false));
   });

@@ -8,6 +8,7 @@ export const TOOL_NAMES = [
   'upsert_items',
   'delete_items',
   'choose_list',
+  'choose_items',
   'reply',
   'decline',
 ] as const;

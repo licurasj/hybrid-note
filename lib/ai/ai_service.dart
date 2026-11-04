@@ -78,6 +78,25 @@ class AiCorrection {
   };
 }
 
+// The user answers the AI's reply (Q-42): the earlier request and the
+// reply, sent with the answer.
+class AiFollowUp {
+  const AiFollowUp({required this.prompt, required this.reply});
+
+  final String prompt;
+  final String reply;
+
+  // The function's limit on the quoted reply (functions/src/request.ts).
+  static const int maxReplyChars = 500;
+
+  Map<String, Object?> toJson() => {
+    'prompt': prompt,
+    'reply': reply.length <= maxReplyChars
+        ? reply
+        : reply.substring(0, maxReplyChars),
+  };
+}
+
 class AiRequest {
   const AiRequest({
     required this.prompt,
@@ -87,6 +106,7 @@ class AiRequest {
     this.openList,
     this.openItems = const [],
     this.correction,
+    this.followUp,
   });
 
   // At most this many of the open list's items are sent (Q-31).
@@ -102,6 +122,7 @@ class AiRequest {
     required ListCatalog catalog,
     required ListLabels labels,
     String? openListId,
+    AiFollowUp? followUp,
   }) {
     final List<ListDefinition> allowed = [
       for (final ListDefinition definition in catalog.definitions)
@@ -141,6 +162,7 @@ class AiRequest {
       ],
       openList: sendOpen ? open : null,
       openItems: items.take(maxItems).toList(),
+      followUp: followUp,
     );
   }
 
@@ -152,6 +174,7 @@ class AiRequest {
   final ListDefinition? openList;
   final List<ListItem> openItems;
   final AiCorrection? correction;
+  final AiFollowUp? followUp;
 
   AiRequest withCorrection(AiCorrection correction) => AiRequest(
     prompt: prompt,
@@ -161,6 +184,7 @@ class AiRequest {
     openList: openList,
     openItems: openItems,
     correction: correction,
+    followUp: followUp,
   );
 
   // The same request with [listId] as the open list: the answer to the AI's
@@ -179,6 +203,7 @@ class AiRequest {
       lists: lists,
       openList: open,
       openItems: items.take(maxItems).toList(),
+      followUp: followUp,
     );
   }
 
@@ -203,6 +228,7 @@ class AiRequest {
             ],
           },
     if (correction != null) 'correction': correction!.toJson(),
+    if (followUp != null) 'followUp': followUp!.toJson(),
   };
 }
 

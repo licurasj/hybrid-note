@@ -41,6 +41,7 @@ const List<String> _toolNames = [
   'upsert_items',
   'delete_items',
   'choose_list',
+  'choose_items',
   'reply',
   'decline',
 ];

@@ -370,5 +370,8 @@
   "aiAutoApplyOffer": "今後このような変更を確認せずに適用しますか？元に戻すは引き続き使えます。",
   "aiAutoApplyYes": "はい",
   "aiAutoApplyNo": "今はしない",
-  "settingsAiAutoApply": "AIの変更を確認せずに適用"
+  "settingsAiAutoApply": "AIの変更を確認せずに適用",
+  "aiAnswerHint": "返答",
+  "aiAnswering": "返答先：{reply}",
+  "aiNewRequest": "新しいリクエスト"
 }

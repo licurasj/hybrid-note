@@ -370,5 +370,8 @@
   "aiAutoApplyOffer": "Änderungen wie diese künftig ohne Nachfrage übernehmen? Rückgängig bleibt möglich.",
   "aiAutoApplyYes": "Ja",
   "aiAutoApplyNo": "Jetzt nicht",
-  "settingsAiAutoApply": "KI-Änderungen ohne Nachfrage übernehmen"
+  "settingsAiAutoApply": "KI-Änderungen ohne Nachfrage übernehmen",
+  "aiAnswerHint": "Deine Antwort",
+  "aiAnswering": "Antwort auf: {reply}",
+  "aiNewRequest": "Neue Anfrage"
 }

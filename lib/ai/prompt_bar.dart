@@ -7,6 +7,7 @@ import '../app_colors.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../launcher/launcher_hub_area.dart';
 import '../lists/list_definition.dart';
+import '../lists/list_item.dart';
 import '../lists/list_error.dart';
 import '../lists/list_icons.dart';
 import '../lists/list_labels.dart';
@@ -201,6 +202,43 @@ class _BarColumn extends StatelessWidget {
   }
 }
 
+// The AI's reply the next request answers (Q-42), with a close button that
+// makes the next request a fresh one.
+class _FollowUpLine extends StatelessWidget {
+  const _FollowUpLine({required this.controller});
+
+  final AiBarController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations loc = AppLocalizations.of(context);
+    final Brightness brightness = Theme.of(context).brightness;
+    final AppNeutrals n = AppColors.neutrals(brightness);
+    final AppTypography type = AppTypography.of(context);
+    return Row(
+      key: const ValueKey('ai-follow-up'),
+      children: [
+        Icon(Icons.reply, size: 18, color: n.muted),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            loc.aiAnswering(controller.followUp!.reply.replaceAll('\n', ' ')),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: type.meta,
+          ),
+        ),
+        IconButton(
+          key: const ValueKey('ai-follow-up-close'),
+          tooltip: loc.aiNewRequest,
+          icon: const Icon(Icons.close),
+          onPressed: controller.clearFollowUp,
+        ),
+      ],
+    );
+  }
+}
+
 class _Field extends StatefulWidget {
   const _Field({required this.controller, required this.openList});
 
@@ -280,6 +318,8 @@ class _FieldState extends State<_Field> with WidgetsBindingObserver {
     final ListDefinition? openList = widget.openList;
     final String hint = controller.newList
         ? loc.aiBarHintNewList
+        : controller.followUp != null
+        ? loc.aiAnswerHint
         : openList == null
         ? loc.aiBarHint
         : loc.aiBarHintList(ListLabels(loc).listName(openList));
@@ -343,77 +383,90 @@ class _FieldState extends State<_Field> with WidgetsBindingObserver {
           shadows: AppShadows.floating(brightness),
         ),
         padding: EdgeInsets.fromLTRB(18, focused ? 12 : 0, 4, focused ? 2 : 0),
-        child: Row(
-          crossAxisAlignment: focused
-              ? CrossAxisAlignment.end
-              : CrossAxisAlignment.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
-              child: Padding(
-                padding: EdgeInsets.only(bottom: focused ? 12 : 0),
-                // The field keeps its place whether or not the draft shows:
-                // rebuilt elsewhere, it would drop the keyboard on a phone
-                // and the bar would close again (T-19 unit 8).
-                child: Stack(
-                  children: [
-                    Offstage(offstage: draft, child: field),
-                    if (draft)
-                      GestureDetector(
-                        key: const ValueKey('ai-bar-draft'),
-                        behavior: HitTestBehavior.opaque,
-                        onTap: sending ? null : controller.focus.requestFocus,
-                        child: Text(
-                          controller.text.text.replaceAll('\n', ' '),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: textStyle,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            SizedBox(
-              width: 48,
-              height: 48,
-              child: Center(
-                child: ListenableBuilder(
-                  listenable: controller.text,
-                  builder: (context, _) {
-                    final bool empty = controller.text.text.trim().isEmpty;
-                    return Semantics(
-                      button: true,
-                      label: loc.aiSend,
-                      child: InkResponse(
-                        key: const ValueKey('ai-bar-send'),
-                        onTap: empty || sending ? null : _send,
-                        radius: 24,
-                        child: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: empty && !sending ? n.line : n.text,
-                          ),
-                          child: sending
-                              ? Padding(
-                                  padding: const EdgeInsets.all(11),
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: n.ground,
-                                  ),
-                                )
-                              : Icon(
-                                  Icons.arrow_upward,
-                                  size: 20,
-                                  color: empty ? n.muted : n.ground,
+            // Inside the bar, so the raised hub keeps clear of it.
+            if (controller.followUp != null &&
+                (controller.phase == AiBarPhase.idle || sending))
+              _FollowUpLine(controller: controller),
+            Row(
+              crossAxisAlignment: focused
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(bottom: focused ? 12 : 0),
+                    // The field stays laid out under the draft line, so a tap
+                    // anywhere on the bar reaches it and it is never rebuilt
+                    // elsewhere (that dropped the keyboard on a phone, T-19 unit 8).
+                    child: Stack(
+                      children: [
+                        Opacity(opacity: draft ? 0 : 1, child: field),
+                        if (draft)
+                          Positioned.fill(
+                            child: IgnorePointer(
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  controller.text.text.replaceAll('\n', ' '),
+                                  key: const ValueKey('ai-bar-draft'),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: textStyle,
                                 ),
-                        ),
-                      ),
-                    );
-                  },
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+                SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: Center(
+                    child: ListenableBuilder(
+                      listenable: controller.text,
+                      builder: (context, _) {
+                        final bool empty = controller.text.text.trim().isEmpty;
+                        return Semantics(
+                          button: true,
+                          label: loc.aiSend,
+                          child: InkResponse(
+                            key: const ValueKey('ai-bar-send'),
+                            onTap: empty || sending ? null : _send,
+                            radius: 24,
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: empty && !sending ? n.line : n.text,
+                              ),
+                              child: sending
+                                  ? Padding(
+                                      padding: const EdgeInsets.all(11),
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: n.ground,
+                                      ),
+                                    )
+                                  : Icon(
+                                      Icons.arrow_upward,
+                                      size: 20,
+                                      color: empty ? n.muted : n.ground,
+                                    ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -506,6 +559,46 @@ class _Panel extends StatelessWidget {
           FilledButton(
             key: const ValueKey('ai-apply'),
             onPressed: controller.apply,
+            child: Text(loc.aiApply),
+          ),
+        ],
+      ),
+      AiBarPhase.question when plan?.itemQuestion != null => (
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (plan!.itemQuestion!.text.isNotEmpty)
+              Text(plan.itemQuestion!.text, style: type.row),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final ListItem item in plan.itemQuestion!.candidates)
+                  _ListChip(
+                    key: ValueKey('ai-item-${item.id}'),
+                    label: AiPlanText.itemTitle(
+                      plan.itemQuestion!.definition,
+                      item,
+                    ),
+                    color: listColor(
+                      plan.itemQuestion!.definition.color,
+                      brightness: brightness,
+                    ),
+                    selected: controller.picked.contains(item.id),
+                    onTap: () => controller.togglePick(item.id),
+                  ),
+              ],
+            ),
+          ],
+        ),
+        [
+          cancel,
+          FilledButton(
+            key: const ValueKey('ai-apply'),
+            onPressed: controller.picked.isEmpty
+                ? null
+                : controller.applyPicked,
             child: Text(loc.aiApply),
           ),
         ],
@@ -725,11 +818,15 @@ class _ListChip extends StatelessWidget {
     required this.label,
     required this.color,
     required this.onTap,
+    this.selected,
   });
 
   final String label;
   final Color color;
   final VoidCallback onTap;
+  // Items can be picked (choose_items): a tick shows the pick. Null for a
+  // list chip, which a tap answers at once.
+  final bool? selected;
 
   @override
   Widget build(BuildContext context) {
@@ -748,14 +845,21 @@ class _ListChip extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
+                if (selected == null)
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                    ),
+                  )
+                else
+                  Icon(
+                    selected! ? Icons.check_circle : Icons.circle_outlined,
+                    size: 18,
+                    color: selected! ? color : n.muted,
                   ),
-                ),
                 const SizedBox(width: 8),
                 Text(label, style: type.row),
               ],

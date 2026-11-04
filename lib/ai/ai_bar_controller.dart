@@ -137,7 +137,8 @@ class AiBarController extends ChangeNotifier {
     _focused = focus.hasFocus;
     // A new request starts: an earlier answer, preview or question goes.
     if (_focused && _phase != AiBarPhase.idle && _phase != AiBarPhase.sending) {
-      dismiss();
+      // Typing after a reply answers it (Q-42).
+      dismiss(keepFollowUp: true);
       return;
     }
     notifyListeners();
@@ -204,6 +205,48 @@ class AiBarController extends ChangeNotifier {
 
   // The last request's words, put back in the bar after its Undo.
   String? _lastPrompt;
+
+  AiFollowUp? _followUp;
+  // The AI's reply the next request answers (Q-42); the bar says so until
+  // it is sent or closed.
+  AiFollowUp? get followUp => _followUp;
+
+  void clearFollowUp() {
+    _followUp = null;
+    notifyListeners();
+  }
+
+  Set<String> _picked = const {};
+  // The items picked so far in "Which items?" (choose_items).
+  Set<String> get picked => _picked;
+
+  void togglePick(String itemId) {
+    _picked = _picked.contains(itemId)
+        ? ({..._picked}..remove(itemId))
+        : {..._picked, itemId};
+    notifyListeners();
+  }
+
+  // Applies the picked items as the delete or change the AI proposed.
+  Future<void> applyPicked() async {
+    final AiItemQuestion? question = _plan?.itemQuestion;
+    if (question == null || _picked.isEmpty || _phase != AiBarPhase.question) {
+      return;
+    }
+    final AiPlan plan = AiPlan.read(
+      AiAnswer(requestId: '', toolCalls: [question.callFor(_picked.toList())]),
+      store.current,
+      openListId: question.definition.id,
+    );
+    if (!plan.isValid || plan.steps.isEmpty) {
+      _problem = AiProblem.invalid(plan.errors);
+      _set(AiBarPhase.problem);
+      return;
+    }
+    _plan = plan;
+    await apply();
+  }
+
   // Text put back by Undo and not touched since: one Backspace or Delete at
   // its end clears all of it.
   String? _refilled;
@@ -302,7 +345,9 @@ class AiBarController extends ChangeNotifier {
       catalog: store.current,
       labels: pending.labels,
       openListId: pending.newList ? null : pending.openListId,
+      followUp: pending.newList ? null : _followUp,
     );
+    _followUp = null;
     await _run(request, correct: true);
   }
 
@@ -400,9 +445,14 @@ class AiBarController extends ChangeNotifier {
     text.clear();
     _newList = false;
     if (plan.steps.isEmpty) {
-      if (plan.question != null) {
+      if (plan.question != null || plan.itemQuestion != null) {
+        _picked = const {};
         _set(AiBarPhase.question);
       } else if (plan.reply != null) {
+        final String? prompt = _lastPrompt;
+        if (prompt != null) {
+          _followUp = AiFollowUp(prompt: prompt, reply: plan.reply!);
+        }
         _set(AiBarPhase.reply);
       } else {
         _problem = const AiProblem.decline('noValidTool');
@@ -441,7 +491,9 @@ class AiBarController extends ChangeNotifier {
   // The answer to "which list?": the same request with that list open.
   Future<void> choose(String listId) async {
     final AiRequest? request = _request;
-    if (request == null || _phase != AiBarPhase.question) {
+    if (request == null ||
+        _phase != AiBarPhase.question ||
+        _plan?.question == null) {
       return;
     }
     await _run(request.withOpenList(store.current, listId), correct: true);
@@ -456,7 +508,7 @@ class AiBarController extends ChangeNotifier {
     }
     // The first Apply offers to skip it from now on (Q-40 A).
     final bool offer =
-        _phase == AiBarPhase.preview &&
+        (_phase == AiBarPhase.preview || _phase == AiBarPhase.question) &&
         !(preferences.getBool(autoApplyAskedKey) ?? false);
     final int generation = ++_generation;
     _set(AiBarPhase.sending);
@@ -601,9 +653,13 @@ class AiBarController extends ChangeNotifier {
   }
 
   // Closes the panel; a request still waiting is dropped. Undo stays
-  // possible only while its line shows.
-  void dismiss() {
+  // possible only while its line shows. Closing a reply (Close, Back) also
+  // ends the follow-up, so the next request starts fresh (Q-42).
+  void dismiss({bool keepFollowUp = false}) {
     ++_generation;
+    if (!keepFollowUp) {
+      _followUp = null;
+    }
     _plan = null;
     _problem = null;
     _done = null;

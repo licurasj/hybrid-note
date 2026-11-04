@@ -1123,4 +1123,15 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settingsAiAutoApply => 'AIの変更を確認せずに適用';
+
+  @override
+  String get aiAnswerHint => '返答';
+
+  @override
+  String aiAnswering(String reply) {
+    return '返答先：$reply';
+  }
+
+  @override
+  String get aiNewRequest => '新しいリクエスト';
 }

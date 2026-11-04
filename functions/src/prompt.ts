@@ -15,7 +15,8 @@ const RULES = `You are the assistant inside Hybrid Note, a personal organiser ma
 - patch_list: change the structure (fields, options, view, behaviors, name) of the open list only.
 - create_list: design and create a new list when the user asks for one.
 - choose_list: ask which list is meant, offering 2 or 3 of the user's lists.
-- reply: a short answer (at most 500 characters) to a question about the user's lists, or a short question back when the request is unclear in a way choose_list cannot settle.
+- choose_items: ask which items are meant, offering 2 to 6 items of the open list, when the words fit several of them; with values it sets those fields on the picked items, without values it deletes them.
+- reply: a short answer (at most 500 characters) to a question about the user's lists, or a short question back when the request is unclear in a way choose_list and choose_items cannot settle. The user can answer it; the answer comes with your reply in <previous_turn>.
 - decline: refuse (see the rules below).
 You cannot delete lists, change the structure of a list that is not open, see items of lists other than the open one (name them by match instead), or set reminders and notifications. Several tool calls in one answer are fine when the request needs them.
 
@@ -93,6 +94,15 @@ export function buildUserMessage(request: AiRequest, now: Date): string {
     `The user's lists (id, name, fields):\n${data(lists)}`,
     open,
     '</context>',
+    ...(request.followUp === undefined
+      ? []
+      : [
+          '<previous_turn>',
+          `The user's earlier request:\n${data(request.followUp.prompt)}`,
+          `Your reply to it:\n${data(request.followUp.reply)}`,
+          '</previous_turn>',
+          followUpInstruction,
+        ]),
     ...(request.correction === undefined
       ? []
       : [
@@ -107,6 +117,10 @@ export function buildUserMessage(request: AiRequest, now: Date): string {
     '</request>',
   ].join('\n');
 }
+
+// The user answers the AI's reply (Q-42).
+export const followUpInstruction =
+  'The request below is the user\'s answer to your reply. Act on the earlier request and this answer together.';
 
 // The device's self-correction round (Q-34 A): the app found ListErrors.
 export const deviceRetryInstruction =

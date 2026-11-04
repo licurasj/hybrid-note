@@ -34,7 +34,20 @@ export interface AiRequest {
    * validation found in them (English). A new request, counted like any.
    */
   correction?: Correction;
+  /**
+   * The user answers the AI's reply (Q-42): the earlier request and the
+   * reply it got, so the new prompt can be read as the answer to it.
+   */
+  followUp?: FollowUp;
 }
+
+export interface FollowUp {
+  prompt: string;
+  reply: string;
+}
+
+/** The longest reply a follow-up may quote: the reply schema's maxLength. */
+export const FOLLOW_UP_REPLY_MAX_CHARS = 500;
 
 export interface Correction {
   toolCalls: { name: string; args: unknown }[];
@@ -104,6 +117,19 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
       throw refuse('badRequest', 'correction needs 1-10 tool calls and 1-20 short errors');
     }
   }
+  const followUp = data.followUp ?? undefined;
+  if (followUp !== undefined) {
+    if (
+      !isRecord(followUp) ||
+      typeof followUp.prompt !== 'string' ||
+      typeof followUp.reply !== 'string' ||
+      followUp.prompt.trim().length === 0 ||
+      [...followUp.prompt].length > limits.promptMaxChars ||
+      [...followUp.reply].length > FOLLOW_UP_REPLY_MAX_CHARS
+    ) {
+      throw refuse('badRequest', 'followUp needs the earlier prompt and a reply of at most 500 characters');
+    }
+  }
   if (openList !== null) {
     if (!isRecord(openList) || !isRecord(openList.definition) || !Array.isArray(openList.items)) {
       throw refuse('badRequest', 'openList needs definition and items');
@@ -124,7 +150,7 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
   if (openList !== null && (openList.items as unknown[]).length > limits.maxItems) {
     throw refuse('contextTooLarge', `more than ${limits.maxItems} items`);
   }
-  const contextBytes = Buffer.byteLength(JSON.stringify({ lists, openList, correction }), 'utf8');
+  const contextBytes = Buffer.byteLength(JSON.stringify({ lists, openList, correction, followUp }), 'utf8');
   if (contextBytes > limits.contextMaxBytes) {
     throw refuse('contextTooLarge', `context is over ${limits.contextMaxBytes} bytes`);
   }
@@ -150,6 +176,9 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
             errors: correction.errors as string[],
           },
         }
+      : {}),
+    ...(followUp !== undefined
+      ? { followUp: { prompt: followUp.prompt as string, reply: followUp.reply as string } }
       : {}),
   };
 }

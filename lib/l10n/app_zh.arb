@@ -370,5 +370,8 @@
   "aiAutoApplyOffer": "以后像这样的更改不再询问直接应用？仍可撤销。",
   "aiAutoApplyYes": "是",
   "aiAutoApplyNo": "暂不",
-  "settingsAiAutoApply": "不询问直接应用 AI 更改"
+  "settingsAiAutoApply": "不询问直接应用 AI 更改",
+  "aiAnswerHint": "你的回答",
+  "aiAnswering": "回答：{reply}",
+  "aiNewRequest": "新请求"
 }

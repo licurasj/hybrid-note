@@ -47,6 +47,13 @@ describe('parseRequest', () => {
     assert.equal(reason(base({ lists })), 'aiNotAllowed');
   });
 
+  test('a follow-up carries the earlier prompt and a reply of at most 500 characters (Q-42)', () => {
+    assert.equal(reason(base({ followUp: { prompt: 'remove the dairy', reply: 'Milk or eggs?' } })), 'accepted');
+    assert.equal(reason(base({ followUp: { prompt: 'remove the dairy', reply: 'x'.repeat(501) } })), 'badRequest');
+    assert.equal(reason(base({ followUp: { prompt: '', reply: 'Milk?' } })), 'badRequest');
+    assert.equal(reason(base({ followUp: 'milk' })), 'badRequest');
+  });
+
   test('a normal request is accepted', () => {
     assert.equal(reason(base()), 'accepted');
   });

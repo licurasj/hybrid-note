@@ -955,5 +955,15 @@
   "aiAutoApplyOffer": "Apply changes like this without asking from now on? Undo stays.",
   "aiAutoApplyYes": "Yes",
   "aiAutoApplyNo": "Not now",
-  "settingsAiAutoApply": "Apply AI changes without asking"
+  "settingsAiAutoApply": "Apply AI changes without asking",
+  "aiAnswerHint": "Your answer",
+  "aiAnswering": "Answering: {reply}",
+  "@aiAnswering": {
+    "placeholders": {
+      "reply": {
+        "type": "String"
+      }
+    }
+  },
+  "aiNewRequest": "New request"
 }
