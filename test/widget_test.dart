@@ -462,6 +462,40 @@ void main() {
     expect(find.text('Shops'), findsWidgets);
   });
 
+  testWidgets('Settings sets how often the AI asks first (Q-43)', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues(const {});
+    final FirestoreListStore store = await widgetTestStore(tester);
+    await tester.pumpWidget(
+      await testApp(
+        auth: FakeAuthService(user: testUser),
+        openStore: (_) => store,
+      ),
+    );
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('settings')));
+    await tester.pumpAndSettle();
+    final Finder row = find.byKey(const ValueKey('settings-ai-ask'));
+    expect(
+      find.descendant(of: row, matching: find.text('Balanced')),
+      findsOneWidget,
+    );
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('settings-ai-ask-less')));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: row, matching: find.text('Act more')),
+      findsOneWidget,
+    );
+    final SharedPreferences preferences = await SharedPreferences.getInstance();
+    expect(preferences.getString(AppSettingsCubit.aiAskLevelKey), 'less');
+  });
+
   group('starter lists could not be written (Q-27)', () {
     // An empty account whose seeding failed once; [seeds] records each
     // later attempt (empty = "Start empty").

@@ -298,6 +298,58 @@ class _SettingsSheet extends StatelessWidget {
     }
   }
 
+  static String _askLabel(AppLocalizations loc, AiAskLevel level) =>
+      switch (level) {
+        AiAskLevel.more => loc.aiAskMore,
+        AiAskLevel.balanced => loc.aiAskBalanced,
+        AiAskLevel.less => loc.aiAskLess,
+      };
+
+  // How often the AI asks first (Q-43).
+  Future<void> _showAskDialog(BuildContext context, AppSettings settings) async {
+    final AppLocalizations loc = AppLocalizations.of(context);
+    final List<(AiAskLevel, String)> options = [
+      (AiAskLevel.more, loc.aiAskMoreHint),
+      (AiAskLevel.balanced, loc.aiAskBalancedHint),
+      (AiAskLevel.less, loc.aiAskLessHint),
+    ];
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(loc.settingsAiAsk),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final (AiAskLevel level, String hint) in options)
+                ListTile(
+                  key: ValueKey('settings-ai-ask-${level.wire}'),
+                  selected: settings.aiAskLevel == level,
+                  leading: Icon(
+                    settings.aiAskLevel == level
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_off,
+                  ),
+                  title: Text(_askLabel(loc, level)),
+                  subtitle: Text(hint),
+                  onTap: () {
+                    context.read<AppSettingsCubit>().setAiAskLevel(level);
+                    Navigator.of(dialogContext).pop();
+                  },
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(loc.cancel),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _showLanguageDialog(
     BuildContext context,
     AppSettings settings,
@@ -487,6 +539,23 @@ class _SettingsSheet extends StatelessWidget {
                         onTap: () => context
                             .read<AppSettingsCubit>()
                             .setAiAutoApply(!settings.aiAutoApply),
+                      ),
+                      hairline(),
+                      row(
+                        key: const ValueKey('settings-ai-ask'),
+                        icon: Icons.help_outline,
+                        label: Text(loc.settingsAiAsk, style: type.row),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _askLabel(loc, settings.aiAskLevel),
+                              style: type.meta.copyWith(fontSize: 15),
+                            ),
+                            Icon(Icons.chevron_right, color: neutrals.muted),
+                          ],
+                        ),
+                        onTap: () => _showAskDialog(context, settings),
                       ),
                       hairline(),
                       Padding(

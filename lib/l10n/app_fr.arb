@@ -373,5 +373,12 @@
   "settingsAiAutoApply": "Appliquer les changements de l’IA sans demander",
   "aiAnswerHint": "Votre réponse",
   "aiAnswering": "Réponse à : {reply}",
-  "aiNewRequest": "Nouvelle demande"
+  "aiNewRequest": "Nouvelle demande",
+  "settingsAiAsk": "L’IA demande d’abord",
+  "aiAskMore": "Demander plus",
+  "aiAskMoreHint": "Demande dès qu’elle n’est pas sûre ; ne crée de listes que si vous le demandez",
+  "aiAskBalanced": "Équilibré",
+  "aiAskBalancedHint": "Agit sur les demandes claires et demande pour les vagues",
+  "aiAskLess": "Agir plus",
+  "aiAskLessHint": "Suit sa meilleure hypothèse et ne demande qu’en cas d’égalité"
 }

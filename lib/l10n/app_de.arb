@@ -373,5 +373,12 @@
   "settingsAiAutoApply": "KI-Änderungen ohne Nachfrage übernehmen",
   "aiAnswerHint": "Deine Antwort",
   "aiAnswering": "Antwort auf: {reply}",
-  "aiNewRequest": "Neue Anfrage"
+  "aiNewRequest": "Neue Anfrage",
+  "settingsAiAsk": "KI fragt zuerst",
+  "aiAskMore": "Mehr fragen",
+  "aiAskMoreHint": "Fragt, sobald sie unsicher ist; legt neue Listen nur auf Wunsch an",
+  "aiAskBalanced": "Ausgewogen",
+  "aiAskBalancedHint": "Handelt bei klaren Anfragen und fragt bei vagen nach",
+  "aiAskLess": "Mehr handeln",
+  "aiAskLessHint": "Folgt ihrer besten Vermutung und fragt nur bei Gleichstand"
 }

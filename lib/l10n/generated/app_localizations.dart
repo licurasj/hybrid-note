@@ -1969,6 +1969,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'New request'**
   String get aiNewRequest;
+
+  /// No description provided for @settingsAiAsk.
+  ///
+  /// In en, this message translates to:
+  /// **'AI asks first'**
+  String get settingsAiAsk;
+
+  /// No description provided for @aiAskMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask more'**
+  String get aiAskMore;
+
+  /// No description provided for @aiAskMoreHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Asks whenever it is not sure; makes new lists only when you ask for one'**
+  String get aiAskMoreHint;
+
+  /// No description provided for @aiAskBalanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Balanced'**
+  String get aiAskBalanced;
+
+  /// No description provided for @aiAskBalancedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Acts on clear requests and asks on vague ones'**
+  String get aiAskBalancedHint;
+
+  /// No description provided for @aiAskLess.
+  ///
+  /// In en, this message translates to:
+  /// **'Act more'**
+  String get aiAskLess;
+
+  /// No description provided for @aiAskLessHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Goes with its best guess and asks only when lists tie'**
+  String get aiAskLessHint;
 }
 
 class _AppLocalizationsDelegate

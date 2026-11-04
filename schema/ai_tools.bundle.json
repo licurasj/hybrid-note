@@ -1222,7 +1222,7 @@
   },
   {
     "name": "choose_list",
-    "description": "Use instead of upsert_items when an item request could belong to two or three of the user's lists and none is clearly right (\"renew passport\" with Tasks and Errands). The app asks the question with the candidate lists as choices and sends the request again with the chosen list.",
+    "description": "Use instead of upsert_items when an item request could belong to two or three of the user's lists and none is clearly right (\"renew passport\" with Tasks and Errands), or, with newList, when it could also be the start of a new list (\"Add to Tasks, or start a new list?\"). The app asks the question with the candidate lists (and New list) as choices and sends the request again with the choice.",
     "input_schema": {
       "type": "object",
       "required": [
@@ -1239,11 +1239,15 @@
         },
         "candidates": {
           "type": "array",
-          "minItems": 2,
+          "minItems": 1,
           "maxItems": 3,
           "items": {
             "$ref": "#/$defs/listId"
           }
+        },
+        "newList": {
+          "type": "boolean",
+          "description": "true offers New list as one more choice; then one candidate list is enough."
         }
       },
       "$defs": {

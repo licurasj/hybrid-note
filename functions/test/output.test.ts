@@ -153,6 +153,13 @@ describe('filterOutput', () => {
 });
 
 describe('retryFeedback', () => {
+  test('choose_list with newList may offer one list (Q-43)', () => {
+    const choose = (args: Record<string, unknown>) =>
+      retryFeedback(answer([call('choose_list', { question: 'Tasks or a new list?', ...args })]), structuralCheck, open);
+    assert.deepEqual(choose({ candidates: ['todo'], newList: true }), []);
+    assert.equal(choose({ candidates: ['todo'] }).length, 1);
+  });
+
   test('choose_items offers 2 to 6 items of the open list in the context (Q-42)', () => {
     const withItems: AiRequest = {
       ...open,

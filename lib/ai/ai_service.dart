@@ -107,6 +107,7 @@ class AiRequest {
     this.openItems = const [],
     this.correction,
     this.followUp,
+    this.askLevel = 'balanced',
   });
 
   // At most this many of the open list's items are sent (Q-31).
@@ -123,6 +124,7 @@ class AiRequest {
     required ListLabels labels,
     String? openListId,
     AiFollowUp? followUp,
+    String askLevel = 'balanced',
   }) {
     final List<ListDefinition> allowed = [
       for (final ListDefinition definition in catalog.definitions)
@@ -163,6 +165,7 @@ class AiRequest {
       openList: sendOpen ? open : null,
       openItems: items.take(maxItems).toList(),
       followUp: followUp,
+      askLevel: askLevel,
     );
   }
 
@@ -175,6 +178,8 @@ class AiRequest {
   final List<ListItem> openItems;
   final AiCorrection? correction;
   final AiFollowUp? followUp;
+  // How often the AI asks first (Q-43): more, balanced or less.
+  final String askLevel;
 
   AiRequest withCorrection(AiCorrection correction) => AiRequest(
     prompt: prompt,
@@ -185,6 +190,17 @@ class AiRequest {
     openItems: openItems,
     correction: correction,
     followUp: followUp,
+    askLevel: askLevel,
+  );
+
+  // The answer "New list" to the AI's question (Q-43): the same words as a
+  // request for a new list, with no list open.
+  AiRequest withNewList() => AiRequest(
+    prompt: 'Create a new list: $prompt',
+    locale: locale,
+    today: today,
+    lists: lists,
+    askLevel: askLevel,
   );
 
   // The same request with [listId] as the open list: the answer to the AI's
@@ -204,6 +220,7 @@ class AiRequest {
       openList: open,
       openItems: items.take(maxItems).toList(),
       followUp: followUp,
+      askLevel: askLevel,
     );
   }
 
@@ -217,6 +234,7 @@ class AiRequest {
     'locale': locale,
     'today': _date(today),
     'platform': kIsWeb ? 'web' : defaultTargetPlatform.name,
+    'askLevel': askLevel,
     'lists': [for (final AiListSummary list in lists) list.toJson()],
     'openList': openList == null
         ? null

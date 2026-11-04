@@ -373,5 +373,12 @@
   "settingsAiAutoApply": "AIの変更を確認せずに適用",
   "aiAnswerHint": "返答",
   "aiAnswering": "返答先：{reply}",
-  "aiNewRequest": "新しいリクエスト"
+  "aiNewRequest": "新しいリクエスト",
+  "settingsAiAsk": "AIの確認",
+  "aiAskMore": "多めに確認",
+  "aiAskMoreHint": "確信がないときは確認し、新しいリストは頼まれたときだけ作成",
+  "aiAskBalanced": "バランス",
+  "aiAskBalancedHint": "はっきりした依頼は実行し、あいまいな依頼は確認",
+  "aiAskLess": "多めに実行",
+  "aiAskLessHint": "最も可能性の高い案で実行し、同点のときだけ確認"
 }

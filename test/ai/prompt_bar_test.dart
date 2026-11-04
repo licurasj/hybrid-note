@@ -915,6 +915,36 @@ void main() {
       expect(tester.widget<TextField>(_field).focusNode!.hasFocus, isTrue);
     });
 
+    testWidgets('"New list" next to the lists asks again for a new list; '
+        'the request carries the ask-first setting (Q-43)', (tester) async {
+      final FakeAiService ai = FakeAiService()
+        ..answers.addAll([
+          _calls([
+            const AiToolCall('choose_list', {
+              'question': 'Add to Tasks, or start a new list?',
+              'candidates': [_tasks],
+              'newList': true,
+            }),
+          ]),
+          _calls([
+            const AiToolCall('reply', {'text': 'Fine.'}),
+          ]),
+        ]);
+      await _pump(tester, ai);
+      final SharedPreferences preferences =
+          await SharedPreferences.getInstance();
+      await preferences.setString(AppSettingsCubit.aiAskLevelKey, 'more');
+
+      await _ask(tester, 'dinner tomorrow');
+      expect(ai.requests.first.toJson()['askLevel'], 'more');
+      expect(find.byKey(const ValueKey('ai-chip-$_tasks')), findsOneWidget);
+      await _tapKey(tester, 'ai-chip-new');
+      expect(ai.requests, hasLength(2));
+      expect(ai.requests.last.prompt, 'Create a new list: dinner tomorrow');
+      expect(ai.requests.last.openList, isNull);
+      expect(ai.requests.last.askLevel, 'more');
+    });
+
     testWidgets('after Undo the request comes back as a draft, not focused; '
         'one Backspace at its end clears it', (tester) async {
       final FakeAiService ai = FakeAiService()

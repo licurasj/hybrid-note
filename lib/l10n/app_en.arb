@@ -965,5 +965,12 @@
       }
     }
   },
-  "aiNewRequest": "New request"
+  "aiNewRequest": "New request",
+  "settingsAiAsk": "AI asks first",
+  "aiAskMore": "Ask more",
+  "aiAskMoreHint": "Asks whenever it is not sure; makes new lists only when you ask for one",
+  "aiAskBalanced": "Balanced",
+  "aiAskBalancedHint": "Acts on clear requests and asks on vague ones",
+  "aiAskLess": "Act more",
+  "aiAskLessHint": "Goes with its best guess and asks only when lists tie"
 }

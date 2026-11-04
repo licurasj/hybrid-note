@@ -15,6 +15,7 @@ const request: AiRequest = {
     { id: 'tasks', name: 'Tasks', fields: [], aiAllowed: true },
   ],
   openList: null,
+  askLevel: 'balanced',
 };
 
 describe('system prompt', () => {
@@ -35,6 +36,13 @@ describe('system prompt', () => {
 });
 
 describe('user message', () => {
+  test("states the user's ask-first setting; the system prompt explains each level (Q-43)", () => {
+    assert.match(buildUserMessage({ ...request, askLevel: 'more' }, new Date()), /How often to ask first: more\./);
+    const system = systemPrompt();
+    assert.ok(system.includes('# How often to ask first'));
+    for (const level of ['- more:', '- balanced:', '- less:']) assert.ok(system.includes(level), level);
+  });
+
   test('a follow-up quotes the earlier request and the reply before the new request (Q-42)', () => {
     const message = buildUserMessage(
       { ...request, prompt: 'milk', followUp: { prompt: 'remove the dairy', reply: 'Milk or eggs?' } },

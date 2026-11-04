@@ -373,5 +373,12 @@
   "settingsAiAutoApply": "不询问直接应用 AI 更改",
   "aiAnswerHint": "你的回答",
   "aiAnswering": "回答：{reply}",
-  "aiNewRequest": "新请求"
+  "aiNewRequest": "新请求",
+  "settingsAiAsk": "AI 先询问",
+  "aiAskMore": "多询问",
+  "aiAskMoreHint": "不确定时就询问；只在你要求时才新建列表",
+  "aiAskBalanced": "平衡",
+  "aiAskBalancedHint": "明确的请求直接执行，模糊的请求先询问",
+  "aiAskLess": "多执行",
+  "aiAskLessHint": "按最可能的理解执行，只在难分高下时询问"
 }

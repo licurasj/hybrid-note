@@ -105,13 +105,14 @@ function targetErrors(
     }
     case 'choose_list': {
       const ids = args.candidates;
+      // With New list as a choice one list is enough (Q-43).
       const ok =
         Array.isArray(ids) &&
-        ids.length >= 2 &&
+        ids.length >= (args.newList === true ? 1 : 2) &&
         ids.length <= 3 &&
         new Set(ids).size === ids.length &&
         ids.every((id) => typeof id === 'string' && listIds.has(id));
-      return ok ? [] : ["choose_list: candidates must be 2 or 3 different ids of the user's lists"];
+      return ok ? [] : ["choose_list: candidates must be 2 or 3 different ids of the user's lists (1 to 3 with newList)"];
     }
     case 'choose_items': {
       // Only items the context shows, so only the open list (Q-42).

@@ -1152,4 +1152,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiNewRequest => 'New request';
+
+  @override
+  String get settingsAiAsk => 'AI asks first';
+
+  @override
+  String get aiAskMore => 'Ask more';
+
+  @override
+  String get aiAskMoreHint =>
+      'Asks whenever it is not sure; makes new lists only when you ask for one';
+
+  @override
+  String get aiAskBalanced => 'Balanced';
+
+  @override
+  String get aiAskBalancedHint =>
+      'Acts on clear requests and asks on vague ones';
+
+  @override
+  String get aiAskLess => 'Act more';
+
+  @override
+  String get aiAskLessHint =>
+      'Goes with its best guess and asks only when lists tie';
 }

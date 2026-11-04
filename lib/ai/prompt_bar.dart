@@ -621,6 +621,13 @@ class _Panel extends StatelessWidget {
                     color: listColor(list.color, brightness: brightness),
                     onTap: () => controller.choose(list.id),
                   ),
+                if (plan.question!.offerNewList)
+                  _ListChip(
+                    key: const ValueKey('ai-chip-new'),
+                    label: loc.newList,
+                    color: n.muted,
+                    onTap: controller.chooseNewList,
+                  ),
               ],
             ),
           ],

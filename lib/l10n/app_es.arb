@@ -373,5 +373,12 @@
   "settingsAiAutoApply": "Aplicar cambios de la IA sin preguntar",
   "aiAnswerHint": "Tu respuesta",
   "aiAnswering": "Respondiendo a: {reply}",
-  "aiNewRequest": "Nueva solicitud"
+  "aiNewRequest": "Nueva solicitud",
+  "settingsAiAsk": "La IA pregunta antes",
+  "aiAskMore": "Preguntar más",
+  "aiAskMoreHint": "Pregunta siempre que no está segura; crea listas nuevas solo si las pides",
+  "aiAskBalanced": "Equilibrado",
+  "aiAskBalancedHint": "Actúa ante peticiones claras y pregunta ante las vagas",
+  "aiAskLess": "Actuar más",
+  "aiAskLessHint": "Sigue su mejor suposición y solo pregunta si hay empate"
 }

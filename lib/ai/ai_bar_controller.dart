@@ -346,6 +346,9 @@ class AiBarController extends ChangeNotifier {
       labels: pending.labels,
       openListId: pending.newList ? null : pending.openListId,
       followUp: pending.newList ? null : _followUp,
+      askLevel: AiAskLevel.of(
+        preferences.getString(AppSettingsCubit.aiAskLevelKey),
+      ).wire,
     );
     _followUp = null;
     await _run(request, correct: true);
@@ -497,6 +500,15 @@ class AiBarController extends ChangeNotifier {
       return;
     }
     await _run(request.withOpenList(store.current, listId), correct: true);
+  }
+
+  // "New list" as the answer to "which list?" (Q-43).
+  Future<void> chooseNewList() async {
+    final AiRequest? request = _request;
+    if (request == null || _phase != AiBarPhase.question) {
+      return;
+    }
+    await _run(request.withNewList(), correct: true);
   }
 
   // Saves the plan through the store's own paths only (D-7): apply,
