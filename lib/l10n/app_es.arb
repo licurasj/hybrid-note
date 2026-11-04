@@ -389,5 +389,10 @@
   "aiAskLess": "Hazlo y ya",
   "aiAskLessHint": "Sigue su mejor suposición y solo consulta si dos listas encajan igual de bien.",
   "errorPreviewChanged": "La lista ha cambiado desde esta vista previa, así que no se ha cambiado nada. Inténtalo de nuevo.",
-  "errorNeedsConnection": "Esto necesita conexión. No se ha cambiado nada."
+  "errorNeedsConnection": "Esto necesita conexión. No se ha cambiado nada.",
+  "errorOutcomeUnknown": "La conexión es lenta, así que esto aún puede completarse. Revisa la lista antes de volver a intentarlo.",
+  "errorAnswerTooLarge": "Son demasiados cambios para una solicitud (500 como máximo). No se ha cambiado nada. Prueba con menos.",
+  "aiItemsUpdating": "Los elementos se siguen actualizando.",
+  "aiListOffOffer": "\"{list}\" tiene la IA desactivada. ¿Enviar para tus otras listas?",
+  "aiListOffSend": "Enviar"
 }

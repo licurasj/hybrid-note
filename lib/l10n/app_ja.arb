@@ -389,5 +389,10 @@
   "aiAskLess": "すぐ実行",
   "aiAskLessHint": "最も可能性の高い案で実行し、2つのリストが同じくらい合うときだけ確認します。",
   "errorPreviewChanged": "このプレビューの後にリストが変更されたため、何も変更しませんでした。もう一度お試しください。",
-  "errorNeedsConnection": "接続が必要です。何も変更していません。"
+  "errorNeedsConnection": "接続が必要です。何も変更していません。",
+  "errorOutcomeUnknown": "接続が遅いため、この変更はまだ反映される可能性があります。もう一度試す前にリストを確認してください。",
+  "errorAnswerTooLarge": "1回のリクエストには変更が多すぎます（最大500件）。何も変更していません。件数を減らしてください。",
+  "aiItemsUpdating": "項目はまだ更新中です。",
+  "aiListOffOffer": "「{list}」はAIがオフです。他のリスト向けに送信しますか？",
+  "aiListOffSend": "送信"
 }

@@ -389,5 +389,10 @@
   "aiAskLess": "Faire directement",
   "aiAskLessHint": "Suit sa meilleure hypothèse et ne consulte que si deux listes conviennent autant.",
   "errorPreviewChanged": "La liste a changé depuis cet aperçu, rien n’a donc été modifié. Réessayez.",
-  "errorNeedsConnection": "Cette action nécessite une connexion. Rien n’a été modifié."
+  "errorNeedsConnection": "Cette action nécessite une connexion. Rien n’a été modifié.",
+  "errorOutcomeUnknown": "La connexion est lente, cette action peut donc encore aboutir. Vérifiez la liste avant de réessayer.",
+  "errorAnswerTooLarge": "Trop de modifications pour une seule demande (500 au maximum). Rien n’a été modifié. Essayez avec moins.",
+  "aiItemsUpdating": "Les éléments sont encore en cours de mise à jour.",
+  "aiListOffOffer": "\"{list}\" a l’IA désactivée. Envoyer pour vos autres listes ?",
+  "aiListOffSend": "Envoyer"
 }

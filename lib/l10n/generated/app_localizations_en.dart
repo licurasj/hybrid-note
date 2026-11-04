@@ -1208,4 +1208,23 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorNeedsConnection =>
       'This needs a connection. Nothing was changed.';
+
+  @override
+  String get errorOutcomeUnknown =>
+      'The connection is slow, so this may still go through. Check the list before trying again.';
+
+  @override
+  String get errorAnswerTooLarge =>
+      'That is too many changes for one request (at most 500). Nothing was changed. Try a smaller one.';
+
+  @override
+  String get aiItemsUpdating => 'Items are still updating.';
+
+  @override
+  String aiListOffOffer(String list) {
+    return '\"$list\" has AI turned off. Send for your other lists?';
+  }
+
+  @override
+  String get aiListOffSend => 'Send';
 }

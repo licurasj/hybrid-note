@@ -1212,4 +1212,23 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get errorNeedsConnection =>
       'Esto necesita conexión. No se ha cambiado nada.';
+
+  @override
+  String get errorOutcomeUnknown =>
+      'La conexión es lenta, así que esto aún puede completarse. Revisa la lista antes de volver a intentarlo.';
+
+  @override
+  String get errorAnswerTooLarge =>
+      'Son demasiados cambios para una solicitud (500 como máximo). No se ha cambiado nada. Prueba con menos.';
+
+  @override
+  String get aiItemsUpdating => 'Los elementos se siguen actualizando.';
+
+  @override
+  String aiListOffOffer(String list) {
+    return '\"$list\" tiene la IA desactivada. ¿Enviar para tus otras listas?';
+  }
+
+  @override
+  String get aiListOffSend => 'Enviar';
 }

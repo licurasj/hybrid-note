@@ -2065,6 +2065,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This needs a connection. Nothing was changed.'**
   String get errorNeedsConnection;
+
+  /// No description provided for @errorOutcomeUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'The connection is slow, so this may still go through. Check the list before trying again.'**
+  String get errorOutcomeUnknown;
+
+  /// No description provided for @errorAnswerTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'That is too many changes for one request (at most 500). Nothing was changed. Try a smaller one.'**
+  String get errorAnswerTooLarge;
+
+  /// No description provided for @aiItemsUpdating.
+  ///
+  /// In en, this message translates to:
+  /// **'Items are still updating.'**
+  String get aiItemsUpdating;
+
+  /// No description provided for @aiListOffOffer.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{list}\" has AI turned off. Send for your other lists?'**
+  String aiListOffOffer(String list);
+
+  /// No description provided for @aiListOffSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get aiListOffSend;
 }
 
 class _AppLocalizationsDelegate

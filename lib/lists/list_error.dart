@@ -90,7 +90,9 @@ enum ListErrorCode implements WireName {
   listChanged('listChanged'), // {list}
   undoTooLarge('undoTooLarge'), // {list}: more items than one write holds
   previewChanged('previewChanged'), // {list}: stored data conflicts with an AI preview (Q-51)
-  needsConnection('needsConnection'); // {list}: this write needs the server's data (Q-53)
+  needsConnection('needsConnection'), // {list}: this write needs the server's data (Q-53)
+  outcomeUnknown('outcomeUnknown'), // {list}: handed to the server, no answer yet (Q-58)
+  answerTooLarge('answerTooLarge'); // {list}: more item changes than one write holds (Q-60)
 
   const ListErrorCode(this.wire);
 
@@ -254,6 +256,10 @@ class ListError {
         return 'list "${arg('list')}" changed since the preview; nothing was changed';
       case ListErrorCode.needsConnection:
         return 'changing list "${arg('list')}" this way needs a connection; nothing was changed';
+      case ListErrorCode.outcomeUnknown:
+        return 'no answer from the server about list "${arg('list')}"; the change may still land';
+      case ListErrorCode.answerTooLarge:
+        return 'more item changes than fit in one write; nothing was changed';
     }
   }
 

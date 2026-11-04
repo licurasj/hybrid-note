@@ -1181,4 +1181,21 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get errorNeedsConnection => '需要网络连接。未做任何更改。';
+
+  @override
+  String get errorOutcomeUnknown => '连接较慢，此更改可能仍会生效。请先查看列表再重试。';
+
+  @override
+  String get errorAnswerTooLarge => '一次请求的更改过多（最多 500 项）。未做任何更改。请减少数量。';
+
+  @override
+  String get aiItemsUpdating => '项目仍在更新。';
+
+  @override
+  String aiListOffOffer(String list) {
+    return '“$list”已关闭 AI。要针对其他列表发送吗？';
+  }
+
+  @override
+  String get aiListOffSend => '发送';
 }

@@ -515,6 +515,132 @@ void main() {
       timeout: const Timeout(Duration(minutes: 5)),
     );
 
+    // R2 of the Codex re-review on the real plugin: a connection that goes quiet
+    // once the writes are handed over. Needs firebase/tests/stall-proxy.js
+    // (the runbook has the command). Off unless --dart-define=STALL=true.
+    group('a connection stalling at the commit', () {
+      const Duration stallLimit = Duration(seconds: 2);
+      const Duration stallCommit = Duration(seconds: 5);
+      late FirebaseFirestore stalledDb;
+      late String uid;
+      late ListDefinition definition;
+      late ListItem milk;
+      late FirestoreListStore store;
+
+      setUpAll(() async {
+        final FirebaseApp app = await Firebase.initializeApp(
+          name: 'stalled-device',
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+        stalledDb = FirebaseFirestore.instanceFor(app: app)
+          ..useFirestoreEmulator(_host, 8090);
+        await FirebaseAuth.instanceFor(app: app).useAuthEmulator(_host, 9099);
+      });
+
+      Future<void> open({Future<void> Function()? beforeHandOver}) async {
+        final (String newUid, String email) = await _newUser();
+        uid = newUid;
+        await _seed(uid);
+        await FirebaseAuth.instanceFor(
+          app: Firebase.app('stalled-device'),
+        ).signInWithEmailAndPassword(email: email, password: _password);
+        store = FirestoreListStore(
+          stalledDb,
+          uid,
+          transactionTimeout: stallLimit,
+          commitTimeout: stallCommit,
+          beforeHandOver: beforeHandOver,
+        );
+        addTearDown(store.close);
+        definition = (await _until(
+          store,
+          (c) => c.definitions.isNotEmpty,
+        )).definitions.first;
+        milk = ListItem(
+          id: 'r2',
+          listId: definition.id,
+          values: {'title': 'Milk'},
+          createdAt: _t0,
+          updatedAt: _t0,
+        );
+        await store.apply(ListChanges(saved: [milk]));
+        await _until(store, (c) => c.itemsOf(definition.id).any((i) => i.id == 'r2'));
+      }
+
+      AiItemWrite edit() => AiItemWrite(
+        definition: definition,
+        saved: [
+          ListItem(
+            id: milk.id,
+            listId: milk.listId,
+            values: {'title': 'Oat milk'},
+            createdAt: _t0,
+            updatedAt: _t0.add(const Duration(minutes: 1)),
+          ),
+        ],
+        base: {milk.id: milk},
+      );
+
+      Future<Object?> storedTitle() async {
+        final Map<String, dynamic>? data = await _server(
+          _db,
+          'users/$uid/lists/${definition.id}/items/r2',
+        );
+        return (data?['values'] as Map?)?['title'];
+      }
+
+      test('stalled after the hand-over: the outcome is never said to be "not changed"', () async {
+        bool stalls = false;
+        await open(
+          beforeHandOver: () async {
+            if (stalls) {
+              stalls = false;
+              debugPrint('HOST stall-on');
+              await Future<void>.delayed(const Duration(seconds: 1));
+            }
+          },
+        );
+        stalls = true;
+        final Stopwatch watch = Stopwatch()..start();
+        final AiWriteResult result = await store.applyAiItems(edit());
+        _measure(
+          'stalled commit: ${result.errors.map((e) => e.code.wire)} after '
+          '${watch.elapsedMilliseconds} ms; stored ${await storedTitle()}',
+        );
+        expect(
+          result.errors.map((e) => e.code),
+          isNot(contains(ListErrorCode.needsConnection)),
+        );
+        debugPrint('HOST stall-off');
+        final Stopwatch landing = Stopwatch()..start();
+        await _eventually(
+          () async => await storedTitle() == 'Oat milk',
+          timeout: const Duration(seconds: 90),
+        );
+        _measure(
+          'stalled commit landed ${landing.elapsedMilliseconds} ms after the '
+          'connection came back',
+        );
+      }, timeout: const Timeout(Duration(minutes: 4)));
+
+      test('stalled before the hand-over: refused, and nothing lands later', () async {
+        bool holds = false;
+        await open(
+          beforeHandOver: () async {
+            if (holds) {
+              holds = false;
+              await Future<void>.delayed(stallLimit * 2);
+            }
+          },
+        );
+        holds = true;
+        final AiWriteResult result = await store.applyAiItems(edit());
+        expect(result.errors.single.code, ListErrorCode.needsConnection);
+        await Future<void>.delayed(stallLimit * 3);
+        expect(await storedTitle(), 'Milk');
+      }, timeout: const Timeout(Duration(minutes: 2)));
+    }, skip: !const bool.fromEnvironment('STALL'));
+
     // Needs the host to switch the device's airplane mode when it sees the
     // HOST lines; the runbook has the command. Off unless
     // --dart-define=AIRPLANE=true.

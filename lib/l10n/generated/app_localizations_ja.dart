@@ -1185,4 +1185,23 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get errorNeedsConnection => '接続が必要です。何も変更していません。';
+
+  @override
+  String get errorOutcomeUnknown =>
+      '接続が遅いため、この変更はまだ反映される可能性があります。もう一度試す前にリストを確認してください。';
+
+  @override
+  String get errorAnswerTooLarge =>
+      '1回のリクエストには変更が多すぎます（最大500件）。何も変更していません。件数を減らしてください。';
+
+  @override
+  String get aiItemsUpdating => '項目はまだ更新中です。';
+
+  @override
+  String aiListOffOffer(String list) {
+    return '「$list」はAIがオフです。他のリスト向けに送信しますか？';
+  }
+
+  @override
+  String get aiListOffSend => '送信';
 }

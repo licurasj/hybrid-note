@@ -352,6 +352,10 @@ class ListLabels {
         return loc.errorPreviewChanged;
       case ListErrorCode.needsConnection:
         return loc.errorNeedsConnection;
+      case ListErrorCode.outcomeUnknown:
+        return loc.errorOutcomeUnknown;
+      case ListErrorCode.answerTooLarge:
+        return loc.errorAnswerTooLarge;
     }
   }
 

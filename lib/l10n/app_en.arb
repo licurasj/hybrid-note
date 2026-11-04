@@ -988,5 +988,17 @@
   "aiAskLess": "Just do it",
   "aiAskLessHint": "Goes with its best guess and checks only when two lists fit equally well.",
   "errorPreviewChanged": "The list changed since this preview, so nothing was changed. Try again.",
-  "errorNeedsConnection": "This needs a connection. Nothing was changed."
+  "errorNeedsConnection": "This needs a connection. Nothing was changed.",
+  "errorOutcomeUnknown": "The connection is slow, so this may still go through. Check the list before trying again.",
+  "errorAnswerTooLarge": "That is too many changes for one request (at most 500). Nothing was changed. Try a smaller one.",
+  "aiItemsUpdating": "Items are still updating.",
+  "aiListOffOffer": "\"{list}\" has AI turned off. Send for your other lists?",
+  "@aiListOffOffer": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      }
+    }
+  },
+  "aiListOffSend": "Send"
 }

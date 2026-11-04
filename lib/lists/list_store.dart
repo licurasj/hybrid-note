@@ -31,6 +31,10 @@ import 'list_rules.dart';
 // - A store may refuse a write. patchList and createList return the reasons
 //   and change nothing in that case.
 abstract interface class ListStore {
+  // The most item changes one AI answer may make (Q-60): what one Firestore
+  // write holds.
+  static const int maxAiWrites = 500;
+
   // Read side (Q-11 A): every list and item in one catalog. watch() emits
   // nothing until the initial load is complete (every list with its items,
   // D-12); then it emits the latest catalog to each new listener and a new
@@ -62,7 +66,9 @@ abstract interface class ListStore {
   // Applies ops to the list's current definition and items and saves the
   // result only when it is valid. Name, icon, colour and AI changes of the
   // built-in lists go through here too (setListInfo). Returns null when the
-  // list does not exist.
+  // list does not exist. A change to more items than one write holds returns
+  // once the definition is saved, with itemsPending set; its items follow
+  // (Q-59).
   Future<ListPatchResult?> patchList(String listId, List<ListPatchOp> ops);
 
   // Returns null when the list does not exist or cannot be deleted.
@@ -85,7 +91,12 @@ abstract interface class ListStore {
   // refused with aiNotAllowed when the list has AI off now, and with
   // previewChanged per AiItemWrite.over. A store that cannot read the stored
   // data refuses with needsConnection, except for a write that only adds items,
-  // which overwrites nothing and may queue.
+  // which overwrites nothing and may queue. More changes than one write holds
+  // are refused with answerTooLarge (Q-60).
+  //
+  // needsConnection means nothing was or will be written. These writes, like
+  // the two below, return outcomeUnknown instead when they reached the server
+  // and it has not answered in time: the change may still land (Q-58).
   Future<AiWriteResult> applyAiItems(AiItemWrite write);
 
   // patchList for an AI answer: the same refusals (needsConnection with no
@@ -148,17 +159,28 @@ class AiItemWrite {
 
   bool get addsOnly => base.isEmpty && deletedIds.isEmpty;
 
+  // The documents this step writes.
+  int get writes => saved.length + deletedIds.length;
+
+  // The ids a store must read for [over].
+  Set<String> get touchedIds => {
+    ...base.keys,
+    for (final ListItem item in saved) item.id,
+  };
+
   // Works the step out over the list and items as stored ([items] by id, at
-  // least the ones in [base]). A changed item keeps what happened to its other
+  // least the [touchedIds]). A new item already stored is this write's own
+  // retry when it is unchanged, and refused otherwise: it must never replace an
+  // edit made since (R2 of the Codex re-review). A changed item keeps what happened to its other
   // fields since the preview. Refused with previewChanged when the list is gone
   // or its fields changed, an item to change is gone, a field the AI changes
   // was meanwhile set to something else, or an item to delete has other values
   // by now (a delete would lose them).
-  AiWriteResult over(ListDefinition? stored, Map<String, ListItem> items) {
-    if (stored != null && !stored.aiAllowed) {
+  AiWriteResult over(ListDefinition? list, Map<String, ListItem> items) {
+    if (list != null && !list.aiAllowed) {
       return AiWriteResult.refused(ListErrorCode.aiNotAllowed, listId);
     }
-    if (stored == null || !sameFields(stored, definition)) {
+    if (list == null || !sameFields(list, definition)) {
       return AiWriteResult.refused(ListErrorCode.previewChanged, listId);
     }
     final List<ListItem> merged = [];
@@ -166,6 +188,11 @@ class AiItemWrite {
     for (final ListItem item in saved) {
       final ListItem? previewed = base[item.id];
       if (previewed == null) {
+        final ListItem? stored = items[item.id];
+        if (stored != null &&
+            !ListSnapshot.sameJson(stored.toJson(), item.toJson())) {
+          return AiWriteResult.refused(ListErrorCode.previewChanged, listId);
+        }
         merged.add(item);
         before[item.id] = null;
         continue;
@@ -194,7 +221,7 @@ class AiItemWrite {
     }
     final List<ListError> errors = [
       for (final ListItem item in merged)
-        for (final ListError error in item.validateAgainst(stored))
+        for (final ListError error in item.validateAgainst(list))
           error.forItem(item.id),
     ];
     if (errors.isNotEmpty) {
@@ -204,8 +231,8 @@ class AiItemWrite {
       saved: merged,
       deletedIds: deleted,
       snapshot: ListSnapshot(
-        before: stored,
-        after: stored,
+        before: list,
+        after: list,
         itemsBefore: before,
         itemsAfter: {
           for (final ListItem item in merged) item.id: item,

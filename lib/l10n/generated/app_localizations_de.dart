@@ -1220,4 +1220,23 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get errorNeedsConnection =>
       'Dafür ist eine Verbindung nötig. Es wurde nichts geändert.';
+
+  @override
+  String get errorOutcomeUnknown =>
+      'Die Verbindung ist langsam, daher kann dies noch durchgehen. Prüfe die Liste, bevor du es noch einmal versuchst.';
+
+  @override
+  String get errorAnswerTooLarge =>
+      'Das sind zu viele Änderungen für eine Anfrage (höchstens 500). Es wurde nichts geändert. Versuche es mit weniger.';
+
+  @override
+  String get aiItemsUpdating => 'Einträge werden noch aktualisiert.';
+
+  @override
+  String aiListOffOffer(String list) {
+    return '\"$list\" hat die KI ausgeschaltet. Für deine anderen Listen senden?';
+  }
+
+  @override
+  String get aiListOffSend => 'Senden';
 }

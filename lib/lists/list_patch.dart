@@ -136,7 +136,20 @@ class ListPatchResult {
     required this.errors,
     required this.definitionBefore,
     required this.itemsBefore,
+    this.itemsPending = false,
   });
+
+  // The same result, saved with its items still to come.
+  ListPatchResult withItemsPending() => ListPatchResult(
+    definition: definition,
+    items: items,
+    changedItemIds: changedItemIds,
+    hiddenValues: hiddenValues,
+    errors: errors,
+    definitionBefore: definitionBefore,
+    itemsBefore: itemsBefore,
+    itemsPending: true,
+  );
 
   final ListDefinition definition;
   final List<ListItem> items;
@@ -144,6 +157,9 @@ class ListPatchResult {
   // which is what an Undo must bring back (H6 of the Codex review).
   final ListDefinition definitionBefore;
   final List<ListItem> itemsBefore;
+  // A store saved the definition and is still fitting more items than one
+  // write holds; no Undo can cover a change this size (Q-59).
+  final bool itemsPending;
   final Set<String> changedItemIds;
   // Values that could not be converted and were moved to the item's hidden
   // `_legacy` slot, so nothing is destroyed (Q-4, plan 4.4).

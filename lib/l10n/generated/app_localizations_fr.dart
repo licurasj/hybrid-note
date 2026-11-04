@@ -1219,4 +1219,24 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get errorNeedsConnection =>
       'Cette action nécessite une connexion. Rien n’a été modifié.';
+
+  @override
+  String get errorOutcomeUnknown =>
+      'La connexion est lente, cette action peut donc encore aboutir. Vérifiez la liste avant de réessayer.';
+
+  @override
+  String get errorAnswerTooLarge =>
+      'Trop de modifications pour une seule demande (500 au maximum). Rien n’a été modifié. Essayez avec moins.';
+
+  @override
+  String get aiItemsUpdating =>
+      'Les éléments sont encore en cours de mise à jour.';
+
+  @override
+  String aiListOffOffer(String list) {
+    return '\"$list\" a l’IA désactivée. Envoyer pour vos autres listes ?';
+  }
+
+  @override
+  String get aiListOffSend => 'Envoyer';
 }
