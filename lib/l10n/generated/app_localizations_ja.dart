@@ -1136,23 +1136,23 @@ class AppLocalizationsJa extends AppLocalizations {
   String get aiNewRequest => '新しいリクエスト';
 
   @override
-  String get settingsAiAsk => 'AIの確認';
+  String get settingsAiAsk => 'AIが確認する頻度';
 
   @override
-  String get aiAskMore => '多めに確認';
+  String get aiAskMore => 'まず確認';
 
   @override
-  String get aiAskMoreHint => '確信がないときは確認し、新しいリストは頼まれたときだけ作成';
+  String get aiAskMoreHint => '確信がないときは必ず確認し、新しいリストは頼まれたときだけ作ります。';
 
   @override
   String get aiAskBalanced => 'バランス';
 
   @override
-  String get aiAskBalancedHint => 'はっきりした依頼は実行し、あいまいな依頼は確認';
+  String get aiAskBalancedHint => 'はっきりした依頼はすぐ実行し、あいまいな依頼は確認します。';
 
   @override
-  String get aiAskLess => '多めに実行';
+  String get aiAskLess => 'すぐ実行';
 
   @override
-  String get aiAskLessHint => '最も可能性の高い案で実行し、同点のときだけ確認';
+  String get aiAskLessHint => '最も可能性の高い案で実行し、2つのリストが同じくらい合うときだけ確認します。';
 }

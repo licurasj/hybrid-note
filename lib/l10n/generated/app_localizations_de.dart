@@ -1165,26 +1165,26 @@ class AppLocalizationsDe extends AppLocalizations {
   String get aiNewRequest => 'Neue Anfrage';
 
   @override
-  String get settingsAiAsk => 'KI fragt zuerst';
+  String get settingsAiAsk => 'Wie oft die KI nachfragt';
 
   @override
-  String get aiAskMore => 'Mehr fragen';
+  String get aiAskMore => 'Erst fragen';
 
   @override
   String get aiAskMoreHint =>
-      'Fragt, sobald sie unsicher ist; legt neue Listen nur auf Wunsch an';
+      'Fragt nach, sobald sie unsicher ist, und legt neue Listen nur auf Wunsch an.';
 
   @override
   String get aiAskBalanced => 'Ausgewogen';
 
   @override
   String get aiAskBalancedHint =>
-      'Handelt bei klaren Anfragen und fragt bei vagen nach';
+      'Erledigt klare Anfragen sofort und fragt bei vagen nach.';
 
   @override
-  String get aiAskLess => 'Mehr handeln';
+  String get aiAskLess => 'Einfach machen';
 
   @override
   String get aiAskLessHint =>
-      'Folgt ihrer besten Vermutung und fragt nur bei Gleichstand';
+      'Folgt ihrer besten Vermutung und fragt nur, wenn zwei Listen gleich gut passen.';
 }

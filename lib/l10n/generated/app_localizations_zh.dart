@@ -1133,23 +1133,23 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiNewRequest => '新请求';
 
   @override
-  String get settingsAiAsk => 'AI 先询问';
+  String get settingsAiAsk => 'AI 向你确认的频率';
 
   @override
-  String get aiAskMore => '多询问';
+  String get aiAskMore => '先问我';
 
   @override
-  String get aiAskMoreHint => '不确定时就询问；只在你要求时才新建列表';
+  String get aiAskMoreHint => '不确定时就向你确认，只在你要求时才新建列表。';
 
   @override
   String get aiAskBalanced => '平衡';
 
   @override
-  String get aiAskBalancedHint => '明确的请求直接执行，模糊的请求先询问';
+  String get aiAskBalancedHint => '明确的请求立即执行，模糊的请求先向你确认。';
 
   @override
-  String get aiAskLess => '多执行';
+  String get aiAskLess => '直接做';
 
   @override
-  String get aiAskLessHint => '按最可能的理解执行，只在难分高下时询问';
+  String get aiAskLessHint => '按最可能的理解执行，只在两个列表同样合适时才确认。';
 }

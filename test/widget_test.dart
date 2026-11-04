@@ -479,19 +479,20 @@ void main() {
     await settle(tester);
     await tester.tap(find.byKey(const ValueKey('settings')));
     await tester.pumpAndSettle();
-    final Finder row = find.byKey(const ValueKey('settings-ai-ask'));
+    final Finder hint = find.byKey(const ValueKey('settings-ai-ask-hint'));
+    expect(find.text('How often the AI checks with you'), findsOneWidget);
     expect(
-      find.descendant(of: row, matching: find.text('Balanced')),
-      findsOneWidget,
+      tester.widget<Text>(hint).data,
+      startsWith('Does clear requests right away'),
     );
-    await tester.tap(row);
+    // The right end of the slider: Just do it.
+    final Finder slider = find.byKey(const ValueKey('settings-ai-ask-slider'));
+    await tester.ensureVisible(slider);
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('settings-ai-ask-less')));
+    final Rect rect = tester.getRect(slider);
+    await tester.tapAt(Offset(rect.right - 12, rect.center.dy));
     await tester.pumpAndSettle();
-    expect(
-      find.descendant(of: row, matching: find.text('Act more')),
-      findsOneWidget,
-    );
+    expect(tester.widget<Text>(hint).data, startsWith('Goes with its best guess'));
     final SharedPreferences preferences = await SharedPreferences.getInstance();
     expect(preferences.getString(AppSettingsCubit.aiAskLevelKey), 'less');
   });

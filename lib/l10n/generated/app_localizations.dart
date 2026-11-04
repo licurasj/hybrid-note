@@ -1973,19 +1973,19 @@ abstract class AppLocalizations {
   /// No description provided for @settingsAiAsk.
   ///
   /// In en, this message translates to:
-  /// **'AI asks first'**
+  /// **'How often the AI checks with you'**
   String get settingsAiAsk;
 
   /// No description provided for @aiAskMore.
   ///
   /// In en, this message translates to:
-  /// **'Ask more'**
+  /// **'Ask first'**
   String get aiAskMore;
 
   /// No description provided for @aiAskMoreHint.
   ///
   /// In en, this message translates to:
-  /// **'Asks whenever it is not sure; makes new lists only when you ask for one'**
+  /// **'Checks with you whenever it isn’t sure, and makes new lists only when you ask for one.'**
   String get aiAskMoreHint;
 
   /// No description provided for @aiAskBalanced.
@@ -1997,19 +1997,19 @@ abstract class AppLocalizations {
   /// No description provided for @aiAskBalancedHint.
   ///
   /// In en, this message translates to:
-  /// **'Acts on clear requests and asks on vague ones'**
+  /// **'Does clear requests right away and checks with you on vague ones.'**
   String get aiAskBalancedHint;
 
   /// No description provided for @aiAskLess.
   ///
   /// In en, this message translates to:
-  /// **'Act more'**
+  /// **'Just do it'**
   String get aiAskLess;
 
   /// No description provided for @aiAskLessHint.
   ///
   /// In en, this message translates to:
-  /// **'Goes with its best guess and asks only when lists tie'**
+  /// **'Goes with its best guess and checks only when two lists fit equally well.'**
   String get aiAskLessHint;
 }
 

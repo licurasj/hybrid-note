@@ -1164,26 +1164,26 @@ class AppLocalizationsFr extends AppLocalizations {
   String get aiNewRequest => 'Nouvelle demande';
 
   @override
-  String get settingsAiAsk => 'L’IA demande d’abord';
+  String get settingsAiAsk => 'À quelle fréquence l’IA vous consulte';
 
   @override
-  String get aiAskMore => 'Demander plus';
+  String get aiAskMore => 'Demander d’abord';
 
   @override
   String get aiAskMoreHint =>
-      'Demande dès qu’elle n’est pas sûre ; ne crée de listes que si vous le demandez';
+      'Vous consulte dès qu’elle n’est pas sûre et ne crée de listes que si vous le demandez.';
 
   @override
   String get aiAskBalanced => 'Équilibré';
 
   @override
   String get aiAskBalancedHint =>
-      'Agit sur les demandes claires et demande pour les vagues';
+      'Fait tout de suite ce qui est clair et vous consulte pour ce qui est vague.';
 
   @override
-  String get aiAskLess => 'Agir plus';
+  String get aiAskLess => 'Faire directement';
 
   @override
   String get aiAskLessHint =>
-      'Suit sa meilleure hypothèse et ne demande qu’en cas d’égalité';
+      'Suit sa meilleure hypothèse et ne consulte que si deux listes conviennent autant.';
 }

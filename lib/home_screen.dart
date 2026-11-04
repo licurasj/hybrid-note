@@ -305,51 +305,6 @@ class _SettingsSheet extends StatelessWidget {
         AiAskLevel.less => loc.aiAskLess,
       };
 
-  // How often the AI asks first (Q-43).
-  Future<void> _showAskDialog(BuildContext context, AppSettings settings) async {
-    final AppLocalizations loc = AppLocalizations.of(context);
-    final List<(AiAskLevel, String)> options = [
-      (AiAskLevel.more, loc.aiAskMoreHint),
-      (AiAskLevel.balanced, loc.aiAskBalancedHint),
-      (AiAskLevel.less, loc.aiAskLessHint),
-    ];
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(loc.settingsAiAsk),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final (AiAskLevel level, String hint) in options)
-                ListTile(
-                  key: ValueKey('settings-ai-ask-${level.wire}'),
-                  selected: settings.aiAskLevel == level,
-                  leading: Icon(
-                    settings.aiAskLevel == level
-                        ? Icons.radio_button_checked
-                        : Icons.radio_button_off,
-                  ),
-                  title: Text(_askLabel(loc, level)),
-                  subtitle: Text(hint),
-                  onTap: () {
-                    context.read<AppSettingsCubit>().setAiAskLevel(level);
-                    Navigator.of(dialogContext).pop();
-                  },
-                ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(loc.cancel),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   Future<void> _showLanguageDialog(
     BuildContext context,
     AppSettings settings,
@@ -541,21 +496,74 @@ class _SettingsSheet extends StatelessWidget {
                             .setAiAutoApply(!settings.aiAutoApply),
                       ),
                       hairline(),
-                      row(
+                      // How often the AI checks with you (Q-43): a slider
+                      // from asking to just doing it, with what the stop
+                      // means under it.
+                      Padding(
                         key: const ValueKey('settings-ai-ask'),
-                        icon: Icons.help_outline,
-                        label: Text(loc.settingsAiAsk, style: type.row),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
+                        padding: const EdgeInsets.fromLTRB(
+                          AppShapes.sideMargin,
+                          14,
+                          AppShapes.sideMargin,
+                          10,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Text(
-                              _askLabel(loc, settings.aiAskLevel),
-                              style: type.meta.copyWith(fontSize: 15),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.help_outline,
+                                  size: 22,
+                                  color: neutrals.text,
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Text(
+                                    loc.settingsAiAsk,
+                                    style: type.row,
+                                  ),
+                                ),
+                              ],
                             ),
-                            Icon(Icons.chevron_right, color: neutrals.muted),
+                            Slider(
+                              key: const ValueKey('settings-ai-ask-slider'),
+                              value: settings.aiAskLevel.index.toDouble(),
+                              max: AiAskLevel.values.length - 1,
+                              divisions: AiAskLevel.values.length - 1,
+                              label: _askLabel(loc, settings.aiAskLevel),
+                              onChanged: (value) => context
+                                  .read<AppSettingsCubit>()
+                                  .setAiAskLevel(
+                                    AiAskLevel.values[value.round()],
+                                  ),
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                for (final AiAskLevel level in AiAskLevel.values)
+                                  Text(
+                                    _askLabel(loc, level),
+                                    style: type.meta.copyWith(
+                                      color: level == settings.aiAskLevel
+                                          ? neutrals.text
+                                          : neutrals.muted,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              switch (settings.aiAskLevel) {
+                                AiAskLevel.more => loc.aiAskMoreHint,
+                                AiAskLevel.balanced => loc.aiAskBalancedHint,
+                                AiAskLevel.less => loc.aiAskLessHint,
+                              },
+                              key: const ValueKey('settings-ai-ask-hint'),
+                              style: type.meta,
+                            ),
                           ],
                         ),
-                        onTap: () => _showAskDialog(context, settings),
                       ),
                       hairline(),
                       Padding(

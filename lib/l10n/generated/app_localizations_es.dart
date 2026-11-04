@@ -1157,26 +1157,26 @@ class AppLocalizationsEs extends AppLocalizations {
   String get aiNewRequest => 'Nueva solicitud';
 
   @override
-  String get settingsAiAsk => 'La IA pregunta antes';
+  String get settingsAiAsk => 'Con qué frecuencia te consulta la IA';
 
   @override
-  String get aiAskMore => 'Preguntar más';
+  String get aiAskMore => 'Preguntar antes';
 
   @override
   String get aiAskMoreHint =>
-      'Pregunta siempre que no está segura; crea listas nuevas solo si las pides';
+      'Te consulta siempre que no está segura y solo crea listas nuevas si las pides.';
 
   @override
   String get aiAskBalanced => 'Equilibrado';
 
   @override
   String get aiAskBalancedHint =>
-      'Actúa ante peticiones claras y pregunta ante las vagas';
+      'Hace al momento lo que está claro y te consulta lo que es vago.';
 
   @override
-  String get aiAskLess => 'Actuar más';
+  String get aiAskLess => 'Hazlo y ya';
 
   @override
   String get aiAskLessHint =>
-      'Sigue su mejor suposición y solo pregunta si hay empate';
+      'Sigue su mejor suposición y solo consulta si dos listas encajan igual de bien.';
 }

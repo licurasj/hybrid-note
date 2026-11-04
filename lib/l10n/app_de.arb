@@ -374,11 +374,11 @@
   "aiAnswerHint": "Deine Antwort",
   "aiAnswering": "Antwort auf: {reply}",
   "aiNewRequest": "Neue Anfrage",
-  "settingsAiAsk": "KI fragt zuerst",
-  "aiAskMore": "Mehr fragen",
-  "aiAskMoreHint": "Fragt, sobald sie unsicher ist; legt neue Listen nur auf Wunsch an",
+  "settingsAiAsk": "Wie oft die KI nachfragt",
+  "aiAskMore": "Erst fragen",
+  "aiAskMoreHint": "Fragt nach, sobald sie unsicher ist, und legt neue Listen nur auf Wunsch an.",
   "aiAskBalanced": "Ausgewogen",
-  "aiAskBalancedHint": "Handelt bei klaren Anfragen und fragt bei vagen nach",
-  "aiAskLess": "Mehr handeln",
-  "aiAskLessHint": "Folgt ihrer besten Vermutung und fragt nur bei Gleichstand"
+  "aiAskBalancedHint": "Erledigt klare Anfragen sofort und fragt bei vagen nach.",
+  "aiAskLess": "Einfach machen",
+  "aiAskLessHint": "Folgt ihrer besten Vermutung und fragt nur, wenn zwei Listen gleich gut passen."
 }
