@@ -6,6 +6,7 @@ import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app/app_settings.dart';
+import '../lists/list_catalog.dart';
 import '../lists/list_definition.dart';
 import '../lists/list_error.dart';
 import '../lists/list_item.dart';
@@ -79,11 +80,44 @@ class AiDone {
 
 // One applied step and how to take it back.
 class _Undo {
-  const _Undo.snapshot(ListSnapshot this.snapshot) : createdListId = null;
-  const _Undo.created(String this.createdListId) : snapshot = null;
+  const _Undo.snapshot(ListSnapshot this.snapshot) : created = null;
+  const _Undo.created(CreatedList this.created) : snapshot = null;
 
   final ListSnapshot? snapshot;
-  final String? createdListId;
+  final CreatedList? created;
+
+  String get listId => snapshot?.listId ?? created!.listId;
+
+  // Whether what the step touched is still as the step left it.
+  bool isCurrent(ListCatalog catalog) {
+    final List<ListItem> items = catalog.itemsOf(listId);
+    final ListDefinition? definition = catalog.definition(listId);
+    return created?.isCurrent(definition, items) ??
+        snapshot!.isCurrent(definition, {
+          for (final ListItem item in items) item.id: item,
+        });
+  }
+
+  // The steps of one answer with each list's joined into one, which Undo
+  // restores once (M3 of the Codex review).
+  static List<_Undo> joined(List<_Undo> steps) {
+    final List<_Undo> result = [];
+    for (final _Undo step in steps) {
+      final int index = result.lastIndexWhere(
+        (other) => other.listId == step.listId,
+      );
+      final ListSnapshot? first = index < 0 ? null : result[index].snapshot;
+      final ListSnapshot? both = first == null || step.snapshot == null
+          ? null
+          : first.followedBy(step.snapshot!);
+      if (both != null) {
+        result[index] = _Undo.snapshot(both);
+      } else {
+        result.add(step);
+      }
+    }
+    return result;
+  }
 }
 
 // The prompt bar's state (T-19 unit 4). The shell owns it, so Back can close
@@ -143,13 +177,10 @@ class AiBarController extends ChangeNotifier {
     // keep working, and Close or Cancel starts afresh.
     if (_focused &&
         (_phase == AiBarPhase.reply || _phase == AiBarPhase.question)) {
-      final String? prompt = _lastPrompt;
       final String question =
           _plan?.question?.text ?? _plan?.itemQuestion?.text ?? '';
-      if (_phase == AiBarPhase.question &&
-          prompt != null &&
-          question.isNotEmpty) {
-        _followUp = AiFollowUp(prompt: prompt, reply: question);
+      if (_phase == AiBarPhase.question && question.isNotEmpty) {
+        _followUp = _nextFollowUp(question) ?? _followUp;
       }
       notifyListeners();
       return;
@@ -190,6 +221,7 @@ class AiBarController extends ChangeNotifier {
   // For the list names in "Added to ...".
   ListLabels? _labels;
   List<_Undo> _undo = const [];
+  StreamSubscription<ListCatalog>? _undoWatch;
   Timer? _doneTimer;
   // Bumped by cancel, so a late answer is dropped.
   int _generation = 0;
@@ -243,6 +275,29 @@ class AiBarController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // The lists whose items went out with this submission, and how many rounds
+  // only fetched a list's items: one submission cannot refetch without end
+  // (M1 of the Codex review).
+  Set<String> _itemsSent = {};
+  int _fetches = 0;
+  static const int maxFetches = 2;
+
+  void _startSubmission() {
+    _itemsSent = {};
+    _fetches = 0;
+  }
+
+  // The follow-up for the AI's new [reply] to the current request: the original
+  // request stays, with the latest exchanges (Q-55).
+  AiFollowUp? _nextFollowUp(String reply) {
+    final String? prompt = _lastPrompt;
+    if (prompt == null) {
+      return null;
+    }
+    return _request?.followUp?.next(prompt, reply) ??
+        AiFollowUp(prompt: prompt, reply: reply);
+  }
+
   // Applies the picked items as the delete or change the AI proposed.
   Future<void> applyPicked() async {
     final AiItemQuestion? question = _plan?.itemQuestion;
@@ -255,7 +310,7 @@ class AiBarController extends ChangeNotifier {
       openListId: question.definition.id,
     );
     if (!plan.isValid || plan.steps.isEmpty) {
-      _problem = AiProblem.invalid(plan.errors);
+      _problem = _problemOf(plan.errors);
       _set(AiBarPhase.problem);
       return;
     }
@@ -353,11 +408,11 @@ class AiBarController extends ChangeNotifier {
       _set(AiBarPhase.problem);
       return;
     }
+    _startSubmission();
     final AiRequest request = AiRequest.of(
+      prompt: pending.prompt,
       // A new list from a description: the AI designs it (Q-32).
-      prompt: pending.newList
-          ? 'Create a new list: ${pending.prompt}'
-          : pending.prompt,
+      newList: pending.newList,
       locale: pending.locale,
       now: _clock(),
       catalog: store.current,
@@ -374,7 +429,19 @@ class AiBarController extends ChangeNotifier {
 
   // One request; when the device finds ListErrors in the answer, the same
   // request goes once more with them (Q-34 A), then the errors are shown.
-  Future<void> _run(AiRequest request, {required bool correct}) async {
+  Future<void> _run(AiRequest asked, {required bool correct}) async {
+    // Every round goes out with what is allowed now, not when the first one
+    // left (H1 of the Codex review).
+    final AiProblem? off = _turnedOff(asked);
+    if (off != null) {
+      _problem = off;
+      _set(AiBarPhase.problem);
+      return;
+    }
+    final ListLabels? labels = _labels;
+    final AiRequest request = labels == null
+        ? asked
+        : asked.current(store.current, labels);
     final int generation = ++_generation;
     _request = request;
     _set(AiBarPhase.sending);
@@ -405,17 +472,23 @@ class AiBarController extends ChangeNotifier {
     }
 
     final String? openListId = request.openList?.id;
+    if (openListId != null) {
+      _itemsSent.add(openListId);
+    }
     // Items named by their words (Q-39 D): the phone finds them; when it
-    // cannot tell, the request goes again with that list's items.
+    // cannot tell, the request goes again with that list's items, once per
+    // list and at most [maxFetches] times.
     final AiMatchResult matched = AiMatch.resolve(
       answer,
       store.current,
-      itemsSent: openListId,
+      itemsSent: _itemsSent,
+      lastRound: _fetches >= maxFetches,
     );
     final String? unclear = matched.unclearListId;
     if (unclear != null) {
       final AiRequest second = request.withOpenList(store.current, unclear);
       if (second.openList?.id == unclear) {
+        _fetches++;
         await _run(second, correct: correct);
         return;
       }
@@ -423,11 +496,15 @@ class AiBarController extends ChangeNotifier {
     final AiPlan plan = AiPlan.read(
       matched.answer,
       store.current,
-      openListId: openListId,
+      openListId: request.structureListId,
     );
     final List<ListError> errors = [...matched.errors, ...plan.errors];
     if (errors.isNotEmpty) {
-      if (correct) {
+      // A list that turned AI off is not asked about again.
+      if (errors.any((error) => error.code == ListErrorCode.aiNotAllowed)) {
+        _problem = _problemOf(errors);
+        _set(AiBarPhase.problem);
+      } else if (correct) {
         await _run(
           request.withCorrection(
             AiCorrection(
@@ -438,7 +515,7 @@ class AiBarController extends ChangeNotifier {
           correct: false,
         );
       } else {
-        _problem = AiProblem.invalid(errors);
+        _problem = _problemOf(errors);
         _set(AiBarPhase.problem);
       }
       return;
@@ -470,10 +547,7 @@ class AiBarController extends ChangeNotifier {
         _picked = const {};
         _set(AiBarPhase.question);
       } else if (plan.reply != null) {
-        final String? prompt = _lastPrompt;
-        if (prompt != null) {
-          _followUp = AiFollowUp(prompt: prompt, reply: plan.reply!);
-        }
+        _followUp = _nextFollowUp(plan.reply!);
         _set(AiBarPhase.reply);
       } else {
         _problem = const AiProblem.decline('noValidTool');
@@ -499,42 +573,77 @@ class AiBarController extends ChangeNotifier {
     if (home == null) {
       return false;
     }
-    final String said = ' ${AiMatch.words(_lastPrompt ?? '').join(' ')} ';
+    final String said = '${_request?.followUp?.prompt ?? ''} ${_lastPrompt ?? ''}';
     for (final AiStep step in plan.steps) {
       if (step is! AiItemStep || step.listId == home) {
         continue;
       }
-      final String name =
-          _labels?.listName(step.definition) ??
-          step.definition.name ??
-          step.definition.id;
-      final String words = AiMatch.words(name).join(' ');
-      if (words.isEmpty || !said.contains(' $words ')) {
+      if (!AiMatch.namedIn(said, _nameOf(step.definition, _labels))) {
         return true;
       }
     }
     return false;
   }
 
-  // The name of a list with AI off that [text] names (its words in a row),
-  // or, with [whole], that [text] is.
+  static String _nameOf(ListDefinition definition, ListLabels? labels) =>
+      labels?.listName(definition) ?? definition.name ?? definition.id;
+
+  // The name of a list with AI off that [text] names, or, with [whole], that
+  // [text] is (Q-41, Q-54).
   String? _aiOffNamed(String text, ListLabels? labels, {bool whole = false}) {
-    final String said = ' ${AiMatch.words(text).join(' ')} ';
     for (final ListDefinition definition in store.current.definitions) {
       if (definition.aiAllowed) {
         continue;
       }
-      final String name =
-          labels?.listName(definition) ?? definition.name ?? definition.id;
-      final String words = AiMatch.words(name).join(' ');
-      if (words.isEmpty) {
-        continue;
-      }
-      if (whole ? said.trim() == words : said.contains(' $words ')) {
+      final String name = _nameOf(definition, labels);
+      if (AiMatch.namedIn(text, name, whole: whole)) {
         return name;
       }
     }
     return null;
+  }
+
+  // Why [request] may not go out now: a list it would send or name has
+  // turned AI off since it was written.
+  AiProblem? _turnedOff(AiRequest request) {
+    final Set<String?> targets = {
+      request.openList?.id,
+      for (final AiToolCall call in request.correction?.toolCalls ?? const [])
+        if (call.args case {'listId': final String listId}) listId,
+    };
+    for (final String? id in targets) {
+      final ListDefinition? definition = id == null
+          ? null
+          : store.current.definition(id);
+      if (definition != null && !definition.aiAllowed) {
+        return AiProblem.listOff(_nameOf(definition, _labels));
+      }
+    }
+    final AiFollowUp? followUp = request.followUp;
+    final String? named = _aiOffNamed(
+      [
+        request.prompt,
+        ?followUp?.prompt,
+        for (final AiExchange turn in followUp?.earlier ?? const []) turn.answer,
+      ].join('\n'),
+      _labels,
+    );
+    return named == null ? null : AiProblem.listOff(named);
+  }
+
+  // A store's or plan's refusal; a list with AI off gets its own line.
+  AiProblem _problemOf(List<ListError> errors) {
+    for (final ListError error in errors) {
+      if (error.code == ListErrorCode.aiNotAllowed) {
+        final ListDefinition? definition = store.current.definition(
+          error.arg('list'),
+        );
+        return AiProblem.listOff(
+          definition == null ? error.arg('list') : _nameOf(definition, _labels),
+        );
+      }
+    }
+    return AiProblem.invalid(errors);
   }
 
   // The answer to "which list?": the same request with that list open.
@@ -545,10 +654,17 @@ class AiBarController extends ChangeNotifier {
         _plan?.question == null) {
       return;
     }
+    final ListDefinition? picked = store.current.definition(listId);
+    if (picked != null && !picked.aiAllowed) {
+      _problem = AiProblem.listOff(_nameOf(picked, _labels));
+      _set(AiBarPhase.problem);
+      return;
+    }
     // A button answered the question, not the bar's text; the picked list
     // is the one the user meant (Q-45 D).
     _followUp = null;
     _homeListId = listId;
+    _startSubmission();
     await _run(
       request.withOpenList(store.current, listId, chosen: true),
       correct: true,
@@ -562,6 +678,7 @@ class AiBarController extends ChangeNotifier {
       return;
     }
     _followUp = null;
+    _startSubmission();
     await _run(request.withNewList(), correct: true);
   }
 
@@ -584,37 +701,34 @@ class AiBarController extends ChangeNotifier {
     String? created;
     try {
       for (final AiStep step in plan.steps) {
-        // The before-images are read now, at apply time (L11).
         final ListDefinition? before = store.current.definition(step.listId);
-        final List<ListItem> items = store.current.itemsOf(step.listId);
+        // Each write checks and reads the stored data itself, so its result
+        // holds what Undo needs (H2, H3 and H6 of the Codex review).
         switch (step) {
           case AiItemStep():
-            if (before == null) {
-              throw const _StepFailed([]);
+            final AiWriteResult result = await store.applyAiItems(step.write);
+            if (!result.isValid) {
+              throw _StepFailed(result.errors);
             }
-            await store.apply(step.changes);
-            undo.add(
-              _Undo.snapshot(
-                ListSnapshot.ofChanges(before, items, step.changes),
-              ),
-            );
+            undo.add(_Undo.snapshot(result.snapshot!));
             if (step.edited.isNotEmpty || step.deleted.isNotEmpty) {
               kind = AiDoneKind.changed;
             }
           case AiPatchStep():
-            if (before == null) {
-              throw const _StepFailed([]);
-            }
-            final ListPatchResult? result = await store.patchList(
+            final ListPatchResult? result = await store.patchListAi(
               step.listId,
               step.ops,
+              previewed: step.definition,
             );
-            if (result == null || !result.isValid) {
-              throw _StepFailed(result?.errors ?? const []);
+            if (result == null) {
+              throw _StepFailed([
+                ListError(ListErrorCode.previewChanged, {'list': step.listId}),
+              ]);
             }
-            undo.add(
-              _Undo.snapshot(ListSnapshot.ofPatch(result)),
-            );
+            if (!result.isValid) {
+              throw _StepFailed(result.errors);
+            }
+            undo.add(_Undo.snapshot(ListSnapshot.ofPatch(result)));
             kind = AiDoneKind.changed;
           case AiCreateStep():
             final List<ListError> errors = await store.createList(
@@ -624,7 +738,7 @@ class AiBarController extends ChangeNotifier {
             if (errors.isNotEmpty) {
               throw _StepFailed(errors);
             }
-            undo.add(_Undo.created(step.listId));
+            undo.add(_Undo.created(CreatedList(step.definition, step.items)));
             kind = AiDoneKind.created;
             created = step.listId;
         }
@@ -639,22 +753,29 @@ class AiBarController extends ChangeNotifier {
         }
       }
     } on _StepFailed catch (failed) {
-      _undo = undo;
+      _setUndo(undo);
       if (generation == _generation) {
-        _problem = AiProblem.invalid(failed.errors);
+        _problem = _problemOf(failed.errors);
+        // The list changed under the preview: the words come back to send
+        // again (Q-51).
+        if (failed.errors.any(
+          (error) => error.code == ListErrorCode.previewChanged,
+        )) {
+          _refill();
+        }
         _set(AiBarPhase.problem);
       }
       return;
     } on Object catch (error) {
       developer.log('AI apply failed: $error', name: 'AiBar');
-      _undo = undo;
+      _setUndo(undo);
       if (generation == _generation) {
         _problem = const AiProblem.refusal('unavailable');
         _set(AiBarPhase.problem);
       }
       return;
     }
-    _undo = undo;
+    _setUndo(undo);
     _done = AiDone(kind, names);
     _offerAutoApply = offer;
     if (offer) {
@@ -671,31 +792,36 @@ class AiBarController extends ChangeNotifier {
   }
 
   // Undo of the whole answer, newest step first (Q-35 A). A list changed
-  // since is refused by the store and left as it is.
+  // since is refused by the store and left as it is. Without a connection
+  // nothing changes and what is left stays to try again (Q-53).
   Future<void> undo() async {
     final List<_Undo> steps = _undo;
     if (steps.isEmpty) {
       return;
     }
-    _undo = const [];
+    _setUndo(const []);
     ++_generation;
     _set(AiBarPhase.sending);
     final List<ListError> errors = [];
+    final List<_Undo> left = [...steps];
     for (final _Undo step in steps.reversed) {
+      List<ListError> refused;
       try {
-        if (step.snapshot != null) {
-          errors.addAll(await store.restoreSnapshot(step.snapshot!));
-        } else {
-          await store.deleteList(step.createdListId!);
-        }
+        refused = step.created != null
+            ? await store.deleteCreatedList(step.created!)
+            : await store.restoreSnapshot(step.snapshot!);
       } on Object catch (error) {
         developer.log('AI undo failed: $error', name: 'AiBar');
-        errors.add(
-          ListError(ListErrorCode.listChanged, {
-            'list': step.snapshot?.listId ?? step.createdListId ?? '',
-          }),
-        );
+        refused = [
+          ListError(ListErrorCode.listChanged, {'list': step.listId}),
+        ];
       }
+      errors.addAll(refused);
+      if (refused.any((e) => e.code == ListErrorCode.needsConnection)) {
+        _setUndo(left);
+        break;
+      }
+      left.remove(step);
     }
     if (errors.isNotEmpty) {
       _problem = AiProblem.invalid(errors);
@@ -704,8 +830,14 @@ class AiBarController extends ChangeNotifier {
     }
     _done = const AiDone(AiDoneKind.undone, []);
     _offerAutoApply = false;
-    // The request's words come back as a draft, not focused, to send again
-    // or clear with one Backspace (owner, 2026-11-04).
+    _refill();
+    _set(AiBarPhase.done);
+    _doneTimer = Timer(const Duration(seconds: 2), dismiss);
+  }
+
+  // The request's words come back as a draft, not focused, to send again or
+  // clear with one Backspace (owner, 2026-11-04).
+  void _refill() {
     final String? prompt = _lastPrompt;
     if (prompt != null && prompt.isNotEmpty && text.text.isEmpty) {
       _refilled = prompt;
@@ -714,8 +846,32 @@ class AiBarController extends ChangeNotifier {
         selection: TextSelection.collapsed(offset: prompt.length),
       );
     }
-    _set(AiBarPhase.done);
-    _doneTimer = Timer(const Duration(seconds: 2), dismiss);
+  }
+
+  // Keeps [steps] for Undo while what they touched stays as they left it: any
+  // later change, here or on another device, takes the button away (Q-52). A
+  // write may reach the catalog a little later, so a step counts as changed
+  // only after it was seen as it left things; the store's own check covers
+  // whatever comes before that.
+  void _setUndo(List<_Undo> steps) {
+    _undoWatch?.cancel();
+    _undoWatch = null;
+    _undo = _Undo.joined(steps);
+    if (_undo.isEmpty) {
+      return;
+    }
+    final Set<_Undo> seen = {};
+    _undoWatch = store.watch().listen((catalog) {
+      for (final _Undo step in _undo) {
+        if (step.isCurrent(catalog)) {
+          seen.add(step);
+        } else if (seen.contains(step)) {
+          _setUndo(const []);
+          notifyListeners();
+          return;
+        }
+      }
+    });
   }
 
   // Closes the panel; a request still waiting is dropped. Undo stays
@@ -730,7 +886,7 @@ class AiBarController extends ChangeNotifier {
     _partial = false;
     _offerAutoApply = false;
     _pending = null;
-    _undo = const [];
+    _setUndo(const []);
     _set(AiBarPhase.idle);
   }
 
@@ -757,6 +913,7 @@ class AiBarController extends ChangeNotifier {
   @override
   void dispose() {
     _doneTimer?.cancel();
+    _undoWatch?.cancel();
     focus.removeListener(_focusChanged);
     text.removeListener(_textChanged);
     text.dispose();

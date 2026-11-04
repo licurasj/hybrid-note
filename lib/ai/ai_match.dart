@@ -25,11 +25,14 @@ class AiMatchResult {
 }
 
 class AiMatch {
-  // [itemsSent] is the list whose items went with the request, if any.
+  // [itemsSent] are the lists whose items went with this submission. With
+  // [lastRound] no other round will come, so every unclear match is an error
+  // (M1 of the Codex review).
   static AiMatchResult resolve(
     AiAnswer answer,
     ListCatalog catalog, {
-    String? itemsSent,
+    Set<String> itemsSent = const {},
+    bool lastRound = false,
   }) {
     String? unclear;
     final List<ListError> errors = [];
@@ -49,7 +52,7 @@ class AiMatch {
       if (found.length == 1) {
         return found.single.id;
       }
-      if (listId == itemsSent) {
+      if (lastRound || itemsSent.contains(listId)) {
         if (!report) {
           return null;
         }
@@ -157,14 +160,76 @@ class AiMatch {
     return '';
   }
 
-  // Lower-case words with a plural "s" dropped, for comparing names.
+  // Lower-case words with a plural dropped, for comparing names. Quotes and
+  // brackets separate words; an apostrophe inside a word does not.
   static List<String> words(String text) => [
-    for (final String word in text.toLowerCase().split(RegExp(r'[\s,.;:!?]+')))
+    for (final String word
+        in text
+            .toLowerCase()
+            .replaceAll(_edgeApostrophe, ' ')
+            .split(_separators))
       if (word.isNotEmpty) _singular(word),
   ];
 
-  static String _singular(String word) =>
-      word.length > 3 && word.endsWith('s') && !word.endsWith('ss')
-      ? word.substring(0, word.length - 1)
-      : word;
+  static final RegExp _edgeApostrophe = RegExp(
+    r"(?<![\p{L}\p{N}])['\u2019]|['\u2019](?![\p{L}\p{N}])",
+    unicode: true,
+  );
+  static final RegExp _separators = RegExp(
+    r'[\s,.;:!?"`\u201C\u201D\u2018\u201E\u00AB\u00BB()\[\]{}<>\uFF08\uFF09\u3010\u3011\u300A\u300B\u3008\u3009\u300C\u300D\u300E\u300F\uFF0C\u3002\uFF1B\uFF1A\uFF01\uFF1F\u3001\u00B7\u2026]+',
+  );
+  // Scripts written without spaces between words.
+  static final RegExp _noSpaces = RegExp(
+    r'[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}]',
+    unicode: true,
+  );
+  // A trailing word that only says "list", in scripts without spaces.
+  static final RegExp _listWordSuffix = RegExp(
+    '(\u6E05\u5355|\u6E05\u55AE|\u5217\u8868|\u30EA\u30B9\u30C8)\$',
+  );
+
+  // Whether [text] names the list called [name] (Q-41, Q-54): its words in a
+  // row, or inside the text in a script without spaces. "grocery" also names
+  // "Grocery list". A one-character name in such a script must stand alone,
+  // since it is too often part of another word. With [whole], [text] is exactly
+  // the name.
+  static bool namedIn(String text, String name, {bool whole = false}) {
+    final List<String> nameWords = words(name);
+    if (nameWords.isEmpty) {
+      return false;
+    }
+    final List<String> said = words(text);
+    if (whole) {
+      return said.join(' ') == nameWords.join(' ') ||
+          (_noSpaces.hasMatch(name) && said.join() == nameWords.join());
+    }
+    if (_noSpaces.hasMatch(name)) {
+      final String compact = nameWords.join();
+      final String short = compact.replaceFirst(_listWordSuffix, '');
+      return [compact, if (short != compact) short].any(
+        (form) => form.runes.length >= 2
+            ? said.join().contains(form)
+            : said.contains(form),
+      );
+    }
+    final String joined = ' ${said.join(' ')} ';
+    return joined.contains(' ${nameWords.join(' ')} ') ||
+        (nameWords.length > 1 &&
+            nameWords.last == 'list' &&
+            joined.contains(
+              ' ${nameWords.sublist(0, nameWords.length - 1).join(' ')} ',
+            ));
+  }
+
+  static String _singular(String word) {
+    if (word.length > 4 && word.endsWith('ies')) {
+      return '${word.substring(0, word.length - 3)}y';
+    }
+    if (word.length > 3 && word.endsWith('ie')) {
+      return '${word.substring(0, word.length - 2)}y';
+    }
+    return word.length > 3 && word.endsWith('s') && !word.endsWith('ss')
+        ? word.substring(0, word.length - 1)
+        : word;
+  }
 }

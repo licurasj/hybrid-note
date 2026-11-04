@@ -109,7 +109,7 @@ void main() {
     final AiMatchResult second = AiMatch.resolve(
       answer,
       catalog,
-      itemsSent: _grocery,
+      itemsSent: {_grocery},
     );
     expect(second.unclearListId, isNull);
     expect(second.errors.single.code, ListErrorCode.unknownItem);

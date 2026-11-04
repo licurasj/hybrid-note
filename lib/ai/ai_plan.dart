@@ -9,6 +9,7 @@ import '../lists/list_item.dart';
 import '../lists/list_labels.dart';
 import '../lists/list_patch.dart';
 import '../lists/list_rules.dart';
+import '../lists/list_store.dart';
 import '../lists/list_vocabulary.dart';
 import 'ai_service.dart';
 
@@ -31,6 +32,7 @@ class AiItemStep extends AiStep {
     required this.added,
     required this.edited,
     required this.deleted,
+    this.base = const {},
   });
 
   final ListDefinition definition;
@@ -39,9 +41,57 @@ class AiItemStep extends AiStep {
   final List<ListItem> edited;
   // The items as they are now, before the delete.
   final List<ListItem> deleted;
+  // The existing items among those changed or deleted, as the preview read
+  // them (Q-51).
+  final Map<String, ListItem> base;
 
   @override
   String get listId => definition.id;
+
+  AiItemWrite get write => AiItemWrite(
+    definition: definition,
+    saved: changes.saved,
+    deletedIds: changes.deletedIds,
+    base: base,
+  );
+
+  // This step and the [next] one on the same list as one step: one write, and
+  // an item touched by both is changed once (M2 of the Codex review).
+  AiItemStep? followedBy(AiItemStep next) {
+    final Set<String> addedHere = {for (final ListItem item in added) item.id};
+    final Map<String, ListItem> joinedBase = {
+      for (final MapEntry<String, ListItem> entry in next.base.entries)
+        if (!addedHere.contains(entry.key)) entry.key: entry.value,
+      ...base,
+    };
+    final Map<String, ListItem> saved = {
+      for (final ListItem item in changes.saved) item.id: item,
+      for (final ListItem item in next.changes.saved) item.id: item,
+    };
+    next.changes.deletedIds.forEach(saved.remove);
+    final List<String> deletedIds = [
+      ...changes.deletedIds,
+      for (final String id in next.changes.deletedIds)
+        if (joinedBase.containsKey(id)) id,
+    ];
+    if (saved.isEmpty && deletedIds.isEmpty) {
+      return null;
+    }
+    return AiItemStep(
+      definition: next.definition,
+      changes: ListChanges(saved: saved.values.toList(), deletedIds: deletedIds),
+      added: [
+        for (final ListItem item in saved.values)
+          if (!joinedBase.containsKey(item.id)) item,
+      ],
+      edited: [
+        for (final ListItem item in saved.values)
+          if (joinedBase.containsKey(item.id)) item,
+      ],
+      deleted: [for (final String id in deletedIds) joinedBase[id]!],
+      base: joinedBase,
+    );
+  }
 }
 
 // patch_list on the open list, with the dry run's result.
@@ -121,8 +171,10 @@ class AiPlan {
     this.errors = const [],
   });
 
-  // Reads [answer]'s tool calls against [catalog]. [openListId] is the list
-  // the request had open: structure changes are allowed only there.
+  // Reads [answer]'s tool calls against [catalog], each against what the ones
+  // before it would leave, so a later call builds on an earlier one (M2 of the
+  // Codex review). [openListId] is the list the request had open: structure
+  // changes are allowed only there.
   factory AiPlan.read(
     AiAnswer answer,
     ListCatalog catalog, {
@@ -137,62 +189,96 @@ class AiPlan {
     final List<String> replies = [];
     AiQuestion? question;
     AiItemQuestion? itemQuestion;
+    ListCatalog working = catalog;
+
+    // Adds an item step, joined to the step before it when that is one on the
+    // same list, and moves the working catalog past it.
+    void addItemStep(AiItemStep step) {
+      final AiStep? last = steps.lastOrNull;
+      if (last is AiItemStep && last.listId == step.listId) {
+        steps.removeLast();
+        final AiItemStep? joined = last.followedBy(step);
+        if (joined != null) {
+          steps.add(joined);
+        }
+      } else {
+        steps.add(step);
+      }
+      final Set<String> gone = {
+        ...step.changes.deletedIds,
+        for (final ListItem item in step.changes.saved) item.id,
+      };
+      working = ListCatalog(
+        definitions: working.definitions,
+        items: [
+          for (final ListItem item in working.items)
+            if (!gone.contains(item.id)) item,
+          ...step.changes.saved,
+        ],
+      );
+    }
 
     for (final AiToolCall call in answer.toolCalls) {
       switch (call.name) {
         case 'upsert_items':
           final (ListChanges changes, List<ListError> found) =
-              ListInput.upsertItems(call.args, catalog, newId: id, now: time);
+              ListInput.upsertItems(call.args, working, newId: id, now: time);
           errors.addAll(found);
           final ListDefinition? definition = found.isEmpty
-              ? catalog.definition('${(call.args as Map)['listId']}')
+              ? working.definition('${(call.args as Map)['listId']}')
               : null;
           if (definition != null && !changes.isEmpty) {
-            final Set<String> existing = {
-              for (final ListItem item in catalog.itemsOf(definition.id))
-                item.id,
+            final Map<String, ListItem> existing = {
+              for (final ListItem item in working.itemsOf(definition.id))
+                item.id: item,
             };
-            steps.add(
+            addItemStep(
               AiItemStep(
                 definition: definition,
                 changes: changes,
                 added: [
                   for (final ListItem item in changes.saved)
-                    if (!existing.contains(item.id)) item,
+                    if (!existing.containsKey(item.id)) item,
                 ],
                 edited: [
                   for (final ListItem item in changes.saved)
-                    if (existing.contains(item.id)) item,
+                    if (existing.containsKey(item.id)) item,
                 ],
                 deleted: const [],
+                base: {
+                  for (final ListItem item in changes.saved)
+                    if (existing[item.id] case final ListItem old) item.id: old,
+                },
               ),
             );
           }
         case 'delete_items':
           final (ListChanges changes, List<ListError> found) =
-              ListInput.deleteItems(call.args, catalog);
+              ListInput.deleteItems(call.args, working);
           errors.addAll(found);
           final ListDefinition? definition = found.isEmpty
-              ? catalog.definition('${(call.args as Map)['listId']}')
+              ? working.definition('${(call.args as Map)['listId']}')
               : null;
           if (definition != null && !changes.isEmpty) {
             final Set<String> ids = changes.deletedIds.toSet();
-            steps.add(
+            final List<ListItem> deleted = [
+              for (final ListItem item in working.itemsOf(definition.id))
+                if (ids.contains(item.id)) item,
+            ];
+            addItemStep(
               AiItemStep(
                 definition: definition,
                 changes: changes,
                 added: const [],
                 edited: const [],
-                deleted: [
-                  for (final ListItem item in catalog.itemsOf(definition.id))
-                    if (ids.contains(item.id)) item,
-                ],
+                deleted: deleted,
+                base: {for (final ListItem item in deleted) item.id: item},
               ),
             );
           }
         case 'patch_list':
           final (String? listId, List<ListPatchOp> ops, List<ListError> found) =
-              ListInput.patchList(call.args, catalog);
+              ListInput.patchList(call.args, working);
           errors.addAll(found);
           if (listId == null || found.isNotEmpty) {
             break;
@@ -206,10 +292,10 @@ class AiPlan {
             );
             break;
           }
-          final ListDefinition definition = catalog.definition(listId)!;
+          final ListDefinition definition = working.definition(listId)!;
           final ListPatchResult dryRun = ListPatch.apply(
             definition,
-            catalog.itemsOf(listId),
+            working.itemsOf(listId),
             ops,
             time,
           );
@@ -217,6 +303,17 @@ class AiPlan {
           if (dryRun.isValid && ops.isNotEmpty) {
             steps.add(
               AiPatchStep(definition: definition, ops: ops, dryRun: dryRun),
+            );
+            working = ListCatalog(
+              definitions: [
+                for (final ListDefinition d in working.definitions)
+                  d.id == listId ? dryRun.definition : d,
+              ],
+              items: [
+                for (final ListItem item in working.items)
+                  if (item.listId != listId) item,
+                ...dryRun.items,
+              ],
             );
           }
         case 'create_list':

@@ -83,22 +83,61 @@ class AiCorrection {
   };
 }
 
-// The user answers the AI's reply (Q-42): the earlier request and the
-// reply, sent with the answer.
+// An earlier reply of the AI and the user's answer to it (Q-55).
+class AiExchange {
+  const AiExchange({required this.reply, required this.answer});
+
+  final String reply;
+  final String answer;
+
+  Map<String, Object?> toJson() => {
+    'reply': AiFollowUp._cut(reply),
+    'answer': answer,
+  };
+}
+
+// The user answers the AI's reply (Q-42): the original request and the
+// latest reply, sent with the answer, and the exchanges in between (Q-55).
 class AiFollowUp {
-  const AiFollowUp({required this.prompt, required this.reply});
+  const AiFollowUp({
+    required this.prompt,
+    required this.reply,
+    this.earlier = const [],
+  });
 
   final String prompt;
   final String reply;
+  final List<AiExchange> earlier;
 
-  // The function's limit on the quoted reply (functions/src/request.ts).
+  // The function's limits (functions/src/request.ts). With the reply being
+  // answered these are the last 3 exchanges (Q-55).
   static const int maxReplyChars = 500;
+  static const int maxEarlier = 2;
+
+  static String _cut(String reply) => reply.length <= maxReplyChars
+      ? reply
+      : reply.substring(0, maxReplyChars);
+
+  // After the user's [answer] to this reply, the AI replied again.
+  AiFollowUp next(String answer, String newReply) {
+    final List<AiExchange> all = [
+      ...earlier,
+      AiExchange(reply: reply, answer: answer),
+    ];
+    return AiFollowUp(
+      prompt: prompt,
+      reply: newReply,
+      earlier: all.length <= maxEarlier
+          ? all
+          : all.sublist(all.length - maxEarlier),
+    );
+  }
 
   Map<String, Object?> toJson() => {
     'prompt': prompt,
-    'reply': reply.length <= maxReplyChars
-        ? reply
-        : reply.substring(0, maxReplyChars),
+    'reply': _cut(reply),
+    if (earlier.isNotEmpty)
+      'earlier': [for (final AiExchange turn in earlier) turn.toJson()],
   };
 }
 
@@ -114,6 +153,8 @@ class AiRequest {
     this.followUp,
     this.askLevel = 'balanced',
     this.chosenList = false,
+    this.itemsOnly = false,
+    this.newList = false,
   });
 
   // At most this many of the open list's items are sent (Q-31).
@@ -131,50 +172,57 @@ class AiRequest {
     String? openListId,
     AiFollowUp? followUp,
     String askLevel = 'balanced',
+    bool newList = false,
   }) {
-    final List<ListDefinition> allowed = [
-      for (final ListDefinition definition in catalog.definitions)
-        if (definition.aiAllowed) definition,
-    ];
     final ListDefinition? open = openListId == null
         ? null
         : catalog.definition(openListId);
     final bool sendOpen = open != null && open.aiAllowed;
-    final List<ListItem> items = sendOpen
-        ? ([...catalog.itemsOf(open.id)]
-            ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt)))
-        : const [];
     return AiRequest(
       prompt: prompt,
       locale: locale,
       today: now,
-      lists: [
-        for (final ListDefinition definition in allowed)
-          AiListSummary(
-            id: definition.id,
-            name: labels.listName(definition),
-            description: _descriptionForAi(labels.listDescription(definition)),
-            fields: [
-              for (final FieldDefinition field in definition.fields)
-                {
-                  'key': field.key,
-                  'type': field.type.wire,
-                  'label': labels.field(field),
-                  if (field.options.isNotEmpty)
-                    'options': [
-                      for (final FieldOption option in field.options)
-                        option.value,
-                    ],
-                },
-            ],
-          ),
-      ],
+      lists: _summaries(catalog, labels),
       openList: sendOpen ? open : null,
-      openItems: items.take(maxItems).toList(),
+      openItems: sendOpen ? _recentItems(catalog, open.id) : const [],
       followUp: followUp,
       askLevel: askLevel,
+      newList: newList,
     );
   }
+
+  // The lists with AI on, as the function sees them.
+  static List<AiListSummary> _summaries(
+    ListCatalog catalog,
+    ListLabels labels,
+  ) => [
+    for (final ListDefinition definition in catalog.definitions)
+      if (definition.aiAllowed)
+        AiListSummary(
+          id: definition.id,
+          name: labels.listName(definition),
+          description: _descriptionForAi(labels.listDescription(definition)),
+          fields: [
+            for (final FieldDefinition field in definition.fields)
+              {
+                'key': field.key,
+                'type': field.type.wire,
+                'label': labels.field(field),
+                if (field.options.isNotEmpty)
+                  'options': [
+                    for (final FieldOption option in field.options)
+                      option.value,
+                  ],
+              },
+          ],
+        ),
+  ];
+
+  static List<ListItem> _recentItems(ListCatalog catalog, String listId) =>
+      ([...catalog.itemsOf(listId)]
+            ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt)))
+          .take(maxItems)
+          .toList();
 
   final String prompt;
   final String locale;
@@ -190,6 +238,15 @@ class AiRequest {
   // The open list is the user's answer to "which list?" (Q-45): the AI
   // uses it and does not ask again.
   final bool chosenList;
+  // The open list was sent only so the AI can name its items (Q-39), not
+  // because the user has it open: no structure change (M5 of the Codex review).
+  final bool itemsOnly;
+  // The user asked for a new list by button; [prompt] stays their words (L2 of
+  // the Codex review).
+  final bool newList;
+
+  // The list a structure change may target.
+  String? get structureListId => itemsOnly ? null : openList?.id;
 
   // At most the stored limit, so a longer description written by another
   // client cannot make the function refuse every request (T-20 review M1).
@@ -230,16 +287,43 @@ class AiRequest {
     followUp: followUp,
     askLevel: askLevel,
     chosenList: chosenList,
+    itemsOnly: itemsOnly,
+    newList: newList,
   );
+
+  // The same request as the catalog is now: every round sends only what is
+  // allowed at that moment (H1 of the Codex review). The caller has checked
+  // that the open list did not turn AI off.
+  AiRequest current(ListCatalog catalog, ListLabels labels) {
+    final ListDefinition? open = openList == null
+        ? null
+        : catalog.definition(openList!.id);
+    return AiRequest(
+      prompt: prompt,
+      locale: locale,
+      today: today,
+      lists: _summaries(catalog, labels),
+      openList: open,
+      openItems: open == null ? const [] : _recentItems(catalog, open.id),
+      correction: correction,
+      followUp: followUp,
+      askLevel: askLevel,
+      chosenList: chosenList && open != null,
+      itemsOnly: itemsOnly && open != null,
+      newList: newList,
+    );
+  }
 
   // The answer "New list" to the AI's question (Q-43): the same words as a
   // request for a new list, with no list open.
   AiRequest withNewList() => AiRequest(
-    prompt: 'Create a new list: $prompt',
+    prompt: prompt,
     locale: locale,
     today: today,
     lists: lists,
+    followUp: followUp,
     askLevel: askLevel,
+    newList: true,
   );
 
   // The same request with [listId] as the open list: the answer to the AI's
@@ -254,18 +338,17 @@ class AiRequest {
     if (open == null || !open.aiAllowed) {
       return this;
     }
-    final List<ListItem> items = [...catalog.itemsOf(listId)]
-      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
     return AiRequest(
       prompt: prompt,
       locale: locale,
       today: today,
       lists: lists,
       openList: open,
-      openItems: items.take(maxItems).toList(),
+      openItems: _recentItems(catalog, listId),
       followUp: followUp,
       askLevel: askLevel,
       chosenList: chosen,
+      itemsOnly: !chosen,
     );
   }
 
@@ -291,6 +374,8 @@ class AiRequest {
             ],
           },
     if (chosenList) 'chosenList': true,
+    if (itemsOnly) 'itemsOnly': true,
+    if (newList) 'newList': true,
     if (correction != null) 'correction': correction!.toJson(),
     if (followUp != null) 'followUp': followUp!.toJson(),
   };

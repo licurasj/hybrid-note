@@ -788,7 +788,9 @@ List<String> _problemTexts(
       errors.every(
         (error) =>
             error.code == ListErrorCode.listChanged ||
-            error.code == ListErrorCode.undoTooLarge,
+            error.code == ListErrorCode.undoTooLarge ||
+            error.code == ListErrorCode.previewChanged ||
+            error.code == ListErrorCode.needsConnection,
       )) {
     return [labels.error(errors.first)];
   }

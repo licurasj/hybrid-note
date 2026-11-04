@@ -331,8 +331,8 @@ void main() {
     );
   });
 
-  testWidgets('an undo is refused, changing nothing, when the list changed '
-      'since', (tester) async {
+  testWidgets('Undo goes away, changing nothing, when what it touched changes '
+      '(Q-52)', (tester) async {
     final FakeAiService ai = FakeAiService()
       ..answers.add(
         _calls([
@@ -362,8 +362,7 @@ void main() {
     );
     await settle(tester);
 
-    await _tapKey(tester, 'ai-undo');
-    expect(find.textContaining('changed since'), findsOneWidget);
+    expect(find.byKey(const ValueKey('ai-undo')), findsNothing);
     expect(_titles(store, _grocery), contains('Oat milk'));
   });
 
@@ -572,7 +571,8 @@ void main() {
     expect(find.text('Describe the list'), findsOneWidget);
 
     await _ask(tester, 'my runs');
-    expect(ai.requests.single.prompt, 'Create a new list: my runs');
+    expect(ai.requests.single.prompt, 'my runs');
+    expect(ai.requests.single.newList, isTrue);
     expect(ai.requests.single.openList, isNull);
     expect(
       find.textContaining('New list Runs: Route, Day, Distance (km)'),
@@ -947,8 +947,11 @@ void main() {
       await tester.tap(_send);
       await settle(tester);
       expect(ai.requests[2].toJson()['followUp'], {
-        'prompt': 'milk',
+        'prompt': 'remove the dairy',
         'reply': 'Add to Tasks, or start a new list?',
+        'earlier': [
+          {'reply': 'Milk or eggs?', 'answer': 'milk'},
+        ],
       });
     });
 
@@ -1001,7 +1004,8 @@ void main() {
       await _tapKey(tester, 'ai-chip-new');
       expect(ai.requests.last.followUp, isNull);
       expect(ai.requests, hasLength(2));
-      expect(ai.requests.last.prompt, 'Create a new list: dinner tomorrow');
+      expect(ai.requests.last.prompt, 'dinner tomorrow');
+      expect(ai.requests.last.newList, isTrue);
       expect(ai.requests.last.openList, isNull);
       expect(ai.requests.last.askLevel, 'more');
     });
