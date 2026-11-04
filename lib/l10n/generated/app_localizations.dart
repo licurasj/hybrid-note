@@ -1973,7 +1973,7 @@ abstract class AppLocalizations {
   /// No description provided for @listDescription.
   ///
   /// In en, this message translates to:
-  /// **'Description'**
+  /// **'List description'**
   String get listDescription;
 
   /// No description provided for @listDescriptionHint.
@@ -1987,6 +1987,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The description can be at most {max} characters.'**
   String errorDescriptionTooLong(String max);
+
+  /// No description provided for @tasksDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Things to do, with due dates and reminders.'**
+  String get tasksDescription;
+
+  /// No description provided for @groceryDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Food and household things to buy on the next shopping trip.'**
+  String get groceryDescription;
+
+  /// No description provided for @journalDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily notes and thoughts, by date.'**
+  String get journalDescription;
+
+  /// No description provided for @watchReadDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Films, shows and books to watch or read, and how far along they are.'**
+  String get watchReadDescription;
 }
 
 class _AppLocalizationsDelegate

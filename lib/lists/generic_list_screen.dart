@@ -1106,7 +1106,7 @@ class _GenericListScreenState extends State<GenericListScreen>
   // and the count under it.
   Widget _title(AppLocalizations loc) {
     final _Look look = _look;
-    final String? description = _definition.description;
+    final String? description = ListLabels(loc).listDescription(_definition);
     final int done = _completion == null
         ? 0
         : widget.items.where((item) => ListRules.isCompleted(_definition, item)).length;

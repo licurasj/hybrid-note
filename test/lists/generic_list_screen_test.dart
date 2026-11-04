@@ -94,6 +94,7 @@ void main() {
     for (final ListDefinition definition in BuiltinTemplates.all()) {
       final List<String?> keys = [
         definition.nameKey,
+        definition.descriptionKey,
         for (final FieldDefinition field in definition.fields) ...[
           field.labelKey,
           for (final FieldOption option in field.options) option.labelKey,
@@ -113,6 +114,14 @@ void main() {
     await tester.pumpWidget(_screen(const [], _Recorder()));
 
     expect(find.text('Nothing here'), findsOneWidget);
+    // A built-in list shows its default description.
+    expect(find.text('Films, shows and books to watch or read, and how far along they are.'), findsOneWidget);
+  });
+
+  testWidgets('a list without a description shows none', (tester) async {
+    final ListDefinition cleared = ListDefinition.fromJson({..._watch.toJson(), 'descriptionKey': null});
+    await tester.pumpWidget(_screen(const [], _Recorder(), definition: cleared));
+
     expect(find.byKey(const ValueKey('list-description')), findsNothing);
   });
 

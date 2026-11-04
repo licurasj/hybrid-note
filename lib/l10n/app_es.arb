@@ -374,7 +374,11 @@
   "aiAnswerHint": "Tu respuesta",
   "aiAnswering": "Respondiendo a: {reply}",
   "aiNewRequest": "Nueva solicitud",
-  "listDescription": "Descripción",
+  "listDescription": "Descripción de la lista",
   "listDescriptionHint": "Para qué es esta lista (opcional)",
-  "errorDescriptionTooLong": "La descripción puede tener como máximo {max} caracteres."
+  "errorDescriptionTooLong": "La descripción puede tener como máximo {max} caracteres.",
+  "tasksDescription": "Cosas por hacer, con fechas y recordatorios.",
+  "groceryDescription": "Comida y cosas de casa para la próxima compra.",
+  "journalDescription": "Notas y pensamientos del día, por fecha.",
+  "watchReadDescription": "Películas, series y libros por ver o leer, y por dónde vas."
 }

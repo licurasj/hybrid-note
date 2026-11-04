@@ -1133,7 +1133,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiNewRequest => '新请求';
 
   @override
-  String get listDescription => '说明';
+  String get listDescription => '列表说明';
 
   @override
   String get listDescriptionHint => '这个列表的用途（可选）';
@@ -1142,4 +1142,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String errorDescriptionTooLong(String max) {
     return '说明最多 $max 个字符。';
   }
+
+  @override
+  String get tasksDescription => '要做的事，带截止日期和提醒。';
+
+  @override
+  String get groceryDescription => '下次购物要买的食品和日用品。';
+
+  @override
+  String get journalDescription => '按日期记录的每日笔记和想法。';
+
+  @override
+  String get watchReadDescription => '想看或想读的电影、剧集和书，以及进度。';
 }

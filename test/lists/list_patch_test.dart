@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:hybrid_note/lists/builtin_templates.dart';
 import 'package:hybrid_note/lists/list_definition.dart';
 import 'package:hybrid_note/lists/list_error.dart';
 import 'package:hybrid_note/lists/list_item.dart';
@@ -184,6 +185,27 @@ void main() {
       const ListPatchOp(PatchOpKind.setListInfo, {'description': 4}).argErrors().map((e) => e.code),
       [ListErrorCode.wrongArgType],
     );
+  });
+
+  test("editing or clearing a built-in list's default description drops its key (Q-44)", () {
+    final ListDefinition grocery = BuiltinTemplates.grocery();
+    final ListPatchResult edited = ListPatch.apply(grocery, const [], const [
+      ListPatchOp(PatchOpKind.setListInfo, {'description': 'Saturday market'}),
+    ], _t1);
+    expect(edited.definition.description, 'Saturday market');
+    expect(edited.definition.descriptionKey, isNull);
+
+    final ListPatchResult cleared = ListPatch.apply(grocery, const [], const [
+      ListPatchOp(PatchOpKind.setListInfo, {'description': ''}),
+    ], _t1);
+    expect(cleared.definition.description, isNull);
+    expect(cleared.definition.descriptionKey, isNull);
+    expect(ListDefinition.fromJson(cleared.definition.toJson()).descriptionKey, isNull);
+
+    final ListPatchResult recolored = ListPatch.apply(grocery, const [], const [
+      ListPatchOp(PatchOpKind.setListInfo, {'color': '#654321'}),
+    ], _t1);
+    expect(recolored.definition.descriptionKey, 'groceryDescription');
   });
 
   test('add, rename, move and set view build a valid definition', () {

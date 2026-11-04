@@ -1157,7 +1157,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get aiNewRequest => 'Nueva solicitud';
 
   @override
-  String get listDescription => 'Descripción';
+  String get listDescription => 'Descripción de la lista';
 
   @override
   String get listDescriptionHint => 'Para qué es esta lista (opcional)';
@@ -1166,4 +1166,18 @@ class AppLocalizationsEs extends AppLocalizations {
   String errorDescriptionTooLong(String max) {
     return 'La descripción puede tener como máximo $max caracteres.';
   }
+
+  @override
+  String get tasksDescription => 'Cosas por hacer, con fechas y recordatorios.';
+
+  @override
+  String get groceryDescription =>
+      'Comida y cosas de casa para la próxima compra.';
+
+  @override
+  String get journalDescription => 'Notas y pensamientos del día, por fecha.';
+
+  @override
+  String get watchReadDescription =>
+      'Películas, series y libros por ver o leer, y por dónde vas.';
 }

@@ -150,7 +150,7 @@ class AiRequest {
           AiListSummary(
             id: definition.id,
             name: labels.listName(definition),
-            description: definition.description,
+            description: labels.listDescription(definition),
             fields: [
               for (final FieldDefinition field in definition.fields)
                 {

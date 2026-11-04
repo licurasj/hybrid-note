@@ -966,7 +966,7 @@
     }
   },
   "aiNewRequest": "New request",
-  "listDescription": "Description",
+  "listDescription": "List description",
   "listDescriptionHint": "What this list is for (optional)",
   "errorDescriptionTooLong": "The description can be at most {max} characters.",
   "@errorDescriptionTooLong": {
@@ -975,5 +975,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "tasksDescription": "Things to do, with due dates and reminders.",
+  "groceryDescription": "Food and household things to buy on the next shopping trip.",
+  "journalDescription": "Daily notes and thoughts, by date.",
+  "watchReadDescription": "Films, shows and books to watch or read, and how far along they are."
 }

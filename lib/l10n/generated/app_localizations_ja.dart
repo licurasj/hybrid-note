@@ -1136,7 +1136,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get aiNewRequest => '新しいリクエスト';
 
   @override
-  String get listDescription => '説明';
+  String get listDescription => 'リストの説明';
 
   @override
   String get listDescriptionHint => 'このリストの用途（任意）';
@@ -1145,4 +1145,16 @@ class AppLocalizationsJa extends AppLocalizations {
   String errorDescriptionTooLong(String max) {
     return '説明は$max文字以内にしてください。';
   }
+
+  @override
+  String get tasksDescription => '期限やリマインダー付きのやること。';
+
+  @override
+  String get groceryDescription => '次の買い物で買う食品や日用品。';
+
+  @override
+  String get journalDescription => '日付ごとの毎日のメモや考え。';
+
+  @override
+  String get watchReadDescription => '観たい・読みたい映画、ドラマ、本と、その進み具合。';
 }

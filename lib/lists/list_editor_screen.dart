@@ -818,7 +818,7 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
             look.sectionLabel(loc.listDescription),
             TextFormField(
               key: const ValueKey('list-description'),
-              initialValue: widget.definition.description ?? '',
+              initialValue: labels.listDescription(widget.definition) ?? '',
               style: look.label,
               minLines: 1,
               maxLines: 3,

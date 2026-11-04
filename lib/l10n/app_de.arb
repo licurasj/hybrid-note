@@ -374,7 +374,11 @@
   "aiAnswerHint": "Deine Antwort",
   "aiAnswering": "Antwort auf: {reply}",
   "aiNewRequest": "Neue Anfrage",
-  "listDescription": "Beschreibung",
+  "listDescription": "Listenbeschreibung",
   "listDescriptionHint": "Wofür diese Liste ist (optional)",
-  "errorDescriptionTooLong": "Die Beschreibung darf höchstens {max} Zeichen lang sein."
+  "errorDescriptionTooLong": "Die Beschreibung darf höchstens {max} Zeichen lang sein.",
+  "tasksDescription": "Aufgaben mit Fälligkeit und Erinnerungen.",
+  "groceryDescription": "Lebensmittel und Haushaltsdinge für den nächsten Einkauf.",
+  "journalDescription": "Tägliche Notizen und Gedanken, nach Datum.",
+  "watchReadDescription": "Filme, Serien und Bücher zum Schauen oder Lesen und wie weit du bist."
 }

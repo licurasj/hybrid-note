@@ -323,6 +323,7 @@ class ListPatch {
       description: info.containsKey('description')
           ? _description(info['description'] as String?)
           : definition.description,
+      descriptionKey: info.containsKey('description') ? null : definition.descriptionKey,
       icon: info['icon'] as String? ?? definition.icon,
       color: info['color'] as String? ?? definition.color,
       templateId: definition.templateId,
