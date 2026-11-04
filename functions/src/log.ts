@@ -35,6 +35,8 @@ export interface RequestMeta {
   busyRetries?: number;
   /** The provider's usage was missing or not a count; the ceiling was booked (L1). */
   usageUnreadable?: boolean;
+  /** The reservation could not be settled and stays counted until the day ends (M7). */
+  settleFailed?: boolean;
   /** Class name of an unexpected error (outcome error), never its message (L9). */
   errorName?: string;
   toolCounts?: Record<string, number>;

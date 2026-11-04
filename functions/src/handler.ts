@@ -251,6 +251,19 @@ export async function resolveTier(db: Firestore, uid: string): Promise<TierName 
 }
 
 /**
+ * Settles the reservation; a failure must not hide what the provider did. The
+ * reservation then stays counted until the day ends, which errs on the safe
+ * side of the stop, and the log says so (M7 of the Codex review).
+ */
+async function settleSafely(deps: Deps, reservation: Reservation, micros: number, meta: RequestMeta): Promise<void> {
+  try {
+    await settle(deps.db, reservation, micros, deps.now());
+  } catch {
+    meta.settleFailed = true;
+  }
+}
+
+/**
  * aiCommand's whole flow, in order: sign-in, App Check, allowlist tier, input
  * limits, prompt log, cap reservation, provider call (with one schema
  * self-correction), settlement, output filter. The function never writes list data: the client validates,
@@ -297,12 +310,18 @@ export async function handleAiCommand(input: CallInput, deps: Deps): Promise<AiR
     // After the reservation, so a user at the daily cap cannot keep adding
     // prompt-log documents (L5 of the T-19 unit 5 review, Proposed): a
     // refused request is still in the metadata log, without its text.
-    await writePromptLog(deps.db, {
-      requestId: meta.requestId,
-      uidHash: meta.uidHash,
-      prompt: request.prompt,
-      now: started,
-    });
+    try {
+      await writePromptLog(deps.db, {
+        requestId: meta.requestId,
+        uidHash: meta.uidHash,
+        prompt: request.prompt,
+        now: started,
+      });
+    } catch (error) {
+      // No provider ran, so the reservation goes back in full (M7 of the Codex review).
+      await settleSafely(deps, reservation, 0, meta);
+      throw error;
+    }
 
     const schemaCheck = deps.schemaCheck ?? schemaErrors;
     let run: ModelRun;
@@ -318,7 +337,7 @@ export async function handleAiCommand(input: CallInput, deps: Deps): Promise<AiR
       // ceiling stays spent (M1 of the unit 5 review).
       const kind = error instanceof ProviderError ? error.kind : 'unknown';
       meta.providerError = kind;
-      await settle(deps.db, reservation, unbilled(error) ? 0 : reservation.reservedMicros, deps.now());
+      await settleSafely(deps, reservation, unbilled(error) ? 0 : reservation.reservedMicros, meta);
       // The kind (no provider text) lets the app tell "the AI account needs
       // attention" (key, balance) from "try again later" (L4).
       throw refuse('provider', 'the AI provider failed', { kind });
@@ -330,7 +349,7 @@ export async function handleAiCommand(input: CallInput, deps: Deps): Promise<AiR
     const cost =
       runCost(model, usage, started, deps.now(), reservation.reservedMicros) +
       (run.retryMaybeBilled ? Math.ceil(ceilingMicros(model) / MAX_ATTEMPTS) : 0);
-    await settle(deps.db, reservation, cost, deps.now());
+    await settleSafely(deps, reservation, cost, meta);
     meta.inputTokens = usage.inputTokens;
     meta.outputTokens = usage.outputTokens;
     meta.cacheReadTokens = usage.cacheReadTokens;
