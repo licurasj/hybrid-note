@@ -6,7 +6,7 @@ import { describe, test } from 'node:test';
 
 import { FieldValue, type Firestore } from 'firebase-admin/firestore';
 
-import { COLLECTIONS, MODELS, ceilingMicros } from '../src/config';
+import { COLLECTIONS, MODELS, TIERS, ceilingMicros, type TierLimits } from '../src/config';
 import { handleAiCommand, type Deps } from '../src/handler';
 import type { RequestMeta } from '../src/log';
 import { ProviderError, type AiProvider } from '../src/provider/types';
@@ -14,7 +14,10 @@ import { ProviderError, type AiProvider } from '../src/provider/types';
 const model = MODELS.fake;
 const usage = { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 };
 
-function setup(options: { failPromptLog?: boolean; failSettle?: boolean; provider?: AiProvider['call'] }) {
+// A tier with a pool, so a settlement moves money there too; the owner has none (Q-63).
+const LIMITED: TierLimits = { ...TIERS.owner, requestsPerDay: 100, pools: ['global'] };
+
+function setup(options: { failPromptLog?: boolean; failSettle?: boolean; provider?: AiProvider['call']; limits?: TierLimits }) {
   const counters = {
     reserved: 0,
     /** Each committed settlement's writes. */
@@ -62,6 +65,7 @@ function setup(options: { failPromptLog?: boolean; failSettle?: boolean; provide
     db: db as unknown as Firestore,
     provider,
     model,
+    limits: options.limits ?? LIMITED,
     log: (_, entry) => logged.push(entry),
     now: () => new Date('2026-11-04T12:00:00Z'),
     newRequestId: () => 'request-id',
@@ -101,6 +105,18 @@ describe('the reservation', () => {
     assert.ok(typeof logged[0].costMicros === 'number');
     assertSettled(counters.settled, logged[0].costMicros as number);
     assert.ok((logged[0].costMicros as number) < ceilingMicros(model));
+  });
+
+  test('with no pool, as the owner, only the user is settled (Q-63)', async () => {
+    const { deps, counters, logged } = setup({ limits: TIERS.owner });
+    await handleAiCommand(input, deps);
+    assert.equal(counters.settled.length, 1);
+    assert.deepEqual(Object.keys(counters.settled[0]), [COLLECTIONS.userUsage]);
+    assert.ok(
+      (counters.settled[0][COLLECTIONS.userUsage].spentMicros as FieldValue).isEqual(
+        FieldValue.increment(logged[0].costMicros as number),
+      ),
+    );
   });
 
   test('an unbilled provider error settles at zero, once', async () => {

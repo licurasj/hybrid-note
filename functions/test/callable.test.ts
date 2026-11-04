@@ -69,24 +69,20 @@ describe('refusals', () => {
     assert.deepEqual([r.status, r.reason], ['INVALID_ARGUMENT', 'contextTooLarge']);
   });
 
-  test('daily count reached', async () => {
-    await userDoc(user.uid).set({ count: 100 });
+  test('the owner is past no daily count and no $1 stop (Q-63)', async () => {
+    await userDoc(user.uid).set({ count: 5000 });
+    await poolDoc().set({ spentMicros: BUDGET, reservedMicros: 0 });
     const r = await call(request('eggs'));
-    assert.deepEqual([r.status, r.reason], ['RESOURCE_EXHAUSTED', 'dailyCount']);
-  });
-
-  test('global $1/day stop reached', async () => {
-    await poolDoc().set({ spentMicros: BUDGET - CEILING + 1, reservedMicros: 0 });
-    const r = await call(request('eggs'));
-    assert.deepEqual([r.status, r.reason], ['RESOURCE_EXHAUSTED', 'globalBudget']);
+    assert.equal(r.ok, true);
+    assert.equal((await userDoc(user.uid).get()).get('count'), 5001);
+    assert.equal((await poolDoc().get()).get('spentMicros'), BUDGET);
   });
 
   test('a provider failure keeps the ceiling spent', async () => {
     const r = await call(request('[fake:fail]'));
     assert.deepEqual([r.status, r.reason], ['UNAVAILABLE', 'provider']);
-    const pool = await poolDoc().get();
-    assert.equal(pool.get('spentMicros'), CEILING);
-    assert.equal(pool.get('reservedMicros'), 0);
+    assert.equal((await userDoc(user.uid).get()).get('spentMicros'), CEILING);
+    assert.equal((await poolDoc().get()).exists, false);
   });
 });
 
@@ -149,40 +145,11 @@ describe('outcomes', () => {
     assert.ok(!JSON.stringify(r.result).includes(TODO));
   });
 
-  test('declined and off-topic requests count against both caps', async () => {
+  test('declined and off-topic requests are still recorded', async () => {
     await call(request('[fake:decline] tell me a joke'));
     await call(request('[fake:freetext] tell me a joke'));
-    assert.equal((await userDoc(user.uid).get()).get('count'), 2);
-    const pool = await poolDoc().get();
-    assert.ok(pool.get('spentMicros') > 0);
-    assert.equal(pool.get('reservedMicros'), 0);
-  });
-});
-
-describe('parallel calls through the function', () => {
-  test('at the daily count: 10 parallel calls with 3 left, 3 pass, count ends at 100', async () => {
-    await userDoc(user.uid).set({ count: 97 });
-    const results = await Promise.all(Array.from({ length: 10 }, () => call(request('eggs'))));
-    assert.equal(results.filter((r) => r.ok).length, 3);
-    assert.ok(results.filter((r) => !r.ok).every((r) => r.reason === 'dailyCount'));
-    assert.equal((await userDoc(user.uid).get()).get('count'), 100);
-  });
-
-  // A finished call settles to its real cost and frees the rest of its
-  // reservation, so more than 3 may pass when the emulator overlaps calls only
-  // partly; the strict race (exactly 3) is in caps.test.ts. Here: no overshoot,
-  // nothing left reserved, and the pool holds exactly the costs returned.
-  test('at the $1 stop: 10 parallel calls with room for 3 ceilings, spent stays under $1', async () => {
-    const start = BUDGET - 3 * CEILING;
-    await poolDoc().set({ spentMicros: start, reservedMicros: 0 });
-    const results = await Promise.all(Array.from({ length: 10 }, () => call(request('eggs'))));
-    const passed = results.filter((r) => r.ok);
-    assert.ok(passed.length >= 3);
-    assert.ok(results.filter((r) => !r.ok).every((r) => r.reason === 'globalBudget'));
-    const pool = await poolDoc().get();
-    assert.equal(pool.get('reservedMicros'), 0);
-    assert.ok(pool.get('spentMicros') <= BUDGET);
-    const returned = passed.reduce((sum, r) => sum + Math.round(r.result.usage.costUsd * 1e6), 0);
-    assert.equal(pool.get('spentMicros'), start + returned);
+    const usage = await userDoc(user.uid).get();
+    assert.equal(usage.get('count'), 2);
+    assert.ok(usage.get('spentMicros') > 0);
   });
 });

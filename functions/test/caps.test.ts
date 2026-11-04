@@ -4,12 +4,14 @@ import assert from 'node:assert/strict';
 import { beforeEach, describe, test } from 'node:test';
 
 import { countOnly, dayOf, reserve, settle } from '../src/caps';
-import { MODELS, TIERS, ceilingMicros } from '../src/config';
+import { MODELS, TIERS, ceilingMicros, type TierLimits } from '../src/config';
 import { reasonOf } from '../src/errors';
 import { clearFirestore, db } from './helpers';
 
 const model = MODELS.fake;
-const limits = TIERS.owner;
+// The cap logic with limits, as a limited tier has them (T-18's demo): the owner
+// has none since Q-63.
+const limits: TierLimits = { ...TIERS.owner, requestsPerDay: 100, pools: ['global'] };
 const CEILING = ceilingMicros(model);
 const BUDGET = 1_000_000; // $1 in microdollars
 const now = new Date();
@@ -28,6 +30,34 @@ async function settled<T>(promises: Promise<T>[]) {
 
 beforeEach(async () => {
   await clearFirestore();
+});
+
+describe('the owner tier has neither limit (Q-63)', () => {
+  test('far past both limits it reserves, counts and settles; the pool is untouched', async () => {
+    await userDoc('u1').set({ day, tier: 'owner', count: 5000, spentMicros: 7 });
+    await poolDoc().set({ spentMicros: BUDGET, reservedMicros: 0 });
+    const reservation = await reserve(db(), 'u1', 'owner', TIERS.owner, model, now);
+    assert.deepEqual(reservation.pools, []);
+    await settle(db(), reservation, 100, now);
+    const user = await userDoc('u1').get();
+    assert.equal(user.get('count'), 5001);
+    assert.equal(user.get('spentMicros'), 107);
+    const pool = await poolDoc().get();
+    assert.equal(pool.get('spentMicros'), BUDGET);
+    assert.equal(pool.get('reservedMicros'), 0);
+  });
+
+  test('with no pool document at all, none appears', async () => {
+    const reservation = await reserve(db(), 'u1', 'owner', TIERS.owner, model, now);
+    await settle(db(), reservation, 0, now);
+    assert.equal((await poolDoc().get()).exists, false);
+  });
+
+  test('countOnly still counts, past any old limit', async () => {
+    await userDoc('u1').set({ day, tier: 'owner', count: 5000 });
+    await countOnly(db(), 'u1', 'owner', TIERS.owner, now);
+    assert.equal((await userDoc('u1').get()).get('count'), 5001);
+  });
 });
 
 describe('per-user daily count', () => {

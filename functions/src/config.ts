@@ -9,7 +9,7 @@ export type TierName = 'owner';
 export type PoolName = 'global';
 
 export interface TierLimits {
-  /** Requests per user per UTC day, refused and off-topic ones included (Q-29 B). */
+  /** Requests per user per UTC day, refused and off-topic ones included; Infinity for no limit (Q-63). */
   requestsPerDay: number;
   /** Characters in the typed prompt (Proposed 1,000). */
   promptMaxChars: number;
@@ -21,7 +21,7 @@ export interface TierLimits {
   maxLists: number;
   /** Items of the open list sent as context (plan 6.2: about 20). */
   maxItems: number;
-  /** Budget pools this tier spends from. */
+  /** Budget pools this tier spends from; none means no daily dollar stop (Q-63). */
   pools: PoolName[];
 }
 
@@ -31,14 +31,16 @@ export interface PoolLimits {
 }
 
 export const TIERS: Record<TierName, TierLimits> = {
+  // No daily count and no pool (Q-63): the provider spend limits are the stops
+  // left, and aiUsageUser still records the day's count and spend.
   owner: {
-    requestsPerDay: 100,
+    requestsPerDay: Infinity,
     promptMaxChars: 1000,
     replyMaxChars: 500,
     contextMaxBytes: 32000,
     maxLists: 100,
     maxItems: 20,
-    pools: ['global'],
+    pools: [],
   },
 };
 

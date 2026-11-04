@@ -5,7 +5,7 @@ import { beforeEach, describe, test } from 'node:test';
 
 import { HttpsError } from 'firebase-functions/v2/https';
 
-import { COLLECTIONS, MAX_ATTEMPTS, MODELS, ceilingMicros, costMicros } from '../src/config';
+import { COLLECTIONS, MAX_ATTEMPTS, MODELS, TIERS, ceilingMicros, costMicros, type TierLimits } from '../src/config';
 import { handleAiCommand, type AiResponse } from '../src/handler';
 import type { RequestMeta } from '../src/log';
 import { FakeProvider } from '../src/provider/fake';
@@ -14,6 +14,8 @@ import { allow, clearFirestore, db, today } from './helpers';
 
 const UID = 'retry-test-uid';
 const model = MODELS.fake;
+// A tier with a pool, so these tests can read the settled amounts there (Q-63).
+const limits: TierLimits = { ...TIERS.owner, requestsPerDay: 100, pools: ['global'] };
 
 function data(prompt: string) {
   return {
@@ -40,7 +42,7 @@ async function run(prompt: string, provider: AiProvider) {
   try {
     result = await handleAiCommand(
       { uid: UID, appCheckTokenPresent: false, data: data(prompt) },
-      { db: db(), provider, model, log: (_, e) => entries.push(e), now: () => new Date(), newRequestId: () => 'r1' },
+      { db: db(), provider, model, limits, log: (_, e) => entries.push(e), now: () => new Date(), newRequestId: () => 'r1' },
     );
   } catch (e) {
     error = e;

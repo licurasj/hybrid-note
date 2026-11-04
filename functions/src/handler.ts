@@ -13,6 +13,7 @@ import {
   ceilingMicros,
   costMicros,
   type ModelConfig,
+  type TierLimits,
   type TierName,
   type Usage,
 } from './config';
@@ -48,6 +49,8 @@ export interface Deps {
   model?: ModelConfig;
   /** The tool-call check; the unit 1 JSON Schemas (schemaErrors) by default. */
   schemaCheck?: SchemaCheck;
+  /** Limits instead of the tier's, for tests of a limited tier. */
+  limits?: TierLimits;
   /** Clock and wait for runModel, for tests. */
   runOptions?: RunOptions;
 }
@@ -289,7 +292,7 @@ export async function handleAiCommand(input: CallInput, deps: Deps): Promise<AiR
     const tier = await resolveTier(deps.db, uid);
     if (tier === null) throw refuse('notAllowed', 'this account may not use AI');
     meta.tier = tier;
-    const limits = TIERS[tier];
+    const limits = deps.limits ?? TIERS[tier];
 
     let request;
     try {

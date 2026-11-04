@@ -10,7 +10,7 @@ import { cloudLogSink, uidHash, type RequestMeta } from '../src/log';
 import { handleAiCommand, type CallInput, type Deps } from '../src/handler';
 import { FakeProvider } from '../src/provider/fake';
 import type { AiProvider } from '../src/provider/types';
-import { MODELS, ceilingMicros } from '../src/config';
+import { MODELS, ceilingMicros, TIERS, type TierLimits } from '../src/config';
 import { ProviderError, type ProviderResponse } from '../src/provider/types';
 import { allow, clearFirestore, db, today } from './helpers';
 
@@ -39,6 +39,9 @@ function data(prompt: string, extra: Record<string, unknown> = {}) {
 }
 
 /** Runs the handler once and returns what reached any output, plus the result or error. */
+// A tier with limits, since the owner has none (Q-63).
+const LIMITED: TierLimits = { ...TIERS.owner, requestsPerDay: 100, pools: ['global'] };
+
 async function run(input: CallInput, provider: AiProvider = new FakeProvider(), extra: Partial<Deps> = {}) {
   const written: string[] = [];
   const entries: RequestMeta[] = [];
@@ -161,7 +164,7 @@ describe('the 7-day prompt log', () => {
 
   test('a request refused at the daily cap writes none (L5)', async () => {
     await db().collection('aiUsageUser').doc(`${UID}_${today()}`).set({ count: 100 });
-    const { error } = await run({ uid: UID, appCheckTokenPresent: false, data: data(`eggs ${PROMPT_SECRET}`) });
+    const { error } = await run({ uid: UID, appCheckTokenPresent: false, data: data(`eggs ${PROMPT_SECRET}`) }, undefined, { limits: LIMITED });
     assert.equal((error as { details?: { reason?: string } }).details?.reason, 'dailyCount');
     assert.equal((await db().collection('aiPromptLog').get()).size, 0);
   });
@@ -207,6 +210,7 @@ describe('T-19 unit 6 fixes', () => {
     };
     const { entries } = await run({ uid: UID, appCheckTokenPresent: false, data: data('eggs') }, answering(response), {
       model: MODELS.fake,
+      limits: LIMITED,
     });
     assert.equal(entries[0].usageUnreadable, true);
     assert.equal(entries[0].costMicros, ceilingMicros(MODELS.fake));
