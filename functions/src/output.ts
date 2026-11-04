@@ -42,13 +42,14 @@ export const REPLY_SCHEMA_MAX_CHARS = 500;
 export function retryFeedback(response: ProviderResponse, schemaCheck: SchemaCheck, request?: AiRequest): ToolFeedback[] {
   const listIds = new Set(request?.lists.map((list) => list.id) ?? []);
   const openId = request?.openList?.definition.id;
+  const structureId = request?.itemsOnly === true ? undefined : openId;
   const feedback: ToolFeedback[] = [];
   for (const block of response.content) {
     if (block.type !== 'tool_call' || !(TOOL_NAMES as readonly string[]).includes(block.name)) continue;
     const name = block.name as ToolName;
     const args = name === 'reply' ? cutReply(block.args, REPLY_SCHEMA_MAX_CHARS) : block.args;
     const errors = [
-      ...(request !== undefined && isRecord(args) ? targetErrors(name, args, listIds, openId, openItemIds(request), request?.chosenList === true) : []),
+      ...(request !== undefined && isRecord(args) ? targetErrors(name, args, listIds, openId, structureId, openItemIds(request), request?.chosenList === true) : []),
       ...schemaCheck(name, args),
     ];
     if (errors.length > 0) feedback.push({ id: block.id, errors });
@@ -83,12 +84,13 @@ function targetErrors(
   args: Record<string, unknown>,
   listIds: Set<string>,
   openId: string | undefined,
+  structureId: string | undefined,
   openItemIds?: string[],
   chosen = false,
 ): string[] {
   switch (name) {
     case 'patch_list':
-      return openId !== undefined && args.listId === openId
+      return structureId !== undefined && args.listId === structureId
         ? []
         : ['patch_list may only change the open list; use create_list for a new one'];
     case 'upsert_items':
@@ -150,6 +152,7 @@ export function filterOutput(
 ): FilteredOutput {
   const listIds = new Set(request.lists.map((list) => list.id));
   const openId = request.openList?.definition.id;
+  const structureId = request.itemsOnly === true ? undefined : openId;
   const result: FilteredOutput = {
     outcome: 'ok',
     toolCalls: [],
@@ -170,7 +173,7 @@ export function filterOutput(
       result.droppedText++;
       continue;
     }
-    const call = acceptCall(block.name, block.args, listIds, openId, openItemIds(request), request.chosenList === true, limits, schemaCheck, result);
+    const call = acceptCall(block.name, block.args, listIds, openId, structureId, openItemIds(request), request.chosenList === true, limits, schemaCheck, result);
     if (call === null) {
       result.droppedTools++;
     } else if (call.name === 'decline') {
@@ -193,6 +196,7 @@ function acceptCall(
   args: unknown,
   listIds: Set<string>,
   openId: string | undefined,
+  structureId: string | undefined,
   itemIds: string[],
   chosen: boolean,
   limits: TierLimits,
@@ -201,7 +205,7 @@ function acceptCall(
 ): ToolCall | null {
   if (!(TOOL_NAMES as readonly string[]).includes(name) || !isRecord(args)) return null;
   const tool = name as ToolName;
-  if (targetErrors(tool, args, listIds, openId, itemIds, chosen).length > 0) return null;
+  if (targetErrors(tool, args, listIds, openId, structureId, itemIds, chosen).length > 0) return null;
   let checked = args;
   if (tool === 'reply') {
     if (typeof args.text !== 'string') return null;

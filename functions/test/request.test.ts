@@ -192,4 +192,35 @@ describe('parseRequest', () => {
     const big = { toolCalls: [{ name: 'reply', args: { text: 'x'.repeat(limits.contextMaxBytes) } }], errors: ['x'] };
     assert.equal(reason(base({ correction: big })), 'contextTooLarge');
   });
+
+  test('itemsOnly is true and needs the open list; older builds leave it out (M5)', () => {
+    assert.equal(parseRequest(base({ itemsOnly: true }), limits).itemsOnly, true);
+    assert.equal(parseRequest(base(), limits).itemsOnly, undefined);
+    assert.equal(reason(base({ itemsOnly: 'yes' })), 'badRequest');
+    assert.equal(reason(base({ itemsOnly: true, openList: null })), 'badRequest');
+  });
+
+  test('newList leaves the whole prompt allowance to the user (L2)', () => {
+    const full = 'x'.repeat(limits.promptMaxChars);
+    assert.equal(parseRequest(base({ prompt: full, newList: true }), limits).newList, true);
+    assert.equal(parseRequest(base(), limits).newList, undefined);
+    assert.equal(reason(base({ prompt: `${full}x`, newList: true })), 'promptTooLong');
+    assert.equal(reason(base({ newList: 'yes' })), 'badRequest');
+  });
+
+  test('followUp.earlier is bounded; older builds leave it out (Q-55)', () => {
+    const followUp = { prompt: 'change milk quantity', reply: 'What quantity?' };
+    const turn = { reply: 'Which item?', answer: 'oat milk' };
+    assert.deepEqual(parseRequest(base({ followUp: { ...followUp, earlier: [turn] } }), limits).followUp?.earlier, [turn]);
+    assert.equal(parseRequest(base({ followUp }), limits).followUp?.earlier, undefined);
+    for (const earlier of [
+      'x',
+      [turn, turn, turn],
+      [{ reply: 'x' }],
+      [{ reply: 'x'.repeat(501), answer: 'y' }],
+      [{ reply: 'x', answer: 'y'.repeat(limits.promptMaxChars + 1) }],
+    ]) {
+      assert.equal(reason(base({ followUp: { ...followUp, earlier } })), 'badRequest', JSON.stringify(earlier));
+    }
+  });
 });

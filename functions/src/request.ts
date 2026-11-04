@@ -48,15 +48,40 @@ export interface AiRequest {
    * AI must use it and not ask again (Q-45; it looped on 2026-11-04).
    */
   chosenList?: true;
+  /**
+   * The open list was sent only so the AI can name its items: the phone's
+   * matching round (Q-39), not a list the user has open. No structure change
+   * may come of it (M5 of the Codex review). Older app builds leave it out.
+   */
+  itemsOnly?: true;
+  /**
+   * The user asks for a new list (Describe a new list, or New list as the
+   * answer to "which list?"), so the prompt stays only the user's words (L2
+   * of the Codex review). Older app builds put the words
+   * "Create a new list: " in the prompt instead.
+   */
+  newList?: true;
 }
 
 export const ASK_LEVELS = ['more', 'balanced', 'less'] as const;
 export type AskLevel = (typeof ASK_LEVELS)[number];
 
 export interface FollowUp {
+  /** The original request, kept through the whole back-and-forth (Q-55). */
   prompt: string;
+  /** The latest reply; the request's prompt answers it. */
   reply: string;
+  /** Earlier replies and the user's answers to them, oldest first. Older app builds leave it out. */
+  earlier?: FollowUpExchange[];
 }
+
+export interface FollowUpExchange {
+  reply: string;
+  answer: string;
+}
+
+/** Q-55: the last 3 pairs in all, the reply this request answers being one of them. */
+export const FOLLOW_UP_EARLIER_MAX = 2;
 
 /** The longest list description: ListDefinition.descriptionMaxLength. */
 export const DESCRIPTION_MAX_CHARS = 200;
@@ -151,6 +176,14 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
   if (chosenList !== undefined && (chosenList !== true || data.openList == null)) {
     throw refuse('badRequest', 'chosenList must be true and come with the open list');
   }
+  const itemsOnly = data.itemsOnly ?? undefined;
+  if (itemsOnly !== undefined && (itemsOnly !== true || data.openList == null)) {
+    throw refuse('badRequest', 'itemsOnly must be true and come with the open list');
+  }
+  const newList = data.newList ?? undefined;
+  if (newList !== undefined && newList !== true) {
+    throw refuse('badRequest', 'newList must be true');
+  }
   const followUp = data.followUp ?? undefined;
   if (followUp !== undefined) {
     if (
@@ -162,6 +195,22 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
       [...followUp.reply].length > FOLLOW_UP_REPLY_MAX_CHARS
     ) {
       throw refuse('badRequest', 'followUp needs the earlier prompt and a reply of at most 500 characters');
+    }
+    const earlier = followUp.earlier ?? undefined;
+    if (
+      earlier !== undefined &&
+      (!Array.isArray(earlier) ||
+        earlier.length > FOLLOW_UP_EARLIER_MAX ||
+        !earlier.every(
+          (turn) =>
+            isRecord(turn) &&
+            typeof turn.reply === 'string' &&
+            typeof turn.answer === 'string' &&
+            [...turn.reply].length <= FOLLOW_UP_REPLY_MAX_CHARS &&
+            [...turn.answer].length <= limits.promptMaxChars,
+        ))
+    ) {
+      throw refuse('badRequest', 'followUp.earlier needs at most 2 short replies and answers');
     }
   }
   if (openList !== null) {
@@ -213,6 +262,8 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
     lists: allowed as unknown as ListSummary[],
     askLevel: askLevel as AskLevel,
     ...(chosenList === true ? { chosenList: true as const } : {}),
+    ...(itemsOnly === true ? { itemsOnly: true as const } : {}),
+    ...(newList === true ? { newList: true as const } : {}),
     openList: open as OpenList | null,
     ...(correction !== undefined
       ? {
@@ -223,7 +274,20 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
         }
       : {}),
     ...(followUp !== undefined
-      ? { followUp: { prompt: followUp.prompt as string, reply: followUp.reply as string } }
+      ? {
+          followUp: {
+            prompt: followUp.prompt as string,
+            reply: followUp.reply as string,
+            ...(Array.isArray(followUp.earlier) && followUp.earlier.length > 0
+              ? {
+                  earlier: (followUp.earlier as Record<string, unknown>[]).map((turn) => ({
+                    reply: turn.reply as string,
+                    answer: turn.answer as string,
+                  })),
+                }
+              : {}),
+          },
+        }
       : {}),
   };
 }

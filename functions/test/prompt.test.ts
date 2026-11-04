@@ -173,4 +173,37 @@ describe('prices and ceilings', () => {
     assert.ok(message.includes('unknownField price'));
     assert.ok(!buildUserMessage(request, new Date()).includes('previous_answer'));
   });
+
+  test('a long back-and-forth keeps the original request and every exchange in order (Q-55)', () => {
+    const message = buildUserMessage(
+      {
+        ...request,
+        prompt: 'two',
+        followUp: {
+          prompt: 'change milk quantity in Grocery',
+          reply: 'What quantity?',
+          earlier: [{ reply: 'Which item?', answer: 'oat milk' }],
+        },
+      },
+      new Date('2026-11-03T22:00:00Z'),
+    );
+    const order = ['"change milk quantity in Grocery"', '"Which item?"', '"oat milk"', '"What quantity?"', '<request>\ntwo'];
+    const places = order.map((text) => message.indexOf(text));
+    assert.ok(places.every((place) => place >= 0));
+    assert.deepEqual(places, [...places].sort((a, b) => a - b));
+  });
+
+  test('items sent only for matching are not called the open list (M5)', () => {
+    const open = { definition: { id: 'grocery' }, items: [] };
+    const matching = buildUserMessage({ ...request, openList: open, itemsOnly: true }, new Date());
+    assert.ok(!matching.includes('Open list'));
+    assert.ok(matching.includes('do not change its structure'));
+    assert.ok(buildUserMessage({ ...request, openList: open }, new Date()).includes('Open list'));
+  });
+
+  test('a new list by button is said outside the user words (L2)', () => {
+    const message = buildUserMessage({ ...request, prompt: 'a books list', newList: true }, new Date());
+    assert.ok(message.indexOf('call create_list') < message.indexOf('<request>\na books list\n</request>'));
+    assert.ok(!buildUserMessage(request, new Date()).includes('wants a new list'));
+  });
 });

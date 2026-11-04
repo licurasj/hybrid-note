@@ -107,7 +107,9 @@ export function buildUserMessage(request: AiRequest, now: Date): string {
   const open =
     request.openList === null
       ? 'No list is open.'
-      : `Open list (definition and up to 20 recent items):\n${data(request.openList)}`;
+      : request.itemsOnly === true
+        ? `Items to find (this list is not open; use its definition and up to 20 recent items only to name its items, and do not change its structure):\n${data(request.openList)}`
+        : `Open list (definition and up to 20 recent items):\n${data(request.openList)}`;
   return [
     '<context>',
     `Today: ${today} (${weekday}). UI language: ${request.locale}. How often to ask first: ${request.askLevel}.`,
@@ -122,7 +124,11 @@ export function buildUserMessage(request: AiRequest, now: Date): string {
       : [
           '<previous_turn>',
           `The user's earlier request:\n${data(request.followUp.prompt)}`,
-          `Your reply to it:\n${data(request.followUp.reply)}`,
+          ...(request.followUp.earlier ?? []).flatMap((turn) => [
+            `Your reply:\n${data(turn.reply)}`,
+            `The user's answer:\n${data(turn.answer)}`,
+          ]),
+          `Your latest reply:\n${data(request.followUp.reply)}`,
           '</previous_turn>',
           followUpInstruction,
         ]),
@@ -135,6 +141,7 @@ export function buildUserMessage(request: AiRequest, now: Date): string {
           '</previous_answer>',
           deviceRetryInstruction,
         ]),
+    ...(request.newList === true ? [newListInstruction] : []),
     '<request>',
     request.prompt,
     '</request>',
@@ -143,7 +150,10 @@ export function buildUserMessage(request: AiRequest, now: Date): string {
 
 // The user answers the AI's reply (Q-42).
 export const followUpInstruction =
-  'The request below is the user\'s answer to your reply. Act on the earlier request and this answer together.';
+  'The request below is the user\'s answer to your latest reply. Act on the earlier request and all the answers together.';
+
+// The user asked for a new list by button, not by words (L2 of the Codex review).
+export const newListInstruction = 'The user wants a new list from the request below: call create_list.';
 
 // The device's self-correction round (Q-34 A): the app found ListErrors.
 export const deviceRetryInstruction =

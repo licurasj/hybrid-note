@@ -238,4 +238,16 @@ describe('retryFeedback', () => {
     assert.equal(out.toolCalls.length, 1);
     assert.equal(out.droppedTools, 1);
   });
+
+  test('items sent only for matching give no structure authority (M5)', () => {
+    const matching: AiRequest = { ...open, itemsOnly: true };
+    const patch = answer([call('patch_list', { listId: 'grocery', ops: [] })]);
+    assert.match(retryFeedback(patch, structuralCheck, matching)[0].errors[0], /only change the open list/);
+    assert.equal(filterOutput(patch, matching, limits).toolCalls.length, 0);
+    // The same list really open, and item tools on the matching list.
+    assert.deepEqual(retryFeedback(patch, structuralCheck, open), []);
+    assert.equal(filterOutput(patch, open, limits).toolCalls.length, 1);
+    const remove = answer([call('delete_items', { listId: 'grocery', ids: ['i1'] })]);
+    assert.equal(filterOutput(remove, matching, limits).toolCalls.length, 1);
+  });
 });
