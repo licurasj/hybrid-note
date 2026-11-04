@@ -1144,7 +1144,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get tasksDescription => '要做的事，带截止日期和提醒。';
+  String get tasksDescription => '要做的事。';
 
   @override
   String get groceryDescription => '下次购物要买的食品和日用品。';
@@ -1153,7 +1153,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get journalDescription => '按日期记录的每日笔记和想法。';
 
   @override
-  String get watchReadDescription => '想看或想读的电影、剧集和书，以及进度。';
+  String get watchReadDescription => '想看或想读的电影、剧集和书。';
 
   @override
   String get settingsAiAsk => 'AI 向你确认的频率';

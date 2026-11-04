@@ -174,6 +174,37 @@ void main() {
     expect(store.current.definition(BuiltinTemplates.groceryId), isNull);
   });
 
+  testWidgets("the description box stops at 200 characters and a cleared default stays cleared (review M2)", (
+    tester,
+  ) async {
+    final FirestoreListStore store = await _pumpApp(tester, lists: starterLists());
+    const ValueKey<String> tab = ValueKey('launcher-note-${BuiltinTemplates.groceryId}');
+    final Finder box = find.byKey(const ValueKey('list-description'));
+    String text() => tester.widget<EditableText>(find.descendant(of: box, matching: find.byType(EditableText))).controller.text;
+
+    await _openLauncher(tester);
+    await tester.longPress(find.byKey(tab));
+    await tester.pumpAndSettle();
+    expect(text(), contains('shopping'));
+    await tester.enterText(box, '\u{1F95A}' * 250);
+    await tester.pump();
+    expect(text().runes.length, 200);
+    expect(find.text('200/200'), findsOneWidget);
+
+    await tester.enterText(box, '');
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('save-list')));
+    await settle(tester);
+    final ListDefinition grocery = store.current.definition(BuiltinTemplates.groceryId)!;
+    expect(grocery.description, isNull);
+    expect(grocery.descriptionKey, isNull);
+
+    await _openLauncher(tester);
+    await tester.longPress(find.byKey(tab));
+    await tester.pumpAndSettle();
+    expect(text(), isEmpty);
+  });
+
   group('a view that names a removed or retyped field', () {
     Future<FirestoreListStore> pumpWithFilter(WidgetTester tester) async {
       final FirestoreListStore store = await _pumpApp(tester);

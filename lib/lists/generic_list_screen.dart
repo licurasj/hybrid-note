@@ -1125,12 +1125,14 @@ class _GenericListScreenState extends State<GenericListScreen>
               overflow: TextOverflow.clip,
             ),
           ),
+          // 20: when the title fits (tablets) it is not clipped, and its
+          // descenders reach about 12 below its 0.9 line box.
           if (description != null)
             Padding(
-              padding: const EdgeInsets.only(left: 4, top: 8, right: 18),
+              padding: const EdgeInsets.only(left: 4, top: 20, right: 18),
               child: Text(
                 description,
-                key: const ValueKey('list-description'),
+                key: const ValueKey('list-page-description'),
                 style: look.type.meta.copyWith(fontSize: 14),
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,

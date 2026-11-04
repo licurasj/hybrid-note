@@ -1147,7 +1147,7 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get tasksDescription => '期限やリマインダー付きのやること。';
+  String get tasksDescription => 'やること。';
 
   @override
   String get groceryDescription => '次の買い物で買う食品や日用品。';
@@ -1156,7 +1156,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get journalDescription => '日付ごとの毎日のメモや考え。';
 
   @override
-  String get watchReadDescription => '観たい・読みたい映画、ドラマ、本と、その進み具合。';
+  String get watchReadDescription => '観たい・読みたい映画、ドラマ、本。';
 
   @override
   String get settingsAiAsk => 'AIが確認する頻度';

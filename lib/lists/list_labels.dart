@@ -99,8 +99,12 @@ class ListLabels {
   // The user's description, else a built-in list's translated default;
   // null when the list has none (Q-44).
   String? listDescription(ListDefinition definition) {
+    final String? own = definition.description?.trim();
+    if (own != null && own.isNotEmpty) {
+      return own;
+    }
     final String? key = definition.descriptionKey;
-    return definition.description ?? (key == null ? null : lookup(key) ?? key);
+    return own == null && key != null ? lookup(key) ?? key : null;
   }
 
   String field(FieldDefinition field) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 
 import '../app/app_theme.dart';
@@ -82,6 +83,8 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
   final List<ListPatchOp> _ops = [];
   late ListPatchResult _result;
   final TextEditingController _newOption = TextEditingController();
+  // Code points in the description box, counted like validate() (review L2).
+  int? _descriptionLength;
 
   ListDefinition get _draft => _result.definition;
 
@@ -748,6 +751,8 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
     final ListLabels labels = ListLabels(loc);
     final ListDefinition draft = _draft;
     final EditorLook look = EditorLook.of(context);
+    final int descriptionLength = _descriptionLength ??=
+        (labels.listDescription(widget.definition) ?? '').runes.length;
     final TextStyle nameStyle = look.type.row.copyWith(
       fontSize: 22,
       fontWeight: FontWeight.w500,
@@ -822,11 +827,30 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
               style: look.label,
               minLines: 1,
               maxLines: 3,
-              maxLength: ListDefinition.descriptionMaxLength,
-              // The counter shows only near the limit.
+              // Limited and counted in code points, as validate() and the
+              // function count; the counter shows only near the limit.
+              inputFormatters: [
+                TextInputFormatter.withFunction((before, after) {
+                  final List<int> runes = after.text.runes.toList();
+                  if (runes.length <= ListDefinition.descriptionMaxLength) {
+                    return after;
+                  }
+                  final String cut = String.fromCharCodes(
+                    runes.take(ListDefinition.descriptionMaxLength),
+                  );
+                  return TextEditingValue(
+                    text: cut,
+                    selection: TextSelection.collapsed(offset: cut.length),
+                  );
+                }),
+              ],
               buildCounter: (context, {required currentLength, required isFocused, maxLength}) =>
-                  maxLength != null && currentLength > maxLength - 40
-                  ? Text('$currentLength/$maxLength', style: look.value)
+                  descriptionLength > ListDefinition.descriptionMaxLength - 40
+                  ? Text(
+                      '$descriptionLength/${ListDefinition.descriptionMaxLength}',
+                      key: const ValueKey('list-description-counter'),
+                      style: look.value,
+                    )
                   : null,
               textCapitalization: TextCapitalization.sentences,
               decoration: InputDecoration(
@@ -844,9 +868,10 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
                   borderSide: BorderSide(color: look.neutrals.text, width: 1.5),
                 ),
               ),
-              onChanged: (text) => _push(
-                ListPatchOp(PatchOpKind.setListInfo, {'description': text}),
-              ),
+              onChanged: (text) {
+                _descriptionLength = text.runes.length;
+                _push(ListPatchOp(PatchOpKind.setListInfo, {'description': text}));
+              },
             ),
             look.sectionLabel(loc.listIcon),
             Wrap(

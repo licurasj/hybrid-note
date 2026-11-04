@@ -27,11 +27,11 @@ function data(prompt: string, extra: Record<string, unknown> = {}) {
     platform: 'android',
     locale: 'en',
     lists: [
-      { id: 'grocery', name: `Grocery ${LIST_SECRET}`, fields: [{ key: 'name', type: 'text', label: LIST_SECRET }], aiAllowed: true },
+      { id: 'grocery', name: `Grocery ${LIST_SECRET}`, description: `For ${LIST_SECRET}`, fields: [{ key: 'name', type: 'text', label: LIST_SECRET }], aiAllowed: true },
       { id: 'todo', name: 'To do', fields: [], aiAllowed: true },
     ],
     openList: {
-      definition: { id: 'grocery', name: `Grocery ${LIST_SECRET}`, aiAllowed: true, fields: [] },
+      definition: { id: 'grocery', name: `Grocery ${LIST_SECRET}`, description: `For ${LIST_SECRET}`, aiAllowed: true, fields: [] },
       items: [{ id: 'i1', values: { name: `bread ${ITEM_SECRET}` } }],
     },
     ...extra,

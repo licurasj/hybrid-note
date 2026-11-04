@@ -1991,7 +1991,7 @@ abstract class AppLocalizations {
   /// No description provided for @tasksDescription.
   ///
   /// In en, this message translates to:
-  /// **'Things to do, with due dates and reminders.'**
+  /// **'Things to do.'**
   String get tasksDescription;
 
   /// No description provided for @groceryDescription.
@@ -2009,7 +2009,7 @@ abstract class AppLocalizations {
   /// No description provided for @watchReadDescription.
   ///
   /// In en, this message translates to:
-  /// **'Films, shows and books to watch or read, and how far along they are.'**
+  /// **'Films, shows and books to watch or read.'**
   String get watchReadDescription;
 
   /// No description provided for @settingsAiAsk.

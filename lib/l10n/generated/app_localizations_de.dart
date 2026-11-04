@@ -1176,7 +1176,7 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get tasksDescription => 'Aufgaben mit Fälligkeit und Erinnerungen.';
+  String get tasksDescription => 'Dinge, die zu erledigen sind.';
 
   @override
   String get groceryDescription =>
@@ -1187,7 +1187,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get watchReadDescription =>
-      'Filme, Serien und Bücher zum Schauen oder Lesen und wie weit du bist.';
+      'Filme, Serien und Bücher zum Schauen oder Lesen.';
 
   @override
   String get settingsAiAsk => 'Wie oft die KI nachfragt';

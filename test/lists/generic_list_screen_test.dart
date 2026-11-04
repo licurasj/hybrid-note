@@ -115,14 +115,21 @@ void main() {
 
     expect(find.text('Nothing here'), findsOneWidget);
     // A built-in list shows its default description.
-    expect(find.text('Films, shows and books to watch or read, and how far along they are.'), findsOneWidget);
+    expect(find.text('Films, shows and books to watch or read.'), findsOneWidget);
   });
 
   testWidgets('a list without a description shows none', (tester) async {
     final ListDefinition cleared = ListDefinition.fromJson({..._watch.toJson(), 'descriptionKey': null});
     await tester.pumpWidget(_screen(const [], _Recorder(), definition: cleared));
 
-    expect(find.byKey(const ValueKey('list-description')), findsNothing);
+    expect(find.byKey(const ValueKey('list-page-description')), findsNothing);
+  });
+
+  testWidgets('a blank stored description shows no gap (review L1)', (tester) async {
+    final ListDefinition blank = ListDefinition.fromJson({..._watch.toJson(), 'description': '  '});
+    await tester.pumpWidget(_screen(const [], _Recorder(), definition: blank));
+
+    expect(find.byKey(const ValueKey('list-page-description')), findsNothing);
   });
 
   testWidgets('shows the description under the title (Q-44)', (tester) async {

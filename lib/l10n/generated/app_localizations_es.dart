@@ -1168,7 +1168,7 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get tasksDescription => 'Cosas por hacer, con fechas y recordatorios.';
+  String get tasksDescription => 'Cosas por hacer.';
 
   @override
   String get groceryDescription =>
@@ -1179,7 +1179,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get watchReadDescription =>
-      'Películas, series y libros por ver o leer, y por dónde vas.';
+      'Películas, series y libros por ver o leer.';
 
   @override
   String get settingsAiAsk => 'Con qué frecuencia te consulta la IA';

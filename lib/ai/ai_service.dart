@@ -152,7 +152,7 @@ class AiRequest {
           AiListSummary(
             id: definition.id,
             name: labels.listName(definition),
-            description: labels.listDescription(definition),
+            description: _descriptionForAi(labels.listDescription(definition)),
             fields: [
               for (final FieldDefinition field in definition.fields)
                 {
@@ -186,6 +186,34 @@ class AiRequest {
   final AiFollowUp? followUp;
   // How often the AI asks first (Q-43): more, balanced or less.
   final String askLevel;
+
+  // At most the stored limit, so a longer description written by another
+  // client cannot make the function refuse every request (T-20 review M1).
+  static String? _descriptionForAi(String? description) {
+    if (description == null) {
+      return null;
+    }
+    final List<int> runes = description.runes.toList();
+    return runes.length <= ListDefinition.descriptionMaxLength
+        ? description
+        : String.fromCharCodes(runes.take(ListDefinition.descriptionMaxLength));
+  }
+
+  // The open list's definition with its description as the summary has it
+  // (translated and bounded), not a built-in's l10n key (review L4).
+  Map<String, dynamic> _openDefinitionJson() {
+    final Map<String, dynamic> json = openList!.toJson()
+      ..remove('description')
+      ..remove('descriptionKey');
+    final String? description = lists
+        .where((list) => list.id == openList!.id)
+        .firstOrNull
+        ?.description;
+    if (description != null) {
+      json['description'] = description;
+    }
+    return json;
+  }
 
   AiRequest withCorrection(AiCorrection correction) => AiRequest(
     prompt: prompt,
@@ -245,7 +273,7 @@ class AiRequest {
     'openList': openList == null
         ? null
         : {
-            'definition': openList!.toJson(),
+            'definition': _openDefinitionJson(),
             'items': [
               for (final ListItem item in openItems)
                 {'id': item.id, 'values': item.values},

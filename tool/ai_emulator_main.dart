@@ -13,7 +13,9 @@
 // The function needs aiAllowlist/{uid} {tier: owner} in the Firestore
 // emulator (project demo-hybrid-note); the uid is printed at start.
 // --dart-define=EMULATOR_HOST=... for another host than the Android
-// emulator's view of the PC.
+// emulator's view of the PC; AUTH_PORT, FIRESTORE_PORT and FUNCTIONS_PORT
+// for emulators started on other ports (firebase --config with its own
+// "emulators" ports), for example while another session holds the defaults.
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -29,12 +31,16 @@ const String _host = String.fromEnvironment(
   defaultValue: '10.0.2.2',
 );
 
+const int _authPort = int.fromEnvironment('AUTH_PORT', defaultValue: 9099);
+const int _firestorePort = int.fromEnvironment('FIRESTORE_PORT', defaultValue: 8080);
+const int _functionsPort = int.fromEnvironment('FUNCTIONS_PORT', defaultValue: 5001);
+
 // An emulator-only user; it exists nowhere else.
 const String _email = 'owner@hybrid-note.test';
 const String _password = 'emulator-only';
 
 Future<void> _signIn(FirebaseAuth auth) async {
-  await auth.useAuthEmulator(_host, 9099);
+  await auth.useAuthEmulator(_host, _authPort);
   try {
     await auth.signInWithEmailAndPassword(email: _email, password: _password);
   } on FirebaseAuthException {
@@ -49,7 +55,7 @@ Future<void> main() async {
   late final FirebaseApp aiApp;
   await app.startApp(
     afterInit: () async {
-      FirebaseFirestore.instance.useFirestoreEmulator(_host, 8080);
+      FirebaseFirestore.instance.useFirestoreEmulator(_host, _firestorePort);
       await _signIn(FirebaseAuth.instance);
       aiApp = await Firebase.initializeApp(
         name: 'ai-emulator',
@@ -62,7 +68,7 @@ Future<void> main() async {
       FirebaseFunctions.instanceFor(
         app: aiApp,
         region: 'us-central1',
-      ).useFunctionsEmulator(_host, 5001);
+      ).useFunctionsEmulator(_host, _functionsPort);
       debugPrint('AI emulator uid: ${aiAuth.currentUser?.uid}');
     },
     aiService: () => FunctionsAiService(

@@ -42,14 +42,33 @@ describe('parseRequest', () => {
     assert.equal(reason(base({ lists: [{ id: 'grocery', name: 'Grocery', fields: [] }] })), 'badRequest');
   });
 
-  test('a list description is optional text of at most 200 characters (Q-44)', () => {
-    const withDescription = (description: unknown) =>
-      base({ lists: [{ id: 'grocery', name: 'Grocery', description, fields: [], aiAllowed: true }] });
-    assert.equal(parseRequest(withDescription('Food to buy'), limits).lists[0].description, 'Food to buy');
-    assert.equal(reason(withDescription('🥚'.repeat(200))), 'accepted');
-    assert.equal(reason(withDescription('x'.repeat(201))), 'badRequest');
-    assert.equal(reason(withDescription(42)), 'badRequest');
+  test('a list description is cut to 200 characters and never refused (Q-44, review M1)', () => {
+    const described = (description: unknown) =>
+      parseRequest(base({ lists: [{ id: 'grocery', name: 'Grocery', description, fields: [], aiAllowed: true }] }), limits).lists[0];
+    assert.equal(described('Food to buy').description, 'Food to buy');
+    assert.equal(described('🥚'.repeat(250)).description, '🥚'.repeat(200));
+    assert.equal(described(42).description, undefined);
+    assert.equal(described('  ').description, undefined);
     assert.equal(reason(base()), 'accepted');
+  });
+
+  test("an AI-off list's description is dropped with the list, however long (review M1, M2)", () => {
+    const data = base({
+      lists: [
+        { id: 'grocery', name: 'Grocery', fields: [], aiAllowed: true },
+        { id: 'diary', name: 'Diary', description: `DIARYSECRET ${'x'.repeat(500)}`, fields: [], aiAllowed: false },
+      ],
+    });
+    const request = parseRequest(data, limits);
+    assert.deepEqual(request.lists.map((list) => list.id), ['grocery']);
+    assert.ok(!JSON.stringify(request).includes('DIARYSECRET'));
+  });
+
+  test("the open list's description is bounded and its l10n key left out (review L4)", () => {
+    const openList = { definition: { id: 'grocery', aiAllowed: true, description: 'y'.repeat(300), descriptionKey: 'groceryDescription' }, items: [] };
+    const definition = parseRequest(base({ openList }), limits).openList!.definition;
+    assert.equal(definition.description, 'y'.repeat(200));
+    assert.equal('descriptionKey' in definition, false);
   });
 
   test('an open list whose summary says AI off is refused', () => {
@@ -101,6 +120,16 @@ describe('parseRequest', () => {
     assert.equal(reason(base({ lists, openList: null })), 'contextTooLarge');
     const big = [{ id: 'grocery', name: 'x'.repeat(40000), fields: [], aiAllowed: true }];
     assert.equal(reason(base({ lists: big })), 'contextTooLarge');
+  });
+
+  test('over the size cap, descriptions are left out before the request is refused (review L5)', () => {
+    // 100 lists with 200 three-byte characters each: about 60 KB, over the cap.
+    const lists = Array.from({ length: 100 }, (_, i) => ({ id: `l${i}`, name: 'L', description: '説'.repeat(200), fields: [], aiAllowed: true }));
+    const request = parseRequest(base({ lists, openList: null }), limits);
+    assert.equal(request.lists.length, 100);
+    assert.ok(request.lists.every((list) => list.description === undefined));
+    const small = Array.from({ length: 3 }, (_, i) => ({ id: `l${i}`, name: 'L', description: '説'.repeat(200), fields: [], aiAllowed: true }));
+    assert.ok(parseRequest(base({ lists: small, openList: null }), limits).lists.every((list) => list.description === '説'.repeat(200)));
   });
 
   test('an open list with aiAllowed false is refused', () => {

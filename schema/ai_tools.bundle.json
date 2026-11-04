@@ -522,12 +522,6 @@
             }
           }
         },
-        "aiDescription": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 200,
-          "description": "What the list is for, in one or two short sentences in the user's language (\"Food and household things to buy at the supermarket.\"). It helps pick this list later."
-        },
         "aiEntry": {
           "type": "object",
           "description": "A field and a value for it (an option value for enum fields).",
@@ -938,7 +932,9 @@
               "$ref": "#/$defs/aiLabel"
             },
             "description": {
-              "$ref": "#/$defs/aiDescription"
+              "type": "string",
+              "maxLength": 200,
+              "description": "What the list is for, in one or two short sentences in the user's language. An empty string removes the description."
             },
             "icon": {
               "type": "string"

@@ -56,6 +56,17 @@ export interface FollowUp {
 /** The longest list description: ListDefinition.descriptionMaxLength. */
 export const DESCRIPTION_MAX_CHARS = 200;
 
+/**
+ * [record] with [description] as its description: text cut to
+ * DESCRIPTION_MAX_CHARS code points, anything else or blank left out. A
+ * built-in list's l10n key means nothing to the model, so it goes too (L4).
+ */
+function withDescription(record: Record<string, unknown>, description: unknown): Record<string, unknown> {
+  const { description: _old, descriptionKey: _key, ...rest } = record;
+  const text = typeof description === 'string' ? [...description.trim()].slice(0, DESCRIPTION_MAX_CHARS).join('') : '';
+  return text === '' ? rest : { ...rest, description: text };
+}
+
 /** The longest reply a follow-up may quote: the reply schema's maxLength. */
 export const FOLLOW_UP_REPLY_MAX_CHARS = 500;
 
@@ -106,9 +117,6 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
     }
     if (typeof list.aiAllowed !== 'boolean') {
       throw refuse('badRequest', 'each list needs aiAllowed true or false');
-    }
-    if (list.description !== undefined && (typeof list.description !== 'string' || [...list.description].length > DESCRIPTION_MAX_CHARS)) {
-      throw refuse('badRequest', `a list description must be text of at most ${DESCRIPTION_MAX_CHARS} characters`);
     }
   }
   if (new Set(lists.map((list) => list.id)).size !== lists.length) {
@@ -167,9 +175,18 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
   if (openList !== null && (openList.items as unknown[]).length > limits.maxItems) {
     throw refuse('contextTooLarge', `more than ${limits.maxItems} items`);
   }
-  const contextBytes = Buffer.byteLength(JSON.stringify({ lists, openList, correction, followUp }), 'utf8');
-  if (contextBytes > limits.contextMaxBytes) {
-    throw refuse('contextTooLarge', `context is over ${limits.contextMaxBytes} bytes`);
+  // Descriptions are bounded, never refused (T-20 review M1): one odd stored
+  // value must not stop every request. Over the size cap they are the first
+  // thing left out (L5), before the request is refused.
+  let summaries = (lists as Record<string, unknown>[]).map((list) => withDescription(list, list.description));
+  let open = openList === null ? null : { ...openList, definition: withDescription(openList.definition as Record<string, unknown>, (openList.definition as Record<string, unknown>).description) };
+  const size = () => Buffer.byteLength(JSON.stringify({ lists: summaries, openList: open, correction, followUp }), 'utf8');
+  if (size() > limits.contextMaxBytes) {
+    summaries = summaries.map((list) => withDescription(list, undefined));
+    open = open === null ? null : { ...open, definition: withDescription(open.definition, undefined) };
+    if (size() > limits.contextMaxBytes) {
+      throw refuse('contextTooLarge', `context is over ${limits.contextMaxBytes} bytes, even without list descriptions`);
+    }
   }
   const openId = openList === null ? undefined : (openList.definition as Record<string, unknown>).id;
   const openSummary = (lists as Record<string, unknown>[]).find((list) => list.id === openId);
@@ -178,7 +195,7 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
   }
   // Lists with AI off are dropped (Q-36): the model never sees them, and the
   // output filter refuses any tool call that names one (its id is unknown).
-  const allowed = (lists as Record<string, unknown>[]).filter((list) => list.aiAllowed !== false);
+  const allowed = summaries.filter((list) => list.aiAllowed !== false);
 
   return {
     prompt,
@@ -186,7 +203,7 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
     ...(today !== undefined ? { today } : {}),
     lists: allowed as unknown as ListSummary[],
     askLevel: askLevel as AskLevel,
-    openList: openList as OpenList | null,
+    openList: open as OpenList | null,
     ...(correction !== undefined
       ? {
           correction: {

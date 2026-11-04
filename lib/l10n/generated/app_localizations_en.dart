@@ -1165,7 +1165,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get tasksDescription => 'Things to do, with due dates and reminders.';
+  String get tasksDescription => 'Things to do.';
 
   @override
   String get groceryDescription =>
@@ -1175,8 +1175,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get journalDescription => 'Daily notes and thoughts, by date.';
 
   @override
-  String get watchReadDescription =>
-      'Films, shows and books to watch or read, and how far along they are.';
+  String get watchReadDescription => 'Films, shows and books to watch or read.';
 
   @override
   String get settingsAiAsk => 'How often the AI checks with you';
