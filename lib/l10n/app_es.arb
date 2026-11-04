@@ -387,5 +387,7 @@
   "aiAskBalanced": "Equilibrado",
   "aiAskBalancedHint": "Hace al momento lo que está claro y te consulta lo que es vago.",
   "aiAskLess": "Hazlo y ya",
-  "aiAskLessHint": "Sigue su mejor suposición y solo consulta si dos listas encajan igual de bien."
+  "aiAskLessHint": "Sigue su mejor suposición y solo consulta si dos listas encajan igual de bien.",
+  "errorPreviewChanged": "La lista ha cambiado desde esta vista previa, así que no se ha cambiado nada. Inténtalo de nuevo.",
+  "errorNeedsConnection": "Esto necesita conexión. No se ha cambiado nada."
 }

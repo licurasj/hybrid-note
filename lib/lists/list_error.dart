@@ -88,7 +88,9 @@ enum ListErrorCode implements WireName {
 
   // Undo of an AI change (Q-35 A).
   listChanged('listChanged'), // {list}
-  undoTooLarge('undoTooLarge'); // {list}: more items than one write holds
+  undoTooLarge('undoTooLarge'), // {list}: more items than one write holds
+  previewChanged('previewChanged'), // {list}: stored data conflicts with an AI preview (Q-51)
+  needsConnection('needsConnection'); // {list}: this write needs the server's data (Q-53)
 
   const ListErrorCode(this.wire);
 
@@ -248,6 +250,10 @@ class ListError {
         return 'list "${arg('list')}" changed since the change was applied; nothing was undone';
       case ListErrorCode.undoTooLarge:
         return 'the change to list "${arg('list')}" touched too many items to undo; nothing was undone';
+      case ListErrorCode.previewChanged:
+        return 'list "${arg('list')}" changed since the preview; nothing was changed';
+      case ListErrorCode.needsConnection:
+        return 'changing list "${arg('list')}" this way needs a connection; nothing was changed';
     }
   }
 

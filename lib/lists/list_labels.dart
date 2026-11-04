@@ -348,6 +348,10 @@ class ListLabels {
         return loc.errorListChanged;
       case ListErrorCode.undoTooLarge:
         return loc.errorUndoTooLarge;
+      case ListErrorCode.previewChanged:
+        return loc.errorPreviewChanged;
+      case ListErrorCode.needsConnection:
+        return loc.errorNeedsConnection;
     }
   }
 

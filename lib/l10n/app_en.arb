@@ -986,5 +986,7 @@
   "aiAskBalanced": "Balanced",
   "aiAskBalancedHint": "Does clear requests right away and checks with you on vague ones.",
   "aiAskLess": "Just do it",
-  "aiAskLessHint": "Goes with its best guess and checks only when two lists fit equally well."
+  "aiAskLessHint": "Goes with its best guess and checks only when two lists fit equally well.",
+  "errorPreviewChanged": "The list changed since this preview, so nothing was changed. Try again.",
+  "errorNeedsConnection": "This needs a connection. Nothing was changed."
 }

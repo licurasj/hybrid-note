@@ -256,6 +256,127 @@ void listStoreContract(
     });
 
     // Undo of an AI change (Q-35 A).
+    group('AI writes', () {
+      Future<(ListDefinition, ListItem)> plantWithFern() async {
+        await store.createList(_plants(), items: [_plant('fern', 'fern')]);
+        final ListCatalog catalog = await until(
+          (c) => c.definition(_plantsId) != null && c.itemsOf(_plantsId).length == 1,
+        );
+        return (catalog.definition(_plantsId)!, catalog.itemsOf(_plantsId).single);
+      }
+
+      ListItem changed(ListItem item, Map<String, dynamic> values) => ListItem(
+        id: item.id,
+        listId: item.listId,
+        values: {...item.values, ...values},
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt.add(const Duration(minutes: 1)),
+      );
+
+      test('applyAiItems merges onto the item as stored and can be undone', () async {
+        final (ListDefinition definition, ListItem fern) = await plantWithFern();
+        await store.apply(ListChanges(saved: [changed(fern, {'kind': 'cactus'})]));
+        await until((c) => c.itemsOf(_plantsId).single['kind'] == 'cactus');
+
+        final AiWriteResult result = await store.applyAiItems(
+          AiItemWrite(
+            definition: definition,
+            saved: [changed(fern, {'title': 'Boston fern'})],
+            base: {fern.id: fern},
+          ),
+        );
+        expect(result.errors, isEmpty);
+        final ListCatalog catalog = await until(
+          (c) => c.itemsOf(_plantsId).single['title'] == 'Boston fern',
+        );
+        expect(catalog.itemsOf(_plantsId).single['kind'], 'cactus');
+
+        expect(await store.restoreSnapshot(result.snapshot!), isEmpty);
+        final ListItem back = (await until(
+          (c) => c.itemsOf(_plantsId).single['title'] == 'fern',
+        )).itemsOf(_plantsId).single;
+        expect(back['kind'], 'cactus');
+      });
+
+      test('applyAiItems refuses a conflict and an AI-off list, writing nothing', () async {
+        final (ListDefinition definition, ListItem fern) = await plantWithFern();
+        final AiItemWrite write = AiItemWrite(
+          definition: definition,
+          saved: [changed(fern, {'title': 'Boston fern'})],
+          base: {fern.id: fern},
+        );
+        await store.apply(ListChanges(saved: [changed(fern, {'title': 'Ivy'})]));
+        await until((c) => c.itemsOf(_plantsId).single['title'] == 'Ivy');
+        expect(
+          (await store.applyAiItems(write)).errors.single.code,
+          ListErrorCode.previewChanged,
+        );
+
+        await store.patchList(_plantsId, const [
+          ListPatchOp(PatchOpKind.setListInfo, {'aiAllowed': false}),
+        ]);
+        await until((c) => !c.definition(_plantsId)!.aiAllowed);
+        expect(
+          (await store.applyAiItems(write)).errors.single.code,
+          ListErrorCode.aiNotAllowed,
+        );
+        await pumpEventQueue();
+        expect(store.current.itemsOf(_plantsId).single['title'], 'Ivy');
+      });
+
+      test('patchListAi refuses changed fields and AI off; undo restores what it read', () async {
+        final (ListDefinition definition, _) = await plantWithFern();
+        const List<ListPatchOp> ops = [
+          ListPatchOp(PatchOpKind.setListInfo, {'color': '#123456'}),
+        ];
+        final ListPatchResult result = (await store.patchListAi(
+          _plantsId,
+          ops,
+          previewed: definition,
+        ))!;
+        expect(result.errors, isEmpty);
+        expect(result.definitionBefore.toJson(), definition.toJson());
+        await until((c) => c.definition(_plantsId)!.color == '#123456');
+        expect(await store.restoreSnapshot(ListSnapshot.ofPatch(result)), isEmpty);
+        await until((c) => c.definition(_plantsId)!.color == definition.color);
+
+        await store.patchList(_plantsId, const [
+          ListPatchOp(PatchOpKind.renameField, {'key': 'kind', 'label': 'Sort'}),
+        ]);
+        await until((c) => c.definition(_plantsId)!.field('kind')!.label == 'Sort');
+        expect(
+          (await store.patchListAi(_plantsId, ops, previewed: definition))!.errors.single.code,
+          ListErrorCode.previewChanged,
+        );
+        expect(
+          await store.patchListAi('list-missing', ops, previewed: definition),
+          isNull,
+        );
+      });
+
+      test('deleteCreatedList deletes only what is still as created', () async {
+        final (ListDefinition definition, ListItem fern) = await plantWithFern();
+        final CreatedList created = CreatedList(definition, [fern]);
+        final ListItem added = _plant('ivy', 'ivy');
+        await store.apply(ListChanges(saved: [added]));
+        await until((c) => c.itemsOf(_plantsId).length == 2);
+        expect(
+          (await store.deleteCreatedList(created)).single.code,
+          ListErrorCode.listChanged,
+        );
+        expect(store.current.definition(_plantsId), isNotNull);
+
+        await store.apply(ListChanges(deletedIds: [added.id]));
+        await until((c) => c.itemsOf(_plantsId).length == 1);
+        expect(await store.deleteCreatedList(created), isEmpty);
+        await until((c) => c.definition(_plantsId) == null);
+        expect(
+          (await store.deleteCreatedList(created)).single.code,
+          ListErrorCode.listChanged,
+        );
+      });
+    });
+
     group('restoreSnapshot', () {
       Future<(ListDefinition, List<ListItem>)> plantsWith(List<ListItem> items) async {
         await store.createList(_plants(), items: items);
@@ -281,7 +402,7 @@ void listStoreContract(
               c.itemsOf(_plantsId).every((item) => item[ListPatch.legacyKey] != null),
         );
 
-        final List<ListError> errors = await store.restoreSnapshot(ListSnapshot.ofPatch(before, items, result));
+        final List<ListError> errors = await store.restoreSnapshot(ListSnapshot.ofPatch(result));
         expect(errors, isEmpty);
 
         final ListCatalog catalog = await until(
@@ -362,7 +483,7 @@ void listStoreContract(
       }
 
       test('refuses, changing nothing, when the definition changed since', () async {
-        final (ListDefinition before, List<ListItem> items) = await plantsWith([_plant('fern', 'fern')]);
+        await plantsWith([_plant('fern', 'fern')]);
         final ListPatchResult result = (await store.patchList(_plantsId, const [
           ListPatchOp(PatchOpKind.renameField, {'key': 'kind', 'label': 'Sort'}),
         ]))!;
@@ -371,7 +492,7 @@ void listStoreContract(
         ]);
         await until((c) => c.definition(_plantsId)!.name == 'House plants');
 
-        await expectRefused(ListSnapshot.ofPatch(before, items, result), () => store.current);
+        await expectRefused(ListSnapshot.ofPatch(result), () => store.current);
       });
 
       test('refuses, changing nothing, when a touched item changed since', () async {
@@ -606,6 +727,16 @@ class StaggeredListStore implements ListStore {
 
   @override
   Future<List<ListError>> restoreSnapshot(ListSnapshot snapshot) => inner.restoreSnapshot(snapshot);
+
+  @override
+  Future<AiWriteResult> applyAiItems(AiItemWrite write) => inner.applyAiItems(write);
+
+  @override
+  Future<ListPatchResult?> patchListAi(String listId, List<ListPatchOp> ops, {required ListDefinition previewed}) =>
+      inner.patchListAi(listId, ops, previewed: previewed);
+
+  @override
+  Future<List<ListError>> deleteCreatedList(CreatedList created) => inner.deleteCreatedList(created);
 }
 
 void main() {

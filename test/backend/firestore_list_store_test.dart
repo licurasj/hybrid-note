@@ -642,6 +642,74 @@ void main() {
       },
     );
 
+    for (final (String how, void Function(_ScriptedFirestore) cut) in [
+      (
+        'offline',
+        (f) => f.failWith = FirebaseException(
+          plugin: 'cloud_firestore',
+          code: 'unavailable',
+        ),
+      ),
+      ('with no answer in time', (f) => f.hang = true),
+    ]) {
+      test('$how, AI Undo and changes are refused and queue nothing (Q-53)', () async {
+        final _ScriptedFirestore firestore = await _seeded(_ScriptedFirestore());
+        final FirestoreListStore store = await _loaded(
+          firestore,
+          transactionTimeout: const Duration(milliseconds: 50),
+        );
+        final ListItem row = _row('list-a', 1);
+        await store.createList(_simple('list-a'), items: [row]);
+        final ListDefinition definition = (await _until(
+          store,
+          (c) => c.itemsOf('list-a').length == 1,
+        )).definition('list-a')!;
+        final ListItem stored = store.current.itemsOf('list-a').single;
+        final ListItem deleted = ListItem(
+          id: 'gone',
+          listId: 'list-a',
+          values: stored.values,
+          createdAt: stored.createdAt,
+          updatedAt: stored.updatedAt,
+        );
+        final ListSnapshot snapshot = ListSnapshot(
+          before: definition,
+          after: definition,
+          itemsBefore: {stored.id: stored, deleted.id: deleted},
+          itemsAfter: {stored.id: stored, deleted.id: null},
+        );
+
+        final int writes = firestore.deleted.length;
+        cut(firestore);
+        expect(
+          (await store.restoreSnapshot(snapshot)).single.code,
+          ListErrorCode.needsConnection,
+        );
+        expect(
+          (await store.applyAiItems(
+            AiItemWrite(
+              definition: definition,
+              saved: [stored],
+              base: {stored.id: stored},
+            ),
+          )).errors.single.code,
+          ListErrorCode.needsConnection,
+        );
+        expect(
+          (await store.patchListAi(
+            'list-a',
+            const [ListPatchOp(PatchOpKind.setListInfo, {'name': 'New'})],
+            previewed: definition,
+          ))!.errors.single.code,
+          ListErrorCode.needsConnection,
+        );
+        await pumpEventQueue();
+        expect(firestore.deleted.length, writes);
+        expect(store.current.definition('list-a')!.name, definition.name);
+        expect(await firestore.collection('users/$_uid/lists/list-a/items').doc('gone').get().then((d) => d.exists), isFalse);
+      });
+    }
+
     test('a patch saves only the changed items', () async {
       final FakeFirebaseFirestore firestore = await _seeded();
       final FirestoreListStore store = await _loaded(firestore);

@@ -387,5 +387,7 @@
   "aiAskBalanced": "平衡",
   "aiAskBalancedHint": "明确的请求立即执行，模糊的请求先向你确认。",
   "aiAskLess": "直接做",
-  "aiAskLessHint": "按最可能的理解执行，只在两个列表同样合适时才确认。"
+  "aiAskLessHint": "按最可能的理解执行，只在两个列表同样合适时才确认。",
+  "errorPreviewChanged": "此预览之后列表已更改，因此未做任何更改。请重试。",
+  "errorNeedsConnection": "需要网络连接。未做任何更改。"
 }

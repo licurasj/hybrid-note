@@ -613,7 +613,7 @@ class AiBarController extends ChangeNotifier {
               throw _StepFailed(result?.errors ?? const []);
             }
             undo.add(
-              _Undo.snapshot(ListSnapshot.ofPatch(before, items, result)),
+              _Undo.snapshot(ListSnapshot.ofPatch(result)),
             );
             kind = AiDoneKind.changed;
           case AiCreateStep():

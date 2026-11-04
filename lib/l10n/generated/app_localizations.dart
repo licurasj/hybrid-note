@@ -2053,6 +2053,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Goes with its best guess and checks only when two lists fit equally well.'**
   String get aiAskLessHint;
+
+  /// No description provided for @errorPreviewChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'The list changed since this preview, so nothing was changed. Try again.'**
+  String get errorPreviewChanged;
+
+  /// No description provided for @errorNeedsConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'This needs a connection. Nothing was changed.'**
+  String get errorNeedsConnection;
 }
 
 class _AppLocalizationsDelegate

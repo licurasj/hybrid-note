@@ -387,5 +387,7 @@
   "aiAskBalanced": "Ausgewogen",
   "aiAskBalancedHint": "Erledigt klare Anfragen sofort und fragt bei vagen nach.",
   "aiAskLess": "Einfach machen",
-  "aiAskLessHint": "Folgt ihrer besten Vermutung und fragt nur, wenn zwei Listen gleich gut passen."
+  "aiAskLessHint": "Folgt ihrer besten Vermutung und fragt nur, wenn zwei Listen gleich gut passen.",
+  "errorPreviewChanged": "Die Liste hat sich seit dieser Vorschau geändert, daher wurde nichts geändert. Versuche es noch einmal.",
+  "errorNeedsConnection": "Dafür ist eine Verbindung nötig. Es wurde nichts geändert."
 }

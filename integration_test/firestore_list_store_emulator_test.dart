@@ -14,6 +14,7 @@ import 'package:hybrid_note/firebase_options.dart';
 import 'package:hybrid_note/lists/builtin_templates.dart';
 import 'package:hybrid_note/lists/list_catalog.dart';
 import 'package:hybrid_note/lists/list_definition.dart';
+import 'package:hybrid_note/lists/list_error.dart';
 import 'package:hybrid_note/lists/list_item.dart';
 import 'package:hybrid_note/lists/list_patch.dart';
 import 'package:hybrid_note/lists/list_rules.dart';
@@ -396,6 +397,59 @@ void main() {
         label: 'disableNetwork',
         goOffline: _db.disableNetwork,
         goOnline: _db.enableNetwork,
+      );
+    });
+
+    // H5 of the Codex review, Q-53: another device's newer change survives an
+    // Undo tried offline.
+    test('an AI Undo tried offline is refused and overwrites nothing on reconnect', () async {
+      final (String uid, String email) = await _newUser();
+      await _seed(uid);
+      await _auth2.signInWithEmailAndPassword(
+        email: email,
+        password: _password,
+      );
+      final FirestoreListStore one = await _loaded(
+        _db,
+        uid,
+        transactionTimeout: const Duration(seconds: 3),
+      );
+      final FirestoreListStore two = await _loaded(_db2, uid);
+      addTearDown(_db.enableNetwork);
+
+      final ListDefinition definition = (await _until(
+        one,
+        (c) => c.definitions.isNotEmpty,
+      )).definitions.first;
+      final String listId = definition.id;
+      ListItem titled(String id, String title) => ListItem(
+        id: id,
+        listId: listId,
+        values: {'title': title},
+        createdAt: _t0,
+        updatedAt: _t0,
+      );
+      final AiWriteResult applied = await one.applyAiItems(
+        AiItemWrite(definition: definition, saved: [titled('h5', 'Oat milk')]),
+      );
+      expect(applied.errors, isEmpty);
+      await _until(two, (c) => c.itemsOf(listId).any((i) => i.id == 'h5'));
+
+      await _db.disableNetwork();
+      await two.apply(ListChanges(saved: [titled('h5', 'Newer on two')]));
+      await _until(two, (c) => c.itemsOf(listId).any((i) => i['title'] == 'Newer on two'));
+      final List<ListError> refused = await one.restoreSnapshot(applied.snapshot!);
+      expect(refused.single.code, ListErrorCode.needsConnection);
+
+      await _db.enableNetwork();
+      final ListCatalog seen = await _until(
+        one,
+        (c) => c.itemsOf(listId).any((i) => i['title'] == 'Newer on two'),
+      );
+      expect(seen.itemsOf(listId).where((i) => i.id == 'h5').single['title'], 'Newer on two');
+      expect(
+        (await one.restoreSnapshot(applied.snapshot!)).single.code,
+        ListErrorCode.listChanged,
       );
     });
 

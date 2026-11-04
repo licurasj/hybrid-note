@@ -1175,4 +1175,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiAskLessHint => '按最可能的理解执行，只在两个列表同样合适时才确认。';
+
+  @override
+  String get errorPreviewChanged => '此预览之后列表已更改，因此未做任何更改。请重试。';
+
+  @override
+  String get errorNeedsConnection => '需要网络连接。未做任何更改。';
 }

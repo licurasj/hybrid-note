@@ -1200,4 +1200,12 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get aiAskLessHint =>
       'Goes with its best guess and checks only when two lists fit equally well.';
+
+  @override
+  String get errorPreviewChanged =>
+      'The list changed since this preview, so nothing was changed. Try again.';
+
+  @override
+  String get errorNeedsConnection =>
+      'This needs a connection. Nothing was changed.';
 }

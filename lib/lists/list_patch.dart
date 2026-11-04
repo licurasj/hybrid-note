@@ -134,10 +134,16 @@ class ListPatchResult {
     required this.changedItemIds,
     required this.hiddenValues,
     required this.errors,
+    required this.definitionBefore,
+    required this.itemsBefore,
   });
 
   final ListDefinition definition;
   final List<ListItem> items;
+  // What the ops were applied to: in a store, the list as its write read it,
+  // which is what an Undo must bring back (H6 of the Codex review).
+  final ListDefinition definitionBefore;
+  final List<ListItem> itemsBefore;
   final Set<String> changedItemIds;
   // Values that could not be converted and were moved to the item's hidden
   // `_legacy` slot, so nothing is destroyed (Q-4, plan 4.4).
@@ -338,6 +344,8 @@ class ListPatch {
     errors.addAll(patched.validate());
 
     return ListPatchResult(
+      definitionBefore: definition,
+      itemsBefore: items,
       definition: patched,
       items: [
         for (final ListItem item in items)

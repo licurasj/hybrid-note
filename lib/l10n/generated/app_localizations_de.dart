@@ -1212,4 +1212,12 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get aiAskLessHint =>
       'Folgt ihrer besten Vermutung und fragt nur, wenn zwei Listen gleich gut passen.';
+
+  @override
+  String get errorPreviewChanged =>
+      'Die Liste hat sich seit dieser Vorschau geändert, daher wurde nichts geändert. Versuche es noch einmal.';
+
+  @override
+  String get errorNeedsConnection =>
+      'Dafür ist eine Verbindung nötig. Es wurde nichts geändert.';
 }

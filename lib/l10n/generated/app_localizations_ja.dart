@@ -1178,4 +1178,11 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get aiAskLessHint => '最も可能性の高い案で実行し、2つのリストが同じくらい合うときだけ確認します。';
+
+  @override
+  String get errorPreviewChanged =>
+      'このプレビューの後にリストが変更されたため、何も変更しませんでした。もう一度お試しください。';
+
+  @override
+  String get errorNeedsConnection => '接続が必要です。何も変更していません。';
 }

@@ -80,6 +80,199 @@ abstract interface class ListStore {
   // size refuses a larger snapshot with undoTooLarge and changes nothing
   // (L13 of the T-19 unit 5 review). Empty means restored.
   Future<List<ListError>> restoreSnapshot(ListSnapshot snapshot);
+
+  // An AI answer's item step, in one step against the stored data (Q-51, Q-53):
+  // refused with aiNotAllowed when the list has AI off now, and with
+  // previewChanged per AiItemWrite.over. A store that cannot read the stored
+  // data refuses with needsConnection, except for a write that only adds items,
+  // which overwrites nothing and may queue.
+  Future<AiWriteResult> applyAiItems(AiItemWrite write);
+
+  // patchList for an AI answer: the same refusals (needsConnection with no
+  // exception), as the result's errors; [previewed] is the definition the
+  // preview showed. Returns null when the list does not exist.
+  Future<ListPatchResult?> patchListAi(
+    String listId,
+    List<ListPatchOp> ops, {
+    required ListDefinition previewed,
+  });
+
+  // Undo of a list an AI answer created (Q-52): deletes it only while it and
+  // its items are still exactly as created; otherwise, or when the list is
+  // gone, it changes nothing and returns listChanged. needsConnection and
+  // undoTooLarge as above. Empty means deleted.
+  Future<List<ListError>> deleteCreatedList(CreatedList created);
+}
+
+// A list as an AI answer created it.
+class CreatedList {
+  const CreatedList(this.definition, this.items);
+
+  final ListDefinition definition;
+  final List<ListItem> items;
+
+  String get listId => definition.id;
+
+  bool isCurrent(ListDefinition? stored, Iterable<ListItem> storedItems) {
+    if (stored == null ||
+        !ListSnapshot.sameJson(stored.toJson(), definition.toJson()) ||
+        storedItems.length != items.length) {
+      return false;
+    }
+    final Map<String, ListItem> byId = {for (final ListItem item in storedItems) item.id: item};
+    return items.every(
+      (item) =>
+          byId[item.id] != null &&
+          ListSnapshot.sameJson(byId[item.id]!.toJson(), item.toJson()),
+    );
+  }
+}
+
+// An AI answer's item step as its preview showed it (Q-51). [saved] holds whole
+// items as they would be, [base] the existing ones among the touched items as
+// the preview read them; only what differs between the two is the AI's change.
+class AiItemWrite {
+  const AiItemWrite({
+    required this.definition,
+    this.saved = const [],
+    this.deletedIds = const [],
+    this.base = const {},
+  });
+
+  final ListDefinition definition;
+  final List<ListItem> saved;
+  final List<String> deletedIds;
+  final Map<String, ListItem> base;
+
+  String get listId => definition.id;
+
+  bool get addsOnly => base.isEmpty && deletedIds.isEmpty;
+
+  // Works the step out over the list and items as stored ([items] by id, at
+  // least the ones in [base]). A changed item keeps what happened to its other
+  // fields since the preview. Refused with previewChanged when the list is gone
+  // or its fields changed, an item to change is gone, a field the AI changes
+  // was meanwhile set to something else, or an item to delete has other values
+  // by now (a delete would lose them).
+  AiWriteResult over(ListDefinition? stored, Map<String, ListItem> items) {
+    if (stored != null && !stored.aiAllowed) {
+      return AiWriteResult.refused(ListErrorCode.aiNotAllowed, listId);
+    }
+    if (stored == null || !sameFields(stored, definition)) {
+      return AiWriteResult.refused(ListErrorCode.previewChanged, listId);
+    }
+    final List<ListItem> merged = [];
+    final Map<String, ListItem?> before = {};
+    for (final ListItem item in saved) {
+      final ListItem? previewed = base[item.id];
+      if (previewed == null) {
+        merged.add(item);
+        before[item.id] = null;
+        continue;
+      }
+      final ListItem? current = items[item.id];
+      final ListItem? result = current == null ? null : _merge(previewed, item, current);
+      if (result == null) {
+        return AiWriteResult.refused(ListErrorCode.previewChanged, listId);
+      }
+      merged.add(result);
+      before[item.id] = current;
+    }
+    final List<String> deleted = [];
+    for (final String id in deletedIds) {
+      final ListItem? current = items[id];
+      if (current == null) {
+        continue;
+      }
+      final ListItem? previewed = base[id];
+      if (previewed == null ||
+          !ListSnapshot.sameJson(current.values, previewed.values)) {
+        return AiWriteResult.refused(ListErrorCode.previewChanged, listId);
+      }
+      deleted.add(id);
+      before[id] = current;
+    }
+    final List<ListError> errors = [
+      for (final ListItem item in merged)
+        for (final ListError error in item.validateAgainst(stored))
+          error.forItem(item.id),
+    ];
+    if (errors.isNotEmpty) {
+      return AiWriteResult(errors: errors);
+    }
+    return AiWriteResult(
+      saved: merged,
+      deletedIds: deleted,
+      snapshot: ListSnapshot(
+        before: stored,
+        after: stored,
+        itemsBefore: before,
+        itemsAfter: {
+          for (final ListItem item in merged) item.id: item,
+          for (final String id in deleted) id: null,
+        },
+      ),
+    );
+  }
+
+  // [proposed]'s differences from [previewed] over [current]; null when both
+  // changed a field to different values.
+  static ListItem? _merge(ListItem previewed, ListItem proposed, ListItem current) {
+    final Map<String, dynamic> values = Map<String, dynamic>.from(current.values);
+    for (final String key in {...previewed.values.keys, ...proposed.values.keys}) {
+      final Object? wanted = proposed.values[key];
+      final Object? was = previewed.values[key];
+      if (ListSnapshot.sameJson(wanted, was)) {
+        continue;
+      }
+      final Object? now = current.values[key];
+      if (!ListSnapshot.sameJson(now, was) && !ListSnapshot.sameJson(now, wanted)) {
+        return null;
+      }
+      if (wanted == null) {
+        values.remove(key);
+      } else {
+        values[key] = wanted;
+      }
+    }
+    return ListItem(
+      id: current.id,
+      listId: current.listId,
+      values: values,
+      createdAt: current.createdAt,
+      updatedAt: proposed.updatedAt,
+    );
+  }
+
+  // Whether a preview made for [previewed] still fits [stored] (Q-51).
+  static bool sameFields(ListDefinition stored, ListDefinition previewed) {
+    return ListSnapshot.sameJson(
+      stored.toJson()['fields'],
+      previewed.toJson()['fields'],
+    );
+  }
+}
+
+// What an AI item step did or why it was refused: [errors] empty means the
+// store wrote [saved] and [deletedIds], and [snapshot] takes them back.
+class AiWriteResult {
+  const AiWriteResult({
+    this.errors = const [],
+    this.saved = const [],
+    this.deletedIds = const [],
+    this.snapshot,
+  });
+
+  factory AiWriteResult.refused(ListErrorCode code, String listId) {
+    return AiWriteResult(errors: [ListError(code, {'list': listId})]);
+  }
+
+  final List<ListError> errors;
+  final List<ListItem> saved;
+  final List<String> deletedIds;
+  final ListSnapshot? snapshot;
+
+  bool get isValid => errors.isEmpty;
 }
 
 // A list before and after one change, for restoreSnapshot. Items are by id;
@@ -116,15 +309,14 @@ class ListSnapshot {
     );
   }
 
-  // A patch (patch_list) applied by patchList to [definition] and [items].
-  factory ListSnapshot.ofPatch(
-    ListDefinition definition,
-    List<ListItem> items,
-    ListPatchResult result,
-  ) {
-    final Map<String, ListItem> current = {for (final ListItem item in items) item.id: item};
+  // A patch (patch_list), with what its own write read as the before-images
+  // (H6 of the Codex review).
+  factory ListSnapshot.ofPatch(ListPatchResult result) {
+    final Map<String, ListItem> current = {
+      for (final ListItem item in result.itemsBefore) item.id: item,
+    };
     return ListSnapshot(
-      before: definition,
+      before: result.definitionBefore,
       after: result.definition,
       itemsBefore: {for (final String id in result.changedItemIds) id: current[id]},
       itemsAfter: {
@@ -140,6 +332,28 @@ class ListSnapshot {
   final Map<String, ListItem?> itemsAfter;
 
   String get listId => after.id;
+
+  // This change and the [next] one on the same list as one change, so an Undo
+  // does not trip over its own restored revision (M3 of the Codex review).
+  // Null when something else happened between them: [next] did not start where
+  // this one ended, and joining them would write over that.
+  ListSnapshot? followedBy(ListSnapshot next) {
+    if (next.listId != listId || !sameJson(after.toJson(), next.before.toJson())) {
+      return null;
+    }
+    for (final MapEntry<String, ListItem?> entry in next.itemsBefore.entries) {
+      if (itemsAfter.containsKey(entry.key) &&
+          !sameJson(itemsAfter[entry.key]?.toJson(), entry.value?.toJson())) {
+        return null;
+      }
+    }
+    return ListSnapshot(
+      before: before,
+      after: next.after,
+      itemsBefore: {...next.itemsBefore, ...itemsBefore},
+      itemsAfter: {...itemsAfter, ...next.itemsAfter},
+    );
+  }
 
   // Every item id the change touched.
   Set<String> get itemIds => {...itemsBefore.keys, ...itemsAfter.keys};

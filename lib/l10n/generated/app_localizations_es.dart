@@ -1204,4 +1204,12 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get aiAskLessHint =>
       'Sigue su mejor suposición y solo consulta si dos listas encajan igual de bien.';
+
+  @override
+  String get errorPreviewChanged =>
+      'La lista ha cambiado desde esta vista previa, así que no se ha cambiado nada. Inténtalo de nuevo.';
+
+  @override
+  String get errorNeedsConnection =>
+      'Esto necesita conexión. No se ha cambiado nada.';
 }
