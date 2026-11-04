@@ -2095,6 +2095,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Send'**
   String get aiListOffSend;
+
+  /// No description provided for @itemsNotUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Some items in this list could not be updated yet. The app will try again next time it opens.'**
+  String get itemsNotUpdated;
 }
 
 class _AppLocalizationsDelegate

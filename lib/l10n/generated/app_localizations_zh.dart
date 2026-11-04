@@ -1198,4 +1198,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiListOffSend => '发送';
+
+  @override
+  String get itemsNotUpdated => '此列表中的部分项目尚未更新。应用下次打开时会重试。';
 }

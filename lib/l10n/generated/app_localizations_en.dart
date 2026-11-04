@@ -1227,4 +1227,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiListOffSend => 'Send';
+
+  @override
+  String get itemsNotUpdated =>
+      'Some items in this list could not be updated yet. The app will try again next time it opens.';
 }

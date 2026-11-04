@@ -394,5 +394,6 @@
   "errorAnswerTooLarge": "1回のリクエストには変更が多すぎます（最大500件）。何も変更していません。件数を減らしてください。",
   "aiItemsUpdating": "項目はまだ更新中です。",
   "aiListOffOffer": "「{list}」はAIがオフです。他のリスト向けに送信しますか？",
-  "aiListOffSend": "送信"
+  "aiListOffSend": "送信",
+  "itemsNotUpdated": "このリストの一部の項目をまだ更新できませんでした。次回アプリを開いたときにもう一度試します。"
 }

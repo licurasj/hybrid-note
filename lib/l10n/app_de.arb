@@ -394,5 +394,6 @@
   "errorAnswerTooLarge": "Das sind zu viele Änderungen für eine Anfrage (höchstens 500). Es wurde nichts geändert. Versuche es mit weniger.",
   "aiItemsUpdating": "Einträge werden noch aktualisiert.",
   "aiListOffOffer": "\"{list}\" hat die KI ausgeschaltet. Für deine anderen Listen senden?",
-  "aiListOffSend": "Senden"
+  "aiListOffSend": "Senden",
+  "itemsNotUpdated": "Einige Einträge dieser Liste konnten noch nicht aktualisiert werden. Die App versucht es beim nächsten Öffnen erneut."
 }

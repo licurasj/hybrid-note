@@ -67,6 +67,11 @@ class FirestoreListStore implements ListStore {
     this.transactionTimeout = const Duration(seconds: 10),
     this.commitTimeout = const Duration(seconds: 30),
     this.beforeHandOver,
+    this.refitRetryDelays = const [
+      Duration(seconds: 2),
+      Duration(seconds: 10),
+      Duration(seconds: 45),
+    ],
   }) : _onSkipped = onSkipped ?? _log {
     _listsSubscription = _lists
         .snapshots(includeMetadataChanges: true)
@@ -94,6 +99,9 @@ class FirestoreListStore implements ListStore {
   // Runs in a transaction just before it hands over its writes; tests use it
   // to cut the connection at that point.
   final Future<void> Function()? beforeHandOver;
+
+  // The waits before trying items that could not be fitted again (Q-64).
+  final List<Duration> refitRetryDelays;
 
   // Firestore error codes that mean the server cannot be reached.
   static const Set<String> _offlineCodes = {'unavailable', 'deadline-exceeded'};
@@ -133,6 +141,8 @@ class FirestoreListStore implements ListStore {
   // What each item was last checked as for repair: the list revision and
   // the item's updatedAt, so a later stale write of it is checked again.
   final Map<String, String> _checked = {};
+  // Lists whose items were reported as not updated, until a later try works.
+  final Set<String> _notUpdatedReported = {};
   // Paths already reported, so a skipped document is logged once.
   final Set<String> _reported = {};
 
@@ -313,8 +323,8 @@ class FirestoreListStore implements ListStore {
       if (due.isEmpty) {
         continue;
       }
-      _refit(listId, due.keys.toList()).catchError((Object error) {
-        _log('repair $listId', error);
+      _refitRetrying(listId, due.keys.toList()).catchError((Object error) {
+        _refitFailed(listId, error);
         // Checked again on the next change or reconnection.
         for (final MapEntry<String, String> failed in due.entries) {
           if (_checked['$listId/${failed.key}'] == failed.value) {
@@ -323,6 +333,43 @@ class FirestoreListStore implements ListStore {
         }
       });
     }
+  }
+
+  // _refit, tried again after each of [refitRetryDelays] if it fails: nothing
+  // else may come along to set it off again (F3 of the last Codex pass, Q-64).
+  Future<void> _refitRetrying(
+    String listId,
+    List<String> itemIds, {
+    DateTime? touchedAt,
+  }) async {
+    for (int attempt = 0; ; attempt++) {
+      try {
+        await _refit(listId, itemIds, touchedAt: touchedAt);
+        _notUpdatedReported.remove(listId);
+        return;
+      } on Object catch (error) {
+        if (_closed || attempt >= refitRetryDelays.length) {
+          rethrow;
+        }
+        _log('refit $listId, trying again', error);
+      }
+      await Future<void>.delayed(refitRetryDelays[attempt]);
+      if (_closed) {
+        return;
+      }
+    }
+  }
+
+  // Tells the app once per list, however many tries end this way. No connection
+  // is not worth saying: coming back online sets off the repair step.
+  void _refitFailed(String listId, Object error) {
+    _log('refit $listId', error);
+    if ((error is FirebaseException && _offlineCodes.contains(error.code)) ||
+        _writeFailures.isClosed ||
+        !_notUpdatedReported.add(listId)) {
+      return;
+    }
+    _writeFailures.add(ItemsNotUpdated(listId));
   }
 
   // Fits the items as stored to the list as stored and saves the ones that
@@ -1101,8 +1148,8 @@ class FirestoreListStore implements ListStore {
     if (result != null && later.isNotEmpty && !attempt.stopped) {
       final List<String> pending = later;
       unawaited(
-        _refit(listId, pending, touchedAt: now).catchError(
-          (Object error) => _log('patch items $listId', error),
+        _refitRetrying(listId, pending, touchedAt: now).catchError(
+          (Object error) => _refitFailed(listId, error),
         ),
       );
       return result.withItemsPending();
@@ -1329,4 +1376,12 @@ class _Attempt {
     handedOver = true;
     return true;
   }
+}
+
+// On writeFailures: a list's items could not be fitted to its new fields, after
+// retrying (Q-64). They stay as they are until the next try at the next start.
+class ItemsNotUpdated {
+  const ItemsNotUpdated(this.listId);
+
+  final String listId;
 }

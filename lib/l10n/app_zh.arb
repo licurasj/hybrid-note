@@ -394,5 +394,6 @@
   "errorAnswerTooLarge": "一次请求的更改过多（最多 500 项）。未做任何更改。请减少数量。",
   "aiItemsUpdating": "项目仍在更新。",
   "aiListOffOffer": "“{list}”已关闭 AI。要针对其他列表发送吗？",
-  "aiListOffSend": "发送"
+  "aiListOffSend": "发送",
+  "itemsNotUpdated": "此列表中的部分项目尚未更新。应用下次打开时会重试。"
 }

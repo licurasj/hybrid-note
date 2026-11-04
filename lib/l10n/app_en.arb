@@ -1000,5 +1000,6 @@
       }
     }
   },
-  "aiListOffSend": "Send"
+  "aiListOffSend": "Send",
+  "itemsNotUpdated": "Some items in this list could not be updated yet. The app will try again next time it opens."
 }

@@ -123,12 +123,17 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
   // server rejects it later, Firestore undoes it and this says so (T-17 R3).
   void _watchWriteFailures() {
     _writeFailures?.cancel();
-    _writeFailures = _store?.writeFailures.listen((_) {
+    _writeFailures = _store?.writeFailures.listen((failure) {
       final BuildContext? context = _messenger.currentContext;
       if (context != null && context.mounted) {
+        final AppLocalizations loc = AppLocalizations.of(context);
         _messenger.currentState?.showSnackBar(
           SnackBar(
-            content: Text(AppLocalizations.of(context).listChangeNotSaved),
+            content: Text(
+              failure is ItemsNotUpdated
+                  ? loc.itemsNotUpdated
+                  : loc.listChangeNotSaved,
+            ),
           ),
         );
       }

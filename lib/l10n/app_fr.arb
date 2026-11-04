@@ -394,5 +394,6 @@
   "errorAnswerTooLarge": "Trop de modifications pour une seule demande (500 au maximum). Rien n’a été modifié. Essayez avec moins.",
   "aiItemsUpdating": "Les éléments sont encore en cours de mise à jour.",
   "aiListOffOffer": "\"{list}\" a l’IA désactivée. Envoyer pour vos autres listes ?",
-  "aiListOffSend": "Envoyer"
+  "aiListOffSend": "Envoyer",
+  "itemsNotUpdated": "Certains éléments de cette liste n’ont pas encore pu être mis à jour. L’app réessaiera à sa prochaine ouverture."
 }

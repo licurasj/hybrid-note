@@ -1421,6 +1421,115 @@ void main() {
       },
     );
 
+    group('items a big patch could not save at first (F3, Q-64)', () {
+      Future<(_ScriptedFirestore, FirestoreListStore, List<Object>)> bigList() async {
+        final _ScriptedFirestore firestore = await _seeded(_ScriptedFirestore());
+        final FirestoreListStore store = FirestoreListStore(
+          firestore,
+          _uid,
+          batchLimit: 10,
+          refitRetryDelays: const [
+            Duration(milliseconds: 10),
+            Duration(milliseconds: 10),
+            Duration(milliseconds: 10),
+          ],
+        );
+        addTearDown(store.close);
+        await store.watch().first;
+        final List<Object> failures = [];
+        store.writeFailures.listen(failures.add);
+        await store.createList(
+          _simple('list-a'),
+          items: [for (int n = 0; n < 25; n++) _kind('i$n', '$n')],
+        );
+        await _until(store, (c) => c.itemsOf('list-a').length == 25);
+        return (firestore, store, failures);
+      }
+
+      FirebaseException failure(String code) =>
+          FirebaseException(plugin: 'cloud_firestore', code: code);
+
+      test('a failed try is tried again with no other event, and ends right', () async {
+        final (firestore, store, failures) = await bigList();
+        // The definition's transaction passes; the first tries of the items, by
+        // the patch and by the repair its change sets off, fail. No event follows.
+        final int start = firestore.transactions;
+        firestore.beforeTransaction = () async {
+          final int at = firestore.transactions - start;
+          firestore.failWith = at >= 2 && at <= 5 ? failure('aborted') : null;
+        };
+        final ListPatchResult? result = await store.patchList('list-a', _toCounter);
+        expect(result!.itemsPending, isTrue);
+        await _until(
+          store,
+          (c) => c.itemsOf('list-a').every((item) => item['kind'] is int),
+        );
+        expect(failures, isEmpty);
+      });
+
+      test('after the last try the failure is reported once', () async {
+        final (firestore, store, failures) = await bigList();
+        final int start = firestore.transactions;
+        firestore.beforeTransaction = () async {
+          firestore.failWith = firestore.transactions > start + 1
+              ? failure('aborted')
+              : null;
+        };
+        final ListPatchResult? result = await store.patchList('list-a', _toCounter);
+        expect(result!.errors, isEmpty);
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        final List<Object> reported = [
+          for (final Object failure in failures)
+            if (failure is ItemsNotUpdated) failure,
+        ];
+        expect(reported, hasLength(1));
+        expect((reported.single as ItemsNotUpdated).listId, 'list-a');
+        expect(
+          store.current.definition('list-a')!.field('kind')!.type.wire,
+          'counter',
+        );
+      });
+
+      test('no connection is not a failure to report', () async {
+        final (firestore, store, failures) = await bigList();
+        final int start = firestore.transactions;
+        firestore.beforeTransaction = () async {
+          firestore.failWith = firestore.transactions > start + 1
+              ? failure('unavailable')
+              : null;
+        };
+        await store.patchList('list-a', _toCounter);
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        expect(failures, isEmpty);
+      });
+
+      test('the repair step tries again with no other event too', () async {
+        final (firestore, store, failures) = await bigList();
+        final int start = firestore.transactions;
+        // Another device's patch: the definition changes, the items stay old,
+        // and this device's first repair fails.
+        final ListDefinition patched = ListPatch.apply(
+          store.current.definition('list-a')!,
+          const [],
+          _toCounter,
+          _t0,
+        ).definition;
+        firestore.beforeTransaction = () async {
+          firestore.failWith = firestore.transactions == start + 1
+              ? failure('aborted')
+              : null;
+        };
+        await firestore
+            .doc('users/$_uid/lists/list-a')
+            .set(patched.toJson());
+        await _until(
+          store,
+          (c) => c.itemsOf('list-a').every((item) => item['kind'] is int),
+        );
+        expect(failures, isEmpty);
+      });
+    });
+
     test('the AI write limit is checked at the store, at the limit and past it (Q-60)', () async {
       final FakeFirebaseFirestore firestore = await _seeded();
       final FirestoreListStore store = await _loaded(firestore, batchLimit: 10);
