@@ -41,7 +41,12 @@ export interface AiRequest {
    * reply it got, so the new prompt can be read as the answer to it.
    */
   followUp?: FollowUp;
+  /** How often the AI asks before acting, the user's setting (Q-43); balanced when absent. */
+  askLevel: AskLevel;
 }
+
+export const ASK_LEVELS = ['more', 'balanced', 'less'] as const;
+export type AskLevel = (typeof ASK_LEVELS)[number];
 
 export interface FollowUp {
   prompt: string;
@@ -125,6 +130,10 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
       throw refuse('badRequest', 'correction needs 1-10 tool calls and 1-20 short errors');
     }
   }
+  const askLevel = data.askLevel ?? 'balanced';
+  if (!(ASK_LEVELS as readonly unknown[]).includes(askLevel)) {
+    throw refuse('badRequest', 'askLevel must be more, balanced or less');
+  }
   const followUp = data.followUp ?? undefined;
   if (followUp !== undefined) {
     if (
@@ -176,6 +185,7 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
     locale,
     ...(today !== undefined ? { today } : {}),
     lists: allowed as unknown as ListSummary[],
+    askLevel: askLevel as AskLevel,
     openList: openList as OpenList | null,
     ...(correction !== undefined
       ? {

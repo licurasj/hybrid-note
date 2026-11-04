@@ -64,6 +64,14 @@ describe('parseRequest', () => {
     assert.equal(reason(base({ followUp: 'milk' })), 'badRequest');
   });
 
+  test('askLevel is more, balanced or less, balanced when absent (Q-43)', () => {
+    for (const askLevel of ['more', 'balanced', 'less']) {
+      assert.equal(parseRequest(base({ askLevel }), limits).askLevel, askLevel);
+    }
+    assert.equal(parseRequest(base(), limits).askLevel, 'balanced');
+    assert.equal(reason(base({ askLevel: 'always' })), 'badRequest');
+  });
+
   test('a normal request is accepted', () => {
     assert.equal(reason(base()), 'accepted');
   });

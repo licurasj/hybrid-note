@@ -2011,6 +2011,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Films, shows and books to watch or read, and how far along they are.'**
   String get watchReadDescription;
+
+  /// No description provided for @settingsAiAsk.
+  ///
+  /// In en, this message translates to:
+  /// **'How often the AI checks with you'**
+  String get settingsAiAsk;
+
+  /// No description provided for @aiAskMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask first'**
+  String get aiAskMore;
+
+  /// No description provided for @aiAskMoreHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Checks with you whenever it isn’t sure, and makes new lists only when you ask for one.'**
+  String get aiAskMoreHint;
+
+  /// No description provided for @aiAskBalanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Balanced'**
+  String get aiAskBalanced;
+
+  /// No description provided for @aiAskBalancedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Does clear requests right away and checks with you on vague ones.'**
+  String get aiAskBalancedHint;
+
+  /// No description provided for @aiAskLess.
+  ///
+  /// In en, this message translates to:
+  /// **'Just do it'**
+  String get aiAskLess;
+
+  /// No description provided for @aiAskLessHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Goes with its best guess and checks only when two lists fit equally well.'**
+  String get aiAskLessHint;
 }
 
 class _AppLocalizationsDelegate

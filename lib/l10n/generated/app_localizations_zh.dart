@@ -1154,4 +1154,25 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get watchReadDescription => '想看或想读的电影、剧集和书，以及进度。';
+
+  @override
+  String get settingsAiAsk => 'AI 向你确认的频率';
+
+  @override
+  String get aiAskMore => '先问我';
+
+  @override
+  String get aiAskMoreHint => '不确定时就向你确认，只在你要求时才新建列表。';
+
+  @override
+  String get aiAskBalanced => '平衡';
+
+  @override
+  String get aiAskBalancedHint => '明确的请求立即执行，模糊的请求先向你确认。';
+
+  @override
+  String get aiAskLess => '直接做';
+
+  @override
+  String get aiAskLessHint => '按最可能的理解执行，只在两个列表同样合适时才确认。';
 }

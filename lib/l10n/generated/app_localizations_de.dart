@@ -1188,4 +1188,28 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get watchReadDescription =>
       'Filme, Serien und Bücher zum Schauen oder Lesen und wie weit du bist.';
+
+  @override
+  String get settingsAiAsk => 'Wie oft die KI nachfragt';
+
+  @override
+  String get aiAskMore => 'Erst fragen';
+
+  @override
+  String get aiAskMoreHint =>
+      'Fragt nach, sobald sie unsicher ist, und legt neue Listen nur auf Wunsch an.';
+
+  @override
+  String get aiAskBalanced => 'Ausgewogen';
+
+  @override
+  String get aiAskBalancedHint =>
+      'Erledigt klare Anfragen sofort und fragt bei vagen nach.';
+
+  @override
+  String get aiAskLess => 'Einfach machen';
+
+  @override
+  String get aiAskLessHint =>
+      'Folgt ihrer besten Vermutung und fragt nur, wenn zwei Listen gleich gut passen.';
 }

@@ -380,5 +380,12 @@
   "tasksDescription": "Cosas por hacer, con fechas y recordatorios.",
   "groceryDescription": "Comida y cosas de casa para la próxima compra.",
   "journalDescription": "Notas y pensamientos del día, por fecha.",
-  "watchReadDescription": "Películas, series y libros por ver o leer, y por dónde vas."
+  "watchReadDescription": "Películas, series y libros por ver o leer, y por dónde vas.",
+  "settingsAiAsk": "Con qué frecuencia te consulta la IA",
+  "aiAskMore": "Preguntar antes",
+  "aiAskMoreHint": "Te consulta siempre que no está segura y solo crea listas nuevas si las pides.",
+  "aiAskBalanced": "Equilibrado",
+  "aiAskBalancedHint": "Hace al momento lo que está claro y te consulta lo que es vago.",
+  "aiAskLess": "Hazlo y ya",
+  "aiAskLessHint": "Sigue su mejor suposición y solo consulta si dos listas encajan igual de bien."
 }

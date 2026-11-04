@@ -1157,4 +1157,25 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get watchReadDescription => '観たい・読みたい映画、ドラマ、本と、その進み具合。';
+
+  @override
+  String get settingsAiAsk => 'AIが確認する頻度';
+
+  @override
+  String get aiAskMore => 'まず確認';
+
+  @override
+  String get aiAskMoreHint => '確信がないときは必ず確認し、新しいリストは頼まれたときだけ作ります。';
+
+  @override
+  String get aiAskBalanced => 'バランス';
+
+  @override
+  String get aiAskBalancedHint => 'はっきりした依頼はすぐ実行し、あいまいな依頼は確認します。';
+
+  @override
+  String get aiAskLess => 'すぐ実行';
+
+  @override
+  String get aiAskLessHint => '最も可能性の高い案で実行し、2つのリストが同じくらい合うときだけ確認します。';
 }

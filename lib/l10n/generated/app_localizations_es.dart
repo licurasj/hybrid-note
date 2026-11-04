@@ -1180,4 +1180,28 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get watchReadDescription =>
       'Películas, series y libros por ver o leer, y por dónde vas.';
+
+  @override
+  String get settingsAiAsk => 'Con qué frecuencia te consulta la IA';
+
+  @override
+  String get aiAskMore => 'Preguntar antes';
+
+  @override
+  String get aiAskMoreHint =>
+      'Te consulta siempre que no está segura y solo crea listas nuevas si las pides.';
+
+  @override
+  String get aiAskBalanced => 'Equilibrado';
+
+  @override
+  String get aiAskBalancedHint =>
+      'Hace al momento lo que está claro y te consulta lo que es vago.';
+
+  @override
+  String get aiAskLess => 'Hazlo y ya';
+
+  @override
+  String get aiAskLessHint =>
+      'Sigue su mejor suposición y solo consulta si dos listas encajan igual de bien.';
 }

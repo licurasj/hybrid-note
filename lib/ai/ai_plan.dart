@@ -73,10 +73,16 @@ class AiCreateStep extends AiStep {
 
 // choose_list: the AI asks which list (Q-36), with 2-3 of the user's lists.
 class AiQuestion {
-  const AiQuestion({required this.text, required this.candidates});
+  const AiQuestion({
+    required this.text,
+    required this.candidates,
+    this.offerNewList = false,
+  });
 
   final String text;
   final List<ListDefinition> candidates;
+  // New list is one more choice (Q-43).
+  final bool offerNewList;
 }
 
 // choose_items: the AI asks which items (Q-42), with 2-6 items of the open
@@ -243,6 +249,7 @@ class AiPlan {
                     ? args['question'] as String
                     : '',
                 candidates: candidates,
+                offerNewList: args['newList'] == true,
               );
             }
           }

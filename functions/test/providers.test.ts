@@ -21,7 +21,7 @@ function input(model: string, extra: Partial<ProviderCall> = {}): ProviderCall {
     system: 'SYSTEM',
     tools: loadTools(config.strictTools),
     user: 'USER',
-    request: { prompt: 'p', locale: 'en', lists: [], openList: null },
+    request: { prompt: 'p', locale: 'en', lists: [], openList: null, askLevel: 'balanced' },
     ...extra,
   };
 }

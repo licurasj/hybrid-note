@@ -45,7 +45,7 @@ describe('tool schemas', () => {
       ['upsert_items', { listId: 'g', items: [] }], // minItems
       ['upsert_items', { listId: 'g', items: [{ values: [value('1bad', 'x')] }] }], // key pattern
       ['delete_items', { listId: 'g', match: [] }], // minItems (ids or match: output.ts, Q-39)
-      ['choose_list', { question: 'Which?', candidates: ['g'] }], // minItems 2
+      ['choose_list', { question: 'Which?', candidates: [] }], // minItems 1 (2 without newList: output.ts, Q-43)
       ['reply', { text: 'x'.repeat(501) }], // maxLength
       ['decline', { reason: 'bored' }], // enum
       ['create_list', { list: { name: 'x' }, extra: 1 }], // unknown key

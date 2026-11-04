@@ -10,7 +10,7 @@ import { structuralCheck, type SchemaCheck } from '../src/output';
 import { ProviderError, type AiProvider, type ProviderCall, type ProviderResponse } from '../src/provider/types';
 import type { AiRequest } from '../src/request';
 
-const request: AiRequest = { prompt: 'eggs', locale: 'en', lists: [{ id: 'g', name: 'Grocery', fields: [], aiAllowed: true }], openList: null };
+const request: AiRequest = { prompt: 'eggs', locale: 'en', lists: [{ id: 'g', name: 'Grocery', fields: [], aiAllowed: true }], openList: null, askLevel: 'balanced' };
 const usage = { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 };
 const ok: ProviderResponse = {
   content: [{ type: 'tool_call', id: 'c1', name: 'reply', args: { text: 'hi' } }],

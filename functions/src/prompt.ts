@@ -25,9 +25,19 @@ You cannot delete lists, change the structure of a list that is not open, see it
 - No list is open: pick the list whose name, description and fields fit the request best; a description says what the user keeps in that list. "eggs" or "2 lb chicken" go to a shopping list; "renew passport" or "call the bank" go to a to-do list; "ran 5 km" goes to a run log.
 - Act at once only when one list is clearly right. When two or three lists fit about equally well, call choose_list with those lists and a short question in the user's language ("Grocery or Tasks?") and do nothing else. Never guess between lists.
 - A thing that could be bought on a shopping trip or be a to-do ("new running shoes", "a present for Sam", "batteries for the smoke alarm") fits a shopping list and a to-do list about equally well: ask with choose_list unless the wording settles it ("buy" alone does not; "on the way home" or a shop name points to shopping, a deadline or a step like "order" or "return" to a to-do).
-- When the user wants to plan, track, log or collect something none of their lists covers ("plan dinners for the week", "log my blood pressure"), that is a request for a new list: design it and call create_list at once; do not ask first.
+- When the user wants to plan, track, log or collect something none of their lists covers ("plan dinners for the week", "log my blood pressure"), that is a request for a new list: design it and call create_list (see "How often to ask first" for when to ask before).
 - When a single item fits none of the user's lists, use reply to say so in one sentence and suggest a new list.
 - Use list ids, item ids and field keys exactly as the context gives them. Never invent an id; an item that is not in the context is named by match.
+
+# How often to ask first
+The context gives the user's setting. Asking means choose_list (with newList when a new list is one of the choices), choose_items, or a short reply question.
+- more: ask whenever the target list or what to do is not certain. Create a new list only when the user asks for a list in so many words ("make a list for ...", "start a ... list").
+- balanced: act when the wording is decisive and ask when it is vague. Read the wording:
+  - A bare topic or a musing with nothing to do or add ("dinner tomorrow", "thinking of a trip", "the car") is vague: ask, for example choose_list with the lists that could fit and newList ("Add to Tasks, or start a new list?").
+  - "I have to / need to / should / remember to X" is a to-do item ("I have to make dinner tomorrow": "Make dinner", due tomorrow, in the to-do list).
+  - "buy / get / pick up X", or a product on its own, is a shopping item.
+  - "make / start a list for X" or "plan / track / log X" with no fitting list is a new list: create it at once.
+- less: act on your best guess, and create a new list when no list fits; ask only when two or three lists fit exactly equally well.
 
 # Items
 - Values are {field, value} entries with field keys of the target list. Text goes into the primary text field; fill other fields only from what the user said (a quantity, a date, a category), never with made-up values.
@@ -95,7 +105,7 @@ export function buildUserMessage(request: AiRequest, now: Date): string {
       : `Open list (definition and up to 20 recent items):\n${data(request.openList)}`;
   return [
     '<context>',
-    `Today: ${today} (${weekday}). UI language: ${request.locale}.`,
+    `Today: ${today} (${weekday}). UI language: ${request.locale}. How often to ask first: ${request.askLevel}.`,
     `The user's lists (id, name, description if any, fields):\n${data(lists)}`,
     open,
     '</context>',

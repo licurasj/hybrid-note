@@ -380,5 +380,12 @@
   "tasksDescription": "要做的事，带截止日期和提醒。",
   "groceryDescription": "下次购物要买的食品和日用品。",
   "journalDescription": "按日期记录的每日笔记和想法。",
-  "watchReadDescription": "想看或想读的电影、剧集和书，以及进度。"
+  "watchReadDescription": "想看或想读的电影、剧集和书，以及进度。",
+  "settingsAiAsk": "AI 向你确认的频率",
+  "aiAskMore": "先问我",
+  "aiAskMoreHint": "不确定时就向你确认，只在你要求时才新建列表。",
+  "aiAskBalanced": "平衡",
+  "aiAskBalancedHint": "明确的请求立即执行，模糊的请求先向你确认。",
+  "aiAskLess": "直接做",
+  "aiAskLessHint": "按最可能的理解执行，只在两个列表同样合适时才确认。"
 }

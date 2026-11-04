@@ -979,5 +979,12 @@
   "tasksDescription": "Things to do, with due dates and reminders.",
   "groceryDescription": "Food and household things to buy on the next shopping trip.",
   "journalDescription": "Daily notes and thoughts, by date.",
-  "watchReadDescription": "Films, shows and books to watch or read, and how far along they are."
+  "watchReadDescription": "Films, shows and books to watch or read, and how far along they are.",
+  "settingsAiAsk": "How often the AI checks with you",
+  "aiAskMore": "Ask first",
+  "aiAskMoreHint": "Checks with you whenever it isn’t sure, and makes new lists only when you ask for one.",
+  "aiAskBalanced": "Balanced",
+  "aiAskBalancedHint": "Does clear requests right away and checks with you on vague ones.",
+  "aiAskLess": "Just do it",
+  "aiAskLessHint": "Goes with its best guess and checks only when two lists fit equally well."
 }

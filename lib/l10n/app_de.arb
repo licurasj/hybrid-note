@@ -380,5 +380,12 @@
   "tasksDescription": "Aufgaben mit Fälligkeit und Erinnerungen.",
   "groceryDescription": "Lebensmittel und Haushaltsdinge für den nächsten Einkauf.",
   "journalDescription": "Tägliche Notizen und Gedanken, nach Datum.",
-  "watchReadDescription": "Filme, Serien und Bücher zum Schauen oder Lesen und wie weit du bist."
+  "watchReadDescription": "Filme, Serien und Bücher zum Schauen oder Lesen und wie weit du bist.",
+  "settingsAiAsk": "Wie oft die KI nachfragt",
+  "aiAskMore": "Erst fragen",
+  "aiAskMoreHint": "Fragt nach, sobald sie unsicher ist, und legt neue Listen nur auf Wunsch an.",
+  "aiAskBalanced": "Ausgewogen",
+  "aiAskBalancedHint": "Erledigt klare Anfragen sofort und fragt bei vagen nach.",
+  "aiAskLess": "Einfach machen",
+  "aiAskLessHint": "Folgt ihrer besten Vermutung und fragt nur, wenn zwei Listen gleich gut passen."
 }
