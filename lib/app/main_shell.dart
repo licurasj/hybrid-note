@@ -304,6 +304,8 @@ class _MainShellState extends State<MainShell> {
         bottomInset: bottomInset,
         focused: true,
         fieldHeight: ai.fieldHeight.value,
+        panelOpen: ai.isOpen,
+        panelHeight: ai.panelHeight.value,
       ).hubLiftY;
       _lastLift = y == null
           ? null
@@ -373,6 +375,7 @@ class _MainShellState extends State<MainShell> {
                     _top.route,
                     ?_ai,
                     ?_ai?.fieldHeight,
+                    ?_ai?.panelHeight,
                   ]),
                   builder: (context, _) => LayoutBuilder(
                     builder: (context, constraints) {

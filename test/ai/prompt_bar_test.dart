@@ -848,10 +848,8 @@ void main() {
       expect(_titles(store, _grocery), containsAll(['Milk', 'Oat milk']));
     });
 
-    testWidgets('typing after a reply answers it: the bar says so and the '
-        'request carries the reply; closing makes a fresh one (Q-42)', (
-      tester,
-    ) async {
+    testWidgets('typing after a reply answers it: the reply stays up and the '
+        'request carries it; Close makes a fresh one (Q-42)', (tester) async {
       final FakeAiService ai = FakeAiService()
         ..answers.addAll([
           _calls([
@@ -870,8 +868,7 @@ void main() {
       expect(find.text('Milk or eggs?'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('ai-bar')));
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('ai-follow-up')), findsOneWidget);
-      expect(find.text('Answering: Milk or eggs?'), findsOneWidget);
+      expect(find.text('Milk or eggs?'), findsOneWidget);
       expect(find.text('Your answer'), findsOneWidget);
       await tester.enterText(_field, 'milk');
       await tester.pump();
@@ -882,19 +879,74 @@ void main() {
         'prompt': 'remove the dairy',
         'reply': 'Milk or eggs?',
       });
-      expect(find.byKey(const ValueKey('ai-follow-up')), findsNothing);
 
-      // A new reply; the close button on the line makes the next request
-      // a fresh one.
+      // A new reply; its Close makes the next request a fresh one.
       await tester.tap(find.byKey(const ValueKey('ai-bar')));
       await tester.pumpAndSettle();
-      await _tapKey(tester, 'ai-follow-up-close');
-      expect(find.byKey(const ValueKey('ai-follow-up')), findsNothing);
+      await _tapKey(tester, 'ai-close');
+      expect(find.text('Your answer'), findsNothing);
       await tester.enterText(_field, 'something else');
       await tester.pump();
       await tester.tap(_send);
       await settle(tester);
       expect(ai.requests[2].toJson().containsKey('followUp'), isFalse);
+    });
+
+    testWidgets('the AI question stays up while the answer is typed, '
+        'and the answer goes out with it (owner, 2026-11-04)', (tester) async {
+      final FakeAiService ai = FakeAiService()
+        ..answers.addAll([
+          _calls([
+            const AiToolCall('reply', {'text': 'Milk or eggs?'}),
+          ]),
+          _calls([
+            const AiToolCall('choose_list', {
+              'question': 'Add to Tasks, or start a new list?',
+              'candidates': [_tasks],
+              'newList': true,
+            }),
+          ]),
+          _calls([
+            const AiToolCall('reply', {'text': 'Fine.'}),
+          ]),
+        ]);
+      await _pump(tester, ai);
+      final Finder bar = find.byKey(const ValueKey('ai-bar'));
+
+      // A question as a reply.
+      await _ask(tester, 'remove the dairy');
+      await tester.tap(bar);
+      await tester.pumpAndSettle();
+      expect(find.text('Milk or eggs?'), findsOneWidget);
+      expect(tester.widget<TextField>(_field).focusNode!.hasFocus, isTrue);
+      await tester.enterText(_field, 'milk');
+      await tester.pump();
+      await tester.tap(_send);
+      await settle(tester);
+      expect(ai.requests[1].toJson()['followUp'], {
+        'prompt': 'remove the dairy',
+        'reply': 'Milk or eggs?',
+      });
+
+      // A question with buttons: still there while typing, buttons work.
+      await tester.tap(bar);
+      await tester.pumpAndSettle();
+      expect(find.text('Add to Tasks, or start a new list?'), findsOneWidget);
+      expect(find.byKey(const ValueKey('ai-chip-$_tasks')), findsOneWidget);
+      // The raised hub keeps clear of the question and its buttons.
+      final Rect panel = tester.getRect(find.byKey(const ValueKey('ai-panel')));
+      expect(
+        tester.getRect(find.byKey(const ValueKey('launcher-hub'))).bottom,
+        lessThanOrEqualTo(panel.top),
+      );
+      await tester.enterText(_field, 'tasks please');
+      await tester.pump();
+      await tester.tap(_send);
+      await settle(tester);
+      expect(ai.requests[2].toJson()['followUp'], {
+        'prompt': 'milk',
+        'reply': 'Add to Tasks, or start a new list?',
+      });
     });
 
     testWidgets('a tap anywhere on a draft bar opens it', (tester) async {
@@ -938,7 +990,13 @@ void main() {
       await _ask(tester, 'dinner tomorrow');
       expect(ai.requests.first.toJson()['askLevel'], 'more');
       expect(find.byKey(const ValueKey('ai-chip-$_tasks')), findsOneWidget);
+      // Typing had started; a button answers instead, so the request does
+      // not quote the question.
+      await tester.tap(find.byKey(const ValueKey('ai-bar')));
+      await tester.pumpAndSettle();
+      expect(find.text('Your answer'), findsOneWidget);
       await _tapKey(tester, 'ai-chip-new');
+      expect(ai.requests.last.followUp, isNull);
       expect(ai.requests, hasLength(2));
       expect(ai.requests.last.prompt, 'Create a new list: dinner tomorrow');
       expect(ai.requests.last.openList, isNull);

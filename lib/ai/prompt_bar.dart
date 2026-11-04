@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../app/app_theme.dart';
 import '../app_colors.dart';
@@ -54,7 +55,8 @@ class PromptBarGeometry {
   // [size] is the area the shell and the launcher fill; [hub] where the hub
   // rests; [bottomInset] the system's bottom padding; [fieldHeight] the
   // field's measured height. With [panelOpen] the panel above the field
-  // counts too, so it never runs under the hub either.
+  // counts too, so it never runs under the hub either; while focused that
+  // is its measured [panelHeight], and the hub rises above it.
   factory PromptBarGeometry.of(
     Size size, {
     LauncherHubArea? hub,
@@ -62,13 +64,13 @@ class PromptBarGeometry {
     bool panelOpen = false,
     bool focused = false,
     double? fieldHeight,
+    double panelHeight = 0,
   }) {
     final double bottom = margin + bottomInset;
     final double barBottom = size.height - bottom;
-    final double field = math.max(
-      fieldHeight ?? 0,
-      focused ? focusedHeight : height,
-    );
+    final double field =
+        math.max(fieldHeight ?? 0, focused ? focusedHeight : height) +
+        (focused && panelOpen ? panelHeight : 0);
     double start = margin;
     double end = size.width - margin;
     double? liftY;
@@ -122,7 +124,11 @@ class PromptBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool reduceMotion = MediaQuery.disableAnimationsOf(context);
     return ListenableBuilder(
-      listenable: Listenable.merge([controller, controller.fieldHeight]),
+      listenable: Listenable.merge([
+        controller,
+        controller.fieldHeight,
+        controller.panelHeight,
+      ]),
       builder: (context, _) => LayoutBuilder(
         builder: (context, constraints) {
           final PromptBarGeometry geometry = PromptBarGeometry.of(
@@ -132,6 +138,7 @@ class PromptBar extends StatelessWidget {
             panelOpen: controller.isOpen,
             focused: controller.focused,
             fieldHeight: controller.fieldHeight.value,
+            panelHeight: controller.panelHeight.value,
           );
           return Stack(
             children: [
@@ -184,16 +191,19 @@ class _BarColumn extends StatelessWidget {
         // The panel grows up out of the bar: size only, no fade
         // (docs/AESTHETICS.md Motion).
         Flexible(
-          child: AnimatedSize(
-            duration: reduceMotion ? Duration.zero : AppMotion.standard,
-            curve: AppMotion.curve,
-            alignment: Alignment.bottomCenter,
-            child: panel == null
-                ? const SizedBox(width: double.infinity)
-                : Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: panel,
-                  ),
+          child: _ReportHeight(
+            onHeight: (height) => controller.panelHeight.value = height,
+            child: AnimatedSize(
+              duration: reduceMotion ? Duration.zero : AppMotion.standard,
+              curve: AppMotion.curve,
+              alignment: Alignment.bottomCenter,
+              child: panel == null
+                  ? const SizedBox(width: double.infinity)
+                  : Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: panel,
+                    ),
+            ),
           ),
         ),
         _Field(controller: controller, openList: openList),
@@ -202,40 +212,37 @@ class _BarColumn extends StatelessWidget {
   }
 }
 
-// The AI's reply the next request answers (Q-42), with a close button that
-// makes the next request a fresh one.
-class _FollowUpLine extends StatelessWidget {
-  const _FollowUpLine({required this.controller});
+// Reports its child's laid-out height after the frame, when it changes.
+class _ReportHeight extends SingleChildRenderObjectWidget {
+  const _ReportHeight({required this.onHeight, super.child});
 
-  final AiBarController controller;
+  final ValueChanged<double> onHeight;
 
   @override
-  Widget build(BuildContext context) {
-    final AppLocalizations loc = AppLocalizations.of(context);
-    final Brightness brightness = Theme.of(context).brightness;
-    final AppNeutrals n = AppColors.neutrals(brightness);
-    final AppTypography type = AppTypography.of(context);
-    return Row(
-      key: const ValueKey('ai-follow-up'),
-      children: [
-        Icon(Icons.reply, size: 18, color: n.muted),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            loc.aiAnswering(controller.followUp!.reply.replaceAll('\n', ' ')),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: type.meta,
-          ),
-        ),
-        IconButton(
-          key: const ValueKey('ai-follow-up-close'),
-          tooltip: loc.aiNewRequest,
-          icon: const Icon(Icons.close),
-          onPressed: controller.clearFollowUp,
-        ),
-      ],
-    );
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderReportHeight(onHeight);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderReportHeight renderObject,
+  ) => renderObject.onHeight = onHeight;
+}
+
+class _RenderReportHeight extends RenderProxyBox {
+  _RenderReportHeight(this.onHeight);
+
+  ValueChanged<double> onHeight;
+  double? _reported;
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    final double height = size.height;
+    if (height != _reported) {
+      _reported = height;
+      WidgetsBinding.instance.addPostFrameCallback((_) => onHeight(height));
+    }
   }
 }
 
@@ -383,90 +390,80 @@ class _FieldState extends State<_Field> with WidgetsBindingObserver {
           shadows: AppShadows.floating(brightness),
         ),
         padding: EdgeInsets.fromLTRB(18, focused ? 12 : 0, 4, focused ? 2 : 0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: Row(
+          crossAxisAlignment: focused
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.center,
           children: [
-            // Inside the bar, so the raised hub keeps clear of it.
-            if (controller.followUp != null &&
-                (controller.phase == AiBarPhase.idle || sending))
-              _FollowUpLine(controller: controller),
-            Row(
-              crossAxisAlignment: focused
-                  ? CrossAxisAlignment.end
-                  : CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(bottom: focused ? 12 : 0),
-                    // The field stays laid out under the draft line, so a tap
-                    // anywhere on the bar reaches it and it is never rebuilt
-                    // elsewhere (that dropped the keyboard on a phone, T-19 unit 8).
-                    child: Stack(
-                      children: [
-                        Opacity(opacity: draft ? 0 : 1, child: field),
-                        if (draft)
-                          Positioned.fill(
-                            child: IgnorePointer(
-                              child: Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  controller.text.text.replaceAll('\n', ' '),
-                                  key: const ValueKey('ai-bar-draft'),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: textStyle,
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(bottom: focused ? 12 : 0),
+                // The field stays laid out under the draft line, so a tap
+                // anywhere on the bar reaches it and it is never rebuilt
+                // elsewhere (that dropped the keyboard on a phone, T-19 unit 8).
+                child: Stack(
+                  children: [
+                    Opacity(opacity: draft ? 0 : 1, child: field),
+                    if (draft)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              controller.text.text.replaceAll('\n', ' '),
+                              key: const ValueKey('ai-bar-draft'),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: textStyle,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(
+              width: 48,
+              height: 48,
+              child: Center(
+                child: ListenableBuilder(
+                  listenable: controller.text,
+                  builder: (context, _) {
+                    final bool empty = controller.text.text.trim().isEmpty;
+                    return Semantics(
+                      button: true,
+                      label: loc.aiSend,
+                      child: InkResponse(
+                        key: const ValueKey('ai-bar-send'),
+                        onTap: empty || sending ? null : _send,
+                        radius: 24,
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: empty && !sending ? n.line : n.text,
+                          ),
+                          child: sending
+                              ? Padding(
+                                  padding: const EdgeInsets.all(11),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: n.ground,
+                                  ),
+                                )
+                              : Icon(
+                                  Icons.arrow_upward,
+                                  size: 20,
+                                  color: empty ? n.muted : n.ground,
                                 ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
-                SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: Center(
-                    child: ListenableBuilder(
-                      listenable: controller.text,
-                      builder: (context, _) {
-                        final bool empty = controller.text.text.trim().isEmpty;
-                        return Semantics(
-                          button: true,
-                          label: loc.aiSend,
-                          child: InkResponse(
-                            key: const ValueKey('ai-bar-send'),
-                            onTap: empty || sending ? null : _send,
-                            radius: 24,
-                            child: Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: empty && !sending ? n.line : n.text,
-                              ),
-                              child: sending
-                                  ? Padding(
-                                      padding: const EdgeInsets.all(11),
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: n.ground,
-                                      ),
-                                    )
-                                  : Icon(
-                                      Icons.arrow_upward,
-                                      size: 20,
-                                      color: empty ? n.muted : n.ground,
-                                    ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ],
         ),

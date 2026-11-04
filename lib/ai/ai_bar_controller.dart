@@ -125,6 +125,9 @@ class AiBarController extends ChangeNotifier {
   // The field's height as laid out, so the shell can raise the hub just
   // above it while the bar is focused.
   final ValueNotifier<double> fieldHeight = ValueNotifier<double>(0);
+  // The panel's height above the field, gap included (0 when closed): while
+  // the bar is focused with a question up, the hub rises above it too.
+  final ValueNotifier<double> panelHeight = ValueNotifier<double>(0);
 
   bool _focused = false;
   // The bar is being typed in: two to four lines, full width.
@@ -135,10 +138,25 @@ class AiBarController extends ChangeNotifier {
       return;
     }
     _focused = focus.hasFocus;
-    // A new request starts: an earlier answer, preview or question goes.
+    // The AI asked or answered: the bar's text answers it, so its message
+    // stays up while that is typed (Q-42; owner, 2026-11-04). Its buttons
+    // keep working, and Close or Cancel starts afresh.
+    if (_focused &&
+        (_phase == AiBarPhase.reply || _phase == AiBarPhase.question)) {
+      final String? prompt = _lastPrompt;
+      final String question =
+          _plan?.question?.text ?? _plan?.itemQuestion?.text ?? '';
+      if (_phase == AiBarPhase.question &&
+          prompt != null &&
+          question.isNotEmpty) {
+        _followUp = AiFollowUp(prompt: prompt, reply: question);
+      }
+      notifyListeners();
+      return;
+    }
+    // Otherwise a new request starts: an earlier preview or result goes.
     if (_focused && _phase != AiBarPhase.idle && _phase != AiBarPhase.sending) {
-      // Typing after a reply answers it (Q-42).
-      dismiss(keepFollowUp: true);
+      dismiss();
       return;
     }
     notifyListeners();
@@ -207,14 +225,9 @@ class AiBarController extends ChangeNotifier {
   String? _lastPrompt;
 
   AiFollowUp? _followUp;
-  // The AI's reply the next request answers (Q-42); the bar says so until
-  // it is sent or closed.
+  // The AI's reply or question the next request answers (Q-42); it stays
+  // up until the answer is sent or it is closed.
   AiFollowUp? get followUp => _followUp;
-
-  void clearFollowUp() {
-    _followUp = null;
-    notifyListeners();
-  }
 
   Set<String> _picked = const {};
   // The items picked so far in "Which items?" (choose_items).
@@ -244,6 +257,7 @@ class AiBarController extends ChangeNotifier {
       return;
     }
     _plan = plan;
+    _followUp = null;
     await apply();
   }
 
@@ -499,6 +513,8 @@ class AiBarController extends ChangeNotifier {
         _plan?.question == null) {
       return;
     }
+    // A button answered the question, not the bar's text.
+    _followUp = null;
     await _run(request.withOpenList(store.current, listId), correct: true);
   }
 
@@ -508,6 +524,7 @@ class AiBarController extends ChangeNotifier {
     if (request == null || _phase != AiBarPhase.question) {
       return;
     }
+    _followUp = null;
     await _run(request.withNewList(), correct: true);
   }
 
@@ -667,11 +684,9 @@ class AiBarController extends ChangeNotifier {
   // Closes the panel; a request still waiting is dropped. Undo stays
   // possible only while its line shows. Closing a reply (Close, Back) also
   // ends the follow-up, so the next request starts fresh (Q-42).
-  void dismiss({bool keepFollowUp = false}) {
+  void dismiss() {
     ++_generation;
-    if (!keepFollowUp) {
-      _followUp = null;
-    }
+    _followUp = null;
     _plan = null;
     _problem = null;
     _done = null;
@@ -710,6 +725,7 @@ class AiBarController extends ChangeNotifier {
     text.dispose();
     focus.dispose();
     fieldHeight.dispose();
+    panelHeight.dispose();
     super.dispose();
   }
 }
