@@ -272,9 +272,10 @@ class AiMatch {
         if (word.contains(compact) && short != compact) {
           return AiMention.clear;
         }
-        final int at = word.indexOf(short);
-        if (at >= 0 && _listWordStart.hasMatch(word.substring(at + short.length))) {
-          return AiMention.clear;
+        for (int at = word.indexOf(short); at >= 0; at = word.indexOf(short, at + 1)) {
+          if (_listWordStart.hasMatch(word.substring(at + short.length))) {
+            return AiMention.clear;
+          }
         }
         if (short.runes.length >= 2 ? word.contains(short) : word == short) {
           found = true;
@@ -286,21 +287,22 @@ class AiMatch {
       return found ? AiMention.possible : AiMention.none;
     }
 
-    final int full = _find(said, wanted);
-    if (full >= 0) {
-      final int next = full + wanted.length;
-      return endsInListWord ||
-              (next < said.length && _sameWord(said[next], 'list'))
-          ? AiMention.clear
-          : AiMention.possible;
-    }
-    if (shortWords.length < wanted.length) {
-      final int at = _find(said, shortWords);
-      if (at >= 0) {
-        return AiMention.possible;
+    // Every occurrence counts: the strongest one decides (F2 of the last pass).
+    bool found = false;
+    for (int i = 0; i + wanted.length <= said.length; i++) {
+      if (_at(said, wanted, i)) {
+        final int next = i + wanted.length;
+        if (endsInListWord ||
+            (next < said.length && _sameWord(said[next], 'list'))) {
+          return AiMention.clear;
+        }
+        found = true;
       }
     }
-    return AiMention.none;
+    return found ||
+            (shortWords.length < wanted.length && _find(said, shortWords) >= 0)
+        ? AiMention.possible
+        : AiMention.none;
   }
 
   // Where [wanted] starts in [said], or -1.

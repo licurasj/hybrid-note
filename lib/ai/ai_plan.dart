@@ -385,25 +385,46 @@ class AiPlan {
       }
     }
 
-    // One answer stays within what one write holds (Q-60).
-    final int writes = steps.whereType<AiItemStep>().fold(
-      0,
-      (sum, step) => sum + step.write.writes,
-    );
-    if (writes > ListStore.maxAiWrites) {
-      return AiPlan(
-        errors: [
-          ListError(ListErrorCode.answerTooLarge, {'list': steps.first.listId}),
-        ],
-      );
-    }
     return AiPlan(
       steps: steps,
       reply: replies.isEmpty ? null : replies.join('\n'),
       question: question,
       itemQuestion: itemQuestion,
       errors: errors,
-    );
+    )._withinLimit();
+  }
+
+  // This plan after [kept], steps of an earlier round as that round read them,
+  // so what they read stays what the store compares against (F1 of the last
+  // Codex pass).
+  AiPlan after(List<AiStep> kept) => AiPlan(
+    steps: [...kept, ...steps],
+    reply: reply,
+    question: question,
+    itemQuestion: itemQuestion,
+    errors: errors,
+  )._withinLimit();
+
+  // One answer stays within what one write holds, new lists' items included
+  // (Q-60).
+  AiPlan _withinLimit() {
+    int changes = 0;
+    for (final AiStep step in steps) {
+      changes += switch (step) {
+        AiItemStep() => step.write.writes,
+        AiCreateStep() => step.items.length,
+        AiPatchStep() => 0,
+      };
+    }
+    return changes <= ListStore.maxAiWrites
+        ? this
+        : AiPlan(
+            errors: [
+              ListError(ListErrorCode.answerTooLarge, {
+                'list': steps.first.listId,
+              }),
+            ],
+          );
   }
 
   final List<AiStep> steps;

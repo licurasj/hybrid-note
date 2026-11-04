@@ -288,10 +288,11 @@ class AiBarController extends ChangeNotifier {
   // refetch without end (M1 of the Codex review).
   Set<String> _itemsSent = {};
   int _fetches = 0;
-  // Item calls already settled per list, when that list's items were in the
+  // Item steps already settled per list, when that list's items were in the
   // request. A later request carries another list's items instead, so it could
-  // not settle them again (R4 of the Codex re-review).
-  Map<String, List<AiToolCall>> _settled = {};
+  // not settle them again (R4 of the Codex re-review). They keep what they read
+  // then: a change since is for the store's check to find (F1 of the last pass).
+  Map<String, List<AiStep>> _settled = {};
 
   void _startSubmission() {
     _itemsSent = {};
@@ -566,17 +567,25 @@ class AiBarController extends ChangeNotifier {
         'choose_items',
       }.contains(call.name),
     );
-    final AiPlan plan = AiPlan.read(
-      asks
-          ? matched.answer
-          : matched.answer.withToolCalls([
-              for (final List<AiToolCall> calls in _settled.values) ...calls,
-              ...matched.answer.toolCalls,
-            ]),
+    final AiPlan read = AiPlan.read(
+      matched.answer,
       store.current,
       openListId: request.structureListId,
     );
-    final List<ListError> errors = [...matched.errors, ...plan.errors];
+    final AiPlan plan = asks
+        ? read
+        : read.after([
+            for (final List<AiStep> steps in _settled.values) ...steps,
+          ]);
+    final List<ListError> errors = [
+      ...matched.errors,
+      ...plan.errors,
+      // A kept step's list may have turned AI off since it was read.
+      if (!asks)
+        for (final String listId in _settled.keys)
+          if (store.current.definition(listId)?.aiAllowed == false)
+            ListError(ListErrorCode.aiNotAllowed, {'list': listId}),
+    ];
     if (errors.isNotEmpty) {
       // A list that turned AI off is not asked about again, and an answer too
       // large is not worth another request (Q-60).
@@ -668,12 +677,15 @@ class AiBarController extends ChangeNotifier {
             (call.name == 'upsert_items' || call.name == 'delete_items'))
           call,
     ];
-    if (calls.isNotEmpty &&
-        AiPlan.read(
-          AiAnswer(requestId: '', toolCalls: calls),
-          store.current,
-        ).isValid) {
-      _settled[listId] = calls;
+    if (calls.isEmpty) {
+      return;
+    }
+    final AiPlan plan = AiPlan.read(
+      AiAnswer(requestId: '', toolCalls: calls),
+      store.current,
+    );
+    if (plan.isValid && plan.steps.isNotEmpty) {
+      _settled[listId] = plan.steps;
     }
   }
 
