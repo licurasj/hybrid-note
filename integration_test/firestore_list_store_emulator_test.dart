@@ -242,6 +242,71 @@ Future<void> _untilServerUnreachable(String uid) async {
   }, timeout: const Duration(seconds: 120));
 }
 
+// Device one applies an AI change and stops listening; device two changes the
+// same item. Device one's Undo must be refused with [expected], and device two's
+// value must stay once device one is back (Q-53).
+Future<void> _undoAfterOtherDevice({
+  required ListErrorCode expected,
+  required Future<void> Function(String path) goOffline,
+  required Future<void> Function(String path) goOnline,
+}) async {
+  final (String uid, String email) = await _newUser();
+  await _seed(uid);
+  await _auth2.signInWithEmailAndPassword(email: email, password: _password);
+  addTearDown(_auth2.signOut);
+  addTearDown(_db.enableNetwork);
+  final FirestoreListStore one = await _loaded(
+    _db,
+    uid,
+    transactionTimeout: const Duration(seconds: 3),
+  );
+  final FirestoreListStore two = await _loaded(_db2, uid);
+
+  final ListDefinition definition = (await _until(
+    one,
+    (c) => c.definitions.isNotEmpty,
+  )).definitions.first;
+  final String listId = definition.id;
+  ListItem titled(String title) => ListItem(
+    id: 'h5',
+    listId: listId,
+    values: {'title': title},
+    createdAt: _t0,
+    updatedAt: _t0,
+  );
+  final AiWriteResult applied = await one.applyAiItems(
+    AiItemWrite(definition: definition, saved: [titled('Oat milk')]),
+  );
+  expect(applied.errors, isEmpty);
+  await _until(two, (c) => c.itemsOf(listId).any((i) => i.id == 'h5'));
+
+  await _db.disableNetwork();
+  await two.apply(ListChanges(saved: [titled('Newer on two')]));
+  final String listPath = 'users/$uid/lists/$listId';
+  await goOffline(listPath);
+  // Device one's cache still shows its own change.
+  expect(
+    one.current.itemsOf(listId).singleWhere((i) => i.id == 'h5')['title'],
+    'Oat milk',
+  );
+  final List<ListError> refused = await one.restoreSnapshot(applied.snapshot!);
+  expect(refused.single.code, expected);
+
+  await goOnline(listPath);
+  await _db.enableNetwork();
+  final ListCatalog seen = await _until(
+    one,
+    (c) => c.itemsOf(listId).any((i) => i['title'] == 'Newer on two'),
+  );
+  expect(seen.itemsOf(listId).any((i) => i['title'] == 'Oat milk'), isFalse);
+  await Future<void>.delayed(const Duration(seconds: 2));
+  final Map<String, dynamic>? stored = (await _db2
+          .doc('users/$uid/lists/$listId/items/h5')
+          .get(const GetOptions(source: Source.server)))
+      .data();
+  expect((stored!['values'] as Map)['title'], 'Newer on two');
+}
+
 void _measure(String what) => debugPrint('MEASURE $what');
 
 void main() {
@@ -401,57 +466,54 @@ void main() {
     });
 
     // H5 of the Codex review, Q-53: another device's newer change survives an
-    // Undo tried offline.
-    test('an AI Undo tried offline is refused and overwrites nothing on reconnect', () async {
-      final (String uid, String email) = await _newUser();
-      await _seed(uid);
-      await _auth2.signInWithEmailAndPassword(
-        email: email,
-        password: _password,
-      );
-      final FirestoreListStore one = await _loaded(
-        _db,
-        uid,
-        transactionTimeout: const Duration(seconds: 3),
-      );
-      final FirestoreListStore two = await _loaded(_db2, uid);
-      addTearDown(_db.enableNetwork);
-
-      final ListDefinition definition = (await _until(
-        one,
-        (c) => c.definitions.isNotEmpty,
-      )).definitions.first;
-      final String listId = definition.id;
-      ListItem titled(String id, String title) => ListItem(
-        id: id,
-        listId: listId,
-        values: {'title': title},
-        createdAt: _t0,
-        updatedAt: _t0,
-      );
-      final AiWriteResult applied = await one.applyAiItems(
-        AiItemWrite(definition: definition, saved: [titled('h5', 'Oat milk')]),
-      );
-      expect(applied.errors, isEmpty);
-      await _until(two, (c) => c.itemsOf(listId).any((i) => i.id == 'h5'));
-
-      await _db.disableNetwork();
-      await two.apply(ListChanges(saved: [titled('h5', 'Newer on two')]));
-      await _until(two, (c) => c.itemsOf(listId).any((i) => i['title'] == 'Newer on two'));
-      final List<ListError> refused = await one.restoreSnapshot(applied.snapshot!);
-      expect(refused.single.code, ListErrorCode.needsConnection);
-
-      await _db.enableNetwork();
-      final ListCatalog seen = await _until(
-        one,
-        (c) => c.itemsOf(listId).any((i) => i['title'] == 'Newer on two'),
-      );
-      expect(seen.itemsOf(listId).where((i) => i.id == 'h5').single['title'], 'Newer on two');
-      expect(
-        (await one.restoreSnapshot(applied.snapshot!)).single.code,
-        ListErrorCode.listChanged,
+    // Undo from a device with a stale cache. disableNetwork stops the listeners
+    // but not transactions (see the MEASURE line of the patch test above), so
+    // here the Undo still reaches the server and sees the change.
+    test('an AI Undo with a stale cache is refused by the stored data', () async {
+      await _undoAfterOtherDevice(
+        expected: ListErrorCode.listChanged,
+        goOffline: (_) async {},
+        goOnline: (_) async {},
       );
     });
+
+    // The same with no server at all: the cache alone would call the Undo fine,
+    // and it must not be queued. The other device's emulator client shows when
+    // the device is really cut off. Needs the host, as the airplane test below.
+    test(
+      'an AI Undo in airplane mode needs a connection and overwrites nothing',
+      () async {
+        await _undoAfterOtherDevice(
+          expected: ListErrorCode.needsConnection,
+          goOffline: (path) async {
+            debugPrint('HOST airplane-mode enable');
+            await _eventually(() async {
+              try {
+                await _server(_db2, path).timeout(const Duration(seconds: 3));
+                return false;
+              } on FirebaseException catch (error) {
+                return error.code != 'permission-denied';
+              } on TimeoutException {
+                return true;
+              }
+            }, timeout: const Duration(seconds: 120));
+          },
+          goOnline: (path) async {
+            debugPrint('HOST airplane-mode disable');
+            await _eventually(() async {
+              try {
+                await _server(_db2, path).timeout(const Duration(seconds: 3));
+                return true;
+              } on Object {
+                return false;
+              }
+            }, timeout: const Duration(seconds: 120));
+          },
+        );
+      },
+      skip: !const bool.fromEnvironment('AIRPLANE'),
+      timeout: const Timeout(Duration(minutes: 5)),
+    );
 
     // Needs the host to switch the device's airplane mode when it sees the
     // HOST lines; the runbook has the command. Off unless
