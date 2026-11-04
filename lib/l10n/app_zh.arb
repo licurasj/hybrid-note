@@ -331,7 +331,7 @@
   "aiDescribeNewList": "描述新列表",
   "aiDescribeNewListMeta": "由 AI 选择字段",
   "aiNoticeTitle": "首次请求之前",
-  "aiNoticeDeepSeek": "你的请求、各列表的名称和字段，以及打开的列表（或请求涉及的列表）和最多 20 条最近条目会发送给 DeepSeek。DeepSeek 是一家在中国处理和存储数据的 AI 提供商。关闭了 AI 的列表绝不会发送。请求文字会保留约 7 天用于排查问题，之后删除。",
+  "aiNoticeDeepSeek": "你的请求、各列表的名称、说明和字段，以及打开的列表（或请求涉及的列表）和最多 20 条最近条目会发送给 DeepSeek。DeepSeek 是一家在中国处理和存储数据的 AI 提供商。关闭了 AI 的列表绝不会发送。请求文字会保留约 7 天用于排查问题，之后删除。",
   "aiNoticeContinue": "继续",
   "aiApply": "应用",
   "aiAddItems": "{list}：添加{items}",
@@ -373,5 +373,8 @@
   "settingsAiAutoApply": "不询问直接应用 AI 更改",
   "aiAnswerHint": "你的回答",
   "aiAnswering": "回答：{reply}",
-  "aiNewRequest": "新请求"
+  "aiNewRequest": "新请求",
+  "listDescription": "说明",
+  "listDescriptionHint": "这个列表的用途（可选）",
+  "errorDescriptionTooLong": "说明最多 {max} 个字符。"
 }

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:hybrid_note/lists/list_definition.dart';
+import 'package:hybrid_note/lists/list_error.dart';
 import 'package:hybrid_note/lists/list_item.dart';
 import 'package:hybrid_note/lists/list_patch.dart';
 
@@ -155,6 +156,34 @@ void main() {
     expect(result.items.single['_legacy'], {'price': ['older', 'about five'], 'shop': 'kept'});
     expect(ListPatch.archivedValues({'shop': 'kept'}, 'shop'), ['kept']);
     expect(ListPatch.archivedValues(null, 'shop'), isEmpty);
+  });
+
+  test('setListInfo sets a description, trimmed, and a blank one removes it (Q-44)', () {
+    final ListPatchResult described = ListPatch.apply(_books(), items, const [
+      ListPatchOp(PatchOpKind.setListInfo, {'description': '  Books to buy  '}),
+    ], _t1);
+    expect(described.errors, isEmpty);
+    expect(described.definition.description, 'Books to buy');
+    expect(described.definition.name, _books().name);
+
+    final ListPatchResult untouched = ListPatch.apply(described.definition, items, const [
+      ListPatchOp(PatchOpKind.setListInfo, {'color': '#654321'}),
+    ], _t1);
+    expect(untouched.definition.description, 'Books to buy');
+
+    final ListPatchResult cleared = ListPatch.apply(described.definition, items, const [
+      ListPatchOp(PatchOpKind.setListInfo, {'description': ' '}),
+    ], _t1);
+    expect(cleared.definition.description, isNull);
+
+    final ListPatchResult tooLong = ListPatch.apply(_books(), items, [
+      ListPatchOp(PatchOpKind.setListInfo, {'description': 'x' * 201}),
+    ], _t1);
+    expect(tooLong.errors.map((error) => error.code), contains(ListErrorCode.descriptionTooLong));
+    expect(
+      const ListPatchOp(PatchOpKind.setListInfo, {'description': 4}).argErrors().map((e) => e.code),
+      [ListErrorCode.wrongArgType],
+    );
   });
 
   test('add, rename, move and set view build a valid definition', () {

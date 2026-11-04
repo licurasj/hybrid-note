@@ -210,6 +210,8 @@ class ListLabels {
         return loc.errorMissingName;
       case ListErrorCode.badColor:
         return loc.errorBadColor;
+      case ListErrorCode.descriptionTooLong:
+        return loc.errorDescriptionTooLong(error.arg('max'));
       case ListErrorCode.noFields:
         return loc.errorNoFields;
       case ListErrorCode.primaryCount:

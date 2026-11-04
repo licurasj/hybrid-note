@@ -983,7 +983,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get aiNoticeDeepSeek =>
-      'Deine Anfrage, die Namen und Felder deiner Listen und die offene Liste oder eine Liste, um die es in deiner Anfrage geht, mit bis zu 20 neueren Einträgen gehen an DeepSeek, einen KI-Anbieter, der Daten in China verarbeitet und speichert. Listen mit ausgeschalteter KI werden nie gesendet. Der Text deiner Anfrage wird etwa 7 Tage zur Fehlersuche aufbewahrt und dann gelöscht.';
+      'Deine Anfrage, die Namen, Beschreibungen und Felder deiner Listen und die offene Liste oder eine Liste, um die es in deiner Anfrage geht, mit bis zu 20 neueren Einträgen gehen an DeepSeek, einen KI-Anbieter, der Daten in China verarbeitet und speichert. Listen mit ausgeschalteter KI werden nie gesendet. Der Text deiner Anfrage wird etwa 7 Tage zur Fehlersuche aufbewahrt und dann gelöscht.';
 
   @override
   String get aiNoticeContinue => 'Weiter';
@@ -1163,4 +1163,15 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get aiNewRequest => 'Neue Anfrage';
+
+  @override
+  String get listDescription => 'Beschreibung';
+
+  @override
+  String get listDescriptionHint => 'Wofür diese Liste ist (optional)';
+
+  @override
+  String errorDescriptionTooLong(String max) {
+    return 'Die Beschreibung darf höchstens $max Zeichen lang sein.';
+  }
 }

@@ -62,10 +62,10 @@ class _Recorder implements ListStore {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-Widget _screen(List<ListItem> items, _Recorder recorder) {
+Widget _screen(List<ListItem> items, _Recorder recorder, {ListDefinition? definition}) {
   return _app(
     GenericListScreen(
-      definition: _watch,
+      definition: definition ?? _watch,
       items: items,
       store: recorder,
       texts: const GenericListTexts(
@@ -113,6 +113,18 @@ void main() {
     await tester.pumpWidget(_screen(const [], _Recorder()));
 
     expect(find.text('Nothing here'), findsOneWidget);
+    expect(find.byKey(const ValueKey('list-description')), findsNothing);
+  });
+
+  testWidgets('shows the description under the title (Q-44)', (tester) async {
+    final ListDefinition described =
+        ListDefinition.fromJson({..._watch.toJson(), 'description': 'Shows and films to see'});
+    await tester.pumpWidget(_screen(const [], _Recorder(), definition: described));
+
+    expect(find.text('Shows and films to see'), findsOneWidget);
+    final double title = tester.getBottomLeft(find.text('Watch')).dy;
+    final double description = tester.getTopLeft(find.text('Shows and films to see')).dy;
+    expect(description, greaterThanOrEqualTo(title));
   });
 
   testWidgets('groups items by status in option order with summaries', (

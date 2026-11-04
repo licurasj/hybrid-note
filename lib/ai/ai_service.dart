@@ -17,8 +17,9 @@ abstract interface class AiService {
 }
 
 // The provider named in the one-time notice. It changes with ACTIVE_MODEL
-// in functions/src/config.ts; a change here shows the notice again.
-const String aiNoticeId = 'deepseek-2';
+// in functions/src/config.ts, and with the notice text (deepseek-3: list
+// descriptions, Q-44); a change here shows the notice again.
+const String aiNoticeId = 'deepseek-3';
 
 // One of the user's lists as the function sees it (Q-36): id, name and a
 // short field summary, no items.
@@ -26,16 +27,20 @@ class AiListSummary {
   const AiListSummary({
     required this.id,
     required this.name,
+    this.description,
     required this.fields,
   });
 
   final String id;
   final String name;
+  // The list's description (Q-44), when it has one.
+  final String? description;
   final List<Map<String, Object?>> fields;
 
   Map<String, Object?> toJson() => {
     'id': id,
     'name': name,
+    if (description != null) 'description': description,
     'fields': fields,
     // Only lists with AI on are sent (L16, M4); the function refuses a
     // summary without the flag.
@@ -145,6 +150,7 @@ class AiRequest {
           AiListSummary(
             id: definition.id,
             name: labels.listName(definition),
+            description: definition.description,
             fields: [
               for (final FieldDefinition field in definition.fields)
                 {

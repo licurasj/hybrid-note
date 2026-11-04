@@ -5,6 +5,8 @@ import { refuse } from './errors';
 export interface ListSummary {
   id: string;
   name: string;
+  /** What the list is for, in the user's words (Q-44); absent when there is none. */
+  description?: string;
   fields: unknown[];
   /**
    * Required (fail closed, L16 of the unit 5 follow-up review). false: the
@@ -45,6 +47,9 @@ export interface FollowUp {
   prompt: string;
   reply: string;
 }
+
+/** The longest list description: ListDefinition.descriptionMaxLength. */
+export const DESCRIPTION_MAX_CHARS = 200;
 
 /** The longest reply a follow-up may quote: the reply schema's maxLength. */
 export const FOLLOW_UP_REPLY_MAX_CHARS = 500;
@@ -96,6 +101,9 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
     }
     if (typeof list.aiAllowed !== 'boolean') {
       throw refuse('badRequest', 'each list needs aiAllowed true or false');
+    }
+    if (list.description !== undefined && (typeof list.description !== 'string' || [...list.description].length > DESCRIPTION_MAX_CHARS)) {
+      throw refuse('badRequest', `a list description must be text of at most ${DESCRIPTION_MAX_CHARS} characters`);
     }
   }
   if (new Set(lists.map((list) => list.id)).size !== lists.length) {

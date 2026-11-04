@@ -11,6 +11,7 @@
     "id": { "type": "string", "minLength": 1 },
     "name": { "type": "string", "minLength": 1 },
     "nameKey": { "type": "string" },
+    "description": { "type": "string", "minLength": 1, "maxLength": 200, "description": "What the list is for, in the user's words (Q-44); absent when there is none." },
     "icon": { "type": "string", "description": "Material icon name, e.g. shopping_cart." },
     "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
     "templateId": { "type": ["string", "null"] },

@@ -982,7 +982,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get aiNoticeDeepSeek =>
-      'Votre demande, les noms et champs de vos listes et la liste ouverte, ou une liste dont parle votre demande, avec jusqu’à 20 éléments récents sont envoyés à DeepSeek, un fournisseur d’IA qui traite et stocke les données en Chine. Les listes dont l’IA est désactivée ne sont jamais envoyées. Le texte de votre demande est conservé environ 7 jours pour trouver les problèmes, puis supprimé.';
+      'Votre demande, les noms, descriptions et champs de vos listes et la liste ouverte, ou une liste dont parle votre demande, avec jusqu’à 20 éléments récents sont envoyés à DeepSeek, un fournisseur d’IA qui traite et stocke les données en Chine. Les listes dont l’IA est désactivée ne sont jamais envoyées. Le texte de votre demande est conservé environ 7 jours pour trouver les problèmes, puis supprimé.';
 
   @override
   String get aiNoticeContinue => 'Continuer';
@@ -1162,4 +1162,15 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get aiNewRequest => 'Nouvelle demande';
+
+  @override
+  String get listDescription => 'Description';
+
+  @override
+  String get listDescriptionHint => 'À quoi sert cette liste (facultatif)';
+
+  @override
+  String errorDescriptionTooLong(String max) {
+    return 'La description peut faire au plus $max caractères.';
+  }
 }

@@ -56,6 +56,18 @@ describe('user message', () => {
     assert.ok(message.endsWith('<request>\neggs on Friday\n</request>'));
   });
 
+  test('a list description goes with its list, only when there is one (Q-44)', () => {
+    const described = {
+      ...request,
+      lists: [{ ...request.lists[0], description: 'Food for the <week>' }, request.lists[1]],
+    };
+    const message = buildUserMessage(described, new Date('2026-11-03T22:00:00Z'));
+    assert.ok(message.includes('"id":"grocery","name":"Grocery","description":"Food for the \\u003cweek>","fields"'));
+    assert.ok(message.includes('"id":"tasks","name":"Tasks","fields"'));
+    assert.ok(!buildUserMessage(request, new Date()).includes('"description"'));
+    assert.ok(systemPrompt().includes('name, description and fields'));
+  });
+
   test("the device's date wins over the server's", () => {
     const message = buildUserMessage({ ...request, today: '2026-11-04' }, new Date('2026-11-03T22:00:00Z'));
     assert.ok(message.includes('Today: 2026-11-04 (Wednesday)'));

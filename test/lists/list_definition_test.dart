@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:hybrid_note/lists/builtin_templates.dart';
 import 'package:hybrid_note/lists/list_definition.dart';
+import 'package:hybrid_note/lists/list_error.dart';
 
 Map<String, dynamic> _jsonRoundTrip(Map<String, dynamic> json) {
   return jsonDecode(jsonEncode(json)) as Map<String, dynamic>;
@@ -108,6 +109,26 @@ void main() {
       final ListDefinition plants = ListDefinition.fromJson(json);
 
       expect(plants.toJson()['sharedWith'], ['someone']);
+    });
+
+    test('a description round-trips and is left out when there is none (Q-44)', () {
+      final Map<String, dynamic> json = _plantList()..['description'] = 'Pots on the balcony';
+
+      final ListDefinition plants = ListDefinition.fromJson(json);
+
+      expect(plants.description, 'Pots on the balcony');
+      expect(plants.toJson(), json);
+      expect(ListDefinition.fromJson(_plantList()).description, isNull);
+      expect(ListDefinition.fromJson(_plantList()).toJson().containsKey('description'), isFalse);
+      expect(() => ListDefinition.fromJson(_plantList()..['description'] = 3), throwsFormatException);
+    });
+
+    test('a description over 200 characters is reported', () {
+      final ListDefinition ok = ListDefinition.fromJson(_plantList()..['description'] = '🌱' * 200);
+      final ListDefinition long = ListDefinition.fromJson(_plantList()..['description'] = 'x' * 201);
+
+      expect(ok.validate(), isEmpty);
+      expect(long.validate().map((error) => error.code), [ListErrorCode.descriptionTooLong]);
     });
 
     test('a newer format version is reported', () {

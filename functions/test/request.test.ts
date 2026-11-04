@@ -42,6 +42,16 @@ describe('parseRequest', () => {
     assert.equal(reason(base({ lists: [{ id: 'grocery', name: 'Grocery', fields: [] }] })), 'badRequest');
   });
 
+  test('a list description is optional text of at most 200 characters (Q-44)', () => {
+    const withDescription = (description: unknown) =>
+      base({ lists: [{ id: 'grocery', name: 'Grocery', description, fields: [], aiAllowed: true }] });
+    assert.equal(parseRequest(withDescription('Food to buy'), limits).lists[0].description, 'Food to buy');
+    assert.equal(reason(withDescription('🥚'.repeat(200))), 'accepted');
+    assert.equal(reason(withDescription('x'.repeat(201))), 'badRequest');
+    assert.equal(reason(withDescription(42)), 'badRequest');
+    assert.equal(reason(base()), 'accepted');
+  });
+
   test('an open list whose summary says AI off is refused', () => {
     const lists = [{ id: 'grocery', name: 'Grocery', fields: [], aiAllowed: false }];
     assert.equal(reason(base({ lists })), 'aiNotAllowed');

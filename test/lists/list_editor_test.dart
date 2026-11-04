@@ -152,6 +152,7 @@ void main() {
     expect(find.byKey(const ValueKey('delete-list')), findsOneWidget);
 
     await tester.enterText(find.byKey(const ValueKey('list-name')), 'Shopping');
+    await tester.enterText(find.byKey(const ValueKey('list-description')), 'Food and household things');
     await tester.tap(find.byKey(const ValueKey('color-#FF2D55')));
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('save-list')));
@@ -159,6 +160,7 @@ void main() {
 
     final ListDefinition grocery = store.current.definition(BuiltinTemplates.groceryId)!;
     expect(grocery.name, 'Shopping');
+    expect(grocery.description, 'Food and household things');
     expect(grocery.color, '#FF2D55');
 
     await _openLauncher(tester);

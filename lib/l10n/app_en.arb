@@ -771,7 +771,7 @@
   "aiDescribeNewList": "Describe a new list",
   "aiDescribeNewListMeta": "The AI picks its fields",
   "aiNoticeTitle": "Before your first request",
-  "aiNoticeDeepSeek": "Your request, the names and fields of your lists, and the open list, or a list your request is about, with up to 20 recent items go to DeepSeek, an AI provider that processes and stores data in China. Lists with AI turned off are never sent. Your request text is kept for about 7 days to find problems, then deleted.",
+  "aiNoticeDeepSeek": "Your request, the names, descriptions and fields of your lists, and the open list, or a list your request is about, with up to 20 recent items go to DeepSeek, an AI provider that processes and stores data in China. Lists with AI turned off are never sent. Your request text is kept for about 7 days to find problems, then deleted.",
   "aiNoticeContinue": "Continue",
   "aiApply": "Apply",
   "aiAddItems": "{list}: add {items}",
@@ -965,5 +965,15 @@
       }
     }
   },
-  "aiNewRequest": "New request"
+  "aiNewRequest": "New request",
+  "listDescription": "Description",
+  "listDescriptionHint": "What this list is for (optional)",
+  "errorDescriptionTooLong": "The description can be at most {max} characters.",
+  "@errorDescriptionTooLong": {
+    "placeholders": {
+      "max": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -1102,9 +1102,11 @@ class _GenericListScreenState extends State<GenericListScreen>
     return sorted;
   }
 
-  // The giant list name, cropped by the right edge, and the count under it.
+  // The giant list name, cropped by the right edge, its description (Q-44)
+  // and the count under it.
   Widget _title(AppLocalizations loc) {
     final _Look look = _look;
+    final String? description = _definition.description;
     final int done = _completion == null
         ? 0
         : widget.items.where((item) => ListRules.isCompleted(_definition, item)).length;
@@ -1123,8 +1125,19 @@ class _GenericListScreenState extends State<GenericListScreen>
               overflow: TextOverflow.clip,
             ),
           ),
+          if (description != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 4, top: 8, right: 18),
+              child: Text(
+                description,
+                key: const ValueKey('list-description'),
+                style: look.type.meta.copyWith(fontSize: 14),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           Padding(
-            padding: const EdgeInsets.only(left: 4, top: 12),
+            padding: EdgeInsets.only(left: 4, top: description == null ? 12 : 6),
             child: Text(
               _completion == null
                   ? loc.listItemCount(widget.items.length)

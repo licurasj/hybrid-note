@@ -815,6 +815,39 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
               onChanged: (text) =>
                   _push(ListPatchOp(PatchOpKind.setListInfo, {'name': text})),
             ),
+            look.sectionLabel(loc.listDescription),
+            TextFormField(
+              key: const ValueKey('list-description'),
+              initialValue: widget.definition.description ?? '',
+              style: look.label,
+              minLines: 1,
+              maxLines: 3,
+              maxLength: ListDefinition.descriptionMaxLength,
+              // The counter shows only near the limit.
+              buildCounter: (context, {required currentLength, required isFocused, maxLength}) =>
+                  maxLength != null && currentLength > maxLength - 40
+                  ? Text('$currentLength/$maxLength', style: look.value)
+                  : null,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(
+                hintText: loc.listDescriptionHint,
+                hintStyle: look.value,
+                isDense: true,
+                contentPadding: const EdgeInsets.only(top: 4, bottom: 10),
+                border: UnderlineInputBorder(
+                  borderSide: BorderSide(color: look.neutrals.line),
+                ),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: look.neutrals.line),
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: look.neutrals.text, width: 1.5),
+                ),
+              ),
+              onChanged: (text) => _push(
+                ListPatchOp(PatchOpKind.setListInfo, {'description': text}),
+              ),
+            ),
             look.sectionLabel(loc.listIcon),
             Wrap(
               spacing: 4,
