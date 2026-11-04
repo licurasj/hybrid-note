@@ -516,7 +516,7 @@ void main() {
     );
 
     // R2 of the Codex re-review on the real plugin: a connection that goes quiet
-    // once the writes are handed over. Needs firebase/tests/stall-proxy.js
+    // once the writes are handed over. Needs firebase/tests/stall-proxy.cjs
     // (the runbook has the command). Off unless --dart-define=STALL=true.
     group('a connection stalling at the commit', () {
       const Duration stallLimit = Duration(seconds: 2);
@@ -537,7 +537,10 @@ void main() {
         await FirebaseAuth.instanceFor(app: app).useAuthEmulator(_host, 9099);
       });
 
-      Future<void> open({Future<void> Function()? beforeHandOver}) async {
+      Future<void> open({
+        Future<void> Function()? beforeHandOver,
+        Duration limit = stallLimit,
+      }) async {
         final (String newUid, String email) = await _newUser();
         uid = newUid;
         await _seed(uid);
@@ -547,7 +550,7 @@ void main() {
         store = FirestoreListStore(
           stalledDb,
           uid,
-          transactionTimeout: stallLimit,
+          transactionTimeout: limit,
           commitTimeout: stallCommit,
           beforeHandOver: beforeHandOver,
         );
@@ -589,38 +592,59 @@ void main() {
         return (data?['values'] as Map?)?['title'];
       }
 
-      test('stalled after the hand-over: the outcome is never said to be "not changed"', () async {
+      test('stalled after the hand-over: unknown, then it lands', () async {
         bool stalls = false;
         await open(
+          // Time to confirm the stall before the writes are handed over.
+          limit: const Duration(seconds: 25),
           beforeHandOver: () async {
-            if (stalls) {
-              stalls = false;
-              debugPrint('HOST stall-on');
-              await Future<void>.delayed(const Duration(seconds: 1));
+            if (!stalls) {
+              return;
             }
+            stalls = false;
+            debugPrint('HOST stall-on');
+            // The log reaches the proxy with a delay: wait until a read through
+            // the stalled connection really gets no answer.
+            await _eventually(() async {
+              try {
+                await _server(
+                  stalledDb,
+                  'users/$uid/lists/${definition.id}',
+                ).timeout(const Duration(seconds: 2));
+                return false;
+              } on Object {
+                return true;
+              }
+            }, timeout: const Duration(seconds: 20));
           },
         );
         stalls = true;
         final Stopwatch watch = Stopwatch()..start();
         final AiWriteResult result = await store.applyAiItems(edit());
+        final Object? duringStall = await storedTitle();
         _measure(
           'stalled commit: ${result.errors.map((e) => e.code.wire)} after '
-          '${watch.elapsedMilliseconds} ms; stored ${await storedTitle()}',
+          '${watch.elapsedMilliseconds} ms; stored $duringStall',
         );
-        expect(
-          result.errors.map((e) => e.code),
-          isNot(contains(ListErrorCode.needsConnection)),
-        );
+        expect(result.errors.single.code, ListErrorCode.outcomeUnknown);
+        expect(duringStall, 'Milk');
         debugPrint('HOST stall-off');
         final Stopwatch landing = Stopwatch()..start();
-        await _eventually(
-          () async => await storedTitle() == 'Oat milk',
-          timeout: const Duration(seconds: 90),
-        );
-        _measure(
-          'stalled commit landed ${landing.elapsedMilliseconds} ms after the '
-          'connection came back',
-        );
+        Object? finalTitle;
+        try {
+          await _eventually(() async {
+            finalTitle = await storedTitle();
+            return finalTitle == 'Oat milk';
+          }, timeout: const Duration(seconds: 90));
+          _measure(
+            'stalled commit landed ${landing.elapsedMilliseconds} ms after '
+            'the connection came back',
+          );
+        } on Object {
+          // Either end is what "may still go through" promises; say which.
+          _measure('stalled commit did not land in 90 s: stored $finalTitle');
+        }
+        expect(finalTitle, anyOf('Oat milk', 'Milk'));
       }, timeout: const Timeout(Duration(minutes: 4)));
 
       test('stalled before the hand-over: refused, and nothing lands later', () async {
@@ -805,7 +829,14 @@ void main() {
       ]);
       _measure('patch of $count items: ${watch.elapsedMilliseconds} ms');
       expect(result?.isValid, isTrue);
-      final int revision = result!.definition.schemaRevision;
+      // It returned with the definition saved; the items follow (Q-59).
+      expect(result!.itemsPending, isTrue);
+      await _until(
+        store,
+        (c) => c.itemsOf('big').every((item) => item['n'] is String),
+      );
+      _measure('... items done: ${watch.elapsedMilliseconds} ms');
+      final int revision = result.definition.schemaRevision;
       final QuerySnapshot<Map<String, dynamic>> items = await _db
           .collection('users/$uid/lists/big/items')
           .get(const GetOptions(source: Source.server));
