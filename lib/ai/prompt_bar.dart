@@ -632,6 +632,21 @@ class _Panel extends StatelessWidget {
         [cancel],
       ),
       AiBarPhase.reply => (Text(plan?.reply ?? '', style: type.row), [close]),
+      AiBarPhase.offer => (
+        Text(
+          loc.aiListOffOffer(controller.offeredList ?? ''),
+          key: const ValueKey('ai-offer'),
+          style: type.row,
+        ),
+        [
+          cancel,
+          FilledButton(
+            key: const ValueKey('ai-offer-send'),
+            onPressed: controller.acceptOffer,
+            child: Text(loc.aiListOffSend),
+          ),
+        ],
+      ),
       AiBarPhase.problem => (
         Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -666,6 +681,12 @@ class _Panel extends StatelessWidget {
                     Text(
                       loc.aiPartlyNotDone,
                       key: const ValueKey('ai-partial'),
+                      style: type.meta,
+                    ),
+                  if (controller.itemsPending)
+                    Text(
+                      loc.aiItemsUpdating,
+                      key: const ValueKey('ai-items-updating'),
                       style: type.meta,
                     ),
                   if (controller.offerAutoApply)
@@ -790,7 +811,9 @@ List<String> _problemTexts(
             error.code == ListErrorCode.listChanged ||
             error.code == ListErrorCode.undoTooLarge ||
             error.code == ListErrorCode.previewChanged ||
-            error.code == ListErrorCode.needsConnection,
+            error.code == ListErrorCode.needsConnection ||
+            error.code == ListErrorCode.outcomeUnknown ||
+            error.code == ListErrorCode.answerTooLarge,
       )) {
     return [labels.error(errors.first)];
   }

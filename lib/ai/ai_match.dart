@@ -9,6 +9,10 @@ import 'ai_service.dart';
 // A word that fits exactly one item becomes that item's id; one that fits
 // none or several is unclear, and the request goes again with that list's
 // items (the second round), or, when they were already sent, is an error.
+// How a request refers to a list by name (Q-62). clear: quoted, or with a list
+// word. possible: the name on its own, which may be an everyday word.
+enum AiMention { none, possible, clear }
+
 class AiMatchResult {
   const AiMatchResult({
     required this.answer,
@@ -160,15 +164,20 @@ class AiMatch {
     return '';
   }
 
-  // Lower-case words with a plural dropped, for comparing names. Quotes and
-  // brackets separate words; an apostrophe inside a word does not.
+  // Lower-case words with a plural "s" dropped, for comparing names.
   static List<String> words(String text) => [
+    for (final String word in _tokens(text)) _singular(word),
+  ];
+
+  // Lower-case words as written. Quotes and brackets separate words; an
+  // apostrophe inside a word does not.
+  static List<String> _tokens(String text) => [
     for (final String word
         in text
             .toLowerCase()
             .replaceAll(_edgeApostrophe, ' ')
             .split(_separators))
-      if (word.isNotEmpty) _singular(word),
+      if (word.isNotEmpty) word,
   ];
 
   static final RegExp _edgeApostrophe = RegExp(
@@ -187,47 +196,174 @@ class AiMatch {
   static final RegExp _listWordSuffix = RegExp(
     '(\u6E05\u5355|\u6E05\u55AE|\u5217\u8868|\u30EA\u30B9\u30C8)\$',
   );
+  static final RegExp _listWordStart = RegExp(
+    '^(\u6E05\u5355|\u6E05\u55AE|\u5217\u8868|\u30EA\u30B9\u30C8)',
+  );
+  // Text in quotation marks.
+  static final RegExp _quoted = RegExp(
+    '"([^"]+)"|\u201C([^\u201D]+)\u201D|\u2018([^\u2019]+)\u2019|'
+    "(?<![\\p{L}\\p{N}])'([^']+)'(?![\\p{L}\\p{N}])|"
+    '\u300C([^\u300D]+)\u300D|\u300E([^\u300F]+)\u300F|'
+    '\u300A([^\u300B]+)\u300B|\u3010([^\u3011]+)\u3011',
+    unicode: true,
+  );
 
-  // Whether [text] names the list called [name] (Q-41, Q-54): its words in a
-  // row, or inside the text in a script without spaces. "grocery" also names
-  // "Grocery list". A one-character name in such a script must stand alone,
-  // since it is too often part of another word. With [whole], [text] is exactly
-  // the name.
-  static bool namedIn(String text, String name, {bool whole = false}) {
-    final List<String> nameWords = words(name);
-    if (nameWords.isEmpty) {
+  // Whether [text] names the list called [name] (Q-41, Q-54).
+  static bool namedIn(String text, String name) =>
+      mention(text, name) != AiMention.none;
+
+  // Whether [text] is exactly the name [name].
+  static bool isName(String text, String name) {
+    final List<String> said = _tokens(text);
+    final List<String> wanted = _tokens(name);
+    return wanted.isNotEmpty &&
+        (_at(said, wanted, 0) && said.length == wanted.length ||
+            (_noSpaces.hasMatch(name) && said.join() == wanted.join()));
+  }
+
+  // How [text] refers to the list called [name]: its words in a row, or, in a
+  // script without spaces, inside one word of the text (punctuation is a
+  // boundary, Codex R5). A name without its trailing list word counts too, and
+  // a one-character name in such a script must stand alone. A mention inside a
+  // longer name of [otherNames] names that list, not this one (Q-62).
+  static AiMention mention(
+    String text,
+    String name, {
+    Iterable<String> otherNames = const [],
+  }) {
+    final List<String> wanted = _tokens(name);
+    if (wanted.isEmpty) {
+      return AiMention.none;
+    }
+    final bool noSpaces = _noSpaces.hasMatch(name);
+    final String compact = wanted.join();
+    final String short = compact.replaceFirst(_listWordSuffix, '');
+    final bool endsInListWord =
+        wanted.length > 1 && _sameWord(wanted.last, 'list') || short != compact;
+    final List<String> shortWords = wanted.length > 1 && _sameWord(wanted.last, 'list')
+        ? wanted.sublist(0, wanted.length - 1)
+        : wanted;
+
+    // Quoted exactly: clear.
+    for (final RegExpMatch match in _quoted.allMatches(text.toLowerCase())) {
+      final String? inside = [
+        for (int i = 1; i <= match.groupCount; i++) match.group(i),
+      ].nonNulls.firstOrNull;
+      if (inside != null &&
+          (_at(_tokens(inside), wanted, 0) && _tokens(inside).length == wanted.length ||
+              _tokens(inside).join() == compact ||
+              _tokens(inside).join() == short)) {
+        return AiMention.clear;
+      }
+    }
+
+    List<String> said = _tokens(text);
+    for (final String other in otherNames) {
+      final List<String> longer = _tokens(other);
+      if (longer.join().runes.length > compact.runes.length) {
+        said = _without(said, longer, _noSpaces.hasMatch(other));
+      }
+    }
+
+    if (noSpaces) {
+      bool found = false;
+      for (final String word in said) {
+        // The name with a list word, in full or written after it.
+        if (word.contains(compact) && short != compact) {
+          return AiMention.clear;
+        }
+        final int at = word.indexOf(short);
+        if (at >= 0 && _listWordStart.hasMatch(word.substring(at + short.length))) {
+          return AiMention.clear;
+        }
+        if (short.runes.length >= 2 ? word.contains(short) : word == short) {
+          found = true;
+        }
+      }
+      if (!found && wanted.length > 1 && _find(said, wanted) >= 0) {
+        found = true;
+      }
+      return found ? AiMention.possible : AiMention.none;
+    }
+
+    final int full = _find(said, wanted);
+    if (full >= 0) {
+      final int next = full + wanted.length;
+      return endsInListWord ||
+              (next < said.length && _sameWord(said[next], 'list'))
+          ? AiMention.clear
+          : AiMention.possible;
+    }
+    if (shortWords.length < wanted.length) {
+      final int at = _find(said, shortWords);
+      if (at >= 0) {
+        return AiMention.possible;
+      }
+    }
+    return AiMention.none;
+  }
+
+  // Where [wanted] starts in [said], or -1.
+  static int _find(List<String> said, List<String> wanted) {
+    for (int i = 0; i + wanted.length <= said.length; i++) {
+      if (_at(said, wanted, i)) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  static bool _at(List<String> said, List<String> wanted, int start) {
+    if (start + wanted.length > said.length) {
       return false;
     }
-    final List<String> said = words(text);
-    if (whole) {
-      return said.join(' ') == nameWords.join(' ') ||
-          (_noSpaces.hasMatch(name) && said.join() == nameWords.join());
+    for (int i = 0; i < wanted.length; i++) {
+      if (!_sameWord(said[start + i], wanted[i])) {
+        return false;
+      }
     }
-    if (_noSpaces.hasMatch(name)) {
-      final String compact = nameWords.join();
-      final String short = compact.replaceFirst(_listWordSuffix, '');
-      return [compact, if (short != compact) short].any(
-        (form) => form.runes.length >= 2
-            ? said.join().contains(form)
-            : said.contains(form),
-      );
+    return true;
+  }
+
+  // [said] without the mentions of a list named [name].
+  static List<String> _without(
+    List<String> said,
+    List<String> name,
+    bool noSpaces,
+  ) {
+    if (name.isEmpty) {
+      return said;
     }
-    final String joined = ' ${said.join(' ')} ';
-    return joined.contains(' ${nameWords.join(' ')} ') ||
-        (nameWords.length > 1 &&
-            nameWords.last == 'list' &&
-            joined.contains(
-              ' ${nameWords.sublist(0, nameWords.length - 1).join(' ')} ',
-            ));
+    if (noSpaces) {
+      final String compact = name.join();
+      return [
+        for (final String word in said)
+          ...word.split(compact).where((part) => part.isNotEmpty),
+      ];
+    }
+    final List<String> left = [];
+    for (int i = 0; i < said.length; i++) {
+      if (_at(said, name, i)) {
+        i += name.length - 1;
+      } else {
+        left.add(said[i]);
+      }
+    }
+    return left;
+  }
+
+  // Equal as written, without a plural "s", or with "ies" for "y".
+  static bool _sameWord(String a, String b) {
+    Set<String> forms(String word) => {
+      word,
+      _singular(word),
+      if (word.length > 4 && word.endsWith('ies'))
+        '${word.substring(0, word.length - 3)}y',
+    };
+    return forms(a).intersection(forms(b)).isNotEmpty;
   }
 
   static String _singular(String word) {
-    if (word.length > 4 && word.endsWith('ies')) {
-      return '${word.substring(0, word.length - 3)}y';
-    }
-    if (word.length > 3 && word.endsWith('ie')) {
-      return '${word.substring(0, word.length - 2)}y';
-    }
     return word.length > 3 && word.endsWith('s') && !word.endsWith('ss')
         ? word.substring(0, word.length - 1)
         : word;

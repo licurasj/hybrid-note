@@ -119,6 +119,7 @@ Future<AiBarController> _bar(
   AiService service, {
   bool autoApply = false,
   void Function(String listId)? onOpen,
+  int? maxListFetches,
 }) async {
   SharedPreferences.setMockInitialValues({
     AiBarController.noticeKey: aiNoticeId,
@@ -130,6 +131,7 @@ Future<AiBarController> _bar(
     store: store,
     preferences: await SharedPreferences.getInstance(),
     onOpenList: onOpen ?? (_) {},
+    maxListFetches: maxListFetches,
   );
   addTearDown(controller.dispose);
   return controller;
@@ -610,6 +612,294 @@ void main() {
     });
   });
 
+  group('A back-and-forth when a list goes AI-off (R1, Q-57)', () {
+    Future<(_Script, AiBarController, FirestoreListStore)> chat(
+      List<String> replies,
+    ) async {
+      final FirestoreListStore store = await fakeFirestoreStore(
+        items: [_item('a', 'PRIVATE MEDICATION')],
+      );
+      final _Script ai = _Script(
+        (_, round) async => _answer([
+          AiToolCall('reply', {'text': replies[round - 1]}),
+        ]),
+      );
+      return (ai, await _bar(store, ai), store);
+    }
+
+    test('the latest reply does not go out, from the list or from Home', () async {
+      for (final String? open in [_g, null]) {
+        final (ai, bar, store) = await chat(['Do you mean PRIVATE MEDICATION?']);
+        await _send(bar, 'rename this');
+        await _aiOff(store, _g);
+        await _send(bar, 'yes', open: open);
+        expect(ai.requests, hasLength(1));
+        expect(bar.phase, AiBarPhase.problem);
+        expect(bar.problem!.listOff, isNotNull);
+        expect(bar.text.text, 'yes');
+      }
+    });
+
+    test('an earlier reply does not go out either', () async {
+      final (ai, bar, store) = await chat(['Do you mean Grocery?', 'Which one?']);
+      await _send(bar, 'rename this', open: null);
+      await _send(bar, 'yes', open: null);
+      expect(ai.requests, hasLength(2));
+      await _aiOff(store, _g);
+      await _send(bar, 'the first', open: null);
+      expect(ai.requests, hasLength(2));
+      expect(bar.problem!.listOff, isNotNull);
+    });
+
+    test('a reply that never mentions the list ends too; the next send is fresh', () async {
+      final (ai, bar, store) = await chat(['Which one?', 'Fine.']);
+      await _send(bar, 'rename this');
+      await _aiOff(store, _g);
+      await _send(bar, 'the first', open: null);
+      expect(ai.requests, hasLength(1));
+      await _send(bar, 'the first', open: null);
+      expect(ai.requests, hasLength(2));
+      expect(ai.requests.last.followUp, isNull);
+      expect(ai.requests.last.toJson().toString(), isNot(contains('Which one?')));
+    });
+
+    test('a correction does not go out once any list of the chain is off', () async {
+      final FirestoreListStore store = await fakeFirestoreStore(
+        items: [_item('a', 'Milk')],
+      );
+      final _Script ai = _Script((_, _) async {
+        await _aiOff(store, _t);
+        return _answer([
+          const AiToolCall('upsert_items', {
+            'listId': _g,
+            'items': [
+              {
+                'values': [
+                  {'field': 'nope', 'value': 'x'},
+                ],
+              },
+            ],
+          }),
+        ]);
+      });
+      final AiBarController bar = await _bar(store, ai);
+      await _send(bar, 'add it');
+      expect(ai.requests, hasLength(1));
+      expect(bar.problem!.listOff, isNotNull);
+    });
+  });
+
+  group('Requests over several lists (R4, Q-61)', () {
+    // Answers as a model would: by id where a list's items are in the request,
+    // by words where they are not.
+    AiAnswer breadInAll(AiRequest request, List<String> lists) {
+      return _answer([
+        for (final String list in lists)
+          if (request.openList?.id == list)
+            AiToolCall('delete_items', {
+              'listId': list,
+              'ids': [
+                for (final ListItem item in request.openItems)
+                  if (item['done'] == true) item.id,
+              ],
+            })
+          else
+            AiToolCall('delete_items', {
+              'listId': list,
+              'match': ['bread'],
+            }),
+      ]);
+    }
+
+    List<ListItem> breads(String list) => [
+      _item('$list-1', 'Brown bread', list: list, done: true),
+      _item('$list-2', 'White bread', list: list),
+    ];
+
+    test('two lists that each need their items succeed', () async {
+      final FirestoreListStore store = await fakeFirestoreStore(
+        items: [...breads(_g), ...breads(_t)],
+      );
+      final _Script ai = _Script(
+        (request, _) async => breadInAll(request, [_g, _t]),
+      );
+      final AiBarController bar = await _bar(store, ai);
+      await _send(bar, 'delete the completed bread in Grocery and Tasks', open: null);
+      expect(bar.phase, AiBarPhase.preview);
+      expect(ai.requests, hasLength(3));
+      await bar.apply();
+      await _tick();
+      expect(bar.phase, AiBarPhase.done);
+      expect(store.current.itemsOf(_g).single.id, '$_g-2');
+      expect(store.current.itemsOf(_t).single.id, '$_t-2');
+      // Undo brings both back.
+      await bar.undo();
+      await _tick();
+      expect(store.current.itemsOf(_g), hasLength(2));
+      expect(store.current.itemsOf(_t), hasLength(2));
+    });
+
+    test('every list works, each fetched once (Q-61)', () async {
+      final List<String> ids = [
+        for (final ListDefinition definition in BuiltinTemplates.all())
+          definition.id,
+      ];
+      final FirestoreListStore store = await fakeFirestoreStore(
+        items: [for (final String id in ids) ...breads(id)],
+      );
+      final _Script ai = _Script(
+        (request, _) async => breadInAll(request, ids),
+      );
+      final AiBarController bar = await _bar(store, ai);
+      await _send(bar, 'remove the done bread from all my lists', open: null);
+      expect(bar.phase, AiBarPhase.preview);
+      expect(ai.requests.length, ids.length + 1);
+      final List<String?> fetched = [
+        for (final AiRequest request in ai.requests) request.openList?.id,
+      ];
+      expect(fetched.whereType<String>().toSet(), ids.toSet());
+      expect(fetched.whereType<String>().length, ids.length);
+    });
+
+    test('a limit, for account tiers later, ends with nothing changed', () async {
+      final FirestoreListStore store = await fakeFirestoreStore(
+        items: [...breads(_g), ...breads(_t)],
+      );
+      final _Script ai = _Script(
+        (request, _) async => breadInAll(request, [_g, _t]),
+      );
+      final AiBarController bar = await _bar(store, ai, maxListFetches: 1);
+      await _send(bar, 'delete the completed bread', open: null);
+      expect(bar.phase, AiBarPhase.problem);
+      expect(ai.requests.length, lessThanOrEqualTo(3));
+      expect(store.current.itemsOf(_g), hasLength(2));
+    });
+
+    test('a settled list turned AI-off stops the whole answer', () async {
+      final FirestoreListStore store = await fakeFirestoreStore(
+        items: [...breads(_g), ...breads(_t)],
+      );
+      final _Script ai = _Script((request, round) async {
+        if (round == 3) {
+          await _aiOff(store, _g);
+        }
+        return breadInAll(request, [_g, _t]);
+      });
+      final AiBarController bar = await _bar(store, ai);
+      await _send(bar, 'delete the completed bread in both', open: null);
+      expect(bar.phase, AiBarPhase.problem);
+      expect(bar.problem!.listOff, isNotNull);
+      expect(store.current.itemsOf(_t), hasLength(2));
+    });
+  });
+
+  group('Too many changes (R3, Q-60)', () {
+    AiToolCall fifty(int start, {int count = 50}) => AiToolCall('upsert_items', {
+      'listId': _g,
+      'items': [
+        for (int n = start; n < start + count; n++)
+          {
+            'values': [
+              {'field': 'title', 'value': 'Row $n'},
+            ],
+          },
+      ],
+    });
+
+    test('501 across valid calls is refused before any preview', () async {
+      final FirestoreListStore store = await fakeFirestoreStore();
+      final _Script ai = _Script(
+        (_, _) async => _answer([
+          for (int call = 0; call < 10; call++) fifty(call * 50),
+          fifty(500, count: 1),
+        ]),
+      );
+      final AiBarController bar = await _bar(store, ai);
+      await _send(bar, 'add a lot');
+      expect(ai.requests, hasLength(1));
+      expect(bar.phase, AiBarPhase.problem);
+      expect(bar.problem!.errors.single.code, ListErrorCode.answerTooLarge);
+      expect(bar.text.text, 'add a lot');
+      expect(store.current.itemsOf(_g), isEmpty);
+    });
+
+    test('500 across valid calls applies, and Undo takes them back', () async {
+      final FirestoreListStore store = await fakeFirestoreStore();
+      final _Script ai = _Script(
+        (_, _) async => _answer([
+          for (int call = 0; call < 10; call++) fifty(call * 50),
+        ]),
+      );
+      final AiBarController bar = await _bar(store, ai);
+      await _send(bar, 'add a lot');
+      await bar.apply();
+      await _tick();
+      expect(bar.phase, AiBarPhase.done);
+      expect(store.current.itemsOf(_g), hasLength(500));
+      await bar.undo();
+      await _tick();
+      await _tick();
+      expect(store.current.itemsOf(_g), isEmpty);
+    });
+  });
+
+  group('A big structure change (Q-59)', () {
+    test('it reports done with items still updating, and no Undo', () async {
+      const String plants = 'list-plants';
+      final ListDefinition list = ListDefinition.fromJson({
+        'id': plants,
+        'name': 'Plants',
+        'icon': 'local_florist',
+        'color': '#43A047',
+        'fields': [
+          {'key': 'title', 'type': 'text', 'label': 'Plant', 'primary': true},
+          {'key': 'kind', 'type': 'text', 'label': 'Kind'},
+        ],
+        'view': {'kind': 'cards'},
+        'updatedAt': _now.toIso8601String(),
+      });
+      final FirestoreListStore store = await fakeFirestoreStore(
+        lists: [list],
+        batchLimit: 5,
+      );
+      await store.apply(
+        ListChanges(
+          saved: [
+            for (int n = 0; n < 6; n++)
+              ListItem(
+                id: 'i$n',
+                listId: plants,
+                values: {'title': 'Plant $n', 'kind': '$n'},
+                createdAt: _now,
+                updatedAt: _now,
+              ),
+          ],
+        ),
+      );
+      await _tick();
+      final AiBarController bar = await _bar(
+        store,
+        _Script(
+          (_, _) async => _answer([
+            _patch({
+              'op': 'changeFieldType',
+              'key': 'kind',
+              'type': 'counter',
+            }, list: plants),
+          ]),
+        ),
+      );
+      await _send(bar, 'make kind a counter', open: plants);
+      expect(bar.phase, AiBarPhase.preview);
+      await bar.apply();
+      expect(bar.phase, AiBarPhase.done);
+      expect(bar.itemsPending, isTrue);
+      expect(bar.canUndo, isFalse);
+      await _tick();
+      expect(store.current.itemsOf(plants).every((i) => i['kind'] is int), isTrue);
+    });
+  });
+
   group('Rounds (M1)', () {
     test('alternating unclear lists stop instead of refetching', () async {
       final FirestoreListStore store = await fakeFirestoreStore(
@@ -770,9 +1060,74 @@ void main() {
       expect(AiMatch.namedIn('', 'Grocery'), isFalse);
     });
 
+    test('punctuation is a boundary, no global ie rule (R5)', () {
+      // \u4E70\u7C73\u3001\u7C89\u7B14: buy rice, chalk; list: rice noodles.
+      expect(AiMatch.namedIn('\u4E70\u7C73\u3001\u7C89\u7B14', '\u7C73\u7C89'), isFalse);
+      expect(AiMatch.namedIn('\u4E70\u7C73\u7C89', '\u7C73\u7C89'), isTrue);
+      expect(AiMatch.namedIn('call family', 'Familie'), isFalse);
+      expect(AiMatch.namedIn('call familie', 'Familie'), isTrue);
+      expect(AiMatch.namedIn('add to cookies', 'Cookie'), isTrue);
+      expect(AiMatch.namedIn('add to the movies', 'Movie'), isTrue);
+    });
+
+    test('clear and possible mentions (Q-62)', () {
+      AiMention mention(String text, String name, [List<String> others = const []]) =>
+          AiMatch.mention(text, name, otherNames: others);
+      expect(mention('add this book to my books', 'Books'), AiMention.possible);
+      expect(mention('add to grocery', 'Grocery list'), AiMention.possible);
+      expect(mention('add to "Books"', 'Books'), AiMention.clear);
+      expect(mention("add to 'Books'", 'Books'), AiMention.clear);
+      expect(mention('add to my books list', 'Books'), AiMention.clear);
+      expect(mention('add to my grocery list', 'Grocery list'), AiMention.clear);
+      // The Chinese and Japanese list words.
+      expect(mention('\u5F80\u8D2D\u7269\u6E05\u5355\u52A0\u725B\u5976', '\u8D2D\u7269\u6E05\u5355'), AiMention.clear);
+      expect(mention('\u5F80\u8D2D\u7269\u52A0\u725B\u5976', '\u8D2D\u7269\u6E05\u5355'), AiMention.possible);
+      expect(mention('\u7C73\u7C89\u6E05\u5355\u52A0\u725B\u5976', '\u7C73\u7C89'), AiMention.clear);
+      expect(mention('\u65E5\u672C\u8A9E\u3092\u52C9\u5F37\u3059\u308B', '\u65E5\u672C'), AiMention.possible);
+      expect(mention('\u300C\u65E5\u672C\u300D\u306B\u8FFD\u52A0', '\u65E5\u672C'), AiMention.clear);
+      // A longer list's name wins.
+      expect(mention('add to buy books', 'Books', ['Buy books']), AiMention.none);
+      expect(mention('add to buy books', 'Books'), AiMention.possible);
+      expect(mention('add this book to my books', 'Books', ['Buy books']), AiMention.possible);
+      expect(mention('\u8D2D\u7269\u6E05\u5355\u52A0\u725B\u5976', '\u8D2D\u7269', ['\u8D2D\u7269\u6E05\u5355']), AiMention.none);
+      // A shorter one does not take the mention away.
+      expect(mention('add to buy books', 'Buy books', ['Books']), AiMention.possible);
+    });
+
+    test('a request to a longer AI-on name goes out; AI-off stays out of it (Q-62)', () async {
+      final List<ListDefinition> lists = [
+        for (final ListDefinition definition in BuiltinTemplates.all())
+          if (definition.id == _g)
+            ListDefinition.fromJson({
+              ...definition.toJson(),
+              'name': 'Books',
+              'nameKey': null,
+              'aiAllowed': false,
+            })
+          else if (definition.id == _t)
+            ListDefinition.fromJson({
+              ...definition.toJson(),
+              'name': 'Buy books',
+              'nameKey': null,
+            })
+          else
+            definition,
+      ];
+      final FirestoreListStore store = await fakeFirestoreStore(lists: lists);
+      final _Script ai = _Script(
+        (_, _) async => _answer([
+          const AiToolCall('reply', {'text': 'Done?'}),
+        ]),
+      );
+      final AiBarController bar = await _bar(store, ai);
+      await _send(bar, 'add to buy books', open: null);
+      expect(ai.requests, hasLength(1));
+      expect(ai.requests.single.lists.map((l) => l.id), isNot(contains(_g)));
+    });
+
     test('a word keeps its apostrophe when items are matched', () {
       expect(AiMatch.words("Bob's 'coffee'"), ["bob'", 'coffee']);
-      expect(AiMatch.words('cookies cookie'), ['cooky', 'cooky']);
+      expect(AiMatch.words('cookies cookie'), ['cookie', 'cookie']);
     });
 
     test('the bar sends nothing for such a request', () async {

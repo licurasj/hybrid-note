@@ -805,7 +805,7 @@ void main() {
         );
       await _pump(tester, ai, lists: lists);
 
-      await _ask(tester, 'add milk to Grocery');
+      await _ask(tester, 'add milk to "Grocery"');
       expect(ai.requests, isEmpty);
       expect(find.text('"Grocery" has AI turned off.'), findsOneWidget);
       await _tapKey(tester, 'ai-close');
@@ -814,6 +814,42 @@ void main() {
       expect(ai.requests, hasLength(1));
       expect(find.text('"Grocery" has AI turned off.'), findsOneWidget);
       expect(find.byKey(const ValueKey('ai-apply')), findsNothing);
+    });
+
+    testWidgets('a possible mention of an AI-off list offers the other lists; '
+        'Send goes without it and waits for Apply (Q-62)', (tester) async {
+      final List<ListDefinition> lists = [
+        for (final ListDefinition list in starterLists())
+          list.id == _grocery ? _aiOff(list) : list,
+      ];
+      final FakeAiService ai = FakeAiService()
+        ..answers.add(
+          _calls([
+            _add(_tasks, ['Call about the grocery order']),
+          ]),
+        );
+      await _pump(tester, ai, lists: lists);
+
+      await _ask(tester, 'call about the grocery order');
+      expect(ai.requests, isEmpty);
+      expect(find.byKey(const ValueKey('ai-offer')), findsOneWidget);
+
+      // Cancel sends nothing and the words stay.
+      await _tapKey(tester, 'ai-cancel');
+      expect(ai.requests, isEmpty);
+      expect(find.byKey(const ValueKey('ai-offer')), findsNothing);
+
+      await tester.tap(_send);
+      await settle(tester);
+      expect(find.byKey(const ValueKey('ai-offer')), findsOneWidget);
+      await _tapKey(tester, 'ai-offer-send');
+      await settle(tester);
+      expect(ai.requests, hasLength(1));
+      expect(
+        ai.requests.single.lists.map((list) => list.id),
+        isNot(contains(_grocery)),
+      );
+      expect(find.byKey(const ValueKey('ai-apply')), findsOneWidget);
     });
 
     testWidgets('"Which items?" shows the items as buttons; the picked ones '

@@ -35,6 +35,9 @@ enum AiBarPhase {
   problem,
   // "Added to Grocery · Undo".
   done,
+  // A request that may mention a list with AI off: send it for the other lists?
+  // (Q-62)
+  offer,
 }
 
 // Why there is nothing to apply. Exactly one of the four is set.
@@ -129,6 +132,7 @@ class AiBarController extends ChangeNotifier {
     required this.preferences,
     required this.onOpenList,
     this.saveAutoApply,
+    this.maxListFetches,
     DateTime Function()? clock,
   }) : _clock = clock ?? DateTime.now {
     focus.addListener(_focusChanged);
@@ -144,6 +148,10 @@ class AiBarController extends ChangeNotifier {
   // Saves the auto-apply setting through the settings cubit, so the
   // Settings switch shows it; without it the preference is written here.
   final Future<void> Function(bool value)? saveAutoApply;
+  // How many lists one request may fetch items for. None today: each list is
+  // fetched at most once, so a request stays bounded by the number of lists and
+  // by the daily caps. For account tiers later (Q-61).
+  final int? maxListFetches;
   final DateTime Function() _clock;
 
   static const String noticeKey = 'ai.noticeSeen';
@@ -276,16 +284,50 @@ class AiBarController extends ChangeNotifier {
   }
 
   // The lists whose items went out with this submission, and how many rounds
-  // only fetched a list's items: one submission cannot refetch without end
-  // (M1 of the Codex review).
+  // only fetched a list's items: a list is fetched once, so a submission cannot
+  // refetch without end (M1 of the Codex review).
   Set<String> _itemsSent = {};
   int _fetches = 0;
-  static const int maxFetches = 2;
+  // Item calls already settled per list, when that list's items were in the
+  // request. A later request carries another list's items instead, so it could
+  // not settle them again (R4 of the Codex re-review).
+  Map<String, List<AiToolCall>> _settled = {};
 
   void _startSubmission() {
     _itemsSent = {};
     _fetches = 0;
+    _settled = {};
   }
+
+  // Every list the current chain's requests held, whose text an AI reply or a
+  // correction may quote (Q-57).
+  Set<String> _chainLists = {};
+
+  // The AI-off lists the user chose to send past, and that the answer then
+  // always waits for Apply (Q-62).
+  Set<String> _sentPast = {};
+  bool _previewOnly = false;
+
+  String? _offeredList;
+  // The list named in the offer.
+  String? get offeredList => _offeredList;
+
+  // "Send" on the offer: the request goes without that list, which the AI never
+  // sees, and its result waits for Apply.
+  Future<void> acceptOffer() async {
+    final String? name = _offeredList;
+    if (name == null || _pending == null) {
+      return;
+    }
+    _offeredList = null;
+    _sentPast = {..._sentPast, name};
+    _previewOnly = true;
+    await _sendPending();
+  }
+
+  bool _itemsPending = false;
+  // A change so big that its items are still being saved (Q-59).
+  bool get itemsPending => _itemsPending;
 
   // The follow-up for the AI's new [reply] to the current request: the original
   // request stays, with the latest exchanges (Q-55).
@@ -378,6 +420,8 @@ class AiBarController extends ChangeNotifier {
     }
     // Sending leaves the bar; the notice or the answer gets the room.
     leave();
+    _sentPast = {};
+    _previewOnly = false;
     _pending = _Pending(prompt, locale, labels, openListId, _newList);
     if (!noticeSeen) {
       _set(AiBarPhase.notice);
@@ -396,17 +440,28 @@ class AiBarController extends ChangeNotifier {
     if (pending == null) {
       return;
     }
-    _pending = null;
     _labels = pending.labels;
     _lastPrompt = pending.prompt;
     _homeListId = pending.newList ? null : pending.openListId;
-    // A request that names a list with AI off is answered here and sends
-    // nothing (Q-41 A).
-    final String? off = _aiOffNamed(pending.prompt, pending.labels);
+    // A request that clearly names a list with AI off is answered here and
+    // sends nothing (Q-41 A); one that may name it gets the offer (Q-62).
+    final (String name, AiMention mention)? off = _aiOffMention(
+      pending.prompt,
+      pending.labels,
+    );
+    if (off?.$2 == AiMention.possible) {
+      _offeredList = off!.$1;
+      _set(AiBarPhase.offer);
+      return;
+    }
+    _pending = null;
     if (off != null) {
-      _problem = AiProblem.listOff(off);
+      _problem = AiProblem.listOff(off.$1);
       _set(AiBarPhase.problem);
       return;
+    }
+    if (_followUp == null) {
+      _chainLists = {};
     }
     _startSubmission();
     final AiRequest request = AiRequest.of(
@@ -442,6 +497,11 @@ class AiBarController extends ChangeNotifier {
     final AiRequest request = labels == null
         ? asked
         : asked.current(store.current, labels);
+    _chainLists = {
+      ..._chainLists,
+      for (final AiListSummary list in request.lists) list.id,
+      ?request.openList?.id,
+    };
     final int generation = ++_generation;
     _request = request;
     _set(AiBarPhase.sending);
@@ -478,30 +538,53 @@ class AiBarController extends ChangeNotifier {
     // Items named by their words (Q-39 D): the phone finds them; when it
     // cannot tell, the request goes again with that list's items, once per
     // list and at most [maxFetches] times.
+    final int? limit = maxListFetches;
     final AiMatchResult matched = AiMatch.resolve(
-      answer,
+      answer.withToolCalls([
+        for (final AiToolCall call in answer.toolCalls)
+          if (!_settled.containsKey(_listOf(call))) call,
+      ]),
       store.current,
       itemsSent: _itemsSent,
-      lastRound: _fetches >= maxFetches,
+      lastRound: limit != null && _fetches >= limit,
     );
     final String? unclear = matched.unclearListId;
     if (unclear != null) {
       final AiRequest second = request.withOpenList(store.current, unclear);
       if (second.openList?.id == unclear) {
+        _settle(openListId, matched);
         _fetches++;
         await _run(second, correct: correct);
         return;
       }
     }
+    // What earlier rounds settled goes with this answer, unless it asks back.
+    final bool asks = matched.answer.toolCalls.any(
+      (call) => const {
+        'reply',
+        'choose_list',
+        'choose_items',
+      }.contains(call.name),
+    );
     final AiPlan plan = AiPlan.read(
-      matched.answer,
+      asks
+          ? matched.answer
+          : matched.answer.withToolCalls([
+              for (final List<AiToolCall> calls in _settled.values) ...calls,
+              ...matched.answer.toolCalls,
+            ]),
       store.current,
       openListId: request.structureListId,
     );
     final List<ListError> errors = [...matched.errors, ...plan.errors];
     if (errors.isNotEmpty) {
-      // A list that turned AI off is not asked about again.
-      if (errors.any((error) => error.code == ListErrorCode.aiNotAllowed)) {
+      // A list that turned AI off is not asked about again, and an answer too
+      // large is not worth another request (Q-60).
+      if (errors.any(
+        (error) =>
+            error.code == ListErrorCode.aiNotAllowed ||
+            error.code == ListErrorCode.answerTooLarge,
+      )) {
         _problem = _problemOf(errors);
         _set(AiBarPhase.problem);
       } else if (correct) {
@@ -523,12 +606,11 @@ class AiBarController extends ChangeNotifier {
     // A new list named like a list with AI off (Q-41 A).
     for (final AiStep step in plan.steps) {
       if (step is AiCreateStep) {
-        final String? off = _aiOffNamed(
+        final String? off = _aiOffIs(
           _labels?.listName(step.definition) ??
               step.definition.name ??
               step.definition.id,
           _labels,
-          whole: true,
         );
         if (off != null) {
           _problem = AiProblem.listOff(off);
@@ -559,11 +641,40 @@ class AiBarController extends ChangeNotifier {
     // Apply even with auto-apply on, unless the request named that list
     // (Q-45 D).
     if ((plan.needsPreview(openListId) && !autoApply) ||
+        _previewOnly ||
         _leavesHomeList(plan)) {
       _set(AiBarPhase.preview);
       return;
     }
     await apply();
+  }
+
+  // The list a tool call targets.
+  static String? _listOf(AiToolCall call) => switch (call.args) {
+    {'listId': final String listId} => listId,
+    _ => null,
+  };
+
+  // Keeps the calls of a round whose request held [listId]'s items and that are
+  // valid as they are, before the next round fetches another list.
+  void _settle(String? listId, AiMatchResult matched) {
+    if (listId == null ||
+        matched.errors.any((error) => error.arg('list') == listId)) {
+      return;
+    }
+    final List<AiToolCall> calls = [
+      for (final AiToolCall call in matched.answer.toolCalls)
+        if (_listOf(call) == listId &&
+            (call.name == 'upsert_items' || call.name == 'delete_items'))
+          call,
+    ];
+    if (calls.isNotEmpty &&
+        AiPlan.read(
+          AiAnswer(requestId: '', toolCalls: calls),
+          store.current,
+        ).isValid) {
+      _settled[listId] = calls;
+    }
   }
 
   // Whether an item step targets a list other than the one on screen that
@@ -588,28 +699,54 @@ class AiBarController extends ChangeNotifier {
   static String _nameOf(ListDefinition definition, ListLabels? labels) =>
       labels?.listName(definition) ?? definition.name ?? definition.id;
 
-  // The name of a list with AI off that [text] names, or, with [whole], that
-  // [text] is (Q-41, Q-54).
-  String? _aiOffNamed(String text, ListLabels? labels, {bool whole = false}) {
+  // The name of a list with AI off that [text] is (Q-41).
+  String? _aiOffIs(String text, ListLabels? labels) {
     for (final ListDefinition definition in store.current.definitions) {
-      if (definition.aiAllowed) {
-        continue;
-      }
-      final String name = _nameOf(definition, labels);
-      if (AiMatch.namedIn(text, name, whole: whole)) {
-        return name;
+      if (!definition.aiAllowed &&
+          AiMatch.isName(text, _nameOf(definition, labels))) {
+        return _nameOf(definition, labels);
       }
     }
     return null;
   }
 
+  // The list with AI off that [text] refers to, a clear mention first, leaving
+  // out the possible mentions the user chose to send past (Q-41, Q-54, Q-62).
+  (String, AiMention)? _aiOffMention(String text, ListLabels? labels) {
+    final List<String> others = [
+      for (final ListDefinition definition in store.current.definitions)
+        if (definition.aiAllowed) _nameOf(definition, labels),
+    ];
+    String? possible;
+    for (final ListDefinition definition in store.current.definitions) {
+      if (definition.aiAllowed) {
+        continue;
+      }
+      final String name = _nameOf(definition, labels);
+      switch (AiMatch.mention(text, name, otherNames: others)) {
+        case AiMention.clear:
+          return (name, AiMention.clear);
+        case AiMention.possible:
+          if (!_sentPast.contains(name)) {
+            possible ??= name;
+          }
+        case AiMention.none:
+      }
+    }
+    return possible == null ? null : (possible, AiMention.possible);
+  }
+
   // Why [request] may not go out now: a list it would send or name has
-  // turned AI off since it was written.
+  // turned AI off since it was written. History and corrections may quote any
+  // list the chain's requests held, whatever their text seems to say, so any
+  // of those lists ends them (Q-57).
   AiProblem? _turnedOff(AiRequest request) {
+    final AiFollowUp? followUp = request.followUp;
     final Set<String?> targets = {
       request.openList?.id,
+      if (followUp != null || request.correction != null) ..._chainLists,
       for (final AiToolCall call in request.correction?.toolCalls ?? const [])
-        if (call.args case {'listId': final String listId}) listId,
+        _listOf(call),
     };
     for (final String? id in targets) {
       final ListDefinition? definition = id == null
@@ -619,8 +756,7 @@ class AiBarController extends ChangeNotifier {
         return AiProblem.listOff(_nameOf(definition, _labels));
       }
     }
-    final AiFollowUp? followUp = request.followUp;
-    final String? named = _aiOffNamed(
+    final (String name, AiMention mention)? named = _aiOffMention(
       [
         request.prompt,
         ?followUp?.prompt,
@@ -628,7 +764,7 @@ class AiBarController extends ChangeNotifier {
       ].join('\n'),
       _labels,
     );
-    return named == null ? null : AiProblem.listOff(named);
+    return named == null ? null : AiProblem.listOff(named.$1);
   }
 
   // A store's or plan's refusal; a list with AI off gets its own line.
@@ -695,6 +831,7 @@ class AiBarController extends ChangeNotifier {
         !(preferences.getBool(autoApplyAskedKey) ?? false);
     final int generation = ++_generation;
     _set(AiBarPhase.sending);
+    _itemsPending = false;
     final List<_Undo> undo = [];
     final List<String> names = [];
     AiDoneKind kind = AiDoneKind.added;
@@ -728,7 +865,12 @@ class AiBarController extends ChangeNotifier {
             if (!result.isValid) {
               throw _StepFailed(result.errors);
             }
-            undo.add(_Undo.snapshot(ListSnapshot.ofPatch(result)));
+            // No Undo can cover a change this size (Q-59).
+            if (result.itemsPending) {
+              _itemsPending = true;
+            } else {
+              undo.add(_Undo.snapshot(ListSnapshot.ofPatch(result)));
+            }
             kind = AiDoneKind.changed;
           case AiCreateStep():
             final List<ListError> errors = await store.createList(
@@ -821,6 +963,10 @@ class AiBarController extends ChangeNotifier {
         _setUndo(left);
         break;
       }
+      // It may still land, so the rest stays as it is and no Undo is offered.
+      if (refused.any((e) => e.code == ListErrorCode.outcomeUnknown)) {
+        break;
+      }
       left.remove(step);
     }
     if (errors.isNotEmpty) {
@@ -886,6 +1032,8 @@ class AiBarController extends ChangeNotifier {
     _partial = false;
     _offerAutoApply = false;
     _pending = null;
+    _offeredList = null;
+    _itemsPending = false;
     _setUndo(const []);
     _set(AiBarPhase.idle);
   }

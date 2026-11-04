@@ -385,6 +385,18 @@ class AiPlan {
       }
     }
 
+    // One answer stays within what one write holds (Q-60).
+    final int writes = steps.whereType<AiItemStep>().fold(
+      0,
+      (sum, step) => sum + step.write.writes,
+    );
+    if (writes > ListStore.maxAiWrites) {
+      return AiPlan(
+        errors: [
+          ListError(ListErrorCode.answerTooLarge, {'list': steps.first.listId}),
+        ],
+      );
+    }
     return AiPlan(
       steps: steps,
       reply: replies.isEmpty ? null : replies.join('\n'),
