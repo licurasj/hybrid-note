@@ -35,6 +35,16 @@ describe('system prompt', () => {
   });
 });
 
+describe('the open list first (Q-45)', () => {
+  test('the open list is read in its own sense and left only when the request says so', () => {
+    const system = systemPrompt();
+    assert.ok(system.includes('# When a list is open'));
+    assert.ok(system.includes('"beef and broccoli" in a dinner plan is a dinner'));
+    assert.ok(system.includes('the open list first ("Dinner plan or Grocery?")'));
+    assert.ok(system.includes('at the less setting use the open list'));
+  });
+});
+
 describe('user message', () => {
   test("states the user's ask-first setting; the system prompt explains each level (Q-43)", () => {
     assert.match(buildUserMessage({ ...request, askLevel: 'more' }, new Date()), /How often to ask first: more\./);

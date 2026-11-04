@@ -1003,6 +1003,43 @@ void main() {
       expect(ai.requests.last.askLevel, 'more');
     });
 
+    testWidgets('with auto-apply on, an add the AI moves away from the open '
+        'list still waits for Apply, unless the request named that list '
+        '(Q-45)', (tester) async {
+      final FakeAiService ai = FakeAiService()
+        ..answers.addAll([
+          _calls([
+            _add(_grocery, ['Beef']),
+          ]),
+          _calls([
+            _add(_grocery, ['Broccoli']),
+          ]),
+          _calls([
+            _add(_tasks, ['Defrost beef']),
+          ]),
+        ]);
+      final FirestoreListStore store = await _pump(tester, ai);
+      final SharedPreferences preferences =
+          await SharedPreferences.getInstance();
+      await preferences.setBool(AppSettingsCubit.aiAutoApplyKey, true);
+      await _openList(tester, _tasks);
+
+      // Not named: the preview stays, with auto-apply on.
+      await _ask(tester, 'beef and broccoli');
+      expect(find.byKey(const ValueKey('ai-apply')), findsOneWidget);
+      expect(_titles(store, _grocery), isNot(contains('Beef')));
+      await _tapKey(tester, 'ai-cancel');
+
+      // Named: auto-apply applies it.
+      await _ask(tester, 'add broccoli to grocery');
+      expect(find.byKey(const ValueKey('ai-apply')), findsNothing);
+      expect(_titles(store, _grocery), contains('Broccoli'));
+
+      // The open list itself: applied at once as before.
+      await _ask(tester, 'defrost beef');
+      expect(_titles(store, _tasks), contains('Defrost beef'));
+    });
+
     testWidgets('after Undo the request comes back as a draft, not focused; '
         'one Backspace at its end clears it', (tester) async {
       final FakeAiService ai = FakeAiService()

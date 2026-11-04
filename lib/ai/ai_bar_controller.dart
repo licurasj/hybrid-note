@@ -223,6 +223,9 @@ class AiBarController extends ChangeNotifier {
 
   // The last request's words, put back in the bar after its Undo.
   String? _lastPrompt;
+  // The list on screen when the request was sent, or the list the user
+  // picked as the answer to "which list?" (Q-45 D).
+  String? _homeListId;
 
   AiFollowUp? _followUp;
   // The AI's reply or question the next request answers (Q-42); it stays
@@ -341,6 +344,7 @@ class AiBarController extends ChangeNotifier {
     _pending = null;
     _labels = pending.labels;
     _lastPrompt = pending.prompt;
+    _homeListId = pending.newList ? null : pending.openListId;
     // A request that names a list with AI off is answered here and sends
     // nothing (Q-41 A).
     final String? off = _aiOffNamed(pending.prompt, pending.labels);
@@ -477,11 +481,39 @@ class AiBarController extends ChangeNotifier {
       }
       return;
     }
-    if (plan.needsPreview(openListId) && !autoApply) {
+    // An add or change the AI moved away from the open list waits for
+    // Apply even with auto-apply on, unless the request named that list
+    // (Q-45 D).
+    if ((plan.needsPreview(openListId) && !autoApply) ||
+        _leavesHomeList(plan)) {
       _set(AiBarPhase.preview);
       return;
     }
     await apply();
+  }
+
+  // Whether an item step targets a list other than the one on screen that
+  // the request did not name.
+  bool _leavesHomeList(AiPlan plan) {
+    final String? home = _homeListId;
+    if (home == null) {
+      return false;
+    }
+    final String said = ' ${AiMatch.words(_lastPrompt ?? '').join(' ')} ';
+    for (final AiStep step in plan.steps) {
+      if (step is! AiItemStep || step.listId == home) {
+        continue;
+      }
+      final String name =
+          _labels?.listName(step.definition) ??
+          step.definition.name ??
+          step.definition.id;
+      final String words = AiMatch.words(name).join(' ');
+      if (words.isEmpty || !said.contains(' $words ')) {
+        return true;
+      }
+    }
+    return false;
   }
 
   // The name of a list with AI off that [text] names (its words in a row),
@@ -513,8 +545,10 @@ class AiBarController extends ChangeNotifier {
         _plan?.question == null) {
       return;
     }
-    // A button answered the question, not the bar's text.
+    // A button answered the question, not the bar's text; the picked list
+    // is the one the user meant (Q-45 D).
     _followUp = null;
+    _homeListId = listId;
     await _run(request.withOpenList(store.current, listId), correct: true);
   }
 
