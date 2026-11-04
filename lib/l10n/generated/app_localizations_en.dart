@@ -977,7 +977,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiNoticeDeepSeek =>
-      'Your request, the names and fields of your lists, and the open list, or a list your request is about, with up to 20 recent items go to DeepSeek, an AI provider that processes and stores data in China. Lists with AI turned off are never sent. Your request text is kept for about 7 days to find problems, then deleted.';
+      'Your request, the names, descriptions and fields of your lists, and the open list, or a list your request is about, with up to 20 recent items go to DeepSeek, an AI provider that processes and stores data in China. Lists with AI turned off are never sent. Your request text is kept for about 7 days to find problems, then deleted.';
 
   @override
   String get aiNoticeContinue => 'Continue';
@@ -1152,6 +1152,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiNewRequest => 'New request';
+
+  @override
+  String get listDescription => 'List description';
+
+  @override
+  String get listDescriptionHint => 'What this list is for (optional)';
+
+  @override
+  String errorDescriptionTooLong(String max) {
+    return 'The description can be at most $max characters.';
+  }
+
+  @override
+  String get tasksDescription => 'Things to do.';
+
+  @override
+  String get groceryDescription =>
+      'Food and household things to buy on the next shopping trip.';
+
+  @override
+  String get journalDescription => 'Daily notes and thoughts, by date.';
+
+  @override
+  String get watchReadDescription => 'Films, shows and books to watch or read.';
 
   @override
   String get settingsAiAsk => 'How often the AI checks with you';

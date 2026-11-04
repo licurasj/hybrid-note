@@ -967,7 +967,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get aiNoticeDeepSeek =>
-      'リクエスト、リストの名前と項目、開いているリスト（またはリクエストが対象とするリスト）と最近の項目最大20件がDeepSeekに送られます。DeepSeekはデータを中国で処理・保存するAIプロバイダーです。AIをオフにしたリストは送信されません。リクエストの文章は不具合調査のため約7日間保存され、その後削除されます。';
+      'リクエスト、リストの名前・説明・項目、開いているリスト（またはリクエストが対象とするリスト）と最近の項目最大20件がDeepSeekに送られます。DeepSeekはデータを中国で処理・保存するAIプロバイダーです。AIをオフにしたリストは送信されません。リクエストの文章は不具合調査のため約7日間保存され、その後削除されます。';
 
   @override
   String get aiNoticeContinue => '続ける';
@@ -1134,6 +1134,29 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get aiNewRequest => '新しいリクエスト';
+
+  @override
+  String get listDescription => 'リストの説明';
+
+  @override
+  String get listDescriptionHint => 'このリストの用途（任意）';
+
+  @override
+  String errorDescriptionTooLong(String max) {
+    return '説明は$max文字以内にしてください。';
+  }
+
+  @override
+  String get tasksDescription => 'やること。';
+
+  @override
+  String get groceryDescription => '次の買い物で買う食品や日用品。';
+
+  @override
+  String get journalDescription => '日付ごとの毎日のメモや考え。';
+
+  @override
+  String get watchReadDescription => '観たい・読みたい映画、ドラマ、本。';
 
   @override
   String get settingsAiAsk => 'AIが確認する頻度';

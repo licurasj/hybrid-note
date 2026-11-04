@@ -62,10 +62,10 @@ class _Recorder implements ListStore {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-Widget _screen(List<ListItem> items, _Recorder recorder) {
+Widget _screen(List<ListItem> items, _Recorder recorder, {ListDefinition? definition}) {
   return _app(
     GenericListScreen(
-      definition: _watch,
+      definition: definition ?? _watch,
       items: items,
       store: recorder,
       texts: const GenericListTexts(
@@ -94,6 +94,7 @@ void main() {
     for (final ListDefinition definition in BuiltinTemplates.all()) {
       final List<String?> keys = [
         definition.nameKey,
+        definition.descriptionKey,
         for (final FieldDefinition field in definition.fields) ...[
           field.labelKey,
           for (final FieldOption option in field.options) option.labelKey,
@@ -113,6 +114,33 @@ void main() {
     await tester.pumpWidget(_screen(const [], _Recorder()));
 
     expect(find.text('Nothing here'), findsOneWidget);
+    // A built-in list shows its default description.
+    expect(find.text('Films, shows and books to watch or read.'), findsOneWidget);
+  });
+
+  testWidgets('a list without a description shows none', (tester) async {
+    final ListDefinition cleared = ListDefinition.fromJson({..._watch.toJson(), 'descriptionKey': null});
+    await tester.pumpWidget(_screen(const [], _Recorder(), definition: cleared));
+
+    expect(find.byKey(const ValueKey('list-page-description')), findsNothing);
+  });
+
+  testWidgets('a blank stored description shows no gap (review L1)', (tester) async {
+    final ListDefinition blank = ListDefinition.fromJson({..._watch.toJson(), 'description': '  '});
+    await tester.pumpWidget(_screen(const [], _Recorder(), definition: blank));
+
+    expect(find.byKey(const ValueKey('list-page-description')), findsNothing);
+  });
+
+  testWidgets('shows the description under the title (Q-44)', (tester) async {
+    final ListDefinition described =
+        ListDefinition.fromJson({..._watch.toJson(), 'description': 'Shows and films to see'});
+    await tester.pumpWidget(_screen(const [], _Recorder(), definition: described));
+
+    expect(find.text('Shows and films to see'), findsOneWidget);
+    final double title = tester.getBottomLeft(find.text('Watch')).dy;
+    final double description = tester.getTopLeft(find.text('Shows and films to see')).dy;
+    expect(description, greaterThanOrEqualTo(title));
   });
 
   testWidgets('groups items by status in option order with summaries', (

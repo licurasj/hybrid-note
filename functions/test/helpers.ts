@@ -7,7 +7,8 @@ import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 export const PROJECT_ID = 'demo-hybrid-note';
 const FIRESTORE = process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8080';
 const AUTH = process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9099';
-const FUNCTIONS = '127.0.0.1:5001';
+// FUNCTIONS_EMULATOR_HOST: for emulators on other ports (firebase --config).
+const FUNCTIONS = process.env.FUNCTIONS_EMULATOR_HOST ?? '127.0.0.1:5001';
 
 process.env.FIRESTORE_EMULATOR_HOST = FIRESTORE;
 process.env.GCLOUD_PROJECT = PROJECT_ID;

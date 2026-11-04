@@ -1,10 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:hybrid_note/lists/builtin_templates.dart';
 import 'package:hybrid_note/lists/list_definition.dart';
+import 'package:hybrid_note/lists/list_error.dart';
+import 'package:hybrid_note/lists/list_labels.dart';
+import 'package:hybrid_note/l10n/generated/app_localizations.dart';
 
 Map<String, dynamic> _jsonRoundTrip(Map<String, dynamic> json) {
   return jsonDecode(jsonEncode(json)) as Map<String, dynamic>;
@@ -108,6 +112,50 @@ void main() {
       final ListDefinition plants = ListDefinition.fromJson(json);
 
       expect(plants.toJson()['sharedWith'], ['someone']);
+    });
+
+    test('a description round-trips and is left out when there is none (Q-44)', () {
+      final Map<String, dynamic> json = _plantList()..['description'] = 'Pots on the balcony';
+
+      final ListDefinition plants = ListDefinition.fromJson(json);
+
+      expect(plants.description, 'Pots on the balcony');
+      expect(plants.toJson(), json);
+      expect(ListDefinition.fromJson(_plantList()).description, isNull);
+      expect(ListDefinition.fromJson(_plantList()).toJson().containsKey('description'), isFalse);
+      expect(() => ListDefinition.fromJson(_plantList()..['description'] = 3), throwsFormatException);
+    });
+
+    test('built-in lists have a translated default description (Q-44)', () {
+      final ListLabels labels = ListLabels(lookupAppLocalizations(const Locale('en')));
+      for (final ListDefinition template in BuiltinTemplates.all()) {
+        expect(template.descriptionKey, ListDefinition.templateDescriptionKeys[template.templateId]);
+        expect(labels.listDescription(template), isNot(template.descriptionKey));
+      }
+      expect(labels.listDescription(BuiltinTemplates.grocery()), contains('shopping'));
+      expect(labels.listDescription(ListDefinition.fromJson(_plantList())), isNull);
+    });
+
+    test('a built-in list stored before descriptions gets the default; a cleared one stays cleared', () {
+      final Map<String, dynamic> stored = BuiltinTemplates.grocery().toJson()..remove('descriptionKey');
+      expect(ListDefinition.fromJson(stored).descriptionKey, 'groceryDescription');
+
+      final Map<String, dynamic> cleared = {...stored, 'descriptionKey': null};
+      final ListDefinition read = ListDefinition.fromJson(cleared);
+      expect(read.descriptionKey, isNull);
+      expect(read.toJson(), containsPair('descriptionKey', null));
+      expect(ListDefinition.fromJson(read.toJson()).descriptionKey, isNull);
+
+      final Map<String, dynamic> own = {...stored, 'description': 'Mine'};
+      expect(ListDefinition.fromJson(own).descriptionKey, isNull);
+    });
+
+    test('a description over 200 characters is reported', () {
+      final ListDefinition ok = ListDefinition.fromJson(_plantList()..['description'] = '🌱' * 200);
+      final ListDefinition long = ListDefinition.fromJson(_plantList()..['description'] = 'x' * 201);
+
+      expect(ok.validate(), isEmpty);
+      expect(long.validate().map((error) => error.code), [ListErrorCode.descriptionTooLong]);
     });
 
     test('a newer format version is reported', () {

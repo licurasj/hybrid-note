@@ -26,6 +26,12 @@
       "maxLength": 40,
       "description": "A field key: starts with a letter, then letters, digits or _ (for example km, dueDate). Not createdAt or updatedAt."
     },
+    "aiDescription": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "What the list is for, in one or two short sentences in the user's language (\"Food and household things to buy at the supermarket.\"). It helps pick this list later."
+    },
     "aiLabel": {
       "type": "string",
       "minLength": 1,
@@ -131,6 +137,7 @@
       "additionalProperties": false,
       "properties": {
         "name": { "$ref": "#/$defs/aiLabel" },
+        "description": { "$ref": "#/$defs/aiDescription" },
         "icon": {
           "type": "string",
           "description": "An icon name the app knows: pending_actions, checklist, shopping_cart, book, movie, local_florist or list. Other names show the generic list icon."
@@ -206,12 +213,13 @@
     },
     "opSetListInfo": {
       "type": "object",
-      "description": "Renames the list or changes its icon or color.",
+      "description": "Renames the list or changes its description, icon or color.",
       "required": ["op"],
       "additionalProperties": false,
       "properties": {
         "op": { "const": "setListInfo" },
         "name": { "$ref": "#/$defs/aiLabel" },
+        "description": { "type": "string", "maxLength": 200, "description": "What the list is for, in one or two short sentences in the user's language. An empty string removes the description." },
         "icon": { "type": "string" },
         "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" }
       }

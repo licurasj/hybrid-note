@@ -21,6 +21,14 @@ class ListLabels {
         return loc.journal;
       case 'watchRead':
         return loc.watchRead;
+      case 'tasksDescription':
+        return loc.tasksDescription;
+      case 'groceryDescription':
+        return loc.groceryDescription;
+      case 'journalDescription':
+        return loc.journalDescription;
+      case 'watchReadDescription':
+        return loc.watchReadDescription;
       case 'title':
         return loc.title;
       case 'description':
@@ -86,6 +94,17 @@ class ListLabels {
 
   String listName(ListDefinition definition) {
     return resolve(definition.name, definition.nameKey, definition.id);
+  }
+
+  // The user's description, else a built-in list's translated default;
+  // null when the list has none (Q-44).
+  String? listDescription(ListDefinition definition) {
+    final String? own = definition.description?.trim();
+    if (own != null && own.isNotEmpty) {
+      return own;
+    }
+    final String? key = definition.descriptionKey;
+    return own == null && key != null ? lookup(key) ?? key : null;
   }
 
   String field(FieldDefinition field) {
@@ -210,6 +229,8 @@ class ListLabels {
         return loc.errorMissingName;
       case ListErrorCode.badColor:
         return loc.errorBadColor;
+      case ListErrorCode.descriptionTooLong:
+        return loc.errorDescriptionTooLong(error.arg('max'));
       case ListErrorCode.noFields:
         return loc.errorNoFields;
       case ListErrorCode.primaryCount:

@@ -74,7 +74,7 @@ enum InputShape {
   }),
   // A definition as create_list sends it: id, dates and template are the
   // app's to set.
-  newList({'name', 'icon', 'color', 'fields', 'view', 'behaviors'});
+  newList({'name', 'description', 'icon', 'color', 'fields', 'view', 'behaviors'});
 
   const InputShape(this.keys);
 
@@ -493,6 +493,7 @@ class ListInput {
       op,
       const {
         'name': ArgType.string,
+        'description': ArgType.string,
         'icon': ArgType.string,
         'color': ArgType.string,
         'fields': ArgType.list,
@@ -515,6 +516,13 @@ class ListInput {
     }
     if (errors.isNotEmpty) {
       return (null, const [], errors);
+    }
+    // A blank description is none, as in setListInfo.
+    final Object? description = list['description'];
+    if (description is String && description.trim().isEmpty) {
+      list.remove('description');
+    } else if (description is String) {
+      list['description'] = description.trim();
     }
     final ListDefinition definition;
     try {

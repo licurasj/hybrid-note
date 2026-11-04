@@ -39,6 +39,10 @@ service cloud.firestore {
         && data.view is map
         && (!('behaviors' in data) || data.behaviors is list)
         && (!('schemaRevision' in data) || data.schemaRevision is int)
+        // A description is at most 200 code points (T-20). size() counts UTF-16
+        // units (measured in rules.test.js), so the bound is 400.
+        && (!('description' in data) || (data.description is string && data.description.size() <= 400))
+        && (!('descriptionKey' in data) || data.descriptionKey == null || data.descriptionKey is string)
         && data.updatedAt is string
         && (!('_createdAt' in data) || data._createdAt is string);
     }

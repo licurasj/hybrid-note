@@ -29,6 +29,7 @@ class BuiltinTemplates {
     return ListDefinition(
       id: tasksId,
       nameKey: 'tasks',
+      descriptionKey: 'tasksDescription',
       icon: 'pending_actions',
       color: '#FF4D12',
       templateId: tasksId,
@@ -100,6 +101,7 @@ class BuiltinTemplates {
     return ListDefinition(
       id: groceryId,
       nameKey: 'grocery',
+      descriptionKey: 'groceryDescription',
       icon: 'shopping_cart',
       color: '#00A63E',
       templateId: groceryId,
@@ -167,6 +169,7 @@ class BuiltinTemplates {
     return ListDefinition(
       id: journalId,
       nameKey: 'journal',
+      descriptionKey: 'journalDescription',
       icon: 'book',
       color: '#E5007E',
       templateId: journalId,
@@ -197,6 +200,7 @@ class BuiltinTemplates {
     return ListDefinition(
       id: watchReadId,
       nameKey: 'watchRead',
+      descriptionKey: 'watchReadDescription',
       icon: 'movie',
       color: '#6B3BFF',
       templateId: watchReadId,

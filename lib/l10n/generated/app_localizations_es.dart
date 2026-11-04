@@ -979,7 +979,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get aiNoticeDeepSeek =>
-      'Tu solicitud, los nombres y campos de tus listas y la lista abierta, o una lista de la que trata tu solicitud, con hasta 20 elementos recientes se envían a DeepSeek, un proveedor de IA que procesa y almacena los datos en China. Las listas con la IA desactivada nunca se envían. El texto de tu solicitud se guarda unos 7 días para buscar errores y después se borra.';
+      'Tu solicitud, los nombres, descripciones y campos de tus listas y la lista abierta, o una lista de la que trata tu solicitud, con hasta 20 elementos recientes se envían a DeepSeek, un proveedor de IA que procesa y almacena los datos en China. Las listas con la IA desactivada nunca se envían. El texto de tu solicitud se guarda unos 7 días para buscar errores y después se borra.';
 
   @override
   String get aiNoticeContinue => 'Continuar';
@@ -1155,6 +1155,31 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get aiNewRequest => 'Nueva solicitud';
+
+  @override
+  String get listDescription => 'Descripción de la lista';
+
+  @override
+  String get listDescriptionHint => 'Para qué es esta lista (opcional)';
+
+  @override
+  String errorDescriptionTooLong(String max) {
+    return 'La descripción puede tener como máximo $max caracteres.';
+  }
+
+  @override
+  String get tasksDescription => 'Cosas por hacer.';
+
+  @override
+  String get groceryDescription =>
+      'Comida y cosas de casa para la próxima compra.';
+
+  @override
+  String get journalDescription => 'Notas y pensamientos del día, por fecha.';
+
+  @override
+  String get watchReadDescription =>
+      'Películas, series y libros por ver o leer.';
 
   @override
   String get settingsAiAsk => 'Con qué frecuencia te consulta la IA';

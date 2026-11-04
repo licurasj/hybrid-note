@@ -965,7 +965,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiNoticeDeepSeek =>
-      '你的请求、各列表的名称和字段，以及打开的列表（或请求涉及的列表）和最多 20 条最近条目会发送给 DeepSeek。DeepSeek 是一家在中国处理和存储数据的 AI 提供商。关闭了 AI 的列表绝不会发送。请求文字会保留约 7 天用于排查问题，之后删除。';
+      '你的请求、各列表的名称、说明和字段，以及打开的列表（或请求涉及的列表）和最多 20 条最近条目会发送给 DeepSeek。DeepSeek 是一家在中国处理和存储数据的 AI 提供商。关闭了 AI 的列表绝不会发送。请求文字会保留约 7 天用于排查问题，之后删除。';
 
   @override
   String get aiNoticeContinue => '继续';
@@ -1131,6 +1131,29 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiNewRequest => '新请求';
+
+  @override
+  String get listDescription => '列表说明';
+
+  @override
+  String get listDescriptionHint => '这个列表的用途（可选）';
+
+  @override
+  String errorDescriptionTooLong(String max) {
+    return '说明最多 $max 个字符。';
+  }
+
+  @override
+  String get tasksDescription => '要做的事。';
+
+  @override
+  String get groceryDescription => '下次购物要买的食品和日用品。';
+
+  @override
+  String get journalDescription => '按日期记录的每日笔记和想法。';
+
+  @override
+  String get watchReadDescription => '想看或想读的电影、剧集和书。';
 
   @override
   String get settingsAiAsk => 'AI 向你确认的频率';

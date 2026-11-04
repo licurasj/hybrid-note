@@ -28,7 +28,8 @@ enum PatchOpKind implements WireName {
 }
 
 // One operation. Arguments by kind:
-//   setListInfo {name?, icon?, color?, aiAllowed?}
+//   setListInfo {name?, description?, icon?, color?, aiAllowed?}
+//     (a blank description removes it)
 //   addField {field, index?}           removeField {key}
 //   renameField {key, label}           changeFieldType {key, type, options?}
 //   setFieldProps {key, required?}     setOptions {key, options}
@@ -46,6 +47,7 @@ class ListPatchOp {
   static const Map<PatchOpKind, Map<String, ArgType>> argTypes = {
     PatchOpKind.setListInfo: {
       'name': ArgType.string,
+      'description': ArgType.string,
       'icon': ArgType.string,
       'color': ArgType.string,
       'aiAllowed': ArgType.boolean,
@@ -318,6 +320,10 @@ class ListPatch {
       id: definition.id,
       name: info.containsKey('name') ? info['name'] as String? : definition.name,
       nameKey: info.containsKey('name') ? null : definition.nameKey,
+      description: info.containsKey('description')
+          ? _description(info['description'] as String?)
+          : definition.description,
+      descriptionKey: info.containsKey('description') ? null : definition.descriptionKey,
       icon: info['icon'] as String? ?? definition.icon,
       color: info['color'] as String? ?? definition.color,
       templateId: definition.templateId,
@@ -448,6 +454,12 @@ class ListPatch {
       }
     }
     return options;
+  }
+
+  // A description as stored: trimmed, and none when blank.
+  static String? _description(String? text) {
+    final String trimmed = (text ?? '').trim();
+    return trimmed.isEmpty ? null : trimmed;
   }
 
   static bool _roleFits(FieldRole? role, FieldType type) {

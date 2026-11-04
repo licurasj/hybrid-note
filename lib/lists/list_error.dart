@@ -12,6 +12,7 @@ enum ListErrorCode implements WireName {
   emptyId('emptyId'),
   missingName('missingName'),
   badColor('badColor'),
+  descriptionTooLong('descriptionTooLong'), // {max}
   noFields('noFields'),
   primaryCount('primaryCount'),
   primaryNotText('primaryNotText'),
@@ -130,6 +131,8 @@ class ListError {
         return 'list needs a name or nameKey';
       case ListErrorCode.badColor:
         return 'color must look like #RRGGBB';
+      case ListErrorCode.descriptionTooLong:
+        return 'description is over ${arg('max')} characters';
       case ListErrorCode.noFields:
         return 'list has no fields';
       case ListErrorCode.primaryCount:

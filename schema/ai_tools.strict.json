@@ -67,6 +67,10 @@
             }
           }
         },
+        "aiDescription": {
+          "type": "string",
+          "description": "What the list is for, in one or two short sentences in the user's language (\"Food and household things to buy at the supermarket.\"). It helps pick this list later."
+        },
         "aiEntry": {
           "type": "object",
           "description": "A field and a value for it (an option value for enum fields).",
@@ -217,6 +221,9 @@
           "properties": {
             "name": {
               "$ref": "#/$defs/aiLabel"
+            },
+            "description": {
+              "$ref": "#/$defs/aiDescription"
             },
             "icon": {
               "type": "string",
@@ -885,7 +892,7 @@
         },
         "opSetListInfo": {
           "type": "object",
-          "description": "Renames the list or changes its icon or color.",
+          "description": "Renames the list or changes its description, icon or color.",
           "required": [
             "op"
           ],
@@ -896,6 +903,10 @@
             },
             "name": {
               "$ref": "#/$defs/aiLabel"
+            },
+            "description": {
+              "type": "string",
+              "description": "What the list is for, in one or two short sentences in the user's language. An empty string removes the description."
             },
             "icon": {
               "type": "string"

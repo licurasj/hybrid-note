@@ -281,11 +281,26 @@ class ListDefinition {
   // something newer than they understand.
   static const int currentFormatVersion = 1;
 
+  // The longest description, in characters (Q-44 D1): one or two sentences.
+  static const int descriptionMaxLength = 200;
+
+  // The translated default description of each built-in template, by
+  // templateId. Lists stored before descriptions existed get it when read
+  // (no descriptionKey entry at all); a stored null means the user cleared it.
+  static const Map<String, String> templateDescriptionKeys = {
+    'builtin.tasks': 'tasksDescription',
+    'builtin.grocery': 'groceryDescription',
+    'builtin.journal': 'journalDescription',
+    'builtin.watchRead': 'watchReadDescription',
+  };
+
   static const Set<String> _knownKeys = {
     'formatVersion',
     'id',
     'name',
     'nameKey',
+    'description',
+    'descriptionKey',
     'icon',
     'color',
     'templateId',
@@ -301,6 +316,11 @@ class ListDefinition {
   final String id;
   final String? name;
   final String? nameKey;
+  // What the list is for, in the user's words (Q-44); shown under the title
+  // and sent to the AI to help it pick lists. Null when there is none.
+  final String? description;
+  // An l10n key for the description of a built-in list, like nameKey.
+  final String? descriptionKey;
   final String icon;
   final String color;
   final String? templateId;
@@ -320,6 +340,8 @@ class ListDefinition {
     required this.id,
     this.name,
     this.nameKey,
+    this.description,
+    this.descriptionKey,
     required this.icon,
     required this.color,
     this.templateId,
@@ -362,6 +384,8 @@ class ListDefinition {
       id: id ?? this.id,
       name: name,
       nameKey: nameKey,
+      description: description,
+      descriptionKey: descriptionKey,
       icon: icon,
       color: color,
       templateId: templateId,
@@ -382,6 +406,9 @@ class ListDefinition {
       'id': id,
       if (name != null) 'name': name,
       if (nameKey != null) 'nameKey': nameKey,
+      if (description != null) 'description': description,
+      if (descriptionKey != null || templateDescriptionKeys.containsKey(templateId))
+        'descriptionKey': descriptionKey,
       'icon': icon,
       'color': color,
       'templateId': templateId,
@@ -410,6 +437,10 @@ class ListDefinition {
       id: _requireString(map, 'id', where),
       name: _optionalString(map, 'name', where),
       nameKey: _optionalString(map, 'nameKey', where),
+      description: _optionalString(map, 'description', where),
+      descriptionKey: map.containsKey('descriptionKey') || map.containsKey('description')
+          ? _optionalString(map, 'descriptionKey', where)
+          : templateDescriptionKeys[map['templateId']],
       icon: _requireString(map, 'icon', where),
       color: _requireString(map, 'color', where),
       templateId: _optionalString(map, 'templateId', where),
@@ -445,6 +476,13 @@ class ListDefinition {
 
     if ((name == null || name!.trim().isEmpty) && nameKey == null) {
       errors.add(const ListError(ListErrorCode.missingName));
+    }
+
+    if (description != null && description!.runes.length > descriptionMaxLength) {
+      errors.add(ListError(
+        ListErrorCode.descriptionTooLong,
+        {'max': '$descriptionMaxLength'},
+      ));
     }
 
     if (!RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(color)) {

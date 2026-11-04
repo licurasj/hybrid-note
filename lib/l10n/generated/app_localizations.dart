@@ -1715,7 +1715,7 @@ abstract class AppLocalizations {
   /// No description provided for @aiNoticeDeepSeek.
   ///
   /// In en, this message translates to:
-  /// **'Your request, the names and fields of your lists, and the open list, or a list your request is about, with up to 20 recent items go to DeepSeek, an AI provider that processes and stores data in China. Lists with AI turned off are never sent. Your request text is kept for about 7 days to find problems, then deleted.'**
+  /// **'Your request, the names, descriptions and fields of your lists, and the open list, or a list your request is about, with up to 20 recent items go to DeepSeek, an AI provider that processes and stores data in China. Lists with AI turned off are never sent. Your request text is kept for about 7 days to find problems, then deleted.'**
   String get aiNoticeDeepSeek;
 
   /// No description provided for @aiNoticeContinue.
@@ -1969,6 +1969,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'New request'**
   String get aiNewRequest;
+
+  /// No description provided for @listDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'List description'**
+  String get listDescription;
+
+  /// No description provided for @listDescriptionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'What this list is for (optional)'**
+  String get listDescriptionHint;
+
+  /// No description provided for @errorDescriptionTooLong.
+  ///
+  /// In en, this message translates to:
+  /// **'The description can be at most {max} characters.'**
+  String errorDescriptionTooLong(String max);
+
+  /// No description provided for @tasksDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Things to do.'**
+  String get tasksDescription;
+
+  /// No description provided for @groceryDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Food and household things to buy on the next shopping trip.'**
+  String get groceryDescription;
+
+  /// No description provided for @journalDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily notes and thoughts, by date.'**
+  String get journalDescription;
+
+  /// No description provided for @watchReadDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Films, shows and books to watch or read.'**
+  String get watchReadDescription;
 
   /// No description provided for @settingsAiAsk.
   ///

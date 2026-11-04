@@ -17,8 +17,9 @@ abstract interface class AiService {
 }
 
 // The provider named in the one-time notice. It changes with ACTIVE_MODEL
-// in functions/src/config.ts; a change here shows the notice again.
-const String aiNoticeId = 'deepseek-2';
+// in functions/src/config.ts, and with the notice text (deepseek-3: list
+// descriptions, Q-44); a change here shows the notice again.
+const String aiNoticeId = 'deepseek-3';
 
 // One of the user's lists as the function sees it (Q-36): id, name and a
 // short field summary, no items.
@@ -26,16 +27,20 @@ class AiListSummary {
   const AiListSummary({
     required this.id,
     required this.name,
+    this.description,
     required this.fields,
   });
 
   final String id;
   final String name;
+  // The list's description (Q-44), when it has one.
+  final String? description;
   final List<Map<String, Object?>> fields;
 
   Map<String, Object?> toJson() => {
     'id': id,
     'name': name,
+    if (description != null) 'description': description,
     'fields': fields,
     // Only lists with AI on are sent (L16, M4); the function refuses a
     // summary without the flag.
@@ -148,6 +153,7 @@ class AiRequest {
           AiListSummary(
             id: definition.id,
             name: labels.listName(definition),
+            description: _descriptionForAi(labels.listDescription(definition)),
             fields: [
               for (final FieldDefinition field in definition.fields)
                 {
@@ -184,6 +190,34 @@ class AiRequest {
   // The open list is the user's answer to "which list?" (Q-45): the AI
   // uses it and does not ask again.
   final bool chosenList;
+
+  // At most the stored limit, so a longer description written by another
+  // client cannot make the function refuse every request (T-20 review M1).
+  static String? _descriptionForAi(String? description) {
+    if (description == null) {
+      return null;
+    }
+    final List<int> runes = description.runes.toList();
+    return runes.length <= ListDefinition.descriptionMaxLength
+        ? description
+        : String.fromCharCodes(runes.take(ListDefinition.descriptionMaxLength));
+  }
+
+  // The open list's definition with its description as the summary has it
+  // (translated and bounded), not a built-in's l10n key (review L4).
+  Map<String, dynamic> _openDefinitionJson() {
+    final Map<String, dynamic> json = openList!.toJson()
+      ..remove('description')
+      ..remove('descriptionKey');
+    final String? description = lists
+        .where((list) => list.id == openList!.id)
+        .firstOrNull
+        ?.description;
+    if (description != null) {
+      json['description'] = description;
+    }
+    return json;
+  }
 
   AiRequest withCorrection(AiCorrection correction) => AiRequest(
     prompt: prompt,
@@ -250,7 +284,7 @@ class AiRequest {
     'openList': openList == null
         ? null
         : {
-            'definition': openList!.toJson(),
+            'definition': _openDefinitionJson(),
             'items': [
               for (final ListItem item in openItems)
                 {'id': item.id, 'values': item.values},

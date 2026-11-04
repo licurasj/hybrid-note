@@ -624,6 +624,19 @@ void main() {
       expect(items.single['km'], 5.2);
     });
 
+    test('takes an optional description; a blank one is none (Q-44)', () {
+      final (ListDefinition? described, _, List<ListError> errors) =
+          create({'list': {...runs(), 'description': ' Runs and how far '}});
+      expect(errors, isEmpty);
+      expect(described!.description, 'Runs and how far');
+
+      final (ListDefinition? blank, _, _) = create({'list': {...runs(), 'description': ''}});
+      expect(blank!.description, isNull);
+
+      final (_, _, List<ListError> long) = create({'list': {...runs(), 'description': 'x' * 201}});
+      expect(long.map((error) => error.code), [ListErrorCode.descriptionTooLong]);
+    });
+
     final List<(String, Object?, Set<ListErrorCode>)> bad = [
       ('no list', <String, Object?>{}, {ListErrorCode.missingArg}),
       ('an id chosen by the AI', {'list': {...runs(), 'id': 'mine'}}, {ListErrorCode.unknownArg}),
