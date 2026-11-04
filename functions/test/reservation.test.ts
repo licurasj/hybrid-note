@@ -4,9 +4,9 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
-import type { Firestore } from 'firebase-admin/firestore';
+import { FieldValue, type Firestore } from 'firebase-admin/firestore';
 
-import { COLLECTIONS, MODELS } from '../src/config';
+import { COLLECTIONS, MODELS, ceilingMicros } from '../src/config';
 import { handleAiCommand, type Deps } from '../src/handler';
 import type { RequestMeta } from '../src/log';
 import { ProviderError, type AiProvider } from '../src/provider/types';
@@ -15,11 +15,17 @@ const model = MODELS.fake;
 const usage = { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 };
 
 function setup(options: { failPromptLog?: boolean; failSettle?: boolean; provider?: AiProvider['call'] }) {
-  const counters = { reserved: 0, settled: [] as unknown[], providerCalls: 0 };
+  const counters = {
+    reserved: 0,
+    /** Each committed settlement's writes. */
+    settled: [] as Record<string, Record<string, unknown>>[],
+    providerCalls: 0,
+  };
   const snapshot = { get: (key: string) => (key === 'tier' ? 'owner' : 0) };
   const db = {
     collection: (name: string) => ({
       doc: () => ({
+        name,
         get: async () => snapshot,
         set: async () => {
           if (name === COLLECTIONS.promptLog && options.failPromptLog === true) throw new Error('prompt log down');
@@ -30,13 +36,18 @@ function setup(options: { failPromptLog?: boolean; failSettle?: boolean; provide
       counters.reserved++;
       return body({ get: async () => snapshot, set: () => {} });
     },
-    batch: () => ({
-      set: () => {},
-      commit: async () => {
-        if (options.failSettle === true) throw new Error('counters down');
-        counters.settled.push('settled');
-      },
-    }),
+    batch: () => {
+      const writes: Record<string, Record<string, unknown>> = {};
+      return {
+        set: (ref: { name: string }, data: Record<string, unknown>) => {
+          writes[ref.name] = data;
+        },
+        commit: async () => {
+          if (options.failSettle === true) throw new Error('counters down');
+          counters.settled.push(writes);
+        },
+      };
+    },
   };
   const logged: RequestMeta[] = [];
   const provider: AiProvider = {
@@ -64,13 +75,52 @@ const input = {
   data: { prompt: 'milk', locale: 'en', platform: 'android', lists: [], openList: null },
 };
 
+/** Exactly one settlement: the whole ceiling back from reserved, [spent] added to both counters. */
+function assertSettled(settled: Record<string, Record<string, unknown>>[], spent: number): void {
+  assert.equal(settled.length, 1);
+  const pool = settled[0][COLLECTIONS.poolUsage];
+  const user = settled[0][COLLECTIONS.userUsage];
+  assert.ok((pool.reservedMicros as FieldValue).isEqual(FieldValue.increment(-ceilingMicros(model))), 'reserved');
+  assert.ok((pool.spentMicros as FieldValue).isEqual(FieldValue.increment(spent)), 'pool spent');
+  assert.ok((user.spentMicros as FieldValue).isEqual(FieldValue.increment(spent)), 'user spent');
+}
+
 describe('the reservation', () => {
   test('a prompt-log failure releases it and no provider runs', async () => {
     const { deps, counters } = setup({ failPromptLog: true });
     await assert.rejects(handleAiCommand(input, deps));
     assert.equal(counters.reserved, 1);
     assert.equal(counters.providerCalls, 0);
-    assert.equal(counters.settled.length, 1);
+    assertSettled(counters.settled, 0);
+  });
+
+  test('an answer settles its real cost, once', async () => {
+    const { deps, counters, logged } = setup({});
+    const result = await handleAiCommand(input, deps);
+    assert.equal(result.outcome, 'ok');
+    assert.ok(typeof logged[0].costMicros === 'number');
+    assertSettled(counters.settled, logged[0].costMicros as number);
+    assert.ok((logged[0].costMicros as number) < ceilingMicros(model));
+  });
+
+  test('an unbilled provider error settles at zero, once', async () => {
+    const { deps, counters } = setup({
+      provider: async () => {
+        throw new ProviderError('billing', 402);
+      },
+    });
+    await assert.rejects(handleAiCommand(input, deps));
+    assertSettled(counters.settled, 0);
+  });
+
+  test('a possibly billed provider error keeps the ceiling, once', async () => {
+    const { deps, counters } = setup({
+      provider: async () => {
+        throw new ProviderError('network');
+      },
+    });
+    await assert.rejects(handleAiCommand(input, deps));
+    assertSettled(counters.settled, ceilingMicros(model));
   });
 
   test('a settlement failure after an answer still returns it, and the log says so', async () => {
