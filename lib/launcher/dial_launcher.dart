@@ -420,12 +420,17 @@ class _DialLauncherState extends State<DialLauncher>
     return (toward * lead).clamp(0, _config.dialEdgeReach * _step).toDouble();
   }
 
-  // Whether lists still lie in or beyond a zone, to scroll in.
+  // Whether lists still lie in or beyond a zone, to scroll in. Not once the
+  // scroll is at its end that way: the end list then sits in the zone but
+  // cannot come further, and is picked and edited like any other (owner,
+  // 2026-11-04: the first list next to New list offered no Edit).
   bool _more(LauncherGeometry g, int side) {
     final double diagonal = _diagonal(g);
     return side < 0
-        ? diagonal + (_firstList - _scroll) * _step < _zoneLow(g) - 1e-3
-        : diagonal + (_lastList - _scroll) * _step > _zoneHigh(g) + 1e-3;
+        ? _scroll > _firstList + 1e-3 &&
+              diagonal + (_firstList - _scroll) * _step < _zoneLow(g) - 1e-3
+        : _scroll < _lastList - 1e-3 &&
+              diagonal + (_lastList - _scroll) * _step > _zoneHigh(g) + 1e-3;
   }
 
   // The list in the hand while in a zone: the one under the finger, but

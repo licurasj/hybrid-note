@@ -30,13 +30,14 @@ Future<List<String>> _pump(
   bool inList = false,
   bool reduceMotion = false,
   double textScale = 1,
+  Size size = const Size(400, 800),
   // To change the lists while the dial is open (as a sync would).
   ValueNotifier<List<LauncherNote>>? lists,
 }) async {
   final ValueNotifier<List<LauncherNote>> notes =
       lists ?? ValueNotifier(_notes(count));
   final List<String> log = [];
-  tester.view.physicalSize = const Size(400, 800);
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
 
@@ -44,7 +45,7 @@ Future<List<String>> _pump(
     MaterialApp(
       home: MediaQuery(
         data: MediaQueryData(
-          size: const Size(400, 800),
+          size: size,
           disableAnimations: reduceMotion,
           textScaler: TextScaler.linear(textScale),
         ),
@@ -260,6 +261,49 @@ void main() {
     await gesture.up();
     await tester.pump();
     expect(log, ['edit n0']);
+  });
+
+  testWidgets('resting on the first list, next to New list, shows Edit too', (
+    WidgetTester tester,
+  ) async {
+    for (final (int count, bool inList, Size size) in [
+      (6, false, const Size(400, 800)),
+      (12, false, const Size(400, 800)),
+      (8, true, const Size(400, 800)),
+      (8, false, const Size(411, 960)),
+      (8, true, const Size(411, 960)),
+      (3, false, const Size(411, 960)),
+    ]) {
+      final List<String> log = await _pump(
+        tester,
+        count: count,
+        inList: inList,
+        size: size,
+      );
+      final TestGesture gesture = await _pickFirst(tester);
+      for (int i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 80));
+      }
+      expect(
+        find.byKey(const ValueKey('dial-edit')),
+        findsOneWidget,
+        reason: '$count lists, in a list: $inList, $size',
+      );
+      final double diagonal = _diagonal(tester);
+      await _moveTo(
+        tester,
+        gesture,
+        _at(tester, diagonal, 160),
+        _at(tester, diagonal, 192),
+      );
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(
+        log,
+        ['edit n0'],
+        reason: '$count lists, in a list: $inList, $size',
+      );
+    }
   });
 
   testWidgets('resting on the hub offers Move; sliding onto it moves the hub', (
