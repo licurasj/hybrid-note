@@ -474,6 +474,7 @@ class _SettingsSheet extends StatelessWidget {
                         label: Text(loc.darkMode, style: type.row),
                         trailing: Switch(
                           value: settings.isDarkMode,
+                          activeTrackColor: AppColors.appBlue,
                           onChanged: (_) =>
                               context.read<AppSettingsCubit>().toggleDarkMode(),
                         ),
@@ -487,6 +488,7 @@ class _SettingsSheet extends StatelessWidget {
                         label: Text(loc.settingsAiAutoApply, style: type.row),
                         trailing: Switch(
                           value: settings.aiAutoApply,
+                          activeTrackColor: AppColors.appBlue,
                           onChanged: (value) => context
                               .read<AppSettingsCubit>()
                               .setAiAutoApply(value),
@@ -526,17 +528,45 @@ class _SettingsSheet extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            Slider(
-                              key: const ValueKey('settings-ai-ask-slider'),
-                              value: settings.aiAskLevel.index.toDouble(),
-                              max: AiAskLevel.values.length - 1,
-                              divisions: AiAskLevel.values.length - 1,
-                              label: _askLabel(loc, settings.aiAskLevel),
-                              onChanged: (value) => context
-                                  .read<AppSettingsCubit>()
-                                  .setAiAskLevel(
-                                    AiAskLevel.values[value.round()],
-                                  ),
+                            // Styled like the switches above: a thick
+                            // track as tall as theirs, a round knob, and
+                            // the settings blue (owner, 2026-11-04).
+                            SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                trackHeight: 32,
+                                activeTrackColor: AppColors.appBlue,
+                                inactiveTrackColor: neutrals.line,
+                                thumbColor: neutrals.ground,
+                                thumbShape: const RoundSliderThumbShape(
+                                  enabledThumbRadius: 12,
+                                  elevation: 1,
+                                  pressedElevation: 2,
+                                ),
+                                trackShape:
+                                    const RoundedRectSliderTrackShape(),
+                                tickMarkShape: const RoundSliderTickMarkShape(
+                                  tickMarkRadius: 3,
+                                ),
+                                activeTickMarkColor: AppColors.onAppBlue
+                                    .withValues(alpha: 0.35),
+                                inactiveTickMarkColor: neutrals.muted,
+                                overlayColor: AppColors.appBlue.withValues(
+                                  alpha: 0.18,
+                                ),
+                                showValueIndicator: ShowValueIndicator.never,
+                              ),
+                              child: Slider(
+                                key: const ValueKey('settings-ai-ask-slider'),
+                                value: settings.aiAskLevel.index.toDouble(),
+                                max: AiAskLevel.values.length - 1,
+                                divisions: AiAskLevel.values.length - 1,
+                                label: _askLabel(loc, settings.aiAskLevel),
+                                onChanged: (value) => context
+                                    .read<AppSettingsCubit>()
+                                    .setAiAskLevel(
+                                      AiAskLevel.values[value.round()],
+                                    ),
+                              ),
                             ),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
