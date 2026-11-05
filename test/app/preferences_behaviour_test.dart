@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -13,10 +14,12 @@ import 'package:hybrid_note/app/app_settings.dart';
 import 'package:hybrid_note/app/date_preferences.dart';
 import 'package:hybrid_note/app/list_order.dart';
 import 'package:hybrid_note/backend/firestore_list_store.dart';
+import 'package:hybrid_note/backend/firestore_setup.dart';
 import 'package:hybrid_note/home_screen.dart';
 import 'package:hybrid_note/launcher/dial_launcher.dart';
 import 'package:hybrid_note/launcher/launcher_geometry.dart';
 import 'package:hybrid_note/lists/builtin_templates.dart';
+import 'package:hybrid_note/lists/generic_list_host.dart';
 import 'package:hybrid_note/lists/generic_list_screen.dart';
 import 'package:hybrid_note/lists/list_definition.dart';
 import 'package:hybrid_note/lists/list_item.dart';
@@ -56,6 +59,7 @@ Future<FirestoreListStore> _pumpApp(
   List<ListItem> items = const [],
   Widget Function(Widget app)? wrap,
   AccountPreferencesSync? sync,
+  StarterSeeding? starter,
 }) async {
   tester.view.physicalSize = const Size(412, 900);
   tester.view.devicePixelRatio = 1;
@@ -69,6 +73,7 @@ Future<FirestoreListStore> _pumpApp(
   final Widget app = await testApp(
     auth: FakeAuthService(user: testUser),
     openStore: (_) => store,
+    starter: starter,
     openPreferences: sync == null ? null : (_) => sync,
   );
   await tester.pumpWidget(wrap == null ? app : wrap(app));
@@ -365,6 +370,50 @@ void main() {
     testWidgets('nothing opened yet: Home', (tester) async {
       await _pumpApp(tester, stored: lastList(const []));
       expect(find.byType(GenericListScreen), findsNothing);
+    });
+
+    testWidgets('no lists left in the account: Home, not a dead route', (
+      tester,
+    ) async {
+      await _pumpApp(
+        tester,
+        stored: lastList(const ['gone-list']),
+        lists: const [],
+      );
+      await settle(tester);
+      expect(find.byType(GenericListHost), findsNothing);
+      expect(find.byKey(const ValueKey('home-weekday')), findsOneWidget);
+    });
+
+    testWidgets('no lists yet: it waits for the starter lists to be done', (
+      tester,
+    ) async {
+      final Completer<bool> seeded = Completer<bool>();
+      final StarterSeeding starter = StarterSeeding(
+        ({required empty}) => seeded.future,
+      );
+      unawaited(starter.start());
+      await _pumpApp(
+        tester,
+        stored: lastList(const ['gone-list']),
+        lists: const [],
+        starter: starter,
+      );
+      await settle(tester);
+      expect(find.byType(GenericListHost), findsOneWidget);
+
+      seeded.complete(false);
+      await settle(tester);
+      expect(find.byType(GenericListHost), findsNothing);
+      expect(find.byKey(const ValueKey('home-weekday')), findsOneWidget);
+    });
+
+    testWidgets('the list still there stays open once the lists have loaded', (
+      tester,
+    ) async {
+      await _pumpApp(tester, stored: lastList([_tasks]));
+      await settle(tester);
+      expect(find.byType(GenericListHost), findsOneWidget);
     });
 
     testWidgets('a list that is gone: Home', (tester) async {

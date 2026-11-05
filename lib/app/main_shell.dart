@@ -8,6 +8,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../ai/ai_bar_controller.dart';
 import '../ai/ai_service.dart';
 import '../ai/prompt_bar.dart';
+import '../backend/firestore_setup.dart';
 import '../home_screen.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../launcher/dial_launcher.dart';
@@ -63,9 +64,13 @@ class _MainShellState extends State<MainShell> {
   // case never needs scrolling (plan 5.3). Kept per phone (Q-49).
   final List<String> _recent = [];
   // The list reopened at the start (Q-50 a); once the lists have loaded they
-  // show whether it still exists.
+  // show whether it still exists. No lists at all says nothing until the store
+  // has loaded and the starter lists are done: only then is the account empty.
   String? _startList;
   bool _startChecked = false;
+  bool _catalogLoaded = false;
+  StreamSubscription<ListCatalog>? _catalogLoad;
+  StarterSeeding? _starter;
 
   final GlobalKey<NavigatorState> _content = GlobalKey<NavigatorState>();
   final _TopRoute _top = _TopRoute();
@@ -104,6 +109,14 @@ class _MainShellState extends State<MainShell> {
     if (_recent.isNotEmpty &&
         context.accountPreferences.startScreen == StartScreen.lastOpenList) {
       _startList = _recent.first;
+      final ListStore store = context.read<ListStore>();
+      _catalogLoad = store.watch().listen((catalog) {
+        _catalogLoaded = true;
+        _catalogLoad?.cancel();
+        _checkStartList(catalog);
+      });
+      _starter = context.read<StarterSeeding>()
+        ..changes.addListener(_recheckStartList);
     }
   }
 
@@ -132,6 +145,8 @@ class _MainShellState extends State<MainShell> {
 
   @override
   void dispose() {
+    _catalogLoad?.cancel();
+    _starter?.changes.removeListener(_recheckStartList);
     _ai?.dispose();
     _top.dispose();
     super.dispose();
@@ -140,7 +155,11 @@ class _MainShellState extends State<MainShell> {
   // A list deleted on another phone since: back to the home.
   void _checkStartList(ListCatalog catalog) {
     final String? start = _startList;
-    if (start == null || _startChecked || catalog.definitions.isEmpty) {
+    final bool accountEmpty =
+        _catalogLoaded && _starter?.status == StarterStatus.done;
+    if (start == null ||
+        _startChecked ||
+        (catalog.definitions.isEmpty && !accountEmpty)) {
       return;
     }
     _startChecked = true;
@@ -150,7 +169,12 @@ class _MainShellState extends State<MainShell> {
           _goHome();
         }
       });
+      SchedulerBinding.instance.ensureVisualUpdate();
     }
+  }
+
+  void _recheckStartList() {
+    _checkStartList(context.read<ListStore>().current);
   }
 
   bool _isList(Route<dynamic>? route) =>
