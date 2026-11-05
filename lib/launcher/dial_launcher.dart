@@ -484,8 +484,11 @@ class _DialLauncherState extends State<DialLauncher>
     }
     final double slide = _slides[_entries[index].key] ?? 0;
     final (double turnStart, double turnEnd) = _turning(g, index + slide);
-    final double high =
-        widget.onHome != null ? _homeSides(g).$2 : _edgeLimits(g).$2;
+    final double high = widget.onHome != null
+        ? _homeSides(g).$2
+        : _arranging
+        ? _listsHigh(g)
+        : _edgeLimits(g).$2;
     final double start = math.min(high, turnStart);
     final double end = math.max(_addSides(g).$1, turnEnd);
     // A sliver cut off by New list or Home is not shown.
@@ -499,16 +502,22 @@ class _DialLauncherState extends State<DialLauncher>
           .toDouble();
 
   // The far end of the lists' room: where Home stops, or the bottom edge's
-  // limit on the home screen (no Home).
-  double _roomHigh(LauncherGeometry g) =>
-      widget.onHome != null ? _listsHigh(g) : _edgeLimits(g).$2;
+  // limit on the home screen (no Home). Arranging, the lists always stop where
+  // Home would, to leave a wedge there.
+  double _roomHigh(LauncherGeometry g) => widget.onHome != null || _arranging
+      ? _listsHigh(g)
+      : _edgeLimits(g).$2;
 
   // The scroll zones: the outermost list and half the next at either end of
-  // the lists' room (owner, 2026-11-03), and everything past them.
-  double _zoneLow(LauncherGeometry g) =>
-      _listsLow(g) + _config.dialEdgeZone * _step;
-  double _zoneHigh(LauncherGeometry g) =>
-      _roomHigh(g) - _config.dialEdgeZone * _step;
+  // the lists' room (owner, 2026-11-03), and everything past them. Arranging,
+  // they are only the empty wedges past the lists, where New list and Home stand
+  // on the normal dial: a list must hold still to be rested on (owner, 2026-11-05).
+  double _zoneLow(LauncherGeometry g) => _arranging
+      ? _listsLow(g)
+      : _listsLow(g) + _config.dialEdgeZone * _step;
+  double _zoneHigh(LauncherGeometry g) => _arranging
+      ? _roomHigh(g)
+      : _roomHigh(g) - _config.dialEdgeZone * _step;
 
   // A finger swiping fast along the arc towards an end reaches that end's
   // zone sooner: it reaches as far ahead as the finger would turn in
@@ -525,11 +534,15 @@ class _DialLauncherState extends State<DialLauncher>
   // 2026-11-04: the first list next to New list offered no Edit).
   bool _more(LauncherGeometry g, int side) {
     final double diagonal = _diagonal(g);
+    // Arranging, up to the end list standing whole beside its wedge.
+    final double whole = _arranging ? 0.5 : 0;
     return side < 0
         ? _scroll > _firstList + 1e-3 &&
-              diagonal + (_firstList - _scroll) * _step < _zoneLow(g) - 1e-3
+              diagonal + (_firstList - whole - _scroll) * _step <
+                  _zoneLow(g) - 1e-3
         : _scroll < _lastList - 1e-3 &&
-              diagonal + (_lastList - _scroll) * _step > _zoneHigh(g) + 1e-3;
+              diagonal + (_lastList + whole - _scroll) * _step >
+                  _zoneHigh(g) + 1e-3;
   }
 
   // The list in the hand while in a zone: the one under the finger, but
@@ -879,9 +892,13 @@ class _DialLauncherState extends State<DialLauncher>
   // How fast a finger in a zone scrolls: slowest at the zone's inner border,
   // fastest from the outermost list's far side.
   double _zoneSpeed(LauncherGeometry g, double angle) {
+    // Arranging, through the wedge out to the line of the hub's edge.
+    final (double lowest, double highest) = _arranging
+        ? _edgeLimits(g)
+        : (_listsLow(g), _roomHigh(g));
     final double depth = (_edge < 0
-            ? (_zoneLow(g) - angle) / (_zoneLow(g) - _listsLow(g))
-            : (angle - _zoneHigh(g)) / (_roomHigh(g) - _zoneHigh(g)))
+            ? (_zoneLow(g) - angle) / (_zoneLow(g) - lowest)
+            : (angle - _zoneHigh(g)) / (highest - _zoneHigh(g)))
         .clamp(0, 1)
         .toDouble();
     return lerpDouble(_config.dialEdgeSpeedMin, _config.dialEdgeSpeedMax, depth)!;

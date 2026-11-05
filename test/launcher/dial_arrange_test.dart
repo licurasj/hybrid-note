@@ -997,6 +997,128 @@ void main() {
       }
     });
 
+    group('the wedges at the ends', () {
+      for (final bool inList in [false, true]) {
+        testWidgets('every list on screen can be picked up, ${inList ? 'in a list' : 'on home'}', (
+          tester,
+        ) async {
+          await _pump(tester, count: 14, inList: inList);
+          await _openArranging(tester);
+          int picked = 0;
+          for (int i = 1; i < 15; i++) {
+            final Finder disc = find.byKey(ValueKey('dial-disc-$i'));
+            if (disc.evaluate().isEmpty) {
+              continue;
+            }
+            final Offset spot = tester.getCenter(disc);
+            final int other = i == 1 ? 2 : 1;
+            final Rect before = _tab(tester, other);
+            final TestGesture gesture = await tester.startGesture(spot);
+            await tester.pump(_rest);
+            await tester.pump(const Duration(milliseconds: 400));
+            // It holds still, and it is in the hand.
+            expect(tester.getSize(disc).width, greaterThan(35));
+            expect(
+              (_tab(tester, other).center - before.center).distance,
+              lessThan(12),
+            );
+            await gesture.up();
+            await tester.pump(const Duration(milliseconds: 400));
+            picked++;
+          }
+          expect(picked, greaterThan(3));
+        });
+      }
+
+      for (final Size size in const [Size(412, 900), Size(320, 640)]) {
+        testWidgets('a press in each wedge scrolls, clear of the arrows, ${size.width}', (
+          tester,
+        ) async {
+          final _Harness h = await _pump(tester, count: 14, size: size);
+          await _openArranging(tester);
+          final Rect before = _tab(tester, 2);
+
+          for (final double radius in const [120.0, 220.0]) {
+            final TestGesture gesture = await tester.startGesture(
+              _at(tester, math.pi - 0.03, radius),
+            );
+            for (int i = 0; i < 6; i++) {
+              await tester.pump(const Duration(milliseconds: 50));
+            }
+            await gesture.up();
+            await tester.pump(const Duration(milliseconds: 200));
+          }
+          final Finder tab = find.byKey(const ValueKey('dial-entry-2'));
+          if (tab.evaluate().isNotEmpty) {
+            expect(
+              (tester.getRect(tab).center - before.center).distance,
+              greaterThan(20),
+            );
+          }
+          final Finder late = find.byKey(const ValueKey('dial-disc-1'));
+          final Offset wasFirst =
+              late.evaluate().isEmpty ? Offset.zero : tester.getCenter(late);
+
+          // Back again from the wedge at the other end.
+          final TestGesture back = await tester.startGesture(
+            _at(tester, math.pi / 2 + 0.03, 220),
+          );
+          for (int i = 0; i < 10; i++) {
+            await tester.pump(const Duration(milliseconds: 50));
+          }
+          await back.up();
+          await tester.pump(const Duration(milliseconds: 200));
+          expect(late, findsOneWidget);
+          expect(tester.getCenter(late), isNot(wasFirst));
+          expect(_area, findsOneWidget);
+          expect(h.log, isEmpty);
+        });
+      }
+
+      testWidgets('at the end, the last list stands whole, and the wedge stays empty', (
+        tester,
+      ) async {
+        await _pump(tester, count: 14);
+        await _openArranging(tester);
+        final TestGesture gesture = await tester.startGesture(
+          _at(tester, math.pi - 0.03, 170),
+        );
+        for (int i = 0; i < 100; i++) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        final Offset disc = tester.getCenter(
+          find.byKey(const ValueKey('dial-disc-14')),
+        );
+        final Offset fromHub = disc - _hub(tester);
+        final double angle = math.atan2(-fromHub.dy, fromHub.dx);
+        expect(angle, lessThan(math.pi - 0.1));
+      });
+
+      testWidgets('carrying a held list into the wedge scrolls the others', (
+        tester,
+      ) async {
+        final _Harness h = await _pump(tester, count: 14);
+        await _openArranging(tester);
+        final Offset start = _list(tester, 0);
+        final TestGesture gesture = await tester.startGesture(start);
+        await tester.pump(_rest);
+        final Offset wedge = _at(tester, math.pi - 0.03, 170);
+        await _steps(tester, gesture, start, wedge);
+        for (int i = 0; i < 40; i++) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 300));
+        final List<String> ids = h.log.single
+            .substring('order '.length)
+            .split(',');
+        expect(ids.indexOf('n0'), greaterThan(7));
+      });
+    });
+
     group('far off the dial', () {
       // A spot off the lists, near the far corner, out of the dial's reach.
       const Offset blank = Offset(40, 80);
