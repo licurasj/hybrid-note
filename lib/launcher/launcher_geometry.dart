@@ -57,10 +57,12 @@ class LauncherConfig {
     this.dialTabCap = 56,
     this.dialTabGrow = 14,
     this.dialSelectKeep = 0.15,
-    this.dialEdgeZone = 1.5,
+    this.dialEdgeZone = 1.0,
     this.dialEdgeLeave = 0.25,
     this.dialEdgeSpeedMin = 1.5,
     this.dialEdgeSpeedMax = 6,
+    this.dialEdgeSpeedBorder = 3,
+    this.dialEdgeSpeedEase = 1,
     this.dialEdgeLead = const Duration(milliseconds: 250),
     this.dialEdgeReach = 2,
     this.dialEdgeCarry = 0.8,
@@ -162,6 +164,9 @@ class LauncherConfig {
   final double dialEdgeLeave;
   final double dialEdgeSpeedMin;
   final double dialEdgeSpeedMax;
+  // See dialZoneSpeed.
+  final double dialEdgeSpeedBorder;
+  final double dialEdgeSpeedEase;
   final Duration dialEdgeLead;
   final double dialEdgeReach;
   final double dialEdgeCarry;
@@ -172,6 +177,16 @@ class LauncherConfig {
   // outwards selects it.
   final double dialEditDepth;
   final double dialEditSwipe;
+
+  // How fast the lists scroll, in lists a second, [depth] (0 to 1) through a
+  // normal dial's zone. It keeps the speed each spot had when the zone was half
+  // a list wider (3 at this border, rising in a line to the maximum), but eases
+  // in from a little below that so scrolling does not start with a jolt.
+  double dialZoneSpeed(double depth) {
+    final double line =
+        dialEdgeSpeedBorder + (dialEdgeSpeedMax - dialEdgeSpeedBorder) * depth;
+    return line - dialEdgeSpeedEase * (1 - depth) * (1 - depth);
+  }
 
   double get outerRadius => innerRadius + tabLength;
 }

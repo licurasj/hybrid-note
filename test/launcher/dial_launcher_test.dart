@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:hybrid_note/app_colors.dart';
 import 'package:hybrid_note/launcher/dial_launcher.dart';
+import 'package:hybrid_note/launcher/launcher_geometry.dart';
 import 'package:hybrid_note/launcher/radial_launcher.dart';
 
 const double _step = 12 * math.pi / 180;
@@ -679,13 +680,63 @@ void main() {
     final TestGesture gesture = await _pickFirst(tester);
     await tester.pump(const Duration(milliseconds: 100));
     final int before = shownMax(tester);
-    await gesture.moveTo(_at(tester, math.pi - 0.05, 160));
+    await gesture.moveTo(_at(tester, math.pi - 0.02, 160));
     // Within 250 ms (the old delay alone was 300 ms) lists have come in.
     for (int i = 0; i < 12; i++) {
       await tester.pump(const Duration(milliseconds: 20));
     }
     expect(shownMax(tester), greaterThan(before));
     await gesture.up();
+  });
+
+  test('a zone keeps the speed each spot had, easing in at its border', () {
+    const LauncherConfig config = LauncherConfig();
+    expect(config.dialZoneSpeed(0), 2);
+    expect(config.dialZoneSpeed(1), config.dialEdgeSpeedMax);
+    // The old line through the part of the zone that remains: 3 to 6.
+    for (final double depth in const [0.25, 0.5, 0.75]) {
+      final double old = 3 + 3 * depth;
+      expect(config.dialZoneSpeed(depth), lessThanOrEqualTo(old));
+      expect(config.dialZoneSpeed(depth), greaterThan(old - 0.6));
+    }
+    double last = 0;
+    for (double depth = 0; depth <= 1; depth += 0.05) {
+      expect(config.dialZoneSpeed(depth), greaterThan(last));
+      last = config.dialZoneSpeed(depth);
+    }
+  });
+
+  testWidgets('the inner half of the last whole list is out of the zone', (
+    WidgetTester tester,
+  ) async {
+    await _pump(tester, count: 12);
+    final TestGesture gesture = await _pickFirst(tester);
+    await tester.pump(const Duration(milliseconds: 300));
+    final int last = shownMax(tester);
+    final Offset hub = _hub(tester);
+    final Offset second =
+        tester.getCenter(find.byKey(ValueKey('dial-disc-${last - 1}'))) - hub;
+    final double angle = math.atan2(-second.dy, second.dx) - 0.05;
+
+    final Offset from = _at(tester, angle - 0.3, 160);
+    await gesture.moveTo(from);
+    await tester.pump(const Duration(milliseconds: 100));
+    for (int i = 1; i <= 6; i++) {
+      await gesture.moveTo(_at(tester, angle - 0.3 + 0.3 * i / 6, 160));
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    // Resting there: nothing comes in, and the list can be selected.
+    for (int i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(shownMax(tester), last);
+    expect(
+      tester.getSize(find.byKey(ValueKey('dial-disc-${last - 1}'))).width,
+      greaterThan(35),
+    );
+    await gesture.moveTo(hub);
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 100));
   });
 
   testWidgets('a fast swipe towards an end reaches its zone sooner', (

@@ -508,8 +508,8 @@ class _DialLauncherState extends State<DialLauncher>
       ? _listsHigh(g)
       : _edgeLimits(g).$2;
 
-  // The scroll zones: the outermost list and half the next at either end of
-  // the lists' room (owner, 2026-11-03), and everything past them. Arranging,
+  // The scroll zones: the outermost list at either end of the lists' room
+  // (owner, 2026-11-05), and everything past them. Arranging,
   // they are only the empty wedges past the lists, where New list and Home stand
   // on the normal dial: a list must hold still to be rested on (owner, 2026-11-05).
   double _zoneLow(LauncherGeometry g) => _arranging
@@ -919,7 +919,9 @@ class _DialLauncherState extends State<DialLauncher>
             : (angle - _zoneHigh(g)) / (highest - _zoneHigh(g)))
         .clamp(0, 1)
         .toDouble();
-    return lerpDouble(_config.dialEdgeSpeedMin, _config.dialEdgeSpeedMax, depth)!;
+    return _arranging
+        ? lerpDouble(_config.dialEdgeSpeedMin, _config.dialEdgeSpeedMax, depth)!
+        : _config.dialZoneSpeed(depth);
   }
 
   // After a rest: Edit on a list (not while at an edge, where the hold
