@@ -41,6 +41,10 @@ Future<void> _openSettings(WidgetTester tester) async {
 
 Future<void> _openPreferences(WidgetTester tester) async {
   await _openSettings(tester);
+  await tester.ensureVisible(
+    find.byKey(const ValueKey('settings-preferences')),
+  );
+  await tester.pumpAndSettle();
   await tester.tap(find.byKey(const ValueKey('settings-preferences')));
   await tester.pumpAndSettle();
 }
@@ -62,35 +66,36 @@ Future<void> _tapKey(WidgetTester tester, String key) async {
 
 void main() {
   group('Settings sheet', () {
-    testWidgets('theme, language, Preferences and the account; no AI rows', (
-      WidgetTester tester,
-    ) async {
-      await _pumpApp(tester);
-      await _openSettings(tester);
+    testWidgets(
+      'theme, language, the AI choices, Preferences and the account',
+      (WidgetTester tester) async {
+        await _pumpApp(tester);
+        await _openSettings(tester);
 
-      final double theme = tester
-          .getTopLeft(find.byKey(const ValueKey('settings-theme')))
-          .dy;
-      final double language = tester
-          .getTopLeft(find.byKey(const ValueKey('settings-language')))
-          .dy;
-      final double preferences = tester
-          .getTopLeft(find.byKey(const ValueKey('settings-preferences')))
-          .dy;
-      final double account = tester
-          .getTopLeft(find.byKey(const ValueKey('settings-account')))
-          .dy;
-      expect(theme, lessThan(language));
-      expect(language, lessThan(preferences));
-      expect(preferences, lessThan(account));
+        final double theme = tester
+            .getTopLeft(find.byKey(const ValueKey('settings-theme')))
+            .dy;
+        final double language = tester
+            .getTopLeft(find.byKey(const ValueKey('settings-language')))
+            .dy;
+        final double preferences = tester
+            .getTopLeft(find.byKey(const ValueKey('settings-preferences')))
+            .dy;
+        final double account = tester
+            .getTopLeft(find.byKey(const ValueKey('settings-account')))
+            .dy;
+        expect(theme, lessThan(language));
+        expect(language, lessThan(preferences));
+        expect(preferences, lessThan(account));
 
-      expect(find.byKey(const ValueKey('settings-dark-mode')), findsNothing);
-      expect(
-        find.byKey(const ValueKey('settings-ai-auto-apply')),
-        findsNothing,
-      );
-      expect(find.byKey(const ValueKey('settings-ai-ask')), findsNothing);
-    });
+        expect(find.byKey(const ValueKey('settings-dark-mode')), findsNothing);
+        expect(
+          find.byKey(const ValueKey('settings-ai-auto-apply')),
+          findsOneWidget,
+        );
+        expect(find.byKey(const ValueKey('settings-ai-ask')), findsOneWidget);
+      },
+    );
 
     testWidgets('theme offers the three choices and stays per phone', (
       WidgetTester tester,
@@ -123,6 +128,27 @@ void main() {
         _account(tester).state.toJson().keys,
         isNot(contains('themeMode')),
       );
+    });
+
+    testWidgets('the AI choices work here and go to the account', (
+      WidgetTester tester,
+    ) async {
+      await _pumpApp(tester);
+      final AccountPreferencesCubit cubit = _account(tester);
+      await _openSettings(tester);
+
+      await _tapKey(tester, 'settings-ai-auto-apply');
+      expect(cubit.state.aiAutoApply, isTrue);
+
+      final Finder slider = find.byKey(
+        const ValueKey('settings-ai-ask-slider'),
+      );
+      await tester.ensureVisible(slider);
+      await tester.pumpAndSettle();
+      final Rect rect = tester.getRect(slider);
+      await tester.tapAt(Offset(rect.right - 12, rect.center.dy));
+      await tester.pumpAndSettle();
+      expect(cubit.state.aiAskLevel, AiAskLevel.less);
     });
 
     testWidgets('a theme dismissed without a choice stays', (
@@ -189,8 +215,6 @@ void main() {
         'Confirm before deleting',
         'AI',
         'Show the AI bar',
-        'Apply AI changes without asking',
-        'How often the AI checks with you',
         'GENERAL',
         'Vibration',
         'Time format',
@@ -208,7 +232,9 @@ void main() {
         expect(top, greaterThan(last), reason: text);
         last = top;
       }
-      // Stays per phone, so not here.
+      // What was in Settings before stays there.
+      expect(find.text('Apply AI changes without asking'), findsNothing);
+      expect(find.text('How often the AI checks with you'), findsNothing);
       expect(find.text('Language'), findsNothing);
       expect(find.text('Theme'), findsNothing);
     });
@@ -294,8 +320,6 @@ void main() {
 
       await _tapKey(tester, 'preferences-show-ai-bar');
       expect(cubit.state.showAiBar, isFalse);
-      await _tapKey(tester, 'settings-ai-auto-apply');
-      expect(cubit.state.aiAutoApply, isTrue);
       await _tapKey(tester, 'preferences-vibration');
       expect(cubit.state.vibration, isFalse);
     });
@@ -330,8 +354,12 @@ void main() {
         );
         await _openSettings(tester);
         expect(tester.takeException(), isNull, reason: 'sheet $locale');
-        await tester.tap(find.byKey(const ValueKey('settings-preferences')));
+        final Finder row = find.byKey(const ValueKey('settings-preferences'));
+        await tester.ensureVisible(row);
         await tester.pumpAndSettle();
+        await tester.tap(row);
+        await tester.pumpAndSettle();
+        expect(find.byType(PreferencesScreen), findsOneWidget, reason: locale);
         expect(tester.takeException(), isNull, reason: 'page $locale');
         await tester.pumpWidget(const SizedBox());
       }

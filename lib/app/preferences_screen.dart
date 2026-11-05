@@ -130,7 +130,8 @@ class _ChoiceSheet<T> extends StatelessWidget {
 }
 
 // Preferences, in groups (T-21 unit 2): everything here follows the account
-// (Q-48 A). Theme, language and the hub stay per phone and are not here.
+// (Q-48 A). What was in Settings before stays there (owner, 2026-11-05): theme
+// and language, and the two AI choices, which sync all the same.
 class PreferencesScreen extends StatelessWidget {
   const PreferencesScreen({super.key});
 
@@ -220,16 +221,6 @@ class PreferencesScreen extends StatelessWidget {
               label: loc.preferencesShowAiBar,
               value: preferences.showAiBar,
               onChanged: cubit.setShowAiBar,
-            ),
-            _SwitchRow(
-              key: const ValueKey('settings-ai-auto-apply'),
-              label: loc.settingsAiAutoApply,
-              value: preferences.aiAutoApply,
-              onChanged: cubit.setAiAutoApply,
-            ),
-            _AiAskSlider(
-              level: preferences.aiAskLevel,
-              onChanged: cubit.setAiAskLevel,
             ),
             look.sectionLabel(loc.preferencesGeneral),
             _SwitchRow(
@@ -385,8 +376,8 @@ class _SwitchRow extends StatelessWidget {
 
 // How often the AI checks with you (Q-43): a slider from asking to just doing
 // it, with what the stop means under it.
-class _AiAskSlider extends StatelessWidget {
-  const _AiAskSlider({required this.level, required this.onChanged});
+class AiAskSlider extends StatelessWidget {
+  const AiAskSlider({super.key, required this.level, required this.onChanged});
 
   final AiAskLevel level;
   final ValueChanged<AiAskLevel> onChanged;
@@ -405,13 +396,18 @@ class _AiAskSlider extends StatelessWidget {
     final AppNeutrals neutrals = look.neutrals;
 
     return look.hairline(
-      key: const ValueKey('settings-ai-ask'),
       child: Padding(
         padding: const EdgeInsets.only(top: 14, bottom: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(loc.settingsAiAsk, style: look.type.row),
+            Row(
+              children: [
+                Icon(Icons.help_outline, size: 22, color: neutrals.text),
+                const SizedBox(width: 14),
+                Expanded(child: Text(loc.settingsAiAsk, style: look.type.row)),
+              ],
+            ),
             // Styled like the switches: a thick track as tall as theirs, a
             // round knob, and the settings blue (owner, 2026-11-04).
             SliderTheme(

@@ -273,8 +273,8 @@ class _EclipseDot extends StatelessWidget {
   }
 }
 
-// The settings sheet: what belongs to this phone (theme, language), the way
-// to Preferences, and the account (email, Log out).
+// The settings sheet: theme and language (this phone), the two AI choices, the
+// way to Preferences, and the account (email, Log out).
 Future<void> showSettingsSheet(BuildContext context) {
   return showSlideUpSheet<void>(
     context: context,
@@ -439,6 +439,10 @@ class _SettingsSheet extends StatelessWidget {
 
     return BlocBuilder<AppSettingsCubit, AppSettings>(
       builder: (context, settings) {
+        // The two AI choices stay here and sync with the account (Q-48).
+        final AccountPreferences synced = context.watchAccountPreferences;
+        final AccountPreferencesCubit preferences = context
+            .read<AccountPreferencesCubit>();
         return Semantics(
           label: loc.settings,
           explicitChildNodes: true,
@@ -519,6 +523,29 @@ class _SettingsSheet extends StatelessWidget {
                         onTap: () => _showLanguageDialog(context, settings),
                       ),
                       hairline(),
+                      row(
+                        key: const ValueKey('settings-ai-auto-apply'),
+                        icon: Icons.check_circle_outline,
+                        label: Text(loc.settingsAiAutoApply, style: type.row),
+                        trailing: Switch(
+                          value: synced.aiAutoApply,
+                          activeTrackColor: AppColors.appBlue,
+                          onChanged: preferences.setAiAutoApply,
+                        ),
+                        onTap: () =>
+                            preferences.setAiAutoApply(!synced.aiAutoApply),
+                      ),
+                      hairline(),
+                      Padding(
+                        key: const ValueKey('settings-ai-ask'),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppShapes.sideMargin,
+                        ),
+                        child: AiAskSlider(
+                          level: synced.aiAskLevel,
+                          onChanged: preferences.setAiAskLevel,
+                        ),
+                      ),
                       row(
                         key: const ValueKey('settings-preferences'),
                         icon: Icons.tune,
