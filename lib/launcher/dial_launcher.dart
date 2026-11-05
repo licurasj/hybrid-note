@@ -43,8 +43,10 @@ final List<LauncherNote> debugDialExtraNotes = [];
 // Rest on the hub and Arrange slides out beside Move (Q-49); reaching it and
 // letting go opens the arrange state: the lists stand further apart and sway
 // slowly, the hub's blue disc comes to the front, and any list can be dragged
-// along the dial at once. It stays open for several drags and ends on a press
-// outside the lists, Back or Esc (INTERACTIONS rule 6, its written exception).
+// along the dial at once. A swipe anywhere else turns the dial without moving a
+// list (owner, 2026-11-05). It stays open for several drags and ends on a tap
+// outside the lists, a press on the hub, Back or Esc (INTERACTIONS rule 6, its
+// written exception).
 class DialLauncher extends StatefulWidget {
   const DialLauncher({
     super.key,
@@ -180,6 +182,11 @@ class _DialLauncherState extends State<DialLauncher>
   double _arrangeIn = 0;
   int? _dragPointer;
   List<_Entry> _dragStart = const [];
+  // A finger off the lists: a tap ends the state, a swipe turns the dial.
+  int? _swipePointer;
+  Offset _swipeStart = Offset.zero;
+  bool _swiping = false;
+  double _swipeAngle = 0;
 
   Offset? _movedHub;
   Offset _moveGrab = Offset.zero;
@@ -631,6 +638,7 @@ class _DialLauncherState extends State<DialLauncher>
       _mode = _Mode.closed;
       _arrangeIn = 0;
       _dragPointer = null;
+      _swipePointer = null;
       _edge = 0;
       _selected = null;
       _zoom = 0;
@@ -1087,7 +1095,7 @@ class _DialLauncherState extends State<DialLauncher>
     _wake();
   }
 
-  // The list under a press, if any: a press anywhere else ends the state.
+  // The list under a press, if any.
   int? _listAt(LauncherGeometry g, Offset point) {
     final (double angle, double radius) = _polar(g, point);
     final double keep = _config.dialSelectKeep * _step;
@@ -1108,12 +1116,15 @@ class _DialLauncherState extends State<DialLauncher>
 
   void _onArrangeDown(PointerDownEvent event) {
     final LauncherGeometry? g = _geometry;
-    if (g == null || _dragPointer != null) {
+    if (g == null || _dragPointer != null || _swipePointer != null) {
       return;
     }
     final int? list = _listAt(g, event.position);
     if (list == null) {
-      _close();
+      _swipePointer = event.pointer;
+      _swipeStart = event.position;
+      _swiping = false;
+      _swipeAngle = _polar(g, event.position).$1;
       return;
     }
     if (widget.haptics) {
@@ -1131,6 +1142,10 @@ class _DialLauncherState extends State<DialLauncher>
 
   void _onArrangeMove(PointerMoveEvent event) {
     final LauncherGeometry? g = _geometry;
+    if (g != null && event.pointer == _swipePointer) {
+      _swipe(g, event.position);
+      return;
+    }
     if (g == null || event.pointer != _dragPointer) {
       return;
     }
@@ -1144,6 +1159,31 @@ class _DialLauncherState extends State<DialLauncher>
           : 0;
       _placeDragged(g, angle);
     });
+  }
+
+  // A swipe off the lists: the lists follow the finger round the hub, as far as
+  // there are more lists that way.
+  void _swipe(LauncherGeometry g, Offset finger) {
+    if (!_swiping &&
+        (finger - _swipeStart).distance <= _config.moveTolerance) {
+      return;
+    }
+    _swiping = true;
+    final (double angle, double _) = _polar(g, finger);
+    final double lists = (angle - _swipeAngle) / _step;
+    _swipeAngle = angle;
+    // The lists move with the finger, so the dial's place moves against it.
+    final int side = lists > 0 ? -1 : 1;
+    if (lists == 0 || !_more(g, side)) {
+      return;
+    }
+    setState(() {
+      _scroll = (_scroll - lists)
+          .clamp(_firstList.toDouble(), _lastList.toDouble())
+          .toDouble();
+      _position = _scroll;
+    });
+    _wake();
   }
 
   // The dragged list takes the place under the finger.
@@ -1207,6 +1247,13 @@ class _DialLauncherState extends State<DialLauncher>
   ];
 
   void _onArrangeUp(PointerUpEvent event) {
+    if (event.pointer == _swipePointer) {
+      _swipePointer = null;
+      if (!_swiping) {
+        _close();
+      }
+      return;
+    }
     if (event.pointer != _dragPointer) {
       return;
     }
@@ -1225,6 +1272,10 @@ class _DialLauncherState extends State<DialLauncher>
   }
 
   void _onArrangeCancel(PointerCancelEvent event) {
+    if (event.pointer == _swipePointer) {
+      _swipePointer = null;
+      return;
+    }
     if (event.pointer != _dragPointer) {
       return;
     }

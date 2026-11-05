@@ -448,6 +448,72 @@ void main() {
       },
     );
 
+    group('a swipe off the lists', () {
+      // A spot off the lists, near the far corner.
+      const Offset blank = Offset(40, 80);
+
+      Future<void> swipe(WidgetTester tester, double degrees) async {
+        final double from = _diagonal(tester);
+        final double to = from + degrees * math.pi / 180;
+        final double radius = (_hub(tester) - blank).distance;
+        final TestGesture gesture = await tester.startGesture(blank);
+        await tester.pump(const Duration(milliseconds: 16));
+        for (int i = 1; i <= 10; i++) {
+          await gesture.moveTo(
+            _at(tester, from + (to - from) * i / 10, radius),
+          );
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+
+      testWidgets('turns the dial, moves no list, and stays open', (
+        tester,
+      ) async {
+        final _Harness h = await _pump(tester, count: 14);
+        await _openArranging(tester);
+        // A list further along stands on the diagonal after a swipe back.
+        await swipe(tester, -60);
+        expect(_area, findsOneWidget);
+        expect(h.log, isEmpty);
+
+        // Now a list that was off the dial can be picked up.
+        await _drag(tester, 0, 1);
+        expect(h.log, hasLength(1));
+        final List<String> ids = h.log.single
+            .substring('order '.length)
+            .split(',');
+        expect(ids, hasLength(14));
+        // Only lists from further along changed places.
+        expect(ids.take(2), ['n0', 'n1']);
+      });
+
+      testWidgets('with nothing more that way it changes nothing', (
+        tester,
+      ) async {
+        final _Harness h = await _pump(tester);
+        await _openArranging(tester);
+        final Rect before = _tab(tester, 1);
+        await swipe(tester, 30);
+        expect(_area, findsOneWidget);
+        expect(h.log, isEmpty);
+        expect((_tab(tester, 1).center - before.center).distance, lessThan(12));
+      });
+
+      testWidgets('a tap there still ends it', (tester) async {
+        await _pump(tester, count: 14);
+        await _openArranging(tester);
+        final TestGesture gesture = await tester.startGesture(blank);
+        await tester.pump(const Duration(milliseconds: 50));
+        // Pressing alone does not end it.
+        expect(_area, findsOneWidget);
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(_area, findsNothing);
+      });
+    });
+
     testWidgets('the normal dial works again afterwards, in the saved order', (
       tester,
     ) async {
