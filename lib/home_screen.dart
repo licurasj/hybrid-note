@@ -539,17 +539,20 @@ class _SettingsSheet extends StatelessWidget {
                         onTap: () => _showLanguageDialog(context, settings),
                       ),
                       hairline(),
-                      row(
-                        key: const ValueKey('settings-ai-auto-apply'),
-                        icon: Icons.check_circle_outline,
-                        label: Text(loc.settingsAiAutoApply, style: type.row),
-                        trailing: Switch(
-                          value: synced.aiAutoApply,
-                          activeTrackColor: AppColors.appBlue,
-                          onChanged: preferences.setAiAutoApply,
+                      // One node for a screen reader: the switch with its name.
+                      MergeSemantics(
+                        child: row(
+                          key: const ValueKey('settings-ai-auto-apply'),
+                          icon: Icons.check_circle_outline,
+                          label: Text(loc.settingsAiAutoApply, style: type.row),
+                          trailing: Switch(
+                            value: synced.aiAutoApply,
+                            activeTrackColor: AppColors.appBlue,
+                            onChanged: preferences.setAiAutoApply,
+                          ),
+                          onTap: () =>
+                              preferences.setAiAutoApply(!synced.aiAutoApply),
                         ),
-                        onTap: () =>
-                            preferences.setAiAutoApply(!synced.aiAutoApply),
                       ),
                       hairline(),
                       Padding(

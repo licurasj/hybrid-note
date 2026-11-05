@@ -130,6 +130,28 @@ void main() {
       );
     });
 
+    testWidgets('a screen reader gets the auto-apply switch with its name', (
+      WidgetTester tester,
+    ) async {
+      final SemanticsHandle semantics = tester.ensureSemantics();
+      await _pumpApp(tester);
+      await _openSettings(tester);
+
+      expect(
+        tester.getSemantics(find.byType(Switch).first),
+        matchesSemantics(
+          label: 'Apply AI changes without asking',
+          hasToggledState: true,
+          hasEnabledState: true,
+          isEnabled: true,
+          isFocusable: true,
+          hasTapAction: true,
+          hasFocusAction: true,
+        ),
+      );
+      semantics.dispose();
+    });
+
     testWidgets('the AI choices work here and go to the account', (
       WidgetTester tester,
     ) async {
