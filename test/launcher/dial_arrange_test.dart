@@ -258,6 +258,119 @@ void main() {
     });
   });
 
+  group('the selected list near the screen edge', () {
+    // A tab's end, from its disc, which stands a fixed way in from it.
+    double? reach(WidgetTester tester, int index) {
+      final Finder disc = find.byKey(ValueKey('dial-disc-$index'));
+      if (disc.evaluate().isEmpty) {
+        return null;
+      }
+      final Rect rect = tester.getRect(disc);
+      return (rect.center - _hub(tester)).distance + 18 + rect.width / 2;
+    }
+
+    for (final Size size in const [Size(412, 900), Size(320, 640)]) {
+      final String name = '${size.width.toInt()} x ${size.height.toInt()}';
+
+      testWidgets('normal dial, $name: longest but for a list at rest', (
+        tester,
+      ) async {
+        await _pump(tester, count: 14, size: size);
+        final Offset hub = _hub(tester);
+        final double half = hub.distance / 2;
+        final double far = 24 + (half - 24) * _config.dialFarLength;
+        final TestGesture gesture = await tester.startGesture(hub);
+        await tester.pump(const Duration(milliseconds: 300));
+        for (double t = 0.05; t <= 0.95; t += 0.05) {
+          final double angle = math.pi / 2 + (math.pi / 2) * t;
+          await gesture.moveTo(_at(tester, angle, half * 0.6));
+          await tester.pump(const Duration(milliseconds: 500));
+          int? selected;
+          double top = 0;
+          for (int i = 0; i < 16; i++) {
+            final Finder disc = find.byKey(ValueKey('dial-disc-$i'));
+            if (disc.evaluate().isNotEmpty &&
+                tester.getSize(disc).width > 35.5) {
+              selected = i;
+              top = reach(tester, i)!;
+            }
+          }
+          if (selected == null) {
+            continue;
+          }
+          for (int i = 1; i < 15; i++) {
+            final double? other = reach(tester, i);
+            if (i == selected || other == null) {
+              continue;
+            }
+            // Only a list no longer than at rest may stand past the selected.
+            if (other > top + 1) {
+              expect(other, lessThanOrEqualTo(far + 1), reason: 'list $i at $t');
+            }
+          }
+          // Never off the screen.
+          final Rect tab = _tab(tester, selected);
+          expect(tab.left, greaterThanOrEqualTo(-1));
+          expect(tab.top, greaterThanOrEqualTo(-1));
+        }
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 300));
+      });
+
+      testWidgets('arranging, $name: the held list is longer than at rest', (
+        tester,
+      ) async {
+        await _pump(tester, count: 14, size: size);
+        await _openArranging(tester);
+        for (final int i in const [-1, 0, 1, 2]) {
+          final int entry = i + 1 < 1 ? 1 : i + 1;
+          final double before = reach(tester, entry)!;
+          final Offset start = _list(tester, entry - 1);
+          final TestGesture gesture = await tester.startGesture(start);
+          await tester.pump(_rest);
+          await tester.pump(const Duration(milliseconds: 400));
+          expect(reach(tester, entry)!, greaterThan(before + 8));
+          for (int other = 1; other < 8; other++) {
+            final double? length = reach(tester, other);
+            if (other != entry && length != null) {
+              expect(length, lessThanOrEqualTo(reach(tester, entry)! + 1));
+            }
+          }
+          await gesture.up();
+          await tester.pump(const Duration(milliseconds: 300));
+        }
+      });
+    }
+
+    testWidgets('near the edge Edit still shows on the screen, and is reachable', (
+      tester,
+    ) async {
+      final _Harness h = await _pump(tester, count: 5);
+      final Offset hub = _hub(tester);
+      final TestGesture gesture = await tester.startGesture(hub);
+      await tester.pump(const Duration(milliseconds: 300));
+      final double half = hub.distance / 2;
+      // Low on the dial, where the screen's bottom edge is near.
+      final Offset spot = _at(tester, math.pi - 0.2, half * 0.5);
+      await _steps(tester, gesture, hub, spot);
+      for (int i = 0; i < 25; i++) {
+        await tester.pump(const Duration(milliseconds: 80));
+      }
+      final Finder edit = find.byKey(const ValueKey('dial-edit'));
+      expect(edit, findsOneWidget);
+      final Rect rect = tester.getRect(edit);
+      expect(rect.left, greaterThanOrEqualTo(-1));
+      expect(rect.bottom, lessThanOrEqualTo(901));
+
+      final Offset out = hub + (spot - hub) * 1.3;
+      await _steps(tester, gesture, spot, out);
+      await tester.pump(const Duration(milliseconds: 100));
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(h.log.single, startsWith('edit'));
+    });
+  });
+
   group('the prompts on a finger that has come back to the hub', () {
     // Out onto a list and back, in one hold.
     Future<TestGesture> outAndBack(WidgetTester tester) async {

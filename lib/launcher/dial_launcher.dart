@@ -173,6 +173,8 @@ class _DialLauncherState extends State<DialLauncher>
   Duration _promptAt = Duration.zero;
   bool _promptOut = false;
   double _progress = 0;
+  // How much room the selected list is keeping for Edit, easing back to none.
+  double _editRoom = 0;
   bool _promptSelected = false;
   // Arrange, which is offered with Move and fills on its own.
   double _arrangeProgress = 0;
@@ -589,13 +591,8 @@ class _DialLauncherState extends State<DialLauncher>
         _grow(),
       )!;
 
-  // A tab's end: its share of half the diagonal, but never off the screen
-  // (with room for Edit past a list's end), now that the selected tab can be
-  // anywhere in the fan rather than on the diagonal.
-  double _outer(LauncherGeometry g, int index, double angle) {
-    final double full = _halfDiagonal(g) - _config.innerRadius;
-    final double outer =
-        _inner() + full * _emphasis(index) * lerpDouble(0.18, 1, _grow())!;
+  // How far from the hub a tab can reach at [angle], [margin] short of the screen.
+  double _reachAt(LauncherGeometry g, double angle, double margin) {
     final (double x, double y) = _frameHub(g);
     // Towards the far side edge and the far top (or bottom) edge; the tabs
     // stand 7 and 4 dp in from the hub's centre.
@@ -608,8 +605,85 @@ class _DialLauncherState extends State<DialLauncher>
     if (up > 1e-6) {
       room = math.min(room, (y - 4) / up);
     }
-    final double margin = _isFixed(index) ? 16 : 16 + _config.dialEditDepth;
-    return math.min(outer, math.max(_inner() + 48, room - margin));
+    return math.max(_inner() + 48, room - margin);
+  }
+
+  // How far Edit stands past the selected list's end just now.
+  double _editDepthShown() => _editShown
+      ? _config.dialEditDepth * (1 + 0.22 * _progress) * _reveal()
+      : 0;
+
+  // The length of a tab with no extra growth: a list's rest length, with the
+  // room for Edit it has always kept.
+  double _restEnd(LauncherGeometry g, double angle, double span) => math.min(
+        _inner() + span * _config.dialFarLength,
+        _reachAt(g, angle, 16 + _config.dialEditDepth),
+      );
+
+  // How much of its full growth a selected list at [angle] has room for. It
+  // reaches to the edge's margin; a list pulls back only as far as an Edit
+  // showing past its end needs.
+  double _growthShare(LauncherGeometry g, double angle, double span) {
+    final double far = _config.dialFarLength;
+    final double top = math.min(
+      _inner() + span,
+      _reachAt(g, angle, math.max(16, 8 + _editRoom)),
+    );
+    final double share =
+        (top - _restEnd(g, angle, span)) / (span * (1 - far));
+    return share.clamp(0, 1).toDouble();
+  }
+
+  // Where the selected list stands, for its neighbours; the focus eases there,
+  // so their growth changes smoothly as the selection moves.
+  double _selectedAngle(LauncherGeometry g) {
+    final double eased = _diagonal(g) + _offset(_focus - _position);
+    final int? selected = _selected;
+    final (double, double)? sides = selected == null || selected >= _entries.length
+        ? null
+        : _sides(g, selected);
+    if (sides == null) {
+      return eased;
+    }
+    return lerpDouble(
+      (sides.$1 + sides.$2) / 2,
+      eased,
+      (selected! - _focus).abs().clamp(0, 1).toDouble(),
+    )!;
+  }
+
+  // A tab's end. Lists at rest keep their length: their share of half the
+  // diagonal, kept from the screen's edge. Only the growth above that is limited:
+  // the selected list reaches as far as it has room for, and its neighbours'
+  // growth is scaled down with its own, stopping at the selected list's end
+  // (owner, 2026-11-05).
+  double _outer(LauncherGeometry g, int index, double angle) {
+    final double full = _halfDiagonal(g) - _config.innerRadius;
+    final double span = full * lerpDouble(0.18, 1, _grow())!;
+    final double emphasis = _emphasis(index);
+    if (_isFixed(index)) {
+      return math.min(_inner() + span * emphasis, _reachAt(g, angle, 16));
+    }
+    final double far = _config.dialFarLength;
+    final double rest = _restEnd(g, angle, span);
+    final double growth = span * (emphasis - far);
+    if (growth <= 0) {
+      return rest;
+    }
+    if (index == _selected) {
+      return rest + growth * _growthShare(g, angle, span);
+    }
+    final double share = _growthShare(g, _selectedAngle(g), span);
+    double end = math.min(rest + growth * share, _reachAt(g, angle, 16));
+    final int? selected = _selected;
+    final (double, double)? sides =
+        selected == null || selected >= _entries.length
+        ? null
+        : _sides(g, selected);
+    if (sides != null) {
+      end = math.min(end, _outer(g, selected!, (sides.$1 + sides.$2) / 2));
+    }
+    return math.max(rest, end);
   }
 
   double _reveal() => _reduceMotion
@@ -663,6 +737,7 @@ class _DialLauncherState extends State<DialLauncher>
         _entries = _entriesOf(widget);
       }
       _mode = _Mode.closed;
+      _editRoom = 0;
       _arrangeIn = 0;
       _slides.clear();
       _dragPointer = null;
@@ -728,7 +803,13 @@ class _DialLauncherState extends State<DialLauncher>
         (focus - _focus).abs() > 1e-4 ||
         (zoom - _zoom).abs() > 1e-4 ||
         (arrangeIn - _arrangeIn).abs() > 1e-4;
+    final double editShown = _editDepthShown();
+    _editRoom = math.max(editShown, _editRoom * (1 - t));
+    if (_editRoom < 0.5) {
+      _editRoom = 0;
+    }
     final bool animating = moving ||
+        (_editRoom > editShown) ||
         _now - _openedAt <= AppMotion.standard ||
         ((_editShown || _moveShown) && !_promptOut);
     // The frame past the duration is still drawn, so a late frame cannot
@@ -1768,6 +1849,7 @@ class _DialLauncherState extends State<DialLauncher>
         ),
       if (outer - inner > discSize + 20)
         Positioned(
+          key: ValueKey('dial-disc-$index'),
           left: discCenter.dx - discSize / 2,
           top: discCenter.dy - discSize / 2,
           child: IgnorePointer(
@@ -1817,8 +1899,7 @@ class _DialLauncherState extends State<DialLauncher>
     final double outer = _outer(g, selected, angle);
     final double Function(double) halfAt =
         _halfWidth(sides, inner, outer, _closeness(selected));
-    final double shown =
-        _config.dialEditDepth * (1 + 0.22 * _progress) * reveal;
+    final double shown = _editDepthShown();
     final double tuck = halfAt(outer) + 2;
     final (Rect bounds, List<Offset> outline) = _outline(
       g,
