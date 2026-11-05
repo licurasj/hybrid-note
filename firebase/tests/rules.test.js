@@ -386,6 +386,13 @@ describe('account preferences (T-21, Q-48 A)', () => {
     vibration: true,
     timeFormat: 'followLanguage',
     weekStart: 'followLanguage',
+    homeCards: true,
+    homeSuggestions: true,
+    homePins: ['list-a'],
+    homeRemoved: ['list-b'],
+    homeOrder: ['list-a'],
+    homeArranged: false,
+    dialArranged: false,
   };
 
   test('the owner creates, reads and changes one key', async () => {
@@ -419,19 +426,28 @@ describe('account preferences (T-21, Q-48 A)', () => {
     ['vibration', 'off'],
     ['timeFormat', 24],
     ['weekStart', 1],
+    ['homeCards', 'yes'],
+    ['homeSuggestions', 1],
+    ['homePins', 'list-a'],
+    ['homeRemoved', { a: 1 }],
+    ['homeOrder', 5],
+    ['homeArranged', 'no'],
+    ['dialArranged', 0],
   ]) {
     test(`a wrong type for ${key} is refused`, async () => {
       await assertFails(setDoc(doc(owner(), path()), { [key]: bad }));
     });
   }
 
-  test('myListOrder may hold 1000 lists, not more', async () => {
-    const ids = (count) => Array.from({ length: count }, (_, i) => `list-${i}`);
-    const ref = doc(owner(), path());
-    await assertSucceeds(setDoc(ref, { myListOrder: ids(1000) }));
-    await assertFails(setDoc(ref, { myListOrder: ids(1001) }));
-    await assertFails(setDoc(ref, { myListOrder: ids(1001) }, { merge: true }));
-  });
+  for (const key of ['myListOrder', 'homePins', 'homeRemoved', 'homeOrder']) {
+    test(`${key} may hold 1000 lists, not more`, async () => {
+      const ids = (count) => Array.from({ length: count }, (_, i) => `list-${i}`);
+      const ref = doc(owner(), path());
+      await assertSucceeds(setDoc(ref, { [key]: ids(1000) }));
+      await assertFails(setDoc(ref, { [key]: ids(1001) }));
+      await assertFails(setDoc(ref, { [key]: ids(1001) }, { merge: true }));
+    });
+  }
 
   test('the app does not delete it', async () => {
     const ref = doc(owner(), path());

@@ -7,6 +7,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'home_cards.dart';
+
 // How the home and launcher order the lists (Q-49).
 enum ListOrder {
   lastUsed('lastUsed'),
@@ -121,6 +123,13 @@ class AccountPreferences {
     this.vibration = true,
     this.timeFormat = TimeFormat.followLanguage,
     this.weekStart = WeekStart.followLanguage,
+    this.homeCards = true,
+    this.homeSuggestions = true,
+    this.homePins = const [],
+    this.homeRemoved = const [],
+    this.homeOrder = const [],
+    this.homeArranged = false,
+    this.dialArranged = false,
   });
 
   static const String listOrderKey = 'listOrder';
@@ -136,6 +145,13 @@ class AccountPreferences {
   static const String vibrationKey = 'vibration';
   static const String timeFormatKey = 'timeFormat';
   static const String weekStartKey = 'weekStart';
+  static const String homeCardsKey = 'homeCards';
+  static const String homeSuggestionsKey = 'homeSuggestions';
+  static const String homePinsKey = 'homePins';
+  static const String homeRemovedKey = 'homeRemoved';
+  static const String homeOrderKey = 'homeOrder';
+  static const String homeArrangedKey = 'homeArranged';
+  static const String dialArrangedKey = 'dialArranged';
 
   final ListOrder listOrder;
   // List ids in the user's own order; a list that is not here goes after
@@ -156,6 +172,22 @@ class AccountPreferences {
   final bool vibration;
   final TimeFormat timeFormat;
   final WeekStart weekStart;
+  // Home shows list cards (Q-73), and suggestions among them.
+  final bool homeCards;
+  final bool homeSuggestions;
+  // Pinned list ids, with no limit (Q-70).
+  final List<String> homePins;
+  // Lists taken off home's suggestions for good; a pin brings one back (Q-79).
+  final List<String> homeRemoved;
+  // The pinned lists as dragged on home; other ids here mean nothing (Q-75).
+  final List<String> homeOrder;
+  // Which orders have been arranged by hand (Q-75). With one of them the two
+  // move together; with both, each keeps its own.
+  final bool homeArranged;
+  final bool dialArranged;
+
+  // Home and the dial have split, and Match dial order can rejoin them (Q-75).
+  bool get homeHasOwnOrder => homeArranged && dialArranged;
 
   // A missing or malformed value gets its default, and a value of a newer
   // build is ignored, so a bad document never stops the app.
@@ -165,13 +197,17 @@ class AccountPreferences {
       return value is bool ? value : fallback;
     }
 
-    final Object? order = json[myListOrderKey];
+    List<String> ids(String key) {
+      final Object? value = json[key];
+      return value is List
+          ? List.unmodifiable(value.whereType<String>())
+          : const [];
+    }
+
     final Object? notice = json[aiNoticeSeenKey];
     return AccountPreferences(
       listOrder: ListOrder.of(json[listOrderKey]),
-      myListOrder: order is List
-          ? List.unmodifiable(order.whereType<String>())
-          : const [],
+      myListOrder: ids(myListOrderKey),
       startScreen: StartScreen.of(json[startScreenKey]),
       tickedItems: TickedItems.of(json[tickedItemsKey]),
       confirmDelete: flag(confirmDeleteKey, false),
@@ -183,6 +219,13 @@ class AccountPreferences {
       vibration: flag(vibrationKey, true),
       timeFormat: TimeFormat.of(json[timeFormatKey]),
       weekStart: WeekStart.of(json[weekStartKey]),
+      homeCards: flag(homeCardsKey, true),
+      homeSuggestions: flag(homeSuggestionsKey, true),
+      homePins: ids(homePinsKey),
+      homeRemoved: ids(homeRemovedKey),
+      homeOrder: ids(homeOrderKey),
+      homeArranged: flag(homeArrangedKey, false),
+      dialArranged: flag(dialArrangedKey, false),
     );
   }
 
@@ -200,6 +243,13 @@ class AccountPreferences {
     vibrationKey: vibration,
     timeFormatKey: timeFormat.wire,
     weekStartKey: weekStart.wire,
+    homeCardsKey: homeCards,
+    homeSuggestionsKey: homeSuggestions,
+    homePinsKey: homePins,
+    homeRemovedKey: homeRemoved,
+    homeOrderKey: homeOrder,
+    homeArrangedKey: homeArranged,
+    dialArrangedKey: dialArranged,
   };
 
   @override
@@ -217,7 +267,14 @@ class AccountPreferences {
       other.aiNoticeSeen == aiNoticeSeen &&
       other.vibration == vibration &&
       other.timeFormat == timeFormat &&
-      other.weekStart == weekStart;
+      other.weekStart == weekStart &&
+      other.homeCards == homeCards &&
+      other.homeSuggestions == homeSuggestions &&
+      listEquals(other.homePins, homePins) &&
+      listEquals(other.homeRemoved, homeRemoved) &&
+      listEquals(other.homeOrder, homeOrder) &&
+      other.homeArranged == homeArranged &&
+      other.dialArranged == dialArranged;
 
   @override
   int get hashCode => Object.hash(
@@ -234,6 +291,13 @@ class AccountPreferences {
     vibration,
     timeFormat,
     weekStart,
+    homeCards,
+    homeSuggestions,
+    Object.hashAll(homePins),
+    Object.hashAll(homeRemoved),
+    Object.hashAll(homeOrder),
+    homeArranged,
+    dialArranged,
   );
 }
 
@@ -530,8 +594,16 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
     }
   }
 
-  Future<void> setListOrder(ListOrder order) =>
-      _change(AccountPreferences.listOrderKey, order.wire);
+  // Last used or A to Z after a home drag changes the dial, so the two split
+  // (Q-75).
+  Future<void> setListOrder(ListOrder order) async {
+    final bool splits =
+        order != ListOrder.myOrder && state.homeArranged && !state.dialArranged;
+    await _change(AccountPreferences.listOrderKey, order.wire);
+    if (splits) {
+      await _change(AccountPreferences.dialArrangedKey, true);
+    }
+  }
 
   Future<void> setMyListOrder(List<String> listIds) =>
       _change(AccountPreferences.myListOrderKey, listIds);
@@ -568,6 +640,97 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
 
   Future<void> setWeekStart(WeekStart start) =>
       _change(AccountPreferences.weekStartKey, start.wire);
+
+  Future<void> setHomeCards(bool value) =>
+      _change(AccountPreferences.homeCardsKey, value);
+
+  Future<void> setHomeSuggestions(bool value) =>
+      _change(AccountPreferences.homeSuggestionsKey, value);
+
+  // A pin also undoes a removal (Q-79). A newly pinned list joins the end of an
+  // arranged home; [keepPlace] is for tapping an unfilled pin again, which puts
+  // the card back where it was (Q-65). [existing] is every list's id.
+  Future<void> pinToHome(
+    String listId, {
+    required Iterable<String> existing,
+    bool keepPlace = false,
+  }) async {
+    final AccountPreferences before = state;
+    await _change(AccountPreferences.homePinsKey, [
+      ...keepExistingIds(before.homePins, existing).where((id) => id != listId),
+      listId,
+    ]);
+    if (before.homeRemoved.contains(listId)) {
+      await _change(
+        AccountPreferences.homeRemovedKey,
+        keepExistingIds(
+          before.homeRemoved,
+          existing,
+        ).where((id) => id != listId).toList(),
+      );
+    }
+    if (!keepPlace && before.homeOrder.contains(listId)) {
+      await _change(
+        AccountPreferences.homeOrderKey,
+        keepExistingIds(
+          before.homeOrder,
+          existing,
+        ).where((id) => id != listId).toList(),
+      );
+    }
+  }
+
+  // Its place in homeOrder stays until the next pin or drag, for [pinToHome]'s
+  // keepPlace.
+  Future<void> unpinFromHome(String listId) => _change(
+    AccountPreferences.homePinsKey,
+    state.homePins.where((id) => id != listId).toList(),
+  );
+
+  Future<void> removeFromHome(
+    String listId, {
+    required Iterable<String> existing,
+  }) => _change(AccountPreferences.homeRemovedKey, [
+    ...keepExistingIds(state.homeRemoved, existing).where((id) => id != listId),
+    listId,
+  ]);
+
+  Future<void> undoRemoveFromHome(String listId) => _change(
+    AccountPreferences.homeRemovedKey,
+    state.homeRemoved.where((id) => id != listId).toList(),
+  );
+
+  // A drag on home (Q-75): [pinnedIds] is the new order of the pinned lists and
+  // [dialOrder] the dial's order now. While the dial has not been arranged it
+  // follows, which makes the order My order.
+  Future<void> arrangedOnHome(
+    List<String> pinnedIds, {
+    required List<String> dialOrder,
+  }) async {
+    final bool dialFollows = !state.dialArranged;
+    await _change(AccountPreferences.homeOrderKey, pinnedIds);
+    await _change(AccountPreferences.homeArrangedKey, true);
+    if (dialFollows) {
+      await _change(
+        AccountPreferences.myListOrderKey,
+        mergeHomeOrderIntoDial(dialOrder, pinnedIds),
+      );
+      await _change(AccountPreferences.listOrderKey, ListOrder.myOrder.wire);
+    }
+  }
+
+  // A drag on the dial (Q-49, Q-75): it is My order from the first drag.
+  Future<void> arrangedOnDial(List<String> listIds) async {
+    await _change(AccountPreferences.myListOrderKey, listIds);
+    await _change(AccountPreferences.listOrderKey, ListOrder.myOrder.wire);
+    await _change(AccountPreferences.dialArrangedKey, true);
+  }
+
+  // Home follows the dial again (Q-75).
+  Future<void> matchDialOrder() async {
+    await _change(AccountPreferences.homeArrangedKey, false);
+    await _change(AccountPreferences.homeOrderKey, const <String>[]);
+  }
 
   @override
   Future<void> close() async {

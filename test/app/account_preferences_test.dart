@@ -90,6 +90,13 @@ void main() {
       expect(preferences.vibration, isTrue);
       expect(preferences.timeFormat, TimeFormat.followLanguage);
       expect(preferences.weekStart, WeekStart.followLanguage);
+      expect(preferences.homeCards, isTrue);
+      expect(preferences.homeSuggestions, isTrue);
+      expect(preferences.homePins, isEmpty);
+      expect(preferences.homeRemoved, isEmpty);
+      expect(preferences.homeOrder, isEmpty);
+      expect(preferences.homeArranged, isFalse);
+      expect(preferences.dialArranged, isFalse);
     });
 
     test('every value survives the round trip', () {
@@ -107,6 +114,13 @@ void main() {
         vibration: false,
         timeFormat: TimeFormat.h24,
         weekStart: WeekStart.sunday,
+        homeCards: false,
+        homeSuggestions: false,
+        homePins: ['a'],
+        homeRemoved: ['b'],
+        homeOrder: ['a', 'c'],
+        homeArranged: true,
+        dialArranged: true,
       );
       final Object? stored = jsonDecode(jsonEncode(preferences.toJson()));
       expect(
