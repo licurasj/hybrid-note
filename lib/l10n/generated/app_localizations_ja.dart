@@ -57,63 +57,16 @@ class AppLocalizationsJa extends AppLocalizations {
   String get languageFollowsDevice => 'Use device language';
 
   @override
-  String get switchToDarkMode => 'ダークモードに切り替え';
-
-  @override
-  String get switchToLightMode => 'ライトモードに切り替え';
-
-  @override
-  String get pendingTasks => 'Pending Tasks';
-
-  @override
-  String get completedTasks => 'Completed Tasks';
-
-  @override
-  String get journalEntries => 'Journal Entries';
-
-  @override
-  String get watchReadItems => 'Watch/Read Items';
-
-  @override
-  String get groceryItems => 'Grocery Items';
-
-  @override
-  String get googleDriveSync => 'Google Drive Sync';
-
-  @override
-  String get syncing => '同期中...';
-
-  @override
-  String get notSyncedYet => 'まだ同期されていません。';
-
-  @override
-  String lastSynced(String date) {
-    return 'Last synced: $date';
-  }
-
-  @override
   String get signInWithGoogle => 'Sign in with Google';
 
   @override
   String get logOut => 'Log out';
 
   @override
-  String get syncToGoogleDrive => 'Google Drive に同期';
-
-  @override
   String get categories => 'Categories';
 
   @override
-  String get allMyTasks => 'All My Tasks';
-
-  @override
   String get createCategory => 'Create Category';
-
-  @override
-  String get createCategoryTooltip => 'Create category';
-
-  @override
-  String get closeCategories => 'Close categories';
 
   @override
   String get deleteCategory => 'Delete category';
@@ -158,22 +111,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get editTask => 'Edit Task';
 
   @override
-  String get titleRequired => 'Title *';
-
-  @override
   String get title => 'Title';
 
   @override
   String get notes => 'Notes';
 
   @override
-  String get setReminder => 'Set reminder';
-
-  @override
   String get date => 'Date';
-
-  @override
-  String get time => 'Time';
 
   @override
   String get repeat => 'Repeat';
@@ -225,16 +169,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get addSubtask => 'Add Subtask';
 
   @override
-  String get editSubtask => 'Edit Subtask';
-
-  @override
-  String get subtaskTitleRequired => 'Subtask title *';
-
-  @override
   String get subtasks => 'Subtasks';
-
-  @override
-  String get noSubtasksYet => 'No subtasks yet.';
 
   @override
   String subtaskProgress(int completed, int total) {
@@ -276,23 +211,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get nextTime => 'Next Time';
 
   @override
-  String get addAgainNextTime => 'Add again to Next Time when completed';
-
-  @override
-  String get addAgainNextTimeDescription =>
-      'The item will appear in Next Time after you clear/delete it from Current Grocery Run.';
-
-  @override
   String get noGroceriesCurrent => 'No groceries for this run yet.';
-
-  @override
-  String get noGroceriesNext => 'No saved groceries for next time yet.';
-
-  @override
-  String get moveToCurrentRun => 'Move to current run';
-
-  @override
-  String get moveToNextTime => 'Move to next time';
 
   @override
   String get repeatsToNextTime => 'Repeats to Next Time after clearing';
@@ -358,16 +277,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get episode => 'Episode';
 
   @override
-  String seasonNumber(int number) {
-    return 'Season $number';
-  }
-
-  @override
-  String episodeNumber(int number) {
-    return 'Episode $number';
-  }
-
-  @override
   String get noWatchReadItemsYet => 'No watch/read items yet.';
 
   @override
@@ -375,9 +284,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get newList => '新しいリスト';
-
-  @override
-  String get untitledList => '無題のリスト';
 
   @override
   String get listName => 'リスト名';
@@ -402,9 +308,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get required => '必須';
-
-  @override
-  String get options => '選択肢';
 
   @override
   String get addOption => '選択肢を追加';
@@ -459,13 +362,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get undo => '元に戻す';
-
-  @override
-  String get builtinListNote =>
-      '組み込みリストの項目は Firestore への移行まで変更できません。名前・アイコン・色は変更できます。';
-
-  @override
-  String get localOnlyNote => '新しいリストは Firestore への移行まで、この端末にのみ保存されます。';
 
   @override
   String get typeText => 'テキスト';
@@ -783,9 +679,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get errorItemInOtherList => '別のリストのエントリが含まれています。';
 
   @override
-  String get errorBuiltinOnlyInfo => '組み込みリストで変更できるのは名前・アイコン・色・AI 設定だけです。';
-
-  @override
   String get addRule => 'ルールを追加';
 
   @override
@@ -896,9 +789,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings => '設定';
 
   @override
-  String get darkMode => 'ダークモード';
-
-  @override
   String homeThingsToday(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -952,9 +842,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get aiSend => '送信';
-
-  @override
-  String get aiBarLabel => 'AIへのリクエスト';
 
   @override
   String get aiDescribeNewList => '新しいリストを説明する';
@@ -1126,14 +1013,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get aiAnswerHint => '返答';
-
-  @override
-  String aiAnswering(String reply) {
-    return '返答先：$reply';
-  }
-
-  @override
-  String get aiNewRequest => '新しいリクエスト';
 
   @override
   String get listDescription => 'リストの説明';

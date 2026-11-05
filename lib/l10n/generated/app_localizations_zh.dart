@@ -57,63 +57,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get languageFollowsDevice => '使用设备语言';
 
   @override
-  String get switchToDarkMode => '切换到深色模式';
-
-  @override
-  String get switchToLightMode => '切换到浅色模式';
-
-  @override
-  String get pendingTasks => '待办任务';
-
-  @override
-  String get completedTasks => '已完成任务';
-
-  @override
-  String get journalEntries => '日记条目';
-
-  @override
-  String get watchReadItems => '观看/阅读项目';
-
-  @override
-  String get groceryItems => '购物项目';
-
-  @override
-  String get googleDriveSync => 'Google 云端硬盘同步';
-
-  @override
-  String get syncing => '正在同步...';
-
-  @override
-  String get notSyncedYet => '尚未同步。';
-
-  @override
-  String lastSynced(String date) {
-    return '上次同步：$date';
-  }
-
-  @override
   String get signInWithGoogle => '使用 Google 登录';
 
   @override
   String get logOut => '退出登录';
 
   @override
-  String get syncToGoogleDrive => '同步到 Google 云端硬盘';
-
-  @override
   String get categories => '分类';
 
   @override
-  String get allMyTasks => '全部任务';
-
-  @override
   String get createCategory => '创建分类';
-
-  @override
-  String get createCategoryTooltip => '创建分类';
-
-  @override
-  String get closeCategories => '关闭分类';
 
   @override
   String get deleteCategory => '删除分类';
@@ -158,22 +111,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editTask => '编辑任务';
 
   @override
-  String get titleRequired => '标题 *';
-
-  @override
   String get title => '标题';
 
   @override
   String get notes => '备注';
 
   @override
-  String get setReminder => '设置提醒';
-
-  @override
   String get date => '日期';
-
-  @override
-  String get time => '时间';
 
   @override
   String get repeat => '重复';
@@ -225,16 +169,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get addSubtask => '添加子任务';
 
   @override
-  String get editSubtask => '编辑子任务';
-
-  @override
-  String get subtaskTitleRequired => '子任务标题 *';
-
-  @override
   String get subtasks => '子任务';
-
-  @override
-  String get noSubtasksYet => '还没有子任务。';
 
   @override
   String subtaskProgress(int completed, int total) {
@@ -276,22 +211,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get nextTime => '下次';
 
   @override
-  String get addAgainNextTime => '完成后再次加入下次';
-
-  @override
-  String get addAgainNextTimeDescription => '从本次购物清除/删除后，该项目会出现在下次。';
-
-  @override
   String get noGroceriesCurrent => '本次购物还没有项目。';
-
-  @override
-  String get noGroceriesNext => '下次还没有保存的项目。';
-
-  @override
-  String get moveToCurrentRun => '移到本次购物';
-
-  @override
-  String get moveToNextTime => '移到下次';
 
   @override
   String get repeatsToNextTime => '清除后会重复到下次';
@@ -357,16 +277,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get episode => '集';
 
   @override
-  String seasonNumber(int number) {
-    return '第 $number 季';
-  }
-
-  @override
-  String episodeNumber(int number) {
-    return '第 $number 集';
-  }
-
-  @override
   String get noWatchReadItemsYet => '还没有观看/阅读项目。';
 
   @override
@@ -374,9 +284,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get newList => '新建列表';
-
-  @override
-  String get untitledList => '未命名列表';
 
   @override
   String get listName => '列表名称';
@@ -401,9 +308,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get required => '必填';
-
-  @override
-  String get options => '选项';
 
   @override
   String get addOption => '添加选项';
@@ -458,12 +362,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get undo => '撤销';
-
-  @override
-  String get builtinListNote => '在迁移到 Firestore 之前，内置列表的字段保持不变。可以修改名称、图标和颜色。';
-
-  @override
-  String get localOnlyNote => '在迁移到 Firestore 之前，新列表只保存在此设备上。';
 
   @override
   String get typeText => '文本';
@@ -781,9 +679,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get errorItemInOtherList => '有条目属于另一个列表。';
 
   @override
-  String get errorBuiltinOnlyInfo => '内置列表只能修改名称、图标、颜色和 AI 设置。';
-
-  @override
   String get addRule => '添加规则';
 
   @override
@@ -894,9 +789,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings => '设置';
 
   @override
-  String get darkMode => '深色模式';
-
-  @override
   String homeThingsToday(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -950,9 +842,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiSend => '发送';
-
-  @override
-  String get aiBarLabel => 'AI 请求';
 
   @override
   String get aiDescribeNewList => '描述新列表';
@@ -1123,14 +1012,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiAnswerHint => '你的回答';
-
-  @override
-  String aiAnswering(String reply) {
-    return '回答：$reply';
-  }
-
-  @override
-  String get aiNewRequest => '新请求';
 
   @override
   String get listDescription => '列表说明';

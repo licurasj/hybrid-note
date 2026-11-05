@@ -16,32 +16,10 @@
   "languageGerman": "Deutsch",
   "chooseLanguage": "Choose Language",
   "languageFollowsDevice": "Use device language",
-  "switchToDarkMode": "Switch to dark mode",
-  "switchToLightMode": "Switch to light mode",
-  "pendingTasks": "Pending Tasks",
-  "completedTasks": "Completed Tasks",
-  "journalEntries": "Journal Entries",
-  "watchReadItems": "Watch/Read Items",
-  "groceryItems": "Grocery Items",
-  "googleDriveSync": "Google Drive Sync",
-  "syncing": "Syncing...",
-  "notSyncedYet": "Not synced yet.",
-  "lastSynced": "Last synced: {date}",
-  "@lastSynced": {
-    "placeholders": {
-      "date": {
-        "type": "String"
-      }
-    }
-  },
   "signInWithGoogle": "Sign in with Google",
   "logOut": "Log out",
-  "syncToGoogleDrive": "Sync to Google Drive",
   "categories": "Categories",
-  "allMyTasks": "All My Tasks",
   "createCategory": "Create Category",
-  "createCategoryTooltip": "Create category",
-  "closeCategories": "Close categories",
   "deleteCategory": "Delete category",
   "category": "Category",
   "categoryName": "Category name",
@@ -56,12 +34,9 @@
   "addTask": "Add Task",
   "addTaskTooltip": "Add task",
   "editTask": "Edit Task",
-  "titleRequired": "Title *",
   "title": "Title",
   "notes": "Notes",
-  "setReminder": "Set reminder",
   "date": "Date",
-  "time": "Time",
   "repeat": "Repeat",
   "doesNotRepeat": "Does not repeat",
   "daily": "Daily",
@@ -91,10 +66,7 @@
     }
   },
   "addSubtask": "Add subtask",
-  "editSubtask": "Edit Subtask",
-  "subtaskTitleRequired": "Subtask title *",
   "subtasks": "Subtasks",
-  "noSubtasksYet": "No subtasks yet.",
   "subtaskProgress": "Subtasks: {completed}/{total}",
   "@subtaskProgress": {
     "placeholders": {
@@ -136,12 +108,7 @@
   "section": "Section",
   "currentGroceryRun": "Current Grocery Run",
   "nextTime": "Next Time",
-  "addAgainNextTime": "Add again to Next Time when completed",
-  "addAgainNextTimeDescription": "The item will appear in Next Time after you clear/delete it from Current Grocery Run.",
   "noGroceriesCurrent": "No groceries for this run yet.",
-  "noGroceriesNext": "No saved groceries for next time yet.",
-  "moveToCurrentRun": "Move to current run",
-  "moveToNextTime": "Move to next time",
   "repeatsToNextTime": "Repeats to Next Time after clearing",
   "addJournalEntry": "Add Journal Entry",
   "addJournalEntryTooltip": "Add journal entry",
@@ -163,26 +130,9 @@
   "completed": "Completed",
   "season": "Season",
   "episode": "Episode",
-  "seasonNumber": "Season {number}",
-  "@seasonNumber": {
-    "placeholders": {
-      "number": {
-        "type": "int"
-      }
-    }
-  },
-  "episodeNumber": "Episode {number}",
-  "@episodeNumber": {
-    "placeholders": {
-      "number": {
-        "type": "int"
-      }
-    }
-  },
   "noWatchReadItemsYet": "No watch/read items yet.",
   "editList": "Edit list",
   "newList": "New list",
-  "untitledList": "Untitled list",
   "listName": "List name",
   "listIcon": "Icon",
   "listColor": "Color",
@@ -191,7 +141,6 @@
   "fieldName": "Field name",
   "fieldType": "Field type",
   "required": "Required",
-  "options": "Options",
   "addOption": "Add option",
   "layout": "Layout",
   "groupBy": "Group by",
@@ -210,8 +159,6 @@
   "deleteList": "Delete list",
   "listDeleted": "List deleted",
   "undo": "Undo",
-  "builtinListNote": "Built-in lists keep their fields until sync moves to Firestore. You can change the name, icon and color.",
-  "localOnlyNote": "New lists are saved on this device only until sync moves to Firestore.",
   "typeText": "Text",
   "typeLongText": "Long text",
   "typeCheckbox": "Checkbox",
@@ -654,7 +601,6 @@
   "errorDuplicateItemId": "Two items have the same ID.",
   "errorItemIdTaken": "An item's ID is already used by another list.",
   "errorItemInOtherList": "An item belongs to another list.",
-  "errorBuiltinOnlyInfo": "Built-in lists can only change their name, icon, color and AI setting.",
   "addRule": "Add rule",
   "ruleKind": "Rule",
   "ruleRepeatField": "Repeat field",
@@ -731,7 +677,6 @@
   "itemSheetNew": "New item",
   "itemSheetEdit": "Edit item",
   "settings": "Settings",
-  "darkMode": "Dark mode",
   "homeThingsToday": "{count, plural, =0{Nothing due today} =1{1 thing today} other{{count} things today}}",
   "@homeThingsToday": {
     "placeholders": {
@@ -767,7 +712,6 @@
   },
   "aiBarHintNewList": "Describe the list",
   "aiSend": "Send",
-  "aiBarLabel": "AI request",
   "aiDescribeNewList": "Describe a new list",
   "aiDescribeNewListMeta": "The AI picks its fields",
   "aiNoticeTitle": "Before your first request",
@@ -957,15 +901,6 @@
   "aiAutoApplyNo": "Not now",
   "settingsAiAutoApply": "Apply AI changes without asking",
   "aiAnswerHint": "Your answer",
-  "aiAnswering": "Answering: {reply}",
-  "@aiAnswering": {
-    "placeholders": {
-      "reply": {
-        "type": "String"
-      }
-    }
-  },
-  "aiNewRequest": "New request",
   "listDescription": "List description",
   "listDescriptionHint": "What this list is for (optional)",
   "errorDescriptionTooLong": "The description can be at most {max} characters.",

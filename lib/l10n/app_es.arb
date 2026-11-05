@@ -16,32 +16,10 @@
   "languageGerman": "Deutsch",
   "chooseLanguage": "Elegir idioma",
   "languageFollowsDevice": "Use device language",
-  "switchToDarkMode": "Cambiar a modo oscuro",
-  "switchToLightMode": "Cambiar a modo claro",
-  "pendingTasks": "Pending Tasks",
-  "completedTasks": "Completed Tasks",
-  "journalEntries": "Journal Entries",
-  "watchReadItems": "Watch/Read Items",
-  "groceryItems": "Grocery Items",
-  "googleDriveSync": "Google Drive Sync",
-  "syncing": "Sincronizando...",
-  "notSyncedYet": "Aún no sincronizado.",
-  "lastSynced": "Last synced: {date}",
-  "@lastSynced": {
-    "placeholders": {
-      "date": {
-        "type": "String"
-      }
-    }
-  },
   "signInWithGoogle": "Sign in with Google",
   "logOut": "Log out",
-  "syncToGoogleDrive": "Sincronizar con Google Drive",
   "categories": "Categories",
-  "allMyTasks": "All My Tasks",
   "createCategory": "Create Category",
-  "createCategoryTooltip": "Create category",
-  "closeCategories": "Close categories",
   "deleteCategory": "Delete category",
   "category": "Category",
   "categoryName": "Category name",
@@ -56,12 +34,9 @@
   "addTask": "Add Task",
   "addTaskTooltip": "Add task",
   "editTask": "Edit Task",
-  "titleRequired": "Title *",
   "title": "Title",
   "notes": "Notes",
-  "setReminder": "Set reminder",
   "date": "Date",
-  "time": "Time",
   "repeat": "Repeat",
   "doesNotRepeat": "Does not repeat",
   "daily": "Daily",
@@ -91,10 +66,7 @@
     }
   },
   "addSubtask": "Add Subtask",
-  "editSubtask": "Edit Subtask",
-  "subtaskTitleRequired": "Subtask title *",
   "subtasks": "Subtasks",
-  "noSubtasksYet": "No subtasks yet.",
   "subtaskProgress": "Subtasks: {completed}/{total}",
   "@subtaskProgress": {
     "placeholders": {
@@ -136,12 +108,7 @@
   "section": "Section",
   "currentGroceryRun": "Current Grocery Run",
   "nextTime": "Next Time",
-  "addAgainNextTime": "Add again to Next Time when completed",
-  "addAgainNextTimeDescription": "The item will appear in Next Time after you clear/delete it from Current Grocery Run.",
   "noGroceriesCurrent": "No groceries for this run yet.",
-  "noGroceriesNext": "No saved groceries for next time yet.",
-  "moveToCurrentRun": "Move to current run",
-  "moveToNextTime": "Move to next time",
   "repeatsToNextTime": "Repeats to Next Time after clearing",
   "addJournalEntry": "Add Journal Entry",
   "addJournalEntryTooltip": "Add journal entry",
@@ -163,26 +130,9 @@
   "completed": "Completed",
   "season": "Season",
   "episode": "Episode",
-  "seasonNumber": "Season {number}",
-  "@seasonNumber": {
-    "placeholders": {
-      "number": {
-        "type": "int"
-      }
-    }
-  },
-  "episodeNumber": "Episode {number}",
-  "@episodeNumber": {
-    "placeholders": {
-      "number": {
-        "type": "int"
-      }
-    }
-  },
   "noWatchReadItemsYet": "No watch/read items yet.",
   "editList": "Editar lista",
   "newList": "Nueva lista",
-  "untitledList": "Lista sin título",
   "listName": "Nombre de la lista",
   "listIcon": "Icono",
   "listColor": "Color",
@@ -191,7 +141,6 @@
   "fieldName": "Nombre del campo",
   "fieldType": "Tipo de campo",
   "required": "Obligatorio",
-  "options": "Opciones",
   "addOption": "Añadir opción",
   "layout": "Diseño",
   "groupBy": "Agrupar por",
@@ -210,8 +159,6 @@
   "deleteList": "Eliminar lista",
   "listDeleted": "Lista eliminada",
   "undo": "Deshacer",
-  "builtinListNote": "Las listas integradas conservan sus campos hasta el paso a Firestore. Puedes cambiar el nombre, el icono y el color.",
-  "localOnlyNote": "Las listas nuevas se guardan solo en este dispositivo hasta el paso a Firestore.",
   "typeText": "Texto",
   "typeLongText": "Texto largo",
   "typeCheckbox": "Casilla",
@@ -287,7 +234,6 @@
   "errorDuplicateItemId": "Dos elementos tienen el mismo ID.",
   "errorItemIdTaken": "El ID de un elemento ya lo usa otra lista.",
   "errorItemInOtherList": "Un elemento pertenece a otra lista.",
-  "errorBuiltinOnlyInfo": "En las listas integradas solo se pueden cambiar el nombre, el icono, el color y el ajuste de IA.",
   "addRule": "Añadir regla",
   "ruleKind": "Regla",
   "ruleRepeatField": "Campo de repetición",
@@ -319,7 +265,6 @@
   "itemSheetNew": "Nuevo elemento",
   "itemSheetEdit": "Editar elemento",
   "settings": "Ajustes",
-  "darkMode": "Modo oscuro",
   "homeThingsToday": "{count, plural, =0{Nada para hoy} =1{1 cosa hoy} other{{count} cosas hoy}}",
   "listColorName": "{name, select, orange{Naranja} green{Verde} magenta{Magenta} violet{Violeta} yellow{Amarillo} rose{Rosa} teal{Verde azulado} blue{Azul} other{Color}}",
   "listIconName": "{name, select, pending_actions{Portapapeles} checklist{Lista de control} shopping_cart{Carrito} book{Libro} movie{Película} local_florist{Flor} other{Lista}}",
@@ -327,7 +272,6 @@
   "aiBarHintList": "Añadir a {list}",
   "aiBarHintNewList": "Describe la lista",
   "aiSend": "Enviar",
-  "aiBarLabel": "Solicitud a la IA",
   "aiDescribeNewList": "Describir una lista nueva",
   "aiDescribeNewListMeta": "La IA elige sus campos",
   "aiNoticeTitle": "Antes de tu primera solicitud",
@@ -372,8 +316,6 @@
   "aiAutoApplyNo": "Ahora no",
   "settingsAiAutoApply": "Aplicar cambios de la IA sin preguntar",
   "aiAnswerHint": "Tu respuesta",
-  "aiAnswering": "Respondiendo a: {reply}",
-  "aiNewRequest": "Nueva solicitud",
   "listDescription": "Descripción de la lista",
   "listDescriptionHint": "Para qué es esta lista (opcional)",
   "errorDescriptionTooLong": "La descripción puede tener como máximo {max} caracteres.",

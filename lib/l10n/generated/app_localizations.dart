@@ -202,72 +202,6 @@ abstract class AppLocalizations {
   /// **'Use device language'**
   String get languageFollowsDevice;
 
-  /// No description provided for @switchToDarkMode.
-  ///
-  /// In en, this message translates to:
-  /// **'Switch to dark mode'**
-  String get switchToDarkMode;
-
-  /// No description provided for @switchToLightMode.
-  ///
-  /// In en, this message translates to:
-  /// **'Switch to light mode'**
-  String get switchToLightMode;
-
-  /// No description provided for @pendingTasks.
-  ///
-  /// In en, this message translates to:
-  /// **'Pending Tasks'**
-  String get pendingTasks;
-
-  /// No description provided for @completedTasks.
-  ///
-  /// In en, this message translates to:
-  /// **'Completed Tasks'**
-  String get completedTasks;
-
-  /// No description provided for @journalEntries.
-  ///
-  /// In en, this message translates to:
-  /// **'Journal Entries'**
-  String get journalEntries;
-
-  /// No description provided for @watchReadItems.
-  ///
-  /// In en, this message translates to:
-  /// **'Watch/Read Items'**
-  String get watchReadItems;
-
-  /// No description provided for @groceryItems.
-  ///
-  /// In en, this message translates to:
-  /// **'Grocery Items'**
-  String get groceryItems;
-
-  /// No description provided for @googleDriveSync.
-  ///
-  /// In en, this message translates to:
-  /// **'Google Drive Sync'**
-  String get googleDriveSync;
-
-  /// No description provided for @syncing.
-  ///
-  /// In en, this message translates to:
-  /// **'Syncing...'**
-  String get syncing;
-
-  /// No description provided for @notSyncedYet.
-  ///
-  /// In en, this message translates to:
-  /// **'Not synced yet.'**
-  String get notSyncedYet;
-
-  /// No description provided for @lastSynced.
-  ///
-  /// In en, this message translates to:
-  /// **'Last synced: {date}'**
-  String lastSynced(String date);
-
   /// No description provided for @signInWithGoogle.
   ///
   /// In en, this message translates to:
@@ -280,41 +214,17 @@ abstract class AppLocalizations {
   /// **'Log out'**
   String get logOut;
 
-  /// No description provided for @syncToGoogleDrive.
-  ///
-  /// In en, this message translates to:
-  /// **'Sync to Google Drive'**
-  String get syncToGoogleDrive;
-
   /// No description provided for @categories.
   ///
   /// In en, this message translates to:
   /// **'Categories'**
   String get categories;
 
-  /// No description provided for @allMyTasks.
-  ///
-  /// In en, this message translates to:
-  /// **'All My Tasks'**
-  String get allMyTasks;
-
   /// No description provided for @createCategory.
   ///
   /// In en, this message translates to:
   /// **'Create Category'**
   String get createCategory;
-
-  /// No description provided for @createCategoryTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Create category'**
-  String get createCategoryTooltip;
-
-  /// No description provided for @closeCategories.
-  ///
-  /// In en, this message translates to:
-  /// **'Close categories'**
-  String get closeCategories;
 
   /// No description provided for @deleteCategory.
   ///
@@ -400,12 +310,6 @@ abstract class AppLocalizations {
   /// **'Edit Task'**
   String get editTask;
 
-  /// No description provided for @titleRequired.
-  ///
-  /// In en, this message translates to:
-  /// **'Title *'**
-  String get titleRequired;
-
   /// No description provided for @title.
   ///
   /// In en, this message translates to:
@@ -418,23 +322,11 @@ abstract class AppLocalizations {
   /// **'Notes'**
   String get notes;
 
-  /// No description provided for @setReminder.
-  ///
-  /// In en, this message translates to:
-  /// **'Set reminder'**
-  String get setReminder;
-
   /// No description provided for @date.
   ///
   /// In en, this message translates to:
   /// **'Date'**
   String get date;
-
-  /// No description provided for @time.
-  ///
-  /// In en, this message translates to:
-  /// **'Time'**
-  String get time;
 
   /// No description provided for @repeat.
   ///
@@ -526,29 +418,11 @@ abstract class AppLocalizations {
   /// **'Add subtask'**
   String get addSubtask;
 
-  /// No description provided for @editSubtask.
-  ///
-  /// In en, this message translates to:
-  /// **'Edit Subtask'**
-  String get editSubtask;
-
-  /// No description provided for @subtaskTitleRequired.
-  ///
-  /// In en, this message translates to:
-  /// **'Subtask title *'**
-  String get subtaskTitleRequired;
-
   /// No description provided for @subtasks.
   ///
   /// In en, this message translates to:
   /// **'Subtasks'**
   String get subtasks;
-
-  /// No description provided for @noSubtasksYet.
-  ///
-  /// In en, this message translates to:
-  /// **'No subtasks yet.'**
-  String get noSubtasksYet;
 
   /// No description provided for @subtaskProgress.
   ///
@@ -616,41 +490,11 @@ abstract class AppLocalizations {
   /// **'Next Time'**
   String get nextTime;
 
-  /// No description provided for @addAgainNextTime.
-  ///
-  /// In en, this message translates to:
-  /// **'Add again to Next Time when completed'**
-  String get addAgainNextTime;
-
-  /// No description provided for @addAgainNextTimeDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'The item will appear in Next Time after you clear/delete it from Current Grocery Run.'**
-  String get addAgainNextTimeDescription;
-
   /// No description provided for @noGroceriesCurrent.
   ///
   /// In en, this message translates to:
   /// **'No groceries for this run yet.'**
   String get noGroceriesCurrent;
-
-  /// No description provided for @noGroceriesNext.
-  ///
-  /// In en, this message translates to:
-  /// **'No saved groceries for next time yet.'**
-  String get noGroceriesNext;
-
-  /// No description provided for @moveToCurrentRun.
-  ///
-  /// In en, this message translates to:
-  /// **'Move to current run'**
-  String get moveToCurrentRun;
-
-  /// No description provided for @moveToNextTime.
-  ///
-  /// In en, this message translates to:
-  /// **'Move to next time'**
-  String get moveToNextTime;
 
   /// No description provided for @repeatsToNextTime.
   ///
@@ -778,18 +622,6 @@ abstract class AppLocalizations {
   /// **'Episode'**
   String get episode;
 
-  /// No description provided for @seasonNumber.
-  ///
-  /// In en, this message translates to:
-  /// **'Season {number}'**
-  String seasonNumber(int number);
-
-  /// No description provided for @episodeNumber.
-  ///
-  /// In en, this message translates to:
-  /// **'Episode {number}'**
-  String episodeNumber(int number);
-
   /// No description provided for @noWatchReadItemsYet.
   ///
   /// In en, this message translates to:
@@ -807,12 +639,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'New list'**
   String get newList;
-
-  /// No description provided for @untitledList.
-  ///
-  /// In en, this message translates to:
-  /// **'Untitled list'**
-  String get untitledList;
 
   /// No description provided for @listName.
   ///
@@ -861,12 +687,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Required'**
   String get required;
-
-  /// No description provided for @options.
-  ///
-  /// In en, this message translates to:
-  /// **'Options'**
-  String get options;
 
   /// No description provided for @addOption.
   ///
@@ -975,18 +795,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Undo'**
   String get undo;
-
-  /// No description provided for @builtinListNote.
-  ///
-  /// In en, this message translates to:
-  /// **'Built-in lists keep their fields until sync moves to Firestore. You can change the name, icon and color.'**
-  String get builtinListNote;
-
-  /// No description provided for @localOnlyNote.
-  ///
-  /// In en, this message translates to:
-  /// **'New lists are saved on this device only until sync moves to Firestore.'**
-  String get localOnlyNote;
 
   /// No description provided for @typeText.
   ///
@@ -1448,12 +1256,6 @@ abstract class AppLocalizations {
   /// **'An item belongs to another list.'**
   String get errorItemInOtherList;
 
-  /// No description provided for @errorBuiltinOnlyInfo.
-  ///
-  /// In en, this message translates to:
-  /// **'Built-in lists can only change their name, icon, color and AI setting.'**
-  String get errorBuiltinOnlyInfo;
-
   /// No description provided for @addRule.
   ///
   /// In en, this message translates to:
@@ -1640,12 +1442,6 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get settings;
 
-  /// No description provided for @darkMode.
-  ///
-  /// In en, this message translates to:
-  /// **'Dark mode'**
-  String get darkMode;
-
   /// No description provided for @homeThingsToday.
   ///
   /// In en, this message translates to:
@@ -1687,12 +1483,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Send'**
   String get aiSend;
-
-  /// No description provided for @aiBarLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'AI request'**
-  String get aiBarLabel;
 
   /// No description provided for @aiDescribeNewList.
   ///
@@ -1957,18 +1747,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your answer'**
   String get aiAnswerHint;
-
-  /// No description provided for @aiAnswering.
-  ///
-  /// In en, this message translates to:
-  /// **'Answering: {reply}'**
-  String aiAnswering(String reply);
-
-  /// No description provided for @aiNewRequest.
-  ///
-  /// In en, this message translates to:
-  /// **'New request'**
-  String get aiNewRequest;
 
   /// No description provided for @listDescription.
   ///

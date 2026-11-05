@@ -57,63 +57,16 @@ class AppLocalizationsDe extends AppLocalizations {
   String get languageFollowsDevice => 'Use device language';
 
   @override
-  String get switchToDarkMode => 'In den Dunkelmodus wechseln';
-
-  @override
-  String get switchToLightMode => 'In den Hellmodus wechseln';
-
-  @override
-  String get pendingTasks => 'Pending Tasks';
-
-  @override
-  String get completedTasks => 'Completed Tasks';
-
-  @override
-  String get journalEntries => 'Journal Entries';
-
-  @override
-  String get watchReadItems => 'Watch/Read Items';
-
-  @override
-  String get groceryItems => 'Grocery Items';
-
-  @override
-  String get googleDriveSync => 'Google Drive Sync';
-
-  @override
-  String get syncing => 'Synchronisiere...';
-
-  @override
-  String get notSyncedYet => 'Noch nicht synchronisiert.';
-
-  @override
-  String lastSynced(String date) {
-    return 'Last synced: $date';
-  }
-
-  @override
   String get signInWithGoogle => 'Sign in with Google';
 
   @override
   String get logOut => 'Log out';
 
   @override
-  String get syncToGoogleDrive => 'Mit Google Drive synchronisieren';
-
-  @override
   String get categories => 'Categories';
 
   @override
-  String get allMyTasks => 'All My Tasks';
-
-  @override
   String get createCategory => 'Create Category';
-
-  @override
-  String get createCategoryTooltip => 'Create category';
-
-  @override
-  String get closeCategories => 'Close categories';
 
   @override
   String get deleteCategory => 'Delete category';
@@ -158,22 +111,13 @@ class AppLocalizationsDe extends AppLocalizations {
   String get editTask => 'Edit Task';
 
   @override
-  String get titleRequired => 'Title *';
-
-  @override
   String get title => 'Title';
 
   @override
   String get notes => 'Notes';
 
   @override
-  String get setReminder => 'Set reminder';
-
-  @override
   String get date => 'Date';
-
-  @override
-  String get time => 'Time';
 
   @override
   String get repeat => 'Repeat';
@@ -225,16 +169,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get addSubtask => 'Add Subtask';
 
   @override
-  String get editSubtask => 'Edit Subtask';
-
-  @override
-  String get subtaskTitleRequired => 'Subtask title *';
-
-  @override
   String get subtasks => 'Subtasks';
-
-  @override
-  String get noSubtasksYet => 'No subtasks yet.';
 
   @override
   String subtaskProgress(int completed, int total) {
@@ -276,23 +211,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get nextTime => 'Next Time';
 
   @override
-  String get addAgainNextTime => 'Add again to Next Time when completed';
-
-  @override
-  String get addAgainNextTimeDescription =>
-      'The item will appear in Next Time after you clear/delete it from Current Grocery Run.';
-
-  @override
   String get noGroceriesCurrent => 'No groceries for this run yet.';
-
-  @override
-  String get noGroceriesNext => 'No saved groceries for next time yet.';
-
-  @override
-  String get moveToCurrentRun => 'Move to current run';
-
-  @override
-  String get moveToNextTime => 'Move to next time';
 
   @override
   String get repeatsToNextTime => 'Repeats to Next Time after clearing';
@@ -358,16 +277,6 @@ class AppLocalizationsDe extends AppLocalizations {
   String get episode => 'Episode';
 
   @override
-  String seasonNumber(int number) {
-    return 'Season $number';
-  }
-
-  @override
-  String episodeNumber(int number) {
-    return 'Episode $number';
-  }
-
-  @override
   String get noWatchReadItemsYet => 'No watch/read items yet.';
 
   @override
@@ -375,9 +284,6 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get newList => 'Neue Liste';
-
-  @override
-  String get untitledList => 'Unbenannte Liste';
 
   @override
   String get listName => 'Listenname';
@@ -402,9 +308,6 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get required => 'Pflichtfeld';
-
-  @override
-  String get options => 'Optionen';
 
   @override
   String get addOption => 'Option hinzufügen';
@@ -459,14 +362,6 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get undo => 'Rückgängig';
-
-  @override
-  String get builtinListNote =>
-      'Integrierte Listen behalten ihre Felder bis zum Umzug nach Firestore. Name, Symbol und Farbe lassen sich ändern.';
-
-  @override
-  String get localOnlyNote =>
-      'Neue Listen werden bis zum Umzug nach Firestore nur auf diesem Gerät gespeichert.';
 
   @override
   String get typeText => 'Text';
@@ -788,10 +683,6 @@ class AppLocalizationsDe extends AppLocalizations {
       'Ein Eintrag gehört zu einer anderen Liste.';
 
   @override
-  String get errorBuiltinOnlyInfo =>
-      'Bei integrierten Listen lassen sich nur Name, Symbol, Farbe und KI-Einstellung ändern.';
-
-  @override
   String get addRule => 'Regel hinzufügen';
 
   @override
@@ -911,9 +802,6 @@ class AppLocalizationsDe extends AppLocalizations {
   String get settings => 'Einstellungen';
 
   @override
-  String get darkMode => 'Dunkler Modus';
-
-  @override
   String homeThingsToday(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -968,9 +856,6 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get aiSend => 'Senden';
-
-  @override
-  String get aiBarLabel => 'KI-Anfrage';
 
   @override
   String get aiDescribeNewList => 'Neue Liste beschreiben';
@@ -1155,14 +1040,6 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get aiAnswerHint => 'Deine Antwort';
-
-  @override
-  String aiAnswering(String reply) {
-    return 'Antwort auf: $reply';
-  }
-
-  @override
-  String get aiNewRequest => 'Neue Anfrage';
 
   @override
   String get listDescription => 'Listenbeschreibung';
