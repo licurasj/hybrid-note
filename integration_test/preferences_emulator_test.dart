@@ -10,6 +10,14 @@ import 'package:hybrid_note/app/account_preferences.dart';
 import 'package:hybrid_note/backend/firestore_preferences.dart';
 import 'package:hybrid_note/firebase_options.dart';
 
+// For emulators on other ports (firebase --config), while another session holds
+// the defaults (WORKSTREAMS).
+const int _firestorePort = int.fromEnvironment(
+  'FIRESTORE_PORT',
+  defaultValue: 8080,
+);
+const int _authPort = int.fromEnvironment('AUTH_PORT', defaultValue: 9099);
+
 // Account preferences through the real cloud_firestore plugin against the
 // Firebase emulators, with the project's firestore.rules (T-21 unit 1). Two
 // Firebase apps stand for two phones of one account. It proves what the fakes
@@ -109,10 +117,10 @@ void main() {
     _dbB = FirebaseFirestore.instanceFor(app: second);
     _authB = FirebaseAuth.instanceFor(app: second);
     for (final FirebaseFirestore db in [_dbA, _dbB]) {
-      db.useFirestoreEmulator(_host, 8080);
+      db.useFirestoreEmulator(_host, _firestorePort);
     }
     for (final FirebaseAuth auth in [_authA, _authB]) {
-      await auth.useAuthEmulator(_host, 9099);
+      await auth.useAuthEmulator(_host, _authPort);
     }
   });
 
