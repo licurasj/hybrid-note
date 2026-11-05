@@ -328,6 +328,7 @@ class _SettingsSheet extends StatelessWidget {
     AppSettings settings,
   ) async {
     final AppLocalizations loc = AppLocalizations.of(context);
+    final AppNeutrals neutrals = AppColors.neutrals(Theme.of(context).brightness);
 
     final List<({String? code, String label, String subtitle})> options = [
       (code: null, label: loc.languageSystem, subtitle: loc.languageFollowsDevice),
@@ -344,28 +345,43 @@ class _SettingsSheet extends StatelessWidget {
       builder: (dialogContext) {
         return AlertDialog(
           title: Text(loc.chooseLanguage),
+          // As tall as the languages need; the dialog limits it on a small
+          // screen, and then the bar shows there are more.
           content: SizedBox(
             width: 420,
-            height: 360,
-            child: ListView.builder(
-              itemCount: options.length,
-              itemBuilder: (context, index) {
-                final option = options[index];
-                final bool selected = settings.localeCode == option.code;
-
-                return ListTile(
-                  selected: selected,
-                  leading: Icon(
-                    selected ? Icons.radio_button_checked : Icons.radio_button_off,
+            child: ScrollbarTheme(
+              data: ScrollbarThemeData(
+                thumbColor: WidgetStatePropertyAll(neutrals.muted),
+                thickness: const WidgetStatePropertyAll(4),
+                radius: const Radius.circular(2),
+              ),
+              child: Scrollbar(
+                thumbVisibility: true,
+                child: SingleChildScrollView(
+                  primary: true,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final option in options)
+                        ListTile(
+                          selected: settings.localeCode == option.code,
+                          visualDensity: VisualDensity.compact,
+                          leading: Icon(
+                            settings.localeCode == option.code
+                                ? Icons.radio_button_checked
+                                : Icons.radio_button_off,
+                          ),
+                          title: Text(option.label),
+                          subtitle: Text(option.subtitle),
+                          onTap: () {
+                            context.read<AppSettingsCubit>().setLocaleCode(option.code);
+                            Navigator.of(dialogContext).pop();
+                          },
+                        ),
+                    ],
                   ),
-                  title: Text(option.label),
-                  subtitle: Text(option.subtitle),
-                  onTap: () {
-                    context.read<AppSettingsCubit>().setLocaleCode(option.code);
-                    Navigator.of(dialogContext).pop();
-                  },
-                );
-              },
+                ),
+              ),
             ),
           ),
           actions: [

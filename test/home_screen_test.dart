@@ -131,4 +131,68 @@ void main() {
     await settle(tester);
     expect(app().themeMode, ThemeMode.dark);
   });
+
+  group('the language list', () {
+    Future<void> openLanguages(WidgetTester tester, Size size) async {
+      await _pumpApp(tester);
+      tester.view.physicalSize = size;
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('settings')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const ValueKey('settings-language')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('settings-language')));
+      await tester.pumpAndSettle();
+    }
+
+    ScrollPosition position(WidgetTester tester) => tester
+        .state<ScrollableState>(
+          find.descendant(
+            of: find.byType(AlertDialog),
+            matching: find.byType(Scrollable),
+          ),
+        )
+        .position;
+
+    testWidgets('shows every language without scrolling where they fit', (
+      tester,
+    ) async {
+      await openLanguages(tester, const Size(412, 914));
+
+      expect(position(tester).maxScrollExtent, 0);
+      expect(find.text('Deutsch'), findsOneWidget);
+      expect(find.text('Use device language'), findsOneWidget);
+    });
+
+    testWidgets('on a small screen has a bar, and the last language can be reached', (
+      tester,
+    ) async {
+      await openLanguages(tester, const Size(320, 640));
+
+      expect(position(tester).maxScrollExtent, greaterThan(0));
+      final Scrollbar bar = tester.widget(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(Scrollbar),
+        ),
+      );
+      expect(bar.thumbVisibility, isTrue);
+
+      await tester.scrollUntilVisible(
+        find.text('Deutsch'),
+        100,
+        scrollable: find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(Scrollable),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Deutsch'));
+      await settle(tester);
+
+      expect(find.byType(AlertDialog), findsNothing);
+      MaterialApp app() => tester.widget(find.byType(MaterialApp));
+      expect(app().locale, const Locale('de'));
+    });
+  });
 }
