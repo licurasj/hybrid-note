@@ -54,31 +54,31 @@ class AppLocalizationsJa extends AppLocalizations {
   String get chooseLanguage => '言語を選択';
 
   @override
-  String get languageFollowsDevice => 'Use device language';
+  String get languageFollowsDevice => '端末の言語を使用';
 
   @override
-  String get signInWithGoogle => 'Sign in with Google';
+  String get signInWithGoogle => 'Google でサインイン';
 
   @override
-  String get logOut => 'Log out';
+  String get logOut => 'サインアウト';
 
   @override
-  String get categories => 'Categories';
+  String get categories => 'カテゴリ';
 
   @override
-  String get createCategory => 'Create Category';
+  String get createCategory => 'カテゴリを作成';
 
   @override
-  String get deleteCategory => 'Delete category';
+  String get deleteCategory => 'カテゴリを削除';
 
   @override
-  String get category => 'Category';
+  String get category => 'カテゴリ';
 
   @override
-  String get categoryName => 'Category name';
+  String get categoryName => 'カテゴリ名';
 
   @override
-  String get create => 'Create';
+  String get create => '作成';
 
   @override
   String get cancel => 'キャンセル';
@@ -87,10 +87,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get save => '保存';
 
   @override
-  String get clear => 'Clear';
+  String get clear => '消去';
 
   @override
-  String get clearTicked => 'Clear Ticked';
+  String get clearTicked => 'チェック済みを消去';
 
   @override
   String get delete => '削除';
@@ -102,182 +102,182 @@ class AppLocalizationsJa extends AppLocalizations {
   String get add => '追加';
 
   @override
-  String get addTask => 'Add Task';
+  String get addTask => 'タスクを追加';
 
   @override
-  String get addTaskTooltip => 'Add task';
+  String get addTaskTooltip => 'タスクを追加';
 
   @override
-  String get editTask => 'Edit Task';
+  String get editTask => 'タスクを編集';
 
   @override
-  String get title => 'Title';
+  String get title => 'タイトル';
 
   @override
-  String get notes => 'Notes';
+  String get notes => 'メモ';
 
   @override
-  String get date => 'Date';
+  String get date => '日付';
 
   @override
-  String get repeat => 'Repeat';
+  String get repeat => '繰り返し';
 
   @override
-  String get doesNotRepeat => 'Does not repeat';
+  String get doesNotRepeat => '繰り返しなし';
 
   @override
-  String get daily => 'Daily';
+  String get daily => '毎日';
 
   @override
-  String get weekly => 'Weekly';
+  String get weekly => '毎週';
 
   @override
-  String get monthly => 'Monthly';
+  String get monthly => '毎月';
 
   @override
-  String get yearly => 'Yearly';
+  String get yearly => '毎年';
 
   @override
-  String get custom => 'Custom';
+  String get custom => 'カスタム';
 
   @override
-  String get repeatEveryHowManyDays => 'Repeat every how many days?';
+  String get repeatEveryHowManyDays => '何日ごとに繰り返しますか?';
 
   @override
   String reminderText(String date) {
-    return 'Reminder: $date';
+    return 'リマインダー: $date';
   }
 
   @override
-  String get today => 'Today';
+  String get today => '今日';
 
   @override
-  String get tomorrow => 'Tomorrow';
+  String get tomorrow => '明日';
 
   @override
-  String get later => 'Later';
+  String get later => '後で';
 
   @override
-  String get noTasksHereYet => 'No tasks here yet.';
+  String get noTasksHereYet => 'タスクはまだありません。';
 
   @override
   String tickedCount(int count) {
-    return '$count ticked';
+    return '$count 件チェック済み';
   }
 
   @override
-  String get addSubtask => 'Add Subtask';
+  String get addSubtask => 'サブタスクを追加';
 
   @override
-  String get subtasks => 'Subtasks';
+  String get subtasks => 'サブタスク';
 
   @override
   String subtaskProgress(int completed, int total) {
-    return 'Subtasks: $completed/$total';
+    return 'サブタスク: $completed/$total';
   }
 
   @override
   String repeats(String date, String repeat) {
-    return '$date • repeats $repeat';
+    return '$date • 繰り返し: $repeat';
   }
 
   @override
   String repeatsEveryDays(String date, int days) {
-    return '$date • repeats every $days day(s)';
+    return '$date • $days 日ごと';
   }
 
   @override
-  String get groceryList => 'Grocery List';
+  String get groceryList => '買い物';
 
   @override
-  String get addGroceryItem => 'Add Grocery Item';
+  String get addGroceryItem => '買い物を追加';
 
   @override
-  String get addGroceryItemTooltip => 'Add grocery item';
+  String get addGroceryItemTooltip => '買い物を追加';
 
   @override
-  String get editGroceryItem => 'Edit Grocery Item';
+  String get editGroceryItem => '買い物を編集';
 
   @override
-  String get description => 'Description';
+  String get description => '説明';
 
   @override
-  String get section => 'Section';
+  String get section => 'セクション';
 
   @override
-  String get currentGroceryRun => 'Current Grocery Run';
+  String get currentGroceryRun => '今回の買い物';
 
   @override
-  String get nextTime => 'Next Time';
+  String get nextTime => '次回';
 
   @override
-  String get noGroceriesCurrent => 'No groceries for this run yet.';
+  String get noGroceriesCurrent => '今回の買い物はまだありません。';
 
   @override
-  String get repeatsToNextTime => 'Repeats to Next Time after clearing';
+  String get repeatsToNextTime => '消去後に次回へ戻す';
 
   @override
-  String get addJournalEntry => 'Add Journal Entry';
+  String get addJournalEntry => '日記を追加';
 
   @override
-  String get addJournalEntryTooltip => 'Add journal entry';
+  String get addJournalEntryTooltip => '日記を追加';
 
   @override
-  String get editJournalEntry => 'Edit Journal Entry';
+  String get editJournalEntry => '日記を編集';
 
   @override
-  String get entry => 'Entry';
+  String get entry => '本文';
 
   @override
-  String get close => 'Close';
+  String get close => '閉じる';
 
   @override
-  String get noJournalEntriesYet => 'No journal entries yet.';
+  String get noJournalEntriesYet => '日記はまだありません。';
 
   @override
-  String get watchReadList => 'Watch/Read List';
+  String get watchReadList => '視聴/読書';
 
   @override
-  String get addWatchReadItem => 'Add Watch/Read Item';
+  String get addWatchReadItem => '作品を追加';
 
   @override
-  String get addWatchReadItemTooltip => 'Add watch/read item';
+  String get addWatchReadItemTooltip => '作品を追加';
 
   @override
-  String get editWatchReadItem => 'Edit Watch/Read Item';
+  String get editWatchReadItem => '作品を編集';
 
   @override
-  String get type => 'Type';
+  String get type => '種類';
 
   @override
-  String get status => 'Status';
+  String get status => '状態';
 
   @override
-  String get movie => 'Movie';
+  String get movie => '映画';
 
   @override
-  String get tvShow => 'TV Show';
+  String get tvShow => 'テレビ番組';
 
   @override
-  String get book => 'Book';
+  String get book => '本';
 
   @override
-  String get planned => 'Planned';
+  String get planned => '予定';
 
   @override
-  String get inProgress => 'In Progress';
+  String get inProgress => '進行中';
 
   @override
-  String get completed => 'Completed';
+  String get completed => '完了';
 
   @override
-  String get season => 'Season';
+  String get season => 'シーズン';
 
   @override
-  String get episode => 'Episode';
+  String get episode => 'エピソード';
 
   @override
-  String get noWatchReadItemsYet => 'No watch/read items yet.';
+  String get noWatchReadItemsYet => '視聴・読書する作品はまだありません。';
 
   @override
   String get editList => 'リストを編集';

@@ -54,31 +54,31 @@ class AppLocalizationsEs extends AppLocalizations {
   String get chooseLanguage => 'Elegir idioma';
 
   @override
-  String get languageFollowsDevice => 'Use device language';
+  String get languageFollowsDevice => 'Usar el idioma del dispositivo';
 
   @override
-  String get signInWithGoogle => 'Sign in with Google';
+  String get signInWithGoogle => 'Iniciar sesión con Google';
 
   @override
-  String get logOut => 'Log out';
+  String get logOut => 'Cerrar sesión';
 
   @override
-  String get categories => 'Categories';
+  String get categories => 'Categorías';
 
   @override
-  String get createCategory => 'Create Category';
+  String get createCategory => 'Crear categoría';
 
   @override
-  String get deleteCategory => 'Delete category';
+  String get deleteCategory => 'Eliminar categoría';
 
   @override
-  String get category => 'Category';
+  String get category => 'Categoría';
 
   @override
-  String get categoryName => 'Category name';
+  String get categoryName => 'Nombre de la categoría';
 
   @override
-  String get create => 'Create';
+  String get create => 'Crear';
 
   @override
   String get cancel => 'Cancelar';
@@ -87,10 +87,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get save => 'Guardar';
 
   @override
-  String get clear => 'Clear';
+  String get clear => 'Borrar';
 
   @override
-  String get clearTicked => 'Clear Ticked';
+  String get clearTicked => 'Borrar marcados';
 
   @override
   String get delete => 'Eliminar';
@@ -102,182 +102,182 @@ class AppLocalizationsEs extends AppLocalizations {
   String get add => 'Añadir';
 
   @override
-  String get addTask => 'Add Task';
+  String get addTask => 'Añadir tarea';
 
   @override
-  String get addTaskTooltip => 'Add task';
+  String get addTaskTooltip => 'Añadir tarea';
 
   @override
-  String get editTask => 'Edit Task';
+  String get editTask => 'Editar tarea';
 
   @override
-  String get title => 'Title';
+  String get title => 'Título';
 
   @override
-  String get notes => 'Notes';
+  String get notes => 'Notas';
 
   @override
-  String get date => 'Date';
+  String get date => 'Fecha';
 
   @override
-  String get repeat => 'Repeat';
+  String get repeat => 'Repetir';
 
   @override
-  String get doesNotRepeat => 'Does not repeat';
+  String get doesNotRepeat => 'No se repite';
 
   @override
-  String get daily => 'Daily';
+  String get daily => 'Diario';
 
   @override
-  String get weekly => 'Weekly';
+  String get weekly => 'Semanal';
 
   @override
-  String get monthly => 'Monthly';
+  String get monthly => 'Mensual';
 
   @override
-  String get yearly => 'Yearly';
+  String get yearly => 'Anual';
 
   @override
-  String get custom => 'Custom';
+  String get custom => 'Personalizado';
 
   @override
-  String get repeatEveryHowManyDays => 'Repeat every how many days?';
+  String get repeatEveryHowManyDays => '¿Repetir cada cuántos días?';
 
   @override
   String reminderText(String date) {
-    return 'Reminder: $date';
+    return 'Recordatorio: $date';
   }
 
   @override
-  String get today => 'Today';
+  String get today => 'Hoy';
 
   @override
-  String get tomorrow => 'Tomorrow';
+  String get tomorrow => 'Mañana';
 
   @override
-  String get later => 'Later';
+  String get later => 'Más tarde';
 
   @override
-  String get noTasksHereYet => 'No tasks here yet.';
+  String get noTasksHereYet => 'Aún no hay tareas.';
 
   @override
   String tickedCount(int count) {
-    return '$count ticked';
+    return '$count marcados';
   }
 
   @override
-  String get addSubtask => 'Add Subtask';
+  String get addSubtask => 'Añadir subtarea';
 
   @override
-  String get subtasks => 'Subtasks';
+  String get subtasks => 'Subtareas';
 
   @override
   String subtaskProgress(int completed, int total) {
-    return 'Subtasks: $completed/$total';
+    return 'Subtareas: $completed/$total';
   }
 
   @override
   String repeats(String date, String repeat) {
-    return '$date • repeats $repeat';
+    return '$date • repetición: $repeat';
   }
 
   @override
   String repeatsEveryDays(String date, int days) {
-    return '$date • repeats every $days day(s)';
+    return '$date • cada $days días';
   }
 
   @override
-  String get groceryList => 'Grocery List';
+  String get groceryList => 'Compras';
 
   @override
-  String get addGroceryItem => 'Add Grocery Item';
+  String get addGroceryItem => 'Añadir artículo';
 
   @override
-  String get addGroceryItemTooltip => 'Add grocery item';
+  String get addGroceryItemTooltip => 'Añadir artículo';
 
   @override
-  String get editGroceryItem => 'Edit Grocery Item';
+  String get editGroceryItem => 'Editar artículo';
 
   @override
-  String get description => 'Description';
+  String get description => 'Descripción';
 
   @override
-  String get section => 'Section';
+  String get section => 'Sección';
 
   @override
-  String get currentGroceryRun => 'Current Grocery Run';
+  String get currentGroceryRun => 'Compra actual';
 
   @override
-  String get nextTime => 'Next Time';
+  String get nextTime => 'La próxima vez';
 
   @override
-  String get noGroceriesCurrent => 'No groceries for this run yet.';
+  String get noGroceriesCurrent => 'Aún no hay nada para esta compra.';
 
   @override
-  String get repeatsToNextTime => 'Repeats to Next Time after clearing';
+  String get repeatsToNextTime => 'Tras borrar, vuelve a La próxima vez';
 
   @override
-  String get addJournalEntry => 'Add Journal Entry';
+  String get addJournalEntry => 'Añadir entrada';
 
   @override
-  String get addJournalEntryTooltip => 'Add journal entry';
+  String get addJournalEntryTooltip => 'Añadir entrada';
 
   @override
-  String get editJournalEntry => 'Edit Journal Entry';
+  String get editJournalEntry => 'Editar entrada';
 
   @override
-  String get entry => 'Entry';
+  String get entry => 'Entrada';
 
   @override
-  String get close => 'Close';
+  String get close => 'Cerrar';
 
   @override
-  String get noJournalEntriesYet => 'No journal entries yet.';
+  String get noJournalEntriesYet => 'Aún no hay entradas.';
 
   @override
-  String get watchReadList => 'Watch/Read List';
+  String get watchReadList => 'Ver/Leer';
 
   @override
-  String get addWatchReadItem => 'Add Watch/Read Item';
+  String get addWatchReadItem => 'Añadir título';
 
   @override
-  String get addWatchReadItemTooltip => 'Add watch/read item';
+  String get addWatchReadItemTooltip => 'Añadir título';
 
   @override
-  String get editWatchReadItem => 'Edit Watch/Read Item';
+  String get editWatchReadItem => 'Editar título';
 
   @override
-  String get type => 'Type';
+  String get type => 'Tipo';
 
   @override
-  String get status => 'Status';
+  String get status => 'Estado';
 
   @override
-  String get movie => 'Movie';
+  String get movie => 'Película';
 
   @override
-  String get tvShow => 'TV Show';
+  String get tvShow => 'Serie';
 
   @override
-  String get book => 'Book';
+  String get book => 'Libro';
 
   @override
-  String get planned => 'Planned';
+  String get planned => 'Planeado';
 
   @override
-  String get inProgress => 'In Progress';
+  String get inProgress => 'En curso';
 
   @override
-  String get completed => 'Completed';
+  String get completed => 'Completado';
 
   @override
-  String get season => 'Season';
+  String get season => 'Temporada';
 
   @override
-  String get episode => 'Episode';
+  String get episode => 'Episodio';
 
   @override
-  String get noWatchReadItemsYet => 'No watch/read items yet.';
+  String get noWatchReadItemsYet => 'Aún no hay nada para ver o leer.';
 
   @override
   String get editList => 'Editar lista';
