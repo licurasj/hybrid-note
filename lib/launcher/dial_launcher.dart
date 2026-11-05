@@ -183,14 +183,16 @@ class _DialLauncherState extends State<DialLauncher>
   double _arrangeIn = 0;
   int? _dragPointer;
   List<_Entry> _dragStart = const [];
-  // A finger not holding a list: a swipe turns the dial, anywhere. Resting on a
-  // list picks it up; lifting without moving ends the state, unless on a list.
+  // A finger not holding a list scrolls as on the normal dial, through the same
+  // zones, but only a list in the hand grows. Resting on a list picks it up;
+  // lifting without having moved or scrolled ends the state, unless on a list.
   int? _swipePointer;
   Offset _swipeStart = Offset.zero;
   Offset _swipeFinger = Offset.zero;
   bool _swiping = false;
-  double _swipeAngle = 0;
   bool _swipeOnList = false;
+  double _swipeZoneSeconds = 0;
+  int? _swipePassing;
   Timer? _pickUpTimer;
 
   Offset? _movedHub;
@@ -727,6 +729,9 @@ class _DialLauncherState extends State<DialLauncher>
       if (g != null && pointer != null && _dragPointer != null) {
         changed = _scrollWhileDragging(g, pointer, seconds) || changed;
       }
+      if (g != null && _swipePointer != null) {
+        changed = _scrollEmptyHand(g, seconds) || changed;
+      }
       // The sway needs every frame.
       changed = changed || !_reduceMotion;
     }
@@ -752,6 +757,12 @@ class _DialLauncherState extends State<DialLauncher>
       _select(_pointed(g, angle));
       return true;
     }
+    _scrollZone(g, angle, seconds);
+    _select(_inHand(g, angle));
+    return true;
+  }
+
+  void _scrollZone(LauncherGeometry g, double angle, double seconds) {
     // A swipe carries on at the finger's own speed if that is faster.
     final double swipe =
         math.max(0, _edge * _turnSpeed) / _step * _config.dialEdgeCarry;
@@ -761,8 +772,6 @@ class _DialLauncherState extends State<DialLauncher>
         .toDouble();
     // The dial follows the scroll directly, so the lists flow steadily.
     _position = _scroll;
-    _select(_inHand(g, angle));
-    return true;
   }
 
   // How fast a finger in a zone scrolls: slowest at the zone's inner border,
@@ -839,6 +848,18 @@ class _DialLauncherState extends State<DialLauncher>
     });
   }
 
+  // How fast the finger is going round the hub.
+  void _trackTurn(Duration timeStamp, double angle, bool onHub) {
+    final Duration? last = _turnAt;
+    if (last != null && timeStamp > last && !onHub) {
+      final double seconds = (timeStamp - last).inMicroseconds / 1e6;
+      final double speed = (angle - _turnAngle) / seconds;
+      _turnSpeed += (speed - _turnSpeed) * math.min(1, seconds / 0.05);
+    }
+    _turnAt = timeStamp;
+    _turnAngle = angle;
+  }
+
   void _onPointerMove(PointerMoveEvent event) {
     final LauncherGeometry? g = _geometry;
     if (g == null) {
@@ -861,14 +882,7 @@ class _DialLauncherState extends State<DialLauncher>
     final Offset finger = event.position;
     final (double angle, double radius) = _polar(g, finger);
     final bool onHub = radius <= _config.hubRadius;
-    final Duration? last = _turnAt;
-    if (last != null && event.timeStamp > last && !onHub) {
-      final double seconds = (event.timeStamp - last).inMicroseconds / 1e6;
-      final double speed = (angle - _turnAngle) / seconds;
-      _turnSpeed += (speed - _turnSpeed) * math.min(1, seconds / 0.05);
-    }
-    _turnAt = event.timeStamp;
-    _turnAngle = angle;
+    _trackTurn(event.timeStamp, angle, onHub);
     setState(() {
       _pointer = finger;
       if (!onHub) {
@@ -961,18 +975,7 @@ class _DialLauncherState extends State<DialLauncher>
   // or Home pointed at straight from the hub stays picked while the finger
   // is on it.
   void _followEdge(LauncherGeometry g, double angle) {
-    final double leave = _config.dialEdgeLeave * _step;
-    final double low = _zoneLow(g) + _zoneAhead(-1);
-    final double high = _zoneHigh(g) - _zoneAhead(1);
-    int edge = switch (_edge) {
-      -1 => angle < low + leave ? -1 : 0,
-      1 => angle > high - leave ? 1 : 0,
-      _ => angle < low ? -1 : (angle > high ? 1 : 0),
-    };
-    if (edge != 0 && !_more(g, edge)) {
-      edge = 0;
-    }
-    _edge = edge;
+    _edge = _edgeAt(g, angle);
     final int? selected = _selected;
     if (selected != null && _isFixed(selected)) {
       final (double, double)? sides = _sides(g, selected);
@@ -988,6 +991,19 @@ class _DialLauncherState extends State<DialLauncher>
     } else {
       _select(_inHand(g, angle));
     }
+  }
+
+  // The scroll zone a finger at [angle] is in, if lists are left to come that way.
+  int _edgeAt(LauncherGeometry g, double angle) {
+    final double leave = _config.dialEdgeLeave * _step;
+    final double low = _zoneLow(g) + _zoneAhead(-1);
+    final double high = _zoneHigh(g) - _zoneAhead(1);
+    final int edge = switch (_edge) {
+      -1 => angle < low + leave ? -1 : 0,
+      1 => angle > high - leave ? 1 : 0,
+      _ => angle < low ? -1 : (angle > high ? 1 : 0),
+    };
+    return edge != 0 && _more(g, edge) ? edge : 0;
   }
 
   // The tab under the finger, keeping the selected one until the finger is
@@ -1130,12 +1146,55 @@ class _DialLauncherState extends State<DialLauncher>
     _swipeStart = event.position;
     _swipeFinger = event.position;
     _swiping = false;
-    _swipeAngle = _polar(g, event.position).$1;
     _swipeOnList = _listAt(g, event.position) != null;
+    _swipeZoneSeconds = 0;
+    _swipePassing = null;
+    _turnSpeed = 0;
+    _turnAt = null;
     _pickUpTimer?.cancel();
-    if (_swipeOnList) {
+    _followEmptyHand(g, event.position);
+    _trackTurn(event.timeStamp, _polar(g, event.position).$1, false);
+    // In a zone the press scrolls, as on the normal dial, and picks nothing up.
+    if (_swipeOnList && _edge == 0) {
       _pickUpTimer = Timer(_config.dialPickUpDelay, _pickUp);
     }
+    _wake();
+  }
+
+  // Where the finger is decides the zone, as on the normal dial; passing a list
+  // clicks as there, but only a list in the hand grows.
+  void _followEmptyHand(LauncherGeometry g, Offset finger) {
+    final (double angle, double radius) = _polar(g, finger);
+    _edge = radius <= _config.hubRadius || !_onDial(g, angle, radius)
+        ? 0
+        : _edgeAt(g, angle);
+    _notePassing(g, finger);
+  }
+
+  void _notePassing(LauncherGeometry g, Offset finger) {
+    final (double angle, double _) = _polar(g, finger);
+    final int? list = _edge == 0 ? _listAt(g, finger) : _inHand(g, angle);
+    if (list != null && list != _swipePassing && _swipePassing != null) {
+      if (widget.haptics) {
+        HapticFeedback.selectionClick();
+      }
+    }
+    _swipePassing = list ?? _swipePassing;
+  }
+
+  bool _scrollEmptyHand(LauncherGeometry g, double seconds) {
+    if (_edge == 0) {
+      return false;
+    }
+    final (double angle, double _) = _polar(g, _swipeFinger);
+    if (!_more(g, _edge)) {
+      _edge = 0;
+      return true;
+    }
+    _scrollZone(g, angle, seconds);
+    _swipeZoneSeconds += seconds;
+    _notePassing(g, _swipeFinger);
+    return true;
   }
 
   // The finger has rested on a list long enough: it is now in the hand.
@@ -1162,7 +1221,7 @@ class _DialLauncherState extends State<DialLauncher>
   void _onArrangeMove(PointerMoveEvent event) {
     final LauncherGeometry? g = _geometry;
     if (g != null && event.pointer == _swipePointer) {
-      _swipe(g, event.position);
+      _moveEmptyHand(g, event);
       return;
     }
     if (g == null || event.pointer != _dragPointer) {
@@ -1180,37 +1239,19 @@ class _DialLauncherState extends State<DialLauncher>
     });
   }
 
-  // A swipe: the lists follow the finger round the hub, as far as there are more
-  // lists that way. A small shake stays a rest, and can still pick a list up.
-  void _swipe(LauncherGeometry g, Offset finger) {
+  // A small shake stays a rest, and can still pick a list up.
+  void _moveEmptyHand(LauncherGeometry g, PointerMoveEvent event) {
+    final Offset finger = event.position;
     _swipeFinger = finger;
+    final (double angle, double radius) = _polar(g, finger);
+    _trackTurn(event.timeStamp, angle, radius <= _config.hubRadius);
     if (!_swiping &&
         (finger - _swipeStart).distance <= _config.moveTolerance) {
       return;
     }
     _swiping = true;
     _pickUpTimer?.cancel();
-    final (double angle, double _) = _polar(g, finger);
-    double turn = angle - _swipeAngle;
-    // Past the point where the angle wraps, the short way round.
-    if (turn > math.pi) {
-      turn -= 2 * math.pi;
-    } else if (turn < -math.pi) {
-      turn += 2 * math.pi;
-    }
-    final double lists = turn / _step;
-    _swipeAngle = angle;
-    // The lists move with the finger, so the dial's place moves against it.
-    final int side = lists > 0 ? -1 : 1;
-    if (lists == 0 || !_more(g, side)) {
-      return;
-    }
-    setState(() {
-      _scroll = (_scroll - lists)
-          .clamp(_firstList.toDouble(), _lastList.toDouble())
-          .toDouble();
-      _position = _scroll;
-    });
+    setState(() => _followEmptyHand(g, finger));
     _wake();
   }
 
@@ -1278,7 +1319,10 @@ class _DialLauncherState extends State<DialLauncher>
     if (event.pointer == _swipePointer) {
       _pickUpTimer?.cancel();
       _swipePointer = null;
-      if (!_swiping && !_swipeOnList) {
+      _edge = 0;
+      final bool scrolled = _swipeZoneSeconds * 1e6 >
+          _config.tapMaxDuration.inMicroseconds;
+      if (!_swiping && !scrolled && !_swipeOnList) {
         _close();
       }
       return;
@@ -1304,6 +1348,7 @@ class _DialLauncherState extends State<DialLauncher>
     if (event.pointer == _swipePointer) {
       _pickUpTimer?.cancel();
       _swipePointer = null;
+      _edge = 0;
       return;
     }
     if (event.pointer != _dragPointer) {

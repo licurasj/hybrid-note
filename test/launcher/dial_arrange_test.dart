@@ -457,38 +457,164 @@ void main() {
       },
     );
 
-    group('resting and swiping on a list', () {
-      // A finger from a list, round the hub, starting at once.
-      Future<void> swipeFrom(WidgetTester tester, int list, double degrees) async {
-        final double from = _diagonal(tester) + list * _step;
-        final double to = from + degrees * math.pi / 180;
-        final TestGesture gesture = await tester.startGesture(_list(tester, list));
-        await tester.pump(const Duration(milliseconds: 16));
-        for (int i = 1; i <= 10; i++) {
-          await gesture.moveTo(_at(tester, from + (to - from) * i / 10, 170));
-          await tester.pump(const Duration(milliseconds: 16));
+    group('resting and scrolling', () {
+      // Far round towards the bottom edge, in the scroll zone there.
+      Offset zone(WidgetTester tester, {double radius = 170}) =>
+          _at(tester, math.pi - 0.05, radius);
+
+      // The list stood there, and has moved or scrolled away.
+      void expectScrolled(WidgetTester tester, Rect before) {
+        final Finder tab = find.byKey(const ValueKey('dial-entry-3'));
+        if (tab.evaluate().isNotEmpty) {
+          expect(
+            (tester.getRect(tab).center - before.center).distance,
+            greaterThan(20),
+          );
         }
-        // However long it then stays down, nothing is picked up.
-        await tester.pump(_rest * 3);
-        await gesture.up();
-        await tester.pump(const Duration(milliseconds: 300));
       }
 
-      testWidgets('a swipe that begins on a list turns the dial, and moves no list', (
+      Future<void> holdThere(WidgetTester tester) async {
+        for (int i = 0; i < 20; i++) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+      }
+
+      testWidgets('moving along the middle of the dial scrolls nothing', (
+        tester,
+      ) async {
+        final _Harness h = await _pump(tester, count: 14);
+        await _openArranging(tester);
+        final Rect before = _tab(tester, 3);
+        final double neighbour = _tab(tester, 2).longestSide;
+
+        final Offset start = _list(tester, 0);
+        final TestGesture gesture = await tester.startGesture(start);
+        await tester.pump(const Duration(milliseconds: 16));
+        await _steps(tester, gesture, start, _list(tester, 1));
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect((_tab(tester, 3).center - before.center).distance, lessThan(12));
+        // Nothing grows: only a list in the hand does.
+        expect((_tab(tester, 2).longestSide - neighbour).abs(), lessThan(6));
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(_area, findsOneWidget);
+        expect(h.log, isEmpty);
+      });
+
+      testWidgets('a swipe from a list into a zone scrolls, and moves no list', (
         tester,
       ) async {
         final _Harness h = await _pump(tester, count: 14);
         await _openArranging(tester);
         final Rect before = _tab(tester, 3);
 
-        await swipeFrom(tester, 1, -40);
+        final Offset start = _list(tester, 1);
+        final TestGesture gesture = await tester.startGesture(start);
+        await tester.pump(const Duration(milliseconds: 16));
+        await _steps(tester, gesture, start, zone(tester));
+        await holdThere(tester);
 
-        expect(
-          (_tab(tester, 3).center - before.center).distance,
-          greaterThan(20),
-        );
+        expectScrolled(tester, before);
+        // However long it stays down, nothing is picked up.
+        await tester.pump(_rest * 3);
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 300));
         expect(_area, findsOneWidget);
         expect(h.log, isEmpty);
+      });
+
+      testWidgets('a swipe that starts on empty space scrolls the same', (
+        tester,
+      ) async {
+        final _Harness h = await _pump(tester, count: 14);
+        await _openArranging(tester);
+        final Rect before = _tab(tester, 3);
+
+        // Beyond the lists' ends, still in reach of the dial.
+        final Offset start = _at(tester, _diagonal(tester), 440);
+        final TestGesture gesture = await tester.startGesture(start);
+        await tester.pump(const Duration(milliseconds: 16));
+        await _steps(tester, gesture, start, zone(tester, radius: 330));
+        await holdThere(tester);
+
+        expectScrolled(tester, before);
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(_area, findsOneWidget);
+        expect(h.log, isEmpty);
+      });
+
+      testWidgets('a press in a zone scrolls at once, and picks nothing up', (
+        tester,
+      ) async {
+        final _Harness h = await _pump(tester, count: 14);
+        await _openArranging(tester);
+        final Rect before = _tab(tester, 3);
+
+        final TestGesture gesture = await tester.startGesture(zone(tester));
+        await holdThere(tester);
+
+        expectScrolled(tester, before);
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(_area, findsOneWidget);
+        expect(h.log, isEmpty);
+      });
+
+      testWidgets('with nothing left to come, a list in the zone can be picked up', (
+        tester,
+      ) async {
+        final _Harness h = await _pump(tester, count: 14);
+        await _openArranging(tester);
+        final TestGesture toEnd = await tester.startGesture(zone(tester));
+        for (int i = 0; i < 100; i++) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        await toEnd.up();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        // The last list, at its place at the end.
+        final Offset press = _tab(tester, 14).center;
+        final TestGesture gesture = await tester.startGesture(press);
+        await tester.pump(_rest);
+        await _steps(tester, gesture, press, _list(tester, 0));
+        await tester.pump(const Duration(milliseconds: 100));
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(h.log, hasLength(1));
+      });
+
+      testWidgets('passing lists clicks, as on the normal dial', (tester) async {
+        final List<String> buzzes = [];
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          (call) async {
+            if (call.method == 'HapticFeedback.vibrate') {
+              buzzes.add(call.arguments as String);
+            }
+            return null;
+          },
+        );
+        addTearDown(
+          () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            SystemChannels.platform,
+            null,
+          ),
+        );
+        await _pump(tester, count: 14);
+        await _openArranging(tester);
+        buzzes.clear();
+
+        final Offset start = _list(tester, 0);
+        final TestGesture gesture = await tester.startGesture(start);
+        await tester.pump(const Duration(milliseconds: 16));
+        expect(buzzes, isEmpty);
+        await _steps(tester, gesture, start, _list(tester, 1));
+        expect(buzzes, contains('HapticFeedbackType.selectionClick'));
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 300));
       });
 
       testWidgets('a finger passing under the hub does not throw the dial', (
@@ -600,57 +726,25 @@ void main() {
       }
     });
 
-    group('a swipe off the lists', () {
-      // A spot off the lists, near the far corner.
+    group('far off the dial', () {
+      // A spot off the lists, near the far corner, out of the dial's reach.
       const Offset blank = Offset(40, 80);
 
-      Future<void> swipe(WidgetTester tester, double degrees) async {
-        final double from = _diagonal(tester);
-        final double to = from + degrees * math.pi / 180;
-        final double radius = (_hub(tester) - blank).distance;
-        final TestGesture gesture = await tester.startGesture(blank);
-        await tester.pump(const Duration(milliseconds: 16));
-        for (int i = 1; i <= 10; i++) {
-          await gesture.moveTo(
-            _at(tester, from + (to - from) * i / 10, radius),
-          );
-          await tester.pump(const Duration(milliseconds: 16));
-        }
-        await gesture.up();
-        await tester.pump(const Duration(milliseconds: 300));
-      }
-
-      testWidgets('turns the dial, moves no list, and stays open', (
-        tester,
-      ) async {
+      testWidgets('a swipe there scrolls nothing and stays open', (tester) async {
         final _Harness h = await _pump(tester, count: 14);
         await _openArranging(tester);
-        // A list further along stands on the diagonal after a swipe back.
-        await swipe(tester, -60);
+        final Rect before = _tab(tester, 3);
+
+        final TestGesture gesture = await tester.startGesture(blank);
+        await tester.pump(const Duration(milliseconds: 16));
+        await _steps(tester, gesture, blank, blank + const Offset(120, 40));
+        await tester.pump(const Duration(milliseconds: 200));
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 300));
+
         expect(_area, findsOneWidget);
         expect(h.log, isEmpty);
-
-        // Now a list that was off the dial can be picked up.
-        await _drag(tester, 0, 1);
-        expect(h.log, hasLength(1));
-        final List<String> ids = h.log.single
-            .substring('order '.length)
-            .split(',');
-        expect(ids, hasLength(14));
-        // Only lists from further along changed places.
-        expect(ids.take(2), ['n0', 'n1']);
-      });
-
-      testWidgets('with nothing more that way it changes nothing', (
-        tester,
-      ) async {
-        final _Harness h = await _pump(tester);
-        await _openArranging(tester);
-        final Rect before = _tab(tester, 1);
-        await swipe(tester, 30);
-        expect(_area, findsOneWidget);
-        expect(h.log, isEmpty);
-        expect((_tab(tester, 1).center - before.center).distance, lessThan(12));
+        expect((_tab(tester, 3).center - before.center).distance, lessThan(12));
       });
 
       testWidgets('a tap there still ends it', (tester) async {
