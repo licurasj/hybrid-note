@@ -22,6 +22,14 @@ import 'package:hybrid_note/lists/list_store.dart';
 
 import '../test/lists/list_store_contract_test.dart' show listStoreContract;
 
+// For emulators on other ports (firebase --config), while another session holds
+// the defaults (WORKSTREAMS).
+const int _firestorePort = int.fromEnvironment(
+  'FIRESTORE_PORT',
+  defaultValue: 8080,
+);
+const int _authPort = int.fromEnvironment('AUTH_PORT', defaultValue: 9099);
+
 // FirestoreListStore through the real cloud_firestore plugin against the
 // Firebase emulators, with the project's firestore.rules (T-14 unit 4, Q-10
 // full suite). It proves what fake_cloud_firestore cannot: the nested-array
@@ -325,10 +333,10 @@ void main() {
     _db2 = FirebaseFirestore.instanceFor(app: second);
     _auth2 = FirebaseAuth.instanceFor(app: second);
     for (final FirebaseFirestore db in [_db, _db2]) {
-      db.useFirestoreEmulator(_host, 8080);
+      db.useFirestoreEmulator(_host, _firestorePort);
     }
     for (final FirebaseAuth auth in [_auth, _auth2]) {
-      await auth.useAuthEmulator(_host, 9099);
+      await auth.useAuthEmulator(_host, _authPort);
     }
   });
 
@@ -534,7 +542,7 @@ void main() {
         );
         stalledDb = FirebaseFirestore.instanceFor(app: app)
           ..useFirestoreEmulator(_host, 8090);
-        await FirebaseAuth.instanceFor(app: app).useAuthEmulator(_host, 9099);
+        await FirebaseAuth.instanceFor(app: app).useAuthEmulator(_host, _authPort);
       });
 
       Future<void> open({
@@ -1011,8 +1019,8 @@ void main() {
       final FirebaseFirestore db = FirebaseFirestore.instanceFor(app: app);
       final FirebaseAuth auth = FirebaseAuth.instanceFor(app: app);
       final FirestoreSetup setup = FirestoreSetup(db)..configure();
-      db.useFirestoreEmulator(_host, 8080);
-      await auth.useAuthEmulator(_host, 9099);
+      db.useFirestoreEmulator(_host, _firestorePort);
+      await auth.useAuthEmulator(_host, _authPort);
       expect(db.settings.persistenceEnabled, isTrue);
       final UserCredential credential = await auth
           .createUserWithEmailAndPassword(

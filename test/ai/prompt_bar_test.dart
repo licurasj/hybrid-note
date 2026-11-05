@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hybrid_note/ai/ai_bar_controller.dart';
 import 'package:hybrid_note/ai/ai_service.dart';
 import 'package:hybrid_note/ai/prompt_bar.dart';
-import 'package:hybrid_note/app/app_settings.dart';
+import 'package:hybrid_note/app/account_preferences.dart';
 import 'package:hybrid_note/backend/firestore_list_store.dart';
 import 'package:hybrid_note/lists/builtin_templates.dart';
 import 'package:hybrid_note/lists/list_definition.dart';
@@ -19,6 +19,7 @@ import 'package:hybrid_note/lists/list_rules.dart';
 
 import '../support/fake_auth.dart';
 import '../support/firestore_store.dart';
+import '../support/scripted_preferences_sync.dart';
 
 // Answers the bar's requests from a script and keeps them for the checks.
 class FakeAiService implements AiService {
@@ -62,6 +63,10 @@ final Finder _field = find.byKey(const ValueKey('ai-bar-field'));
 final Finder _send = find.byKey(const ValueKey('ai-bar-send'));
 final Finder _hub = find.byKey(const ValueKey('launcher-hub'));
 
+AccountPreferencesCubit _account(WidgetTester tester) => tester
+    .element(find.byKey(const ValueKey('ai-bar')))
+    .read<AccountPreferencesCubit>();
+
 Future<FirestoreListStore> _pump(
   WidgetTester tester,
   FakeAiService ai, {
@@ -69,12 +74,13 @@ Future<FirestoreListStore> _pump(
   List<ListDefinition>? lists,
   List<ListItem> items = const [],
   Size size = const Size(360, 780),
+  AccountPreferencesSync? sync,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   SharedPreferences.setMockInitialValues({
-    if (noticeSeen) AiBarController.noticeKey: aiNoticeId,
+    if (noticeSeen) AccountPreferencesCubit.legacyNoticeSeenKey: aiNoticeId,
   });
   final FirestoreListStore store = await widgetTestStore(
     tester,
@@ -84,6 +90,7 @@ Future<FirestoreListStore> _pump(
   final Widget app = await testApp(
     auth: FakeAuthService(user: testUser),
     openStore: (_) => store,
+    openPreferences: sync == null ? null : (_) => sync,
   );
   await tester.pumpWidget(
     RepositoryProvider<AiService>.value(value: ai, child: app),
@@ -134,6 +141,16 @@ List<String> _titles(FirestoreListStore store, String listId) => [
 ];
 
 void main() {
+  testWidgets('a chosen week start goes with each request (Q-50 f)', (
+    tester,
+  ) async {
+    final FakeAiService ai = FakeAiService()..answers.add(_calls(const []));
+    await _pump(tester, ai);
+    await _account(tester).setWeekStart(WeekStart.sunday);
+    await _ask(tester, 'this week');
+    expect(ai.requests.first.toJson()['weekStart'], 'sunday');
+  });
+
   testWidgets('the one-time notice names DeepSeek and China before the first '
       'request, then never again', (tester) async {
     final FakeAiService ai = FakeAiService()
@@ -159,8 +176,7 @@ void main() {
 
     await _tapKey(tester, 'ai-notice-continue');
     expect(ai.requests, hasLength(1));
-    final SharedPreferences preferences = await SharedPreferences.getInstance();
-    expect(preferences.getString(AiBarController.noticeKey), aiNoticeId);
+    expect(_account(tester).state.aiNoticeSeen, aiNoticeId);
 
     await _ask(tester, 'eggs');
     expect(find.byKey(const ValueKey('ai-notice')), findsNothing);
@@ -712,6 +728,47 @@ void main() {
       expect(_titles(store, _grocery), ['Bread']);
     });
 
+    testWidgets('auto-apply turned off, refused by the server: the AI asks', (
+      tester,
+    ) async {
+      final FakeAiService ai = FakeAiService()
+        ..answers.add(
+          _calls([
+            const AiToolCall('delete_items', {
+              'listId': _grocery,
+              'ids': ['g1'],
+            }),
+          ]),
+        );
+      final ScriptedPreferencesSync sync = ScriptedPreferencesSync();
+      addTearDown(sync.snapshots.close);
+      final Map<String, Object?> account = {
+        'aiAutoApply': true,
+        'aiNoticeSeen': aiNoticeId,
+      };
+      final FirestoreListStore store = await _pump(
+        tester,
+        ai,
+        items: [item('g1', 'Milk')],
+        sync: sync,
+      );
+      sync.send(account);
+      await settle(tester);
+      expect(_account(tester).state.aiAutoApply, isTrue);
+
+      sync.refuse = true;
+      await _account(tester).setAiAutoApply(false);
+      await tester.pump();
+      // Firestore takes the refused change back through the listener.
+      sync.send(account);
+      await settle(tester);
+
+      await _ask(tester, 'remove milk');
+
+      expect(find.byKey(const ValueKey('ai-apply')), findsOneWidget);
+      expect(_titles(store, _grocery), contains('Milk'));
+    });
+
     testWidgets('the first Apply offers auto-apply; after a yes changes apply '
         'at once with Undo, and Settings shows it (Q-40)', (tester) async {
       final FakeAiService ai = FakeAiService()
@@ -742,17 +799,7 @@ void main() {
       await tester.pump(AiBarController.doneFor * 2);
       expect(find.byKey(const ValueKey('ai-auto-apply-offer')), findsOneWidget);
       await _tapKey(tester, 'ai-auto-apply-yes');
-      final SharedPreferences preferences =
-          await SharedPreferences.getInstance();
-      expect(preferences.getBool(AppSettingsCubit.aiAutoApplyKey), isTrue);
-      expect(
-        tester
-            .element(find.byKey(const ValueKey('ai-bar')))
-            .read<AppSettingsCubit>()
-            .state
-            .aiAutoApply,
-        isTrue,
-      );
+      expect(_account(tester).state.aiAutoApply, isTrue);
 
       await _ask(tester, 'remove eggs');
       expect(find.byKey(const ValueKey('ai-apply')), findsNothing);
@@ -1025,12 +1072,12 @@ void main() {
           ]),
         ]);
       await _pump(tester, ai);
-      final SharedPreferences preferences =
-          await SharedPreferences.getInstance();
-      await preferences.setString(AppSettingsCubit.aiAskLevelKey, 'more');
+      await _account(tester).setAiAskLevel(AiAskLevel.more);
 
       await _ask(tester, 'dinner tomorrow');
       expect(ai.requests.first.toJson()['askLevel'], 'more');
+      // Follow the language, the default, sends no week start (Q-50 f).
+      expect(ai.requests.first.toJson().containsKey('weekStart'), isFalse);
       expect(find.byKey(const ValueKey('ai-chip-$_tasks')), findsOneWidget);
       // Typing had started; a button answers instead, so the request does
       // not quote the question.
@@ -1062,9 +1109,7 @@ void main() {
           ]),
         ]);
       final FirestoreListStore store = await _pump(tester, ai);
-      final SharedPreferences preferences =
-          await SharedPreferences.getInstance();
-      await preferences.setBool(AppSettingsCubit.aiAutoApplyKey, true);
+      await _account(tester).setAiAutoApply(true);
       await _openList(tester, _tasks);
 
       // Not named: the preview stays, with auto-apply on.

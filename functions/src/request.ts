@@ -43,6 +43,8 @@ export interface AiRequest {
   followUp?: FollowUp;
   /** How often the AI asks before acting, the user's setting (Q-43); balanced when absent. */
   askLevel: AskLevel;
+  /** The first day of the week, when the user chose one (Q-50 f). */
+  weekStart?: WeekStartDay;
   /**
    * The open list is the user's answer to "which list?" (choose_list): the
    * AI must use it and not ask again (Q-45; it looped on 2026-11-04).
@@ -65,6 +67,8 @@ export interface AiRequest {
 
 export const ASK_LEVELS = ['more', 'balanced', 'less'] as const;
 export type AskLevel = (typeof ASK_LEVELS)[number];
+export const WEEK_START_DAYS = ['monday', 'sunday'] as const;
+export type WeekStartDay = (typeof WEEK_START_DAYS)[number];
 
 export interface FollowUp {
   /** The original request, kept through the whole back-and-forth (Q-55). */
@@ -172,6 +176,10 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
   if (!(ASK_LEVELS as readonly unknown[]).includes(askLevel)) {
     throw refuse('badRequest', 'askLevel must be more, balanced or less');
   }
+  const weekStart = data.weekStart ?? undefined;
+  if (weekStart !== undefined && !(WEEK_START_DAYS as readonly unknown[]).includes(weekStart)) {
+    throw refuse('badRequest', 'weekStart must be monday or sunday');
+  }
   const chosenList = data.chosenList ?? undefined;
   if (chosenList !== undefined && (chosenList !== true || data.openList == null)) {
     throw refuse('badRequest', 'chosenList must be true and come with the open list');
@@ -261,6 +269,7 @@ export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
     ...(today !== undefined ? { today } : {}),
     lists: allowed as unknown as ListSummary[],
     askLevel: askLevel as AskLevel,
+    ...(weekStart !== undefined ? { weekStart: weekStart as WeekStartDay } : {}),
     ...(chosenList === true ? { chosenList: true as const } : {}),
     ...(itemsOnly === true ? { itemsOnly: true as const } : {}),
     ...(newList === true ? { newList: true as const } : {}),

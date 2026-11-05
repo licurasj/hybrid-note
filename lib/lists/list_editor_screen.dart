@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../app/app_theme.dart';
 import '../app_colors.dart';
 import '../l10n/generated/app_localizations.dart';
+import 'confirm_delete_sheet.dart';
 import 'list_definition.dart';
 import 'list_editor_rules.dart';
 import 'list_editor_style.dart';
@@ -967,9 +968,15 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
                     ),
                     icon: const Icon(Icons.delete_outline, size: 20),
                     label: Text(loc.deleteList),
-                    onPressed: () => Navigator.of(
-                      context,
-                    ).pop(const ListEditorOutcome.deleted()),
+                    onPressed: () async {
+                      final NavigatorState navigator = Navigator.of(context);
+                      final String name = ListLabels(
+                        loc,
+                      ).listName(widget.definition);
+                      if (await confirmDelete(context, name)) {
+                        navigator.pop(const ListEditorOutcome.deleted());
+                      }
+                    },
                   ),
                 ),
               ),

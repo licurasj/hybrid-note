@@ -46,6 +46,11 @@ class LauncherConfig {
     this.neighbourTabScale = 1.08,
     this.selectedSpread = 2.0,
     this.dialStepDegrees = 12,
+    this.dialArrangeSpread = 1.3,
+    this.dialArrangeSwayDegrees = 1.2,
+    this.dialPickUpDelay = const Duration(milliseconds: 300),
+    this.dialSelectedLead = 24,
+    this.dialRestMargin = 28,
     this.dialSelectedSpread = 1.0,
     this.dialNeighbourLength = 0.8,
     this.dialFarLength = 0.68,
@@ -53,10 +58,12 @@ class LauncherConfig {
     this.dialTabCap = 56,
     this.dialTabGrow = 14,
     this.dialSelectKeep = 0.15,
-    this.dialEdgeZone = 1.5,
+    this.dialEdgeZone = 1.0,
     this.dialEdgeLeave = 0.25,
     this.dialEdgeSpeedMin = 1.5,
     this.dialEdgeSpeedMax = 6,
+    this.dialEdgeSpeedBorder = 3,
+    this.dialEdgeSpeedEase = 1,
     this.dialEdgeLead = const Duration(milliseconds: 250),
     this.dialEdgeReach = 2,
     this.dialEdgeCarry = 0.8,
@@ -126,6 +133,17 @@ class LauncherConfig {
   // the screen diagonal; its neighbours and the rest reach these shares of
   // that.
   final double dialStepDegrees;
+  // In the arrange state: how much further apart the lists stand, and how far
+  // each sways to either side (being tuned with the owner, Q-49).
+  final double dialArrangeSpread;
+  // In the arrange state: how long a finger rests on a list to pick it up
+  // (being tuned with the owner, Q-49).
+  final Duration dialPickUpDelay;
+  // In a tight spot, how far the selected tab stands past the others.
+  final double dialSelectedLead;
+  // How far a list at rest keeps from the screen's edge.
+  final double dialRestMargin;
+  final double dialArrangeSwayDegrees;
   final double dialSelectedSpread;
   final double dialNeighbourLength;
   final double dialFarLength;
@@ -149,6 +167,9 @@ class LauncherConfig {
   final double dialEdgeLeave;
   final double dialEdgeSpeedMin;
   final double dialEdgeSpeedMax;
+  // See dialZoneSpeed.
+  final double dialEdgeSpeedBorder;
+  final double dialEdgeSpeedEase;
   final Duration dialEdgeLead;
   final double dialEdgeReach;
   final double dialEdgeCarry;
@@ -159,6 +180,16 @@ class LauncherConfig {
   // outwards selects it.
   final double dialEditDepth;
   final double dialEditSwipe;
+
+  // How fast the lists scroll, in lists a second, [depth] (0 to 1) through a
+  // normal dial's zone. It keeps the speed each spot had when the zone was half
+  // a list wider (3 at this border, rising in a line to the maximum), but eases
+  // in from a little below that so scrolling does not start with a jolt.
+  double dialZoneSpeed(double depth) {
+    final double line =
+        dialEdgeSpeedBorder + (dialEdgeSpeedMax - dialEdgeSpeedBorder) * depth;
+    return line - dialEdgeSpeedEase * (1 - depth) * (1 - depth);
+  }
 
   double get outerRadius => innerRadius + tabLength;
 }
@@ -299,6 +330,15 @@ class LauncherGeometry {
   Offset get movePromptCenter {
     return _keepOnScreen(
       _flip(_hubFrame + Offset(-(config.hubRadius + 40), 40)),
+    );
+  }
+
+  // Arrange prompt: straight out from the hub towards the screen's middle and
+  // a little inward, so a finger going there never crosses Move, which picks the
+  // hub up on contact.
+  Offset get arrangePromptCenter {
+    return _keepOnScreen(
+      _flip(_hubFrame + Offset(-32, -(config.hubRadius + 44))),
     );
   }
 

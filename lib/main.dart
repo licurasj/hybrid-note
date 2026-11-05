@@ -13,6 +13,7 @@ import 'app/app_settings.dart';
 import 'app/hybrid_note_app.dart';
 import 'app/page_reload.dart';
 import 'backend/auth_service.dart';
+import 'backend/firestore_preferences.dart';
 import 'backend/firestore_setup.dart';
 import 'firebase_options.dart';
 
@@ -56,6 +57,8 @@ Future<void> startApp({
             final opened = setup.openStore(user.uid);
             return (store: opened.store, starter: opened.seeding);
           },
+          openPreferences: (user) =>
+              FirestorePreferencesSync(FirebaseFirestore.instance, user.uid),
           afterSignOut: setup.reloadAfterClear ? reloadPage : null,
         ),
       ),

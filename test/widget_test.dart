@@ -3,13 +3,17 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:hybrid_note/app/account_preferences.dart';
 import 'package:hybrid_note/app/app_settings.dart';
 import 'package:hybrid_note/backend/auth_service.dart';
 import 'package:hybrid_note/backend/firestore_list_store.dart';
+import 'package:hybrid_note/backend/firestore_preferences.dart';
 import 'package:hybrid_note/backend/firestore_setup.dart';
+import 'package:hybrid_note/home_screen.dart';
 import 'package:hybrid_note/lists/builtin_templates.dart';
 import 'package:hybrid_note/lists/generic_list_host.dart';
 import 'package:hybrid_note/lists/generic_list_screen.dart';
@@ -117,6 +121,116 @@ void main() {
     expect(_hub, findsNothing);
     expect(find.text('Grocery List'), findsNothing);
     expect(find.text('owner@example.com'), findsNothing);
+  });
+
+  group('account preferences at the gate', () {
+    AccountPreferencesCubit account(WidgetTester tester) => tester
+        .element(find.byType(HomeScreen))
+        .read<AccountPreferencesCubit>();
+
+    testWidgets('a signed-in user gets theirs; sign-out forgets the copy', (
+      WidgetTester tester,
+    ) async {
+      final FakeAuthService auth = FakeAuthService(user: testUser);
+      await _pumpApp(tester, auth);
+      await account(tester).setVibration(false);
+      expect(account(tester).state.vibration, isFalse);
+      final SharedPreferences stored = await SharedPreferences.getInstance();
+      expect(
+        stored.containsKey(AccountPreferencesCubit.pendingKey(testUser.uid)),
+        isTrue,
+      );
+
+      await _openSettings(tester);
+      await tester.tap(find.byKey(const ValueKey('sign-out')));
+      await settle(tester);
+
+      expect(
+        stored.containsKey(AccountPreferencesCubit.pendingKey(testUser.uid)),
+        isFalse,
+      );
+      expect(
+        stored.containsKey(AccountPreferencesCubit.mirrorKey(testUser.uid)),
+        isFalse,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('sign-in')));
+      await settle(tester);
+      expect(account(tester).state.vibration, isTrue);
+    });
+
+    testWidgets('a failed sign-out keeps the copy', (
+      WidgetTester tester,
+    ) async {
+      final FakeAuthService auth = FakeAuthService(user: testUser)
+        ..signOutError = StateError('no network');
+      await _pumpApp(tester, auth);
+      await account(tester).setVibration(false);
+
+      await _openSettings(tester);
+      await tester.tap(find.byKey(const ValueKey('sign-out')));
+      await settle(tester);
+
+      expect(account(tester).state.vibration, isFalse);
+    });
+
+    testWidgets('they sync where the app says, for that user', (
+      WidgetTester tester,
+    ) async {
+      final FakeFirebaseFirestore firestore = FakeFirebaseFirestore();
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      SharedPreferences.setMockInitialValues({
+        AccountPreferencesCubit.legacyAskLevelKey: 'less',
+      });
+      final FirestoreListStore store = await widgetTestStore(tester);
+      await tester.pumpWidget(
+        await testApp(
+          auth: FakeAuthService(user: testUser),
+          openStore: (_) => store,
+          openPreferences: (user) =>
+              FirestorePreferencesSync(firestore, user.uid),
+        ),
+      );
+      await settle(tester);
+      final document = firestore.doc(
+        'users/${testUser.uid}/settings/preferences',
+      );
+
+      // The account had none: the phone's AI setting seeded it.
+      expect((await document.get()).data()!['aiAskLevel'], 'less');
+
+      await account(tester).setWeekStart(WeekStart.monday);
+      await settle(tester);
+      expect((await document.get()).data()!['weekStart'], 'monday');
+
+      await document.set({'vibration': false}, SetOptions(merge: true));
+      await settle(tester);
+      expect(account(tester).state.vibration, isFalse);
+    });
+
+    testWidgets('hub, theme and language stay out of the account', (
+      WidgetTester tester,
+    ) async {
+      await _pumpApp(
+        tester,
+        FakeAuthService(user: testUser),
+        preferences: {
+          AppSettingsCubit.themeModeKey: 'dark',
+          AppSettingsCubit.localeKey: 'de',
+          AppSettingsCubit.hubXKey: 0.5,
+          AppSettingsCubit.hubYKey: 0.5,
+        },
+      );
+      for (final String key in account(tester).state.toJson().keys) {
+        expect(key, isNot(anyOf('theme', 'themeMode', 'locale', 'hubX', 'hubY')));
+      }
+      expect(
+        tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
+        ThemeMode.dark,
+      );
+    });
   });
 
   testWidgets('a failed cache clear keeps a retry state until it works', (
@@ -241,7 +355,7 @@ void main() {
       tester,
       FakeAuthService(user: testUser),
       preferences: {
-        AppSettingsCubit.darkModeKey: true,
+        AppSettingsCubit.legacyDarkModeKey: true,
         AppSettingsCubit.localeKey: 'de',
       },
     );
@@ -552,6 +666,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('settings')));
     await tester.pumpAndSettle();
     final Finder hint = find.byKey(const ValueKey('settings-ai-ask-hint'));
+    await tester.ensureVisible(find.text('How often the AI checks with you'));
+    await tester.pumpAndSettle();
     expect(find.text('How often the AI checks with you'), findsOneWidget);
     expect(
       tester.widget<Text>(hint).data,
@@ -565,8 +681,14 @@ void main() {
     await tester.tapAt(Offset(rect.right - 12, rect.center.dy));
     await tester.pumpAndSettle();
     expect(tester.widget<Text>(hint).data, startsWith('Goes with its best guess'));
-    final SharedPreferences preferences = await SharedPreferences.getInstance();
-    expect(preferences.getString(AppSettingsCubit.aiAskLevelKey), 'less');
+    expect(
+      tester
+          .element(find.byKey(const ValueKey('settings-ai-ask')))
+          .read<AccountPreferencesCubit>()
+          .state
+          .aiAskLevel,
+      AiAskLevel.less,
+    );
   });
 
   group('starter lists could not be written (Q-27)', () {

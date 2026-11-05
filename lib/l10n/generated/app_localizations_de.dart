@@ -54,78 +54,31 @@ class AppLocalizationsDe extends AppLocalizations {
   String get chooseLanguage => 'Sprache auswählen';
 
   @override
-  String get languageFollowsDevice => 'Use device language';
+  String get languageFollowsDevice => 'Gerätesprache verwenden';
 
   @override
-  String get switchToDarkMode => 'In den Dunkelmodus wechseln';
+  String get signInWithGoogle => 'Mit Google anmelden';
 
   @override
-  String get switchToLightMode => 'In den Hellmodus wechseln';
+  String get logOut => 'Abmelden';
 
   @override
-  String get pendingTasks => 'Pending Tasks';
+  String get categories => 'Kategorien';
 
   @override
-  String get completedTasks => 'Completed Tasks';
+  String get createCategory => 'Kategorie erstellen';
 
   @override
-  String get journalEntries => 'Journal Entries';
+  String get deleteCategory => 'Kategorie löschen';
 
   @override
-  String get watchReadItems => 'Watch/Read Items';
+  String get category => 'Kategorie';
 
   @override
-  String get groceryItems => 'Grocery Items';
+  String get categoryName => 'Kategoriename';
 
   @override
-  String get googleDriveSync => 'Google Drive Sync';
-
-  @override
-  String get syncing => 'Synchronisiere...';
-
-  @override
-  String get notSyncedYet => 'Noch nicht synchronisiert.';
-
-  @override
-  String lastSynced(String date) {
-    return 'Last synced: $date';
-  }
-
-  @override
-  String get signInWithGoogle => 'Sign in with Google';
-
-  @override
-  String get logOut => 'Log out';
-
-  @override
-  String get syncToGoogleDrive => 'Mit Google Drive synchronisieren';
-
-  @override
-  String get categories => 'Categories';
-
-  @override
-  String get allMyTasks => 'All My Tasks';
-
-  @override
-  String get createCategory => 'Create Category';
-
-  @override
-  String get createCategoryTooltip => 'Create category';
-
-  @override
-  String get closeCategories => 'Close categories';
-
-  @override
-  String get deleteCategory => 'Delete category';
-
-  @override
-  String get category => 'Category';
-
-  @override
-  String get categoryName => 'Category name';
-
-  @override
-  String get create => 'Create';
+  String get create => 'Erstellen';
 
   @override
   String get cancel => 'Abbrechen';
@@ -134,10 +87,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get save => 'Speichern';
 
   @override
-  String get clear => 'Clear';
+  String get clear => 'Entfernen';
 
   @override
-  String get clearTicked => 'Clear Ticked';
+  String get clearTicked => 'Abgehakte entfernen';
 
   @override
   String get delete => 'Löschen';
@@ -149,235 +102,189 @@ class AppLocalizationsDe extends AppLocalizations {
   String get add => 'Hinzufügen';
 
   @override
-  String get addTask => 'Add Task';
+  String get addTask => 'Aufgabe hinzufügen';
 
   @override
-  String get addTaskTooltip => 'Add task';
+  String get addTaskTooltip => 'Aufgabe hinzufügen';
 
   @override
-  String get editTask => 'Edit Task';
+  String get editTask => 'Aufgabe bearbeiten';
 
   @override
-  String get titleRequired => 'Title *';
+  String get title => 'Titel';
 
   @override
-  String get title => 'Title';
+  String get notes => 'Notizen';
 
   @override
-  String get notes => 'Notes';
+  String get date => 'Datum';
 
   @override
-  String get setReminder => 'Set reminder';
+  String get repeat => 'Wiederholen';
 
   @override
-  String get date => 'Date';
+  String get doesNotRepeat => 'Keine Wiederholung';
 
   @override
-  String get time => 'Time';
+  String get daily => 'Täglich';
 
   @override
-  String get repeat => 'Repeat';
+  String get weekly => 'Wöchentlich';
 
   @override
-  String get doesNotRepeat => 'Does not repeat';
+  String get monthly => 'Monatlich';
 
   @override
-  String get daily => 'Daily';
+  String get yearly => 'Jährlich';
 
   @override
-  String get weekly => 'Weekly';
+  String get custom => 'Benutzerdefiniert';
 
   @override
-  String get monthly => 'Monthly';
-
-  @override
-  String get yearly => 'Yearly';
-
-  @override
-  String get custom => 'Custom';
-
-  @override
-  String get repeatEveryHowManyDays => 'Repeat every how many days?';
+  String get repeatEveryHowManyDays => 'Alle wie viele Tage wiederholen?';
 
   @override
   String reminderText(String date) {
-    return 'Reminder: $date';
+    return 'Erinnerung: $date';
   }
 
   @override
-  String get today => 'Today';
+  String get today => 'Heute';
 
   @override
-  String get tomorrow => 'Tomorrow';
+  String get tomorrow => 'Morgen';
 
   @override
-  String get later => 'Later';
+  String get later => 'Später';
 
   @override
-  String get noTasksHereYet => 'No tasks here yet.';
+  String get noTasksHereYet => 'Noch keine Aufgaben.';
 
   @override
   String tickedCount(int count) {
-    return '$count ticked';
+    return '$count abgehakt';
   }
 
   @override
-  String get addSubtask => 'Add Subtask';
+  String get addSubtask => 'Unteraufgabe hinzufügen';
 
   @override
-  String get editSubtask => 'Edit Subtask';
-
-  @override
-  String get subtaskTitleRequired => 'Subtask title *';
-
-  @override
-  String get subtasks => 'Subtasks';
-
-  @override
-  String get noSubtasksYet => 'No subtasks yet.';
+  String get subtasks => 'Unteraufgaben';
 
   @override
   String subtaskProgress(int completed, int total) {
-    return 'Subtasks: $completed/$total';
+    return 'Unteraufgaben: $completed/$total';
   }
 
   @override
   String repeats(String date, String repeat) {
-    return '$date • repeats $repeat';
+    return '$date • Wiederholung: $repeat';
   }
 
   @override
   String repeatsEveryDays(String date, int days) {
-    return '$date • repeats every $days day(s)';
+    return '$date • alle $days Tage';
   }
 
   @override
-  String get groceryList => 'Grocery List';
+  String get groceryList => 'Einkauf';
 
   @override
-  String get addGroceryItem => 'Add Grocery Item';
+  String get addGroceryItem => 'Einkauf hinzufügen';
 
   @override
-  String get addGroceryItemTooltip => 'Add grocery item';
+  String get addGroceryItemTooltip => 'Einkauf hinzufügen';
 
   @override
-  String get editGroceryItem => 'Edit Grocery Item';
+  String get editGroceryItem => 'Einkauf bearbeiten';
 
   @override
-  String get description => 'Description';
+  String get description => 'Beschreibung';
 
   @override
-  String get section => 'Section';
+  String get section => 'Abschnitt';
 
   @override
-  String get currentGroceryRun => 'Current Grocery Run';
+  String get currentGroceryRun => 'Aktueller Einkauf';
 
   @override
-  String get nextTime => 'Next Time';
+  String get nextTime => 'Nächstes Mal';
 
   @override
-  String get addAgainNextTime => 'Add again to Next Time when completed';
+  String get noGroceriesCurrent => 'Noch nichts für diesen Einkauf.';
 
   @override
-  String get addAgainNextTimeDescription =>
-      'The item will appear in Next Time after you clear/delete it from Current Grocery Run.';
+  String get repeatsToNextTime =>
+      'Nach dem Entfernen wieder unter Nächstes Mal';
 
   @override
-  String get noGroceriesCurrent => 'No groceries for this run yet.';
+  String get addJournalEntry => 'Eintrag hinzufügen';
 
   @override
-  String get noGroceriesNext => 'No saved groceries for next time yet.';
+  String get addJournalEntryTooltip => 'Eintrag hinzufügen';
 
   @override
-  String get moveToCurrentRun => 'Move to current run';
+  String get editJournalEntry => 'Eintrag bearbeiten';
 
   @override
-  String get moveToNextTime => 'Move to next time';
+  String get entry => 'Eintrag';
 
   @override
-  String get repeatsToNextTime => 'Repeats to Next Time after clearing';
+  String get close => 'Schließen';
 
   @override
-  String get addJournalEntry => 'Add Journal Entry';
+  String get noJournalEntriesYet => 'Noch keine Einträge.';
 
   @override
-  String get addJournalEntryTooltip => 'Add journal entry';
+  String get watchReadList => 'Ansehen/Lesen';
 
   @override
-  String get editJournalEntry => 'Edit Journal Entry';
+  String get addWatchReadItem => 'Titel hinzufügen';
 
   @override
-  String get entry => 'Entry';
+  String get addWatchReadItemTooltip => 'Titel hinzufügen';
 
   @override
-  String get close => 'Close';
+  String get editWatchReadItem => 'Titel bearbeiten';
 
   @override
-  String get noJournalEntriesYet => 'No journal entries yet.';
-
-  @override
-  String get watchReadList => 'Watch/Read List';
-
-  @override
-  String get addWatchReadItem => 'Add Watch/Read Item';
-
-  @override
-  String get addWatchReadItemTooltip => 'Add watch/read item';
-
-  @override
-  String get editWatchReadItem => 'Edit Watch/Read Item';
-
-  @override
-  String get type => 'Type';
+  String get type => 'Art';
 
   @override
   String get status => 'Status';
 
   @override
-  String get movie => 'Movie';
+  String get movie => 'Film';
 
   @override
-  String get tvShow => 'TV Show';
+  String get tvShow => 'Serie';
 
   @override
-  String get book => 'Book';
+  String get book => 'Buch';
 
   @override
-  String get planned => 'Planned';
+  String get planned => 'Geplant';
 
   @override
-  String get inProgress => 'In Progress';
+  String get inProgress => 'Läuft';
 
   @override
-  String get completed => 'Completed';
+  String get completed => 'Erledigt';
 
   @override
-  String get season => 'Season';
+  String get season => 'Staffel';
 
   @override
-  String get episode => 'Episode';
+  String get episode => 'Folge';
 
   @override
-  String seasonNumber(int number) {
-    return 'Season $number';
-  }
-
-  @override
-  String episodeNumber(int number) {
-    return 'Episode $number';
-  }
-
-  @override
-  String get noWatchReadItemsYet => 'No watch/read items yet.';
+  String get noWatchReadItemsYet => 'Noch nichts zum Ansehen oder Lesen.';
 
   @override
   String get editList => 'Liste bearbeiten';
 
   @override
   String get newList => 'Neue Liste';
-
-  @override
-  String get untitledList => 'Unbenannte Liste';
 
   @override
   String get listName => 'Listenname';
@@ -402,9 +309,6 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get required => 'Pflichtfeld';
-
-  @override
-  String get options => 'Optionen';
 
   @override
   String get addOption => 'Option hinzufügen';
@@ -459,14 +363,6 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get undo => 'Rückgängig';
-
-  @override
-  String get builtinListNote =>
-      'Integrierte Listen behalten ihre Felder bis zum Umzug nach Firestore. Name, Symbol und Farbe lassen sich ändern.';
-
-  @override
-  String get localOnlyNote =>
-      'Neue Listen werden bis zum Umzug nach Firestore nur auf diesem Gerät gespeichert.';
 
   @override
   String get typeText => 'Text';
@@ -788,10 +684,6 @@ class AppLocalizationsDe extends AppLocalizations {
       'Ein Eintrag gehört zu einer anderen Liste.';
 
   @override
-  String get errorBuiltinOnlyInfo =>
-      'Bei integrierten Listen lassen sich nur Name, Symbol, Farbe und KI-Einstellung ändern.';
-
-  @override
   String get addRule => 'Regel hinzufügen';
 
   @override
@@ -911,9 +803,6 @@ class AppLocalizationsDe extends AppLocalizations {
   String get settings => 'Einstellungen';
 
   @override
-  String get darkMode => 'Dunkler Modus';
-
-  @override
   String homeThingsToday(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -968,9 +857,6 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get aiSend => 'Senden';
-
-  @override
-  String get aiBarLabel => 'KI-Anfrage';
 
   @override
   String get aiDescribeNewList => 'Neue Liste beschreiben';
@@ -1157,14 +1043,6 @@ class AppLocalizationsDe extends AppLocalizations {
   String get aiAnswerHint => 'Deine Antwort';
 
   @override
-  String aiAnswering(String reply) {
-    return 'Antwort auf: $reply';
-  }
-
-  @override
-  String get aiNewRequest => 'Neue Anfrage';
-
-  @override
   String get listDescription => 'Listenbeschreibung';
 
   @override
@@ -1243,4 +1121,106 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get itemsNotUpdated =>
       'Einige Einträge dieser Liste konnten noch nicht aktualisiert werden. Die App versucht es beim nächsten Öffnen erneut.';
+
+  @override
+  String get theme => 'Design';
+
+  @override
+  String get themeFollowPhone => 'Wie das Telefon';
+
+  @override
+  String get themeLight => 'Hell';
+
+  @override
+  String get themeDark => 'Dunkel';
+
+  @override
+  String get preferences => 'Präferenzen';
+
+  @override
+  String get preferencesHint => 'Gelten für das Konto auf jedem Telefon.';
+
+  @override
+  String get preferencesLists => 'Listen';
+
+  @override
+  String get preferencesItems => 'Einträge';
+
+  @override
+  String get preferencesAi => 'KI';
+
+  @override
+  String get preferencesGeneral => 'Allgemein';
+
+  @override
+  String get preferencesListOrder => 'Listenreihenfolge';
+
+  @override
+  String get preferencesListOrderLastUsed => 'Zuletzt verwendet';
+
+  @override
+  String get preferencesListOrderMine => 'Eigene Reihenfolge';
+
+  @override
+  String get preferencesListOrderAz => 'A bis Z';
+
+  @override
+  String get preferencesStartScreen => 'Startbildschirm';
+
+  @override
+  String get preferencesStartLastList => 'Zuletzt geöffnete Liste';
+
+  @override
+  String get preferencesTicked => 'Abgehakte Einträge';
+
+  @override
+  String get preferencesTickedMove => 'Nach „Erledigt“';
+
+  @override
+  String get preferencesTickedStay => 'An der Stelle lassen';
+
+  @override
+  String get preferencesTickedHide => 'Ausblenden';
+
+  @override
+  String get preferencesConfirmDelete => 'Vor dem Löschen bestätigen';
+
+  @override
+  String get preferencesShowAiBar => 'KI-Leiste anzeigen';
+
+  @override
+  String get preferencesVibration => 'Vibration';
+
+  @override
+  String get preferencesTimeFormat => 'Zeitformat';
+
+  @override
+  String get preferencesFollowLanguage => 'Wie die Sprache';
+
+  @override
+  String get preferencesTime12 => '12 Stunden';
+
+  @override
+  String get preferencesTime24 => '24 Stunden';
+
+  @override
+  String get preferencesWeekStart => 'Woche beginnt am';
+
+  @override
+  String get preferencesMonday => 'Montag';
+
+  @override
+  String get preferencesSunday => 'Sonntag';
+
+  @override
+  String confirmDeleteTitle(String name) {
+    return '„$name“ löschen?';
+  }
+
+  @override
+  String get arrangeLists => 'Anordnen';
+
+  @override
+  String get preferenceNotSaved =>
+      'Eine Einstellung konnte nicht in deinem Konto gespeichert werden. Auf diesem Telefon bleibt sie, wie du sie gewählt hast.';
 }

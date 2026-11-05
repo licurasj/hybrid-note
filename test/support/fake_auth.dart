@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:hybrid_note/app/account_preferences.dart';
 import 'package:hybrid_note/app/app_settings.dart';
 import 'package:hybrid_note/app/hybrid_note_app.dart';
 import 'package:hybrid_note/backend/auth_service.dart';
@@ -24,6 +25,7 @@ class FakeAuthService implements AuthService {
   AuthUser? _user;
   AuthUser? nextUser;
   AuthException? signInError;
+  Object? signOutError;
   final List<bool> cleanupResults = [];
   Completer<void>? cleanupGate;
   final List<String> calls = [];
@@ -63,6 +65,9 @@ class FakeAuthService implements AuthService {
   @override
   Future<bool> signOut() async {
     calls.add('signOut');
+    if (signOutError != null) {
+      throw signOutError!;
+    }
     emit(null);
     return clearLocalData();
   }
@@ -82,6 +87,7 @@ Future<Widget> testApp({
   required FakeAuthService auth,
   required FirestoreListStore Function(AuthUser user) openStore,
   StarterSeeding? starter,
+  AccountPreferencesSync Function(AuthUser user)? openPreferences,
   VoidCallback? afterSignOut,
 }) async {
   final SharedPreferences preferences = await SharedPreferences.getInstance();
@@ -93,6 +99,7 @@ Future<Widget> testApp({
         store: openStore(user),
         starter: starter ?? StarterSeeding.done(),
       ),
+      openPreferences: openPreferences,
       afterSignOut: afterSignOut,
     ),
   );

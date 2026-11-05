@@ -152,6 +152,7 @@ class AiRequest {
     this.correction,
     this.followUp,
     this.askLevel = 'balanced',
+    this.weekStart,
     this.chosenList = false,
     this.itemsOnly = false,
     this.newList = false,
@@ -172,6 +173,7 @@ class AiRequest {
     String? openListId,
     AiFollowUp? followUp,
     String askLevel = 'balanced',
+    String? weekStart,
     bool newList = false,
   }) {
     final ListDefinition? open = openListId == null
@@ -187,6 +189,7 @@ class AiRequest {
       openItems: sendOpen ? _recentItems(catalog, open.id) : const [],
       followUp: followUp,
       askLevel: askLevel,
+      weekStart: weekStart,
       newList: newList,
     );
   }
@@ -235,6 +238,9 @@ class AiRequest {
   final AiFollowUp? followUp;
   // How often the AI asks first (Q-43): more, balanced or less.
   final String askLevel;
+  // 'monday' or 'sunday' when the user chose one (Q-50 f); with Follow the
+  // language nothing is sent.
+  final String? weekStart;
   // The open list is the user's answer to "which list?" (Q-45): the AI
   // uses it and does not ask again.
   final bool chosenList;
@@ -286,6 +292,7 @@ class AiRequest {
     correction: correction,
     followUp: followUp,
     askLevel: askLevel,
+    weekStart: weekStart,
     chosenList: chosenList,
     itemsOnly: itemsOnly,
     newList: newList,
@@ -308,6 +315,7 @@ class AiRequest {
       correction: correction,
       followUp: followUp,
       askLevel: askLevel,
+      weekStart: weekStart,
       chosenList: chosenList && open != null,
       itemsOnly: itemsOnly && open != null,
       newList: newList,
@@ -323,6 +331,7 @@ class AiRequest {
     lists: lists,
     followUp: followUp,
     askLevel: askLevel,
+    weekStart: weekStart,
     newList: true,
   );
 
@@ -347,6 +356,7 @@ class AiRequest {
       openItems: _recentItems(catalog, listId),
       followUp: followUp,
       askLevel: askLevel,
+      weekStart: weekStart,
       chosenList: chosen,
       itemsOnly: !chosen,
     );
@@ -363,6 +373,7 @@ class AiRequest {
     'today': _date(today),
     'platform': kIsWeb ? 'web' : defaultTargetPlatform.name,
     'askLevel': askLevel,
+    'weekStart': ?weekStart,
     'lists': [for (final AiListSummary list in lists) list.toJson()],
     'openList': openList == null
         ? null

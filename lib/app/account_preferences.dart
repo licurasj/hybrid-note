@@ -1,0 +1,579 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:developer' as developer;
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+// How the home and launcher order the lists (Q-49).
+enum ListOrder {
+  lastUsed('lastUsed'),
+  myOrder('myOrder'),
+  alphabetical('az');
+
+  const ListOrder(this.wire);
+
+  final String wire;
+
+  static ListOrder of(Object? wire) => values.firstWhere(
+    (order) => order.wire == wire,
+    orElse: () => ListOrder.lastUsed,
+  );
+}
+
+// What the app opens on (Q-50 a).
+enum StartScreen {
+  home('home'),
+  lastOpenList('lastOpenList');
+
+  const StartScreen(this.wire);
+
+  final String wire;
+
+  static StartScreen of(Object? wire) => values.firstWhere(
+    (screen) => screen.wire == wire,
+    orElse: () => StartScreen.home,
+  );
+}
+
+// Where ticked items go in a list (Q-50 b).
+enum TickedItems {
+  moveToDone('moveToDone'),
+  stayInPlace('stayInPlace'),
+  hide('hide');
+
+  const TickedItems(this.wire);
+
+  final String wire;
+
+  static TickedItems of(Object? wire) => values.firstWhere(
+    (ticked) => ticked.wire == wire,
+    orElse: () => TickedItems.moveToDone,
+  );
+}
+
+// How often the AI asks before acting (Q-43); the wire value goes with
+// each request. Wording rules apply at balanced only.
+enum AiAskLevel {
+  more('more'),
+  balanced('balanced'),
+  less('less');
+
+  const AiAskLevel(this.wire);
+
+  final String wire;
+
+  static AiAskLevel of(Object? wire) => values.firstWhere(
+    (level) => level.wire == wire,
+    orElse: () => AiAskLevel.balanced,
+  );
+}
+
+// 12 or 24 hour times (Q-50 e).
+enum TimeFormat {
+  followLanguage('followLanguage'),
+  h12('h12'),
+  h24('h24');
+
+  const TimeFormat(this.wire);
+
+  final String wire;
+
+  static TimeFormat of(Object? wire) => values.firstWhere(
+    (format) => format.wire == wire,
+    orElse: () => TimeFormat.followLanguage,
+  );
+}
+
+// The first day of the week (Q-50 f).
+enum WeekStart {
+  followLanguage('followLanguage'),
+  monday('monday'),
+  sunday('sunday');
+
+  const WeekStart(this.wire);
+
+  final String wire;
+
+  static WeekStart of(Object? wire) => values.firstWhere(
+    (start) => start.wire == wire,
+    orElse: () => WeekStart.followLanguage,
+  );
+}
+
+// Choices that follow the account to every phone (Q-48 A). Choices that
+// belong to one phone are in AppSettings.
+@immutable
+class AccountPreferences {
+  const AccountPreferences({
+    this.listOrder = ListOrder.lastUsed,
+    this.myListOrder = const [],
+    this.startScreen = StartScreen.home,
+    this.tickedItems = TickedItems.moveToDone,
+    this.confirmDelete = false,
+    this.showAiBar = true,
+    this.aiAutoApply = false,
+    this.aiAskLevel = AiAskLevel.balanced,
+    this.aiAutoApplyOffered = false,
+    this.aiNoticeSeen,
+    this.vibration = true,
+    this.timeFormat = TimeFormat.followLanguage,
+    this.weekStart = WeekStart.followLanguage,
+  });
+
+  static const String listOrderKey = 'listOrder';
+  static const String myListOrderKey = 'myListOrder';
+  static const String startScreenKey = 'startScreen';
+  static const String tickedItemsKey = 'tickedItems';
+  static const String confirmDeleteKey = 'confirmDelete';
+  static const String showAiBarKey = 'showAiBar';
+  static const String aiAutoApplyKey = 'aiAutoApply';
+  static const String aiAskLevelKey = 'aiAskLevel';
+  static const String aiAutoApplyOfferedKey = 'aiAutoApplyOffered';
+  static const String aiNoticeSeenKey = 'aiNoticeSeen';
+  static const String vibrationKey = 'vibration';
+  static const String timeFormatKey = 'timeFormat';
+  static const String weekStartKey = 'weekStart';
+
+  final ListOrder listOrder;
+  // List ids in the user's own order; a list that is not here goes after
+  // them, and an id with no list is skipped (Q-49 A).
+  final List<String> myListOrder;
+  final StartScreen startScreen;
+  final TickedItems tickedItems;
+  final bool confirmDelete;
+  final bool showAiBar;
+  // The prompt bar applies every change at once, with Undo, instead of
+  // showing Apply and Cancel (Q-40 A).
+  final bool aiAutoApply;
+  final AiAskLevel aiAskLevel;
+  // The one-time offer of [aiAutoApply] was made.
+  final bool aiAutoApplyOffered;
+  // The id of the AI notice the user accepted; a new notice asks again.
+  final String? aiNoticeSeen;
+  final bool vibration;
+  final TimeFormat timeFormat;
+  final WeekStart weekStart;
+
+  // A missing or malformed value gets its default, and a value of a newer
+  // build is ignored, so a bad document never stops the app.
+  factory AccountPreferences.fromJson(Map<String, Object?> json) {
+    bool flag(String key, bool fallback) {
+      final Object? value = json[key];
+      return value is bool ? value : fallback;
+    }
+
+    final Object? order = json[myListOrderKey];
+    final Object? notice = json[aiNoticeSeenKey];
+    return AccountPreferences(
+      listOrder: ListOrder.of(json[listOrderKey]),
+      myListOrder: order is List
+          ? List.unmodifiable(order.whereType<String>())
+          : const [],
+      startScreen: StartScreen.of(json[startScreenKey]),
+      tickedItems: TickedItems.of(json[tickedItemsKey]),
+      confirmDelete: flag(confirmDeleteKey, false),
+      showAiBar: flag(showAiBarKey, true),
+      aiAutoApply: flag(aiAutoApplyKey, false),
+      aiAskLevel: AiAskLevel.of(json[aiAskLevelKey]),
+      aiAutoApplyOffered: flag(aiAutoApplyOfferedKey, false),
+      aiNoticeSeen: notice is String ? notice : null,
+      vibration: flag(vibrationKey, true),
+      timeFormat: TimeFormat.of(json[timeFormatKey]),
+      weekStart: WeekStart.of(json[weekStartKey]),
+    );
+  }
+
+  Map<String, Object?> toJson() => {
+    listOrderKey: listOrder.wire,
+    myListOrderKey: myListOrder,
+    startScreenKey: startScreen.wire,
+    tickedItemsKey: tickedItems.wire,
+    confirmDeleteKey: confirmDelete,
+    showAiBarKey: showAiBar,
+    aiAutoApplyKey: aiAutoApply,
+    aiAskLevelKey: aiAskLevel.wire,
+    aiAutoApplyOfferedKey: aiAutoApplyOffered,
+    aiNoticeSeenKey: ?aiNoticeSeen,
+    vibrationKey: vibration,
+    timeFormatKey: timeFormat.wire,
+    weekStartKey: weekStart.wire,
+  };
+
+  @override
+  bool operator ==(Object other) =>
+      other is AccountPreferences &&
+      other.listOrder == listOrder &&
+      listEquals(other.myListOrder, myListOrder) &&
+      other.startScreen == startScreen &&
+      other.tickedItems == tickedItems &&
+      other.confirmDelete == confirmDelete &&
+      other.showAiBar == showAiBar &&
+      other.aiAutoApply == aiAutoApply &&
+      other.aiAskLevel == aiAskLevel &&
+      other.aiAutoApplyOffered == aiAutoApplyOffered &&
+      other.aiNoticeSeen == aiNoticeSeen &&
+      other.vibration == vibration &&
+      other.timeFormat == timeFormat &&
+      other.weekStart == weekStart;
+
+  @override
+  int get hashCode => Object.hash(
+    listOrder,
+    Object.hashAll(myListOrder),
+    startScreen,
+    tickedItems,
+    confirmDelete,
+    showAiBar,
+    aiAutoApply,
+    aiAskLevel,
+    aiAutoApplyOffered,
+    aiNoticeSeen,
+    vibration,
+    timeFormat,
+    weekStart,
+  );
+}
+
+extension AccountPreferencesOf on BuildContext {
+  // For handlers: the values now. Parts tested without the gate get the
+  // defaults.
+  AccountPreferences get accountPreferences =>
+      read<AccountPreferencesCubit?>()?.state ?? const AccountPreferences();
+
+  // For build methods: rebuilds when a value changes.
+  AccountPreferences get watchAccountPreferences =>
+      watch<AccountPreferencesCubit?>()?.state ?? const AccountPreferences();
+}
+
+// The account's stored preferences as the listener saw them: [data] is null
+// when there is no document, and [fromCache] says the server has not
+// confirmed it yet.
+typedef AccountPreferencesSnapshot = ({
+  Map<String, Object?>? data,
+  bool fromCache,
+});
+
+// Where the account's preferences are kept (firestore_preferences.dart in
+// the app).
+abstract class AccountPreferencesSync {
+  Stream<AccountPreferencesSnapshot> watch();
+
+  // Stores [values] unless the account has preferences already; fails when
+  // the server cannot be reached.
+  Future<void> seed(Map<String, Object?> values);
+
+  // Stores [changes] next to the other values. Completes when the server
+  // has them, so offline it stays open while the change waits; fails when the
+  // server refuses them.
+  Future<void> write(Map<String, Object?> changes);
+}
+
+// Holds one user's account preferences (Q-48 A). A copy in shared_preferences
+// is there on the first frame and offline. A phone that has not seen the
+// account yet keeps its changes aside, so they neither hide the account's
+// other values nor stop a seeding: once the server has answered, the account's
+// values win over what the phone had, except for those changes. An account
+// without a document is seeded once from the phone, which carries over the
+// AI settings it kept before they synced.
+//
+// A change stays on top of the account's values until the server has confirmed
+// it. Firestore takes a refused write back through the listener, which would
+// silently undo the choice, and could turn auto-apply back on after it was turned
+// off. So a refused change stays in force on this phone, is tried again at the
+// next open, and [saveFailures] tells the app to say so.
+//
+// A listener error ends Firestore's stream for good, as when the rules or sign-in
+// have a passing problem, and other phones' changes would stop arriving. So it
+// listens again after each of [relistenDelays], quietly, and sends what is still
+// unconfirmed once the server answers. Being offline is not such an error.
+class AccountPreferencesCubit extends Cubit<AccountPreferences> {
+  AccountPreferencesCubit(
+    this.preferences,
+    this.uid, {
+    this.sync,
+    this.relistenDelays = const [
+      Duration(seconds: 5),
+      Duration(seconds: 30),
+      Duration(minutes: 2),
+      Duration(minutes: 10),
+    ],
+  }) : _known = preferences.containsKey(mirrorKey(uid)),
+       _pending = _readMap(preferences, pendingKey(uid)),
+       super(_read(preferences, uid)) {
+    _listen();
+    if (_known) {
+      _resend();
+    }
+  }
+
+  final SharedPreferences preferences;
+  final String uid;
+  final AccountPreferencesSync? sync;
+  final List<Duration> relistenDelays;
+
+  // These were per phone until T-21; the first account to see them takes them.
+  static const String legacyAutoApplyKey = 'settings.aiAutoApply';
+  static const String legacyAskLevelKey = 'settings.aiAskLevel';
+  static const String legacyAutoApplyOfferedKey = 'ai.autoApplyAsked';
+  static const String legacyNoticeSeenKey = 'ai.noticeSeen';
+
+  static String mirrorKey(String uid) => 'preferences.$uid';
+  static String pendingKey(String uid) => 'preferences.$uid.pending';
+
+  StreamSubscription<AccountPreferencesSnapshot>? _subscription;
+  Timer? _relisten;
+  // Retries used since the server last answered.
+  int _relistens = 0;
+  // The listener has failed, and the server has not answered since.
+  bool _listenFailed = false;
+  // This phone has seen the account's values; changes go straight to it.
+  bool _known;
+  // Changes the server has not confirmed: made before that, on their way, or
+  // refused.
+  final Map<String, Object?> _pending;
+  bool _seeding = false;
+  final StreamController<void> _saveFailures =
+      StreamController<void>.broadcast();
+
+  // The server refused a change. Offline is not a failure: the write waits.
+  Stream<void> get saveFailures => _saveFailures.stream;
+
+  // Sign-out clears the Firestore cache (Q-25 A); this copy goes with it. The
+  // account's own document stays.
+  static Future<void> forget(SharedPreferences preferences, String uid) async {
+    await preferences.remove(mirrorKey(uid));
+    await preferences.remove(pendingKey(uid));
+  }
+
+  static AccountPreferences _read(SharedPreferences preferences, String uid) {
+    if (preferences.containsKey(mirrorKey(uid))) {
+      return AccountPreferences.fromJson({
+        ..._readMap(preferences, mirrorKey(uid)),
+        ..._readMap(preferences, pendingKey(uid)),
+      });
+    }
+    return AccountPreferences.fromJson({
+      AccountPreferences.aiAutoApplyKey: preferences.getBool(
+        legacyAutoApplyKey,
+      ),
+      AccountPreferences.aiAskLevelKey: preferences.getString(
+        legacyAskLevelKey,
+      ),
+      AccountPreferences.aiAutoApplyOfferedKey: preferences.getBool(
+        legacyAutoApplyOfferedKey,
+      ),
+      AccountPreferences.aiNoticeSeenKey: preferences.getString(
+        legacyNoticeSeenKey,
+      ),
+      ..._readMap(preferences, pendingKey(uid)),
+    });
+  }
+
+  static Map<String, Object?> _readMap(
+    SharedPreferences preferences,
+    String key,
+  ) {
+    final String? stored = preferences.getString(key);
+    if (stored == null) {
+      return {};
+    }
+    try {
+      final Object? decoded = jsonDecode(stored);
+      return decoded is Map<String, dynamic> ? decoded : {};
+    } on FormatException {
+      return {};
+    }
+  }
+
+  static void _log(String what, Object error) {
+    developer.log('$what: $error', name: 'AccountPreferences');
+  }
+
+  void _listen() {
+    _subscription = sync?.watch().listen(
+      _onSnapshot,
+      onError: _onListenError,
+      cancelOnError: true,
+    );
+  }
+
+  void _onListenError(Object error) {
+    _log('listener', error);
+    _listenFailed = true;
+    if (_relistens < relistenDelays.length) {
+      _relisten = Timer(relistenDelays[_relistens], _listen);
+      _relistens++;
+    }
+  }
+
+  void _onSnapshot(AccountPreferencesSnapshot snapshot) {
+    // A copy from the cache can come just before the same error again.
+    final bool recovered = _listenFailed && !snapshot.fromCache;
+    if (!snapshot.fromCache) {
+      _relistens = 0;
+      _listenFailed = false;
+    }
+    final Map<String, Object?>? data = snapshot.data;
+    if (data != null) {
+      unawaited(_onAccountValues(data, recovered: recovered));
+    } else if (!snapshot.fromCache) {
+      unawaited(_seed());
+    }
+  }
+
+  Future<void> _onAccountValues(
+    Map<String, Object?> data, {
+    required bool recovered,
+  }) async {
+    final bool firstSeen = !_known;
+    _known = true;
+    if (!isClosed) {
+      emit(AccountPreferences.fromJson({...data, ..._pending}));
+    }
+    if (firstSeen || recovered) {
+      _resend();
+    }
+    await _saveMirror();
+    await preferences.remove(legacyAutoApplyKey);
+    await preferences.remove(legacyAskLevelKey);
+    await preferences.remove(legacyAutoApplyOfferedKey);
+    await preferences.remove(legacyNoticeSeenKey);
+  }
+
+  // The listener reports the stored document when this has written it. A
+  // failure tries again at the next open, like the starter lists.
+  Future<void> _seed() async {
+    if (_seeding) {
+      return;
+    }
+    _seeding = true;
+    try {
+      await sync?.seed(state.toJson());
+    } on Object catch (error) {
+      _log('seed', error);
+    } finally {
+      _seeding = false;
+    }
+  }
+
+  // Key by key, so one the server refuses does not hold back the others.
+  void _resend() {
+    for (final MapEntry<String, Object?> change in _pending.entries) {
+      _send({change.key: change.value});
+    }
+  }
+
+  void _send(Map<String, Object?> changes) {
+    unawaited(
+      sync
+          ?.write(changes)
+          .then(
+            (_) => _onConfirmed(changes),
+            onError: (Object error) => _onRefused(changes, error),
+          ),
+    );
+  }
+
+  // Unless the person has chosen again since. Compared as JSON, since a value
+  // can be a list.
+  bool _isPending(String key, Object? value) =>
+      _pending.containsKey(key) &&
+      jsonEncode(_pending[key]) == jsonEncode(value);
+
+  Future<void> _onConfirmed(Map<String, Object?> changes) async {
+    if (isClosed) {
+      return;
+    }
+    changes.forEach((key, value) {
+      if (_isPending(key, value)) {
+        _pending.remove(key);
+      }
+    });
+    await _savePending();
+  }
+
+  void _onRefused(Map<String, Object?> changes, Object error) {
+    _log('write', error);
+    if (!isClosed && changes.keys.any((k) => _isPending(k, changes[k]))) {
+      _saveFailures.add(null);
+    }
+  }
+
+  Future<void> _savePending() async {
+    if (_pending.isEmpty) {
+      await preferences.remove(pendingKey(uid));
+    } else {
+      await preferences.setString(pendingKey(uid), jsonEncode(_pending));
+    }
+  }
+
+  Future<void> _saveMirror() async {
+    await preferences.setString(mirrorKey(uid), jsonEncode(state.toJson()));
+  }
+
+  Future<void> _change(String key, Object value) async {
+    if (isClosed) {
+      return;
+    }
+    emit(AccountPreferences.fromJson({...state.toJson(), key: value}));
+    _pending[key] = value;
+    final bool send = _known && sync != null;
+    if (send) {
+      _send({key: value});
+    }
+    await _savePending();
+    if (send) {
+      await _saveMirror();
+    }
+  }
+
+  Future<void> setListOrder(ListOrder order) =>
+      _change(AccountPreferences.listOrderKey, order.wire);
+
+  Future<void> setMyListOrder(List<String> listIds) =>
+      _change(AccountPreferences.myListOrderKey, listIds);
+
+  Future<void> setStartScreen(StartScreen screen) =>
+      _change(AccountPreferences.startScreenKey, screen.wire);
+
+  Future<void> setTickedItems(TickedItems ticked) =>
+      _change(AccountPreferences.tickedItemsKey, ticked.wire);
+
+  Future<void> setConfirmDelete(bool value) =>
+      _change(AccountPreferences.confirmDeleteKey, value);
+
+  Future<void> setShowAiBar(bool value) =>
+      _change(AccountPreferences.showAiBarKey, value);
+
+  Future<void> setAiAutoApply(bool value) =>
+      _change(AccountPreferences.aiAutoApplyKey, value);
+
+  Future<void> setAiAskLevel(AiAskLevel level) =>
+      _change(AccountPreferences.aiAskLevelKey, level.wire);
+
+  Future<void> setAiAutoApplyOffered() =>
+      _change(AccountPreferences.aiAutoApplyOfferedKey, true);
+
+  Future<void> setAiNoticeSeen(String noticeId) =>
+      _change(AccountPreferences.aiNoticeSeenKey, noticeId);
+
+  Future<void> setVibration(bool value) =>
+      _change(AccountPreferences.vibrationKey, value);
+
+  Future<void> setTimeFormat(TimeFormat format) =>
+      _change(AccountPreferences.timeFormatKey, format.wire);
+
+  Future<void> setWeekStart(WeekStart start) =>
+      _change(AccountPreferences.weekStartKey, start.wire);
+
+  @override
+  Future<void> close() async {
+    _relisten?.cancel();
+    await _subscription?.cancel();
+    await _saveFailures.close();
+    return super.close();
+  }
+}

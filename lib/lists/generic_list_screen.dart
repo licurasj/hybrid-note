@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../app/account_preferences.dart';
 import '../app/app_theme.dart';
+import '../app/date_preferences.dart';
 import '../app_colors.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../launcher/launcher_hub_area.dart';
+import 'confirm_delete_sheet.dart';
 import 'generic_item_dialog.dart';
 import 'list_definition.dart';
 import 'list_icons.dart';
@@ -339,7 +342,7 @@ class _GenericListScreenState extends State<GenericListScreen>
   String _formatDate(FieldType type, DateTime date) {
     final String locale = Localizations.localeOf(context).toLanguageTag();
     final DateFormat format = type == FieldType.dateTime
-        ? DateFormat.yMMMd(locale).add_jm()
+        ? dateTimeFormat(locale, context.watchAccountPreferences.timeFormat)
         : DateFormat.yMMMd(locale);
     return format.format(date.toLocal());
   }
@@ -613,7 +616,7 @@ class _GenericListScreenState extends State<GenericListScreen>
         if (value == 'edit') {
           _showItemDialog(item: item);
         } else if (value == 'delete') {
-          _apply(ListChanges(deletedIds: [item.id]));
+          _deleteItem(item, primary is String ? primary : '');
         } else if (value == 'clear') {
           _clearCompleted((other) => other.id == item.id);
         } else if (value.startsWith('move:') && sectionField != null) {
@@ -855,13 +858,21 @@ class _GenericListScreenState extends State<GenericListScreen>
     ];
   }
 
-  // Open items in their groups, then ticked items in one Done group.
+  Future<void> _deleteItem(ListItem item, String name) async {
+    if (await confirmDelete(context, name) && mounted) {
+      await _apply(ListChanges(deletedIds: [item.id]));
+    }
+  }
+
+  // Open items in their groups, then ticked items in one Done group, unless
+  // the user keeps them in place (Q-50 b).
   List<Widget> _withDone(
     ListLabels labels,
     List<ListItem> sorted,
     List<Widget> Function(List<ListItem> open) openPart,
   ) {
-    if (_completion == null) {
+    if (_completion == null ||
+        context.watchAccountPreferences.tickedItems != TickedItems.moveToDone) {
       return openPart(sorted);
     }
     final List<ListItem> done =
@@ -1069,6 +1080,25 @@ class _GenericListScreenState extends State<GenericListScreen>
 
   // Checklists show open items first, soonest date first; everything else
   // shows newest first.
+  // Hide: ticked items wait in a folded Done group at the end, in every view
+  // (Q-50 b); tapping its label shows them.
+  List<Widget> _hiddenDone(ListLabels labels, List<ListItem> done) {
+    if (done.isEmpty) {
+      return const [];
+    }
+    const String key = 'done-group';
+    final bool open = _isOpen(key, false);
+    return [
+      _foldHeader(
+        '${labels.loc.listDoneGroup} \u00b7 ${done.length}',
+        open,
+        () => _flip(key),
+      ),
+      if (open)
+        for (final ListItem item in done) _itemRow(labels, item),
+    ];
+  }
+
   List<ListItem> _sorted(List<ListItem> items) {
     final List<ListItem> sorted = [...items]
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -1077,6 +1107,8 @@ class _GenericListScreenState extends State<GenericListScreen>
       return sorted;
     }
 
+    final bool doneLast =
+        context.watchAccountPreferences.tickedItems != TickedItems.stayInPlace;
     final String? dateKey = _definition.view.bucketBy;
     DateTime? dateOf(ListItem item) {
       final Object? raw = dateKey == null ? null : item[dateKey];
@@ -1084,8 +1116,10 @@ class _GenericListScreenState extends State<GenericListScreen>
     }
 
     sorted.sort((a, b) {
-      final int doneOrder = (ListRules.isCompleted(_definition, a) ? 1 : 0) -
-          (ListRules.isCompleted(_definition, b) ? 1 : 0);
+      final int doneOrder = !doneLast
+          ? 0
+          : (ListRules.isCompleted(_definition, a) ? 1 : 0) -
+                (ListRules.isCompleted(_definition, b) ? 1 : 0);
       if (doneOrder != 0) {
         return doneOrder;
       }
@@ -1215,20 +1249,32 @@ class _GenericListScreenState extends State<GenericListScreen>
     }
 
     final List<ListItem> visible = _sorted(widget.items.where(_matchesFilter).toList());
+    final bool hideDone = _completion != null &&
+        context.watchAccountPreferences.tickedItems == TickedItems.hide;
+    final List<ListItem> shown = hideDone
+        ? visible.where((item) => !ListRules.isCompleted(_definition, item)).toList()
+        : visible;
     final bool canClearAll = _definition.view.kind == ViewKind.checklist &&
         _behavior(BehaviorKind.clearCompleted) != null &&
         visible.any((item) => ListRules.isCompleted(_definition, item));
 
-    final List<Widget> content = switch (_definition.view.kind) {
-      ViewKind.grouped => _grouped(labels, visible),
-      ViewKind.sectioned => _sectioned(labels, visible),
-      ViewKind.timeline => _timeline(labels, visible),
-      ViewKind.checklist =>
-        _withDone(labels, visible, (open) => _checklist(labels, open)),
-      ViewKind.table || ViewKind.cards => _withDone(labels, visible, (open) => [
-            for (final ListItem item in open) _itemRow(labels, item),
-          ]),
-    };
+    final List<Widget> content = [
+      ...switch (_definition.view.kind) {
+        ViewKind.grouped => _grouped(labels, shown),
+        ViewKind.sectioned => _sectioned(labels, shown),
+        ViewKind.timeline => _timeline(labels, shown),
+        ViewKind.checklist =>
+          _withDone(labels, shown, (open) => _checklist(labels, open)),
+        ViewKind.table || ViewKind.cards => _withDone(labels, shown, (open) => [
+              for (final ListItem item in open) _itemRow(labels, item),
+            ]),
+      },
+      if (hideDone)
+        ..._hiddenDone(
+          labels,
+          visible.where((item) => ListRules.isCompleted(_definition, item)).toList(),
+        ),
+    ];
 
     final bool showEmpty =
         visible.isEmpty && _definition.view.kind != ViewKind.sectioned;

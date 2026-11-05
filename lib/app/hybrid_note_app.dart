@@ -2,12 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../backend/auth_service.dart';
 import '../backend/firestore_list_store.dart';
 import '../backend/firestore_setup.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../lists/list_store.dart';
+import 'account_preferences.dart';
+import 'app_banner.dart';
 import 'app_settings.dart';
 import 'app_theme.dart';
 import 'main_shell.dart';
@@ -38,11 +41,15 @@ class HybridNoteApp extends StatefulWidget {
     super.key,
     required this.auth,
     required this.openStore,
+    this.openPreferences,
     this.afterSignOut,
   });
 
   final AuthService auth;
   final StoreOpener openStore;
+  // Where a signed-in user's preferences sync; without it they stay on this
+  // device (tests).
+  final AccountPreferencesSync Function(AuthUser user)? openPreferences;
   // Runs once sign-out has finished and the cache is cleared; on web it
   // reloads the page, since the cleared Firestore instance cannot be used
   // again (FirestoreSetup). It does not run while the cache is still there.
@@ -57,6 +64,7 @@ class HybridNoteApp extends StatefulWidget {
 class _HybridNoteAppState extends State<HybridNoteApp> {
   final GlobalKey<ScaffoldMessengerState> _messenger =
       GlobalKey<ScaffoldMessengerState>();
+  final AppBannerController _banners = AppBannerController();
   late final StreamSubscription<AuthUser?> _subscription;
   // False until Firebase has said whether a user is signed in, so a
   // restored session does not flash the sign-in screen.
@@ -65,7 +73,9 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
   AuthUser? _user;
   FirestoreListStore? _store;
   StarterSeeding? _starter;
+  AccountPreferencesCubit? _preferences;
   StreamSubscription<Object>? _writeFailures;
+  StreamSubscription<void>? _preferenceFailures;
   // The user Firebase last reported; shown once no sign-out is running.
   AuthUser? _latest;
   // A sign-out (with its cache clear) is running. Auth transitions run one
@@ -86,7 +96,10 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
   void dispose() {
     _subscription.cancel();
     _writeFailures?.cancel();
+    _preferenceFailures?.cancel();
     unawaited(_store?.close());
+    unawaited(_preferences?.close());
+    _banners.dispose();
     super.dispose();
   }
 
@@ -101,6 +114,7 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
 
   void _show(AuthUser? user) {
     final FirestoreListStore? old = _store;
+    final AccountPreferencesCubit? oldPreferences = _preferences;
     final bool sameUser = user?.uid == _user?.uid;
     setState(() {
       _known = true;
@@ -111,12 +125,22 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
             : widget.openStore(user);
         _store = opened?.store;
         _starter = opened?.starter;
+        _preferences = user == null ? null : _openPreferences(user);
       }
     });
     if (!sameUser) {
       _watchWriteFailures();
       unawaited(old?.close());
+      unawaited(oldPreferences?.close());
     }
+  }
+
+  AccountPreferencesCubit _openPreferences(AuthUser user) {
+    return AccountPreferencesCubit(
+      context.read<AppSettingsCubit>().preferences,
+      user.uid,
+      sync: widget.openPreferences?.call(user),
+    );
   }
 
   // A list create, delete or Undo completes on the device at once; if the
@@ -127,15 +151,18 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
       final BuildContext? context = _messenger.currentContext;
       if (context != null && context.mounted) {
         final AppLocalizations loc = AppLocalizations.of(context);
-        _messenger.currentState?.showSnackBar(
-          SnackBar(
-            content: Text(
-              failure is ItemsNotUpdated
-                  ? loc.itemsNotUpdated
-                  : loc.listChangeNotSaved,
-            ),
-          ),
+        _banners.show(
+          failure is ItemsNotUpdated
+              ? loc.itemsNotUpdated
+              : loc.listChangeNotSaved,
         );
+      }
+    });
+    _preferenceFailures?.cancel();
+    _preferenceFailures = _preferences?.saveFailures.listen((_) {
+      final BuildContext? context = _messenger.currentContext;
+      if (context != null && context.mounted) {
+        _banners.show(AppLocalizations.of(context).preferenceNotSaved);
       }
     });
   }
@@ -147,23 +174,34 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
       return;
     }
     final FirestoreListStore? store = _store;
+    final AccountPreferencesCubit? preferences = _preferences;
+    final String? uid = _user?.uid;
+    final SharedPreferences stored = context
+        .read<AppSettingsCubit>()
+        .preferences;
+    final AppSettingsCubit settings = context.read<AppSettingsCubit>();
+    _banners.dismiss();
     setState(() {
       _signingOut = true;
       _user = null;
       _store = null;
+      _preferences = null;
     });
     _watchWriteFailures();
     final bool cleared;
     try {
       await store?.close();
+      await preferences?.close();
       cleared = await widget.auth.signOut();
+      if (uid != null) {
+        await AccountPreferencesCubit.forget(stored, uid);
+        await settings.forgetRecentLists(uid);
+      }
     } on Object catch (error) {
       debugPrint('Sign-out failed: $error');
       final BuildContext? context = _messenger.currentContext;
       if (context != null && context.mounted) {
-        _messenger.currentState?.showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context).signOutFailed)),
-        );
+        _banners.show(AppLocalizations.of(context).signOutFailed);
       }
       // Still signed in: back to that user's lists.
       if (mounted) {
@@ -205,6 +243,7 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
   Widget build(BuildContext context) {
     final AuthUser? user = _user;
     final FirestoreListStore? store = _store;
+    final AccountPreferencesCubit? preferences = _preferences;
     final Widget home;
     if (!_known) {
       home = const Scaffold();
@@ -227,6 +266,8 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
             return AppLocalizations.of(context).appTitle;
           },
           debugShowCheckedModeBanner: false,
+          builder: (context, child) =>
+              AppBannerHost(controller: _banners, child: child!),
           locale: settings.localeCode == null
               ? null
               : Locale(settings.localeCode!),
@@ -234,17 +275,21 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
           supportedLocales: AppLocalizations.supportedLocales,
           theme: AppTheme.light(languageCode: settings.localeCode),
           darkTheme: AppTheme.dark(languageCode: settings.localeCode),
-          themeMode: settings.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+          themeMode: settings.themeMode,
           home: home,
         );
       },
     );
 
-    if (user == null || store == null) {
-      return app;
+    if (user == null || store == null || preferences == null) {
+      return RepositoryProvider<AppBannerController>.value(
+        value: _banners,
+        child: app,
+      );
     }
     return MultiRepositoryProvider(
       providers: [
+        RepositoryProvider<AppBannerController>.value(value: _banners),
         RepositoryProvider<ListStore>.value(value: store),
         RepositoryProvider<StarterSeeding>.value(
           value: _starter ?? StarterSeeding.done(),
@@ -253,7 +298,7 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
           value: SignedInAccount(user: user, signOut: _signOut),
         ),
       ],
-      child: app,
+      child: BlocProvider.value(value: preferences, child: app),
     );
   }
 }

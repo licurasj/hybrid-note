@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../backend/auth_service.dart';
 import '../l10n/generated/app_localizations.dart';
+import 'app_banner.dart';
 
 // The signed-out state (Q-21 A): the app name and "Sign in with Google",
 // nothing else. A successful sign-in reaches the gate through
@@ -43,20 +45,16 @@ class _SignInScreenState extends State<SignInScreen> {
 
   Future<void> _signIn() async {
     final AppLocalizations loc = AppLocalizations.of(context);
-    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    final AppBannerController banners = context.read<AppBannerController>();
     setState(() => _busy = true);
     try {
       await widget.auth.signInWithGoogle();
     } on AuthException catch (error) {
       debugPrint('Sign-in failed: $error');
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            error.reason == AuthFailure.network
-                ? loc.signInOffline
-                : loc.signInFailed,
-          ),
-        ),
+      banners.show(
+        error.reason == AuthFailure.network
+            ? loc.signInOffline
+            : loc.signInFailed,
       );
     } finally {
       if (mounted) {

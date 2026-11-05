@@ -1,63 +1,37 @@
 import 'dart:ui';
 
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Choices that belong to this device, not to the account (Q-24 A): the app
-// language, dark mode, where the launcher hub sits, whether AI changes
-// apply without asking (Q-40 A) and how often the AI asks first (Q-43).
+// Choices that belong to this device, not to the account: the app language
+// and the theme (Q-46 A, Q-47 A) and where the launcher hub sits. What
+// follows the account is in AccountPreferences.
 class AppSettings {
   const AppSettings({
     this.localeCode,
-    this.isDarkMode = false,
+    this.themeMode = ThemeMode.system,
     this.hubPosition,
-    this.aiAutoApply = false,
-    this.aiAskLevel = AiAskLevel.balanced,
   });
 
   // A language code such as "de"; null follows the system.
   final String? localeCode;
-  final bool isDarkMode;
+  final ThemeMode themeMode;
   // Launcher hub position as fractions of the screen; null = default corner.
   final Offset? hubPosition;
-  // The prompt bar applies every change at once, with Undo, instead of
-  // showing Apply and Cancel.
-  final bool aiAutoApply;
-  final AiAskLevel aiAskLevel;
 
   AppSettings copyWith({
     String? localeCode,
     bool clearLocale = false,
-    bool? isDarkMode,
+    ThemeMode? themeMode,
     Offset? hubPosition,
-    bool? aiAutoApply,
-    AiAskLevel? aiAskLevel,
   }) {
     return AppSettings(
       localeCode: clearLocale ? null : localeCode ?? this.localeCode,
-      isDarkMode: isDarkMode ?? this.isDarkMode,
+      themeMode: themeMode ?? this.themeMode,
       hubPosition: hubPosition ?? this.hubPosition,
-      aiAutoApply: aiAutoApply ?? this.aiAutoApply,
-      aiAskLevel: aiAskLevel ?? this.aiAskLevel,
     );
   }
-}
-
-// How often the AI asks before acting (Q-43); the wire value goes with
-// each request. Wording rules apply at balanced only.
-enum AiAskLevel {
-  more('more'),
-  balanced('balanced'),
-  less('less');
-
-  const AiAskLevel(this.wire);
-
-  final String wire;
-
-  static AiAskLevel of(String? wire) => values.firstWhere(
-    (level) => level.wire == wire,
-    orElse: () => AiAskLevel.balanced,
-  );
 }
 
 // Holds the settings and keeps them in shared_preferences, which works on
@@ -69,22 +43,52 @@ class AppSettingsCubit extends Cubit<AppSettings> {
   final SharedPreferences preferences;
 
   static const String localeKey = 'settings.locale';
-  static const String darkModeKey = 'settings.darkMode';
+  static const String themeModeKey = 'settings.themeMode';
+  // The light or dark switch before Follow the phone; a phone that set it
+  // keeps its choice.
+  static const String legacyDarkModeKey = 'settings.darkMode';
   static const String hubXKey = 'settings.hubX';
   static const String hubYKey = 'settings.hubY';
-  static const String aiAutoApplyKey = 'settings.aiAutoApply';
-  static const String aiAskLevelKey = 'settings.aiAskLevel';
+
+  // Lists by when they were last opened, newest first. Per phone and per
+  // user; the first is the last open list (Q-49, Q-50 a).
+  static String recentListsKey(String uid) => 'settings.recentLists.$uid';
+
+  static ThemeMode _readTheme(SharedPreferences preferences) {
+    final String? stored = preferences.getString(themeModeKey);
+    if (stored != null) {
+      return ThemeMode.values.firstWhere(
+        (mode) => mode.name == stored,
+        orElse: () => ThemeMode.system,
+      );
+    }
+    return switch (preferences.getBool(legacyDarkModeKey)) {
+      true => ThemeMode.dark,
+      false => ThemeMode.light,
+      null => ThemeMode.system,
+    };
+  }
 
   static AppSettings _read(SharedPreferences preferences) {
     final double? hubX = preferences.getDouble(hubXKey);
     final double? hubY = preferences.getDouble(hubYKey);
     return AppSettings(
       localeCode: preferences.getString(localeKey),
-      isDarkMode: preferences.getBool(darkModeKey) ?? false,
+      themeMode: _readTheme(preferences),
       hubPosition: hubX == null || hubY == null ? null : Offset(hubX, hubY),
-      aiAutoApply: preferences.getBool(aiAutoApplyKey) ?? false,
-      aiAskLevel: AiAskLevel.of(preferences.getString(aiAskLevelKey)),
     );
+  }
+
+  List<String> recentLists(String uid) =>
+      preferences.getStringList(recentListsKey(uid)) ?? const [];
+
+  Future<void> setRecentLists(String uid, List<String> listIds) async {
+    await preferences.setStringList(recentListsKey(uid), listIds);
+  }
+
+  // Sign-out clears what this phone knows of the user (Q-25 A).
+  Future<void> forgetRecentLists(String uid) async {
+    await preferences.remove(recentListsKey(uid));
   }
 
   Future<void> setLocaleCode(String? localeCode) async {
@@ -98,25 +102,14 @@ class AppSettingsCubit extends Cubit<AppSettings> {
     }
   }
 
-  Future<void> toggleDarkMode() async {
-    final bool next = !state.isDarkMode;
-    emit(state.copyWith(isDarkMode: next));
-    await preferences.setBool(darkModeKey, next);
+  Future<void> setThemeMode(ThemeMode mode) async {
+    emit(state.copyWith(themeMode: mode));
+    await preferences.setString(themeModeKey, mode.name);
   }
 
   Future<void> setHubPosition(Offset position) async {
     emit(state.copyWith(hubPosition: position));
     await preferences.setDouble(hubXKey, position.dx);
     await preferences.setDouble(hubYKey, position.dy);
-  }
-
-  Future<void> setAiAutoApply(bool value) async {
-    emit(state.copyWith(aiAutoApply: value));
-    await preferences.setBool(aiAutoApplyKey, value);
-  }
-
-  Future<void> setAiAskLevel(AiAskLevel level) async {
-    emit(state.copyWith(aiAskLevel: level));
-    await preferences.setString(aiAskLevelKey, level.wire);
   }
 }

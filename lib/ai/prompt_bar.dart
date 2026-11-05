@@ -193,7 +193,7 @@ class _BarColumn extends StatelessWidget {
         Flexible(
           child: _ReportHeight(
             onHeight: (height) => controller.panelHeight.value = height,
-            child: AnimatedSize(
+            child: BarAnimatedSize(
               duration: reduceMotion ? Duration.zero : AppMotion.standard,
               curve: AppMotion.curve,
               alignment: Alignment.bottomCenter,
@@ -243,6 +243,100 @@ class _RenderReportHeight extends RenderProxyBox {
       _reported = height;
       WidgetsBinding.instance.addPostFrameCallback((_) => onHeight(height));
     }
+  }
+}
+
+// AnimatedSize clips its child, and so the shadow on it, whenever it is smaller
+// than the child. It stops part way through its animation when only its width
+// is changing, as when the hub moves and the bar with it, and blending a height
+// with itself at that point can come out a rounding error short: it then stays
+// clipped until the next layout. Here it clips only when really smaller.
+class BarAnimatedSize extends StatefulWidget {
+  const BarAnimatedSize({
+    super.key,
+    required this.duration,
+    required this.curve,
+    required this.alignment,
+    required this.child,
+  });
+
+  final Duration duration;
+  final Curve curve;
+  final AlignmentGeometry alignment;
+  final Widget child;
+
+  @override
+  State<BarAnimatedSize> createState() => _BarAnimatedSizeState();
+}
+
+class _BarAnimatedSizeState extends State<BarAnimatedSize>
+    with SingleTickerProviderStateMixin {
+  @override
+  Widget build(BuildContext context) => _BarAnimatedSizeBox(
+    vsync: this,
+    duration: widget.duration,
+    curve: widget.curve,
+    alignment: widget.alignment,
+    child: widget.child,
+  );
+}
+
+class _BarAnimatedSizeBox extends SingleChildRenderObjectWidget {
+  const _BarAnimatedSizeBox({
+    required this.vsync,
+    required this.duration,
+    required this.curve,
+    required this.alignment,
+    super.child,
+  });
+
+  final TickerProvider vsync;
+  final Duration duration;
+  final Curve curve;
+  final AlignmentGeometry alignment;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) => _RenderBarAnimatedSize(
+    vsync: vsync,
+    duration: duration,
+    curve: curve,
+    alignment: alignment,
+    textDirection: Directionality.maybeOf(context),
+  );
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderBarAnimatedSize renderObject,
+  ) {
+    renderObject
+      ..vsync = vsync
+      ..duration = duration
+      ..curve = curve
+      ..alignment = alignment
+      ..textDirection = Directionality.maybeOf(context);
+  }
+}
+
+class _RenderBarAnimatedSize extends RenderAnimatedSize {
+  _RenderBarAnimatedSize({
+    required super.vsync,
+    required super.duration,
+    required super.curve,
+    required super.alignment,
+    super.textDirection,
+  });
+
+  static const double _roundingError = 1e-6;
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    final RenderBox? child = this.child;
+    final bool smaller = child != null &&
+        (size.width < child.size.width - _roundingError ||
+            size.height < child.size.height - _roundingError);
+    clipBehavior = smaller ? Clip.hardEdge : Clip.none;
   }
 }
 
@@ -373,7 +467,7 @@ class _FieldState extends State<_Field> with WidgetsBindingObserver {
       ),
     );
 
-    return AnimatedSize(
+    return BarAnimatedSize(
       key: const ValueKey('ai-bar'),
       duration: reduceMotion ? Duration.zero : AppMotion.standard,
       curve: AppMotion.curve,

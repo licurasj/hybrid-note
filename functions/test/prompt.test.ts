@@ -55,6 +55,9 @@ describe('user message', () => {
   });
 
   test("states the user's ask-first setting; the system prompt explains each level (Q-43)", () => {
+    assert.match(buildUserMessage({ ...request, weekStart: 'sunday' }, new Date()), /The week starts on Sunday\./);
+    assert.match(buildUserMessage({ ...request, weekStart: 'monday' }, new Date()), /The week starts on Monday\./);
+    assert.doesNotMatch(buildUserMessage(request, new Date()), /The week starts on/);
     assert.match(buildUserMessage({ ...request, askLevel: 'more' }, new Date()), /How often to ask first: more\./);
     const system = systemPrompt();
     assert.ok(system.includes('# How often to ask first'));
