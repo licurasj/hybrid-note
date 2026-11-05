@@ -258,6 +258,62 @@ void main() {
     });
   });
 
+  group('the prompts on a finger that has come back to the hub', () {
+    // Out onto a list and back, in one hold.
+    Future<TestGesture> outAndBack(WidgetTester tester) async {
+      final Offset hub = _hub(tester);
+      final TestGesture gesture = await tester.startGesture(hub);
+      await tester.pump(const Duration(milliseconds: 300));
+      final Offset out = _at(tester, _diagonal(tester), 170);
+      await _steps(tester, gesture, hub, out);
+      await tester.pump(const Duration(milliseconds: 100));
+      await _steps(tester, gesture, out, hub);
+      return gesture;
+    }
+
+    testWidgets('a rest there brings them out, and Arrange opens', (tester) async {
+      await _pump(tester);
+      final TestGesture gesture = await outAndBack(tester);
+      expect(_arrange, findsNothing);
+      await tester.pump(_config.promptDelay - const Duration(milliseconds: 200));
+      expect(_arrange, findsNothing);
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(_arrange, findsOneWidget);
+      expect(_move, findsOneWidget);
+
+      await _steps(tester, gesture, _hub(tester), tester.getCenter(_arrange));
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(_area, findsOneWidget);
+    });
+
+    testWidgets('letting go without reaching one does nothing', (tester) async {
+      final _Harness h = await _pump(tester);
+      final TestGesture gesture = await outAndBack(tester);
+      await tester.pump(_config.promptDelay + const Duration(milliseconds: 400));
+      expect(_arrange, findsOneWidget);
+
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(_arrange, findsNothing);
+      expect(_area, findsNothing);
+      expect(find.byKey(const ValueKey('dial-entry-1')), findsNothing);
+      expect(h.log, isEmpty);
+    });
+
+    testWidgets('a quick return and lift cancels, and opens nothing', (tester) async {
+      final _Harness h = await _pump(tester);
+      final TestGesture gesture = await outAndBack(tester);
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(_arrange, findsNothing);
+      // Not a tap: the dial has not stayed open.
+      expect(find.byKey(const ValueKey('dial-entry-1')), findsNothing);
+      expect(h.log, isEmpty);
+    });
+  });
+
   group('the arrange state', () {
     testWidgets('looks different: blue in front, grips, lists further apart', (
       tester,
@@ -344,6 +400,108 @@ void main() {
       expect(_tab(tester, 1).longestSide, greaterThan(held + 10));
       expect((_tab(tester, 2).longestSide - neighbour).abs(), lessThan(6));
       await gesture.up();
+    });
+
+    group('the lists changing places', () {
+      // List 0 picked up, and carried just past list 1.
+      Future<TestGesture> swapFirstTwo(WidgetTester tester) async {
+        final Offset start = _list(tester, 0);
+        final TestGesture gesture = await tester.startGesture(start);
+        await tester.pump(_rest);
+        await tester.pump(const Duration(milliseconds: 300));
+        await _steps(tester, gesture, start, _list(tester, 1));
+        return gesture;
+      }
+
+      testWidgets('the passed list slides to its new place', (tester) async {
+        await _pump(tester, count: 6);
+        await _openArranging(tester);
+        final Rect slotOne = _tab(tester, 2);
+        await tester.pump(const Duration(milliseconds: 50));
+
+        final TestGesture gesture = await swapFirstTwo(tester);
+        // Just after the swap it is on its way, not there yet; entry 1 is now
+        // the list that stood at entry 2.
+        final Rect soon = _tab(tester, 1);
+        await tester.pump(const Duration(milliseconds: 400));
+        final Rect settled = _tab(tester, 1);
+        expect((soon.center - settled.center).distance, greaterThan(4));
+        expect(
+          (soon.center - slotOne.center).distance,
+          lessThan((settled.center - slotOne.center).distance),
+        );
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 300));
+      });
+
+      testWidgets('with reduced motion it goes there at once', (tester) async {
+        await _pump(tester, count: 6, reduceMotion: true);
+        await _openArranging(tester);
+
+        final TestGesture gesture = await swapFirstTwo(tester);
+        final Rect soon = _tab(tester, 1);
+        await tester.pump(const Duration(milliseconds: 400));
+        expect((soon.center - _tab(tester, 1).center).distance, lessThan(1));
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 300));
+      });
+
+      testWidgets('the held list follows the finger between places', (tester) async {
+        final _Harness h = await _pump(tester, count: 6);
+        await _openArranging(tester);
+        final Offset start = _list(tester, 1);
+        final TestGesture gesture = await tester.startGesture(start);
+        await tester.pump(_rest);
+        await tester.pump(const Duration(milliseconds: 300));
+        final Rect before = _tab(tester, 2);
+
+        // A third of a place along: no swap yet, and it has moved with the finger.
+        final Offset along = _at(
+          tester,
+          _diagonal(tester) + _step * (1 + 1 / 3),
+          170,
+        );
+        await _steps(tester, gesture, start, along);
+        await tester.pump(const Duration(milliseconds: 50));
+        expect((_tab(tester, 2).center - before.center).distance, greaterThan(10));
+
+        // Let go there: it settles back to its place, and nothing changed.
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 16));
+        final Rect dropped = _tab(tester, 2);
+        await tester.pump(const Duration(milliseconds: 500));
+        expect((dropped.center - _tab(tester, 2).center).distance, greaterThan(4));
+        expect(h.log, isEmpty);
+      });
+
+      testWidgets('quick swaps and the end zones end in the right order', (
+        tester,
+      ) async {
+        final _Harness h = await _pump(tester, count: 14);
+        await _openArranging(tester);
+        final Offset start = _list(tester, 0);
+        final TestGesture gesture = await tester.startGesture(start);
+        await tester.pump(_rest);
+        // Fast across several places, on into the zone, and back in.
+        final Offset edge = _at(tester, math.pi - 0.05, 170);
+        for (int i = 1; i <= 4; i++) {
+          await gesture.moveTo(Offset.lerp(start, edge, i / 4)!);
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        for (int i = 0; i < 20; i++) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        await _steps(tester, gesture, edge, _list(tester, 1));
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 500));
+
+        expect(tester.takeException(), isNull);
+        final List<String> ids = h.log.single
+            .substring('order '.length)
+            .split(',');
+        expect(ids.toSet(), hasLength(14));
+        expect(ids.indexOf('n0'), greaterThan(0));
+      });
     });
 
     testWidgets('a press outside the lists ends it, and acts on nothing', (
