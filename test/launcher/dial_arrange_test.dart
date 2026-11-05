@@ -1014,6 +1014,32 @@ void main() {
       });
     });
 
+    testWidgets(
+      'with reduced motion a held list in a wedge still scrolls the others',
+      (tester) async {
+        final _Harness h = await _pump(tester, count: 14, reduceMotion: true);
+        await _openArranging(tester);
+        final Offset start = _list(tester, 0);
+        final TestGesture gesture = await tester.startGesture(start);
+        await tester.pump(_rest);
+        // Nothing is moving and nothing sways: the frames have stopped.
+        await tester.pump(const Duration(seconds: 1));
+        expect(tester.binding.hasScheduledFrame, isFalse);
+
+        final Offset wedge = _at(tester, math.pi - 0.03, 170);
+        await gesture.moveTo(wedge);
+        for (int i = 0; i < 40; i++) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 300));
+        final List<String> ids = h.log.single
+            .substring('order '.length)
+            .split(',');
+        expect(ids.indexOf('n0'), greaterThan(7));
+      },
+    );
+
     testWidgets('with many lists the arrows turn the dial', (tester) async {
       await _pump(tester, count: 14);
       await _openArranging(tester);

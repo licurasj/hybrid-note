@@ -1397,6 +1397,9 @@ class _DialLauncherState extends State<DialLauncher>
           : 0;
       _placeDragged(g, angle - _dragGrab);
     });
+    // With reduced motion nothing else keeps the frames coming, and a wedge
+    // scrolls in the frame loop.
+    _wake();
   }
 
   // A small shake stays a rest, and can still pick a list up.
