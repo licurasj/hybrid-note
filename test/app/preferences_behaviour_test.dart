@@ -298,6 +298,74 @@ void main() {
     });
   });
 
+  group('Back with the dial open in tap mode', () {
+    final Finder tab = find.byKey(const ValueKey('launcher-note-a'));
+
+    // The calls that would leave the app.
+    List<MethodCall> watchLeaving(WidgetTester tester) {
+      final List<MethodCall> calls = [];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'SystemNavigator.pop') {
+            calls.add(call);
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      return calls;
+    }
+
+    testWidgets('on home it closes the dial and stays in the app', (
+      tester,
+    ) async {
+      await _pumpApp(tester, lists: [_list('a', 'One'), _list('b', 'Two')]);
+      final List<MethodCall> leaving = watchLeaving(tester);
+      await tester.tap(_hub);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(tab, findsOneWidget);
+
+      await tester.binding.handlePopRoute();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(tab, findsNothing);
+      expect(leaving, isEmpty);
+
+      // With the dial closed Back leaves the home, as before.
+      await tester.binding.handlePopRoute();
+      await tester.pump();
+      expect(leaving, hasLength(1));
+    });
+
+    testWidgets('in a list it closes the dial and stays in the list', (
+      tester,
+    ) async {
+      await _pumpApp(tester, lists: [_list('a', 'One'), _list('b', 'Two')]);
+      await tester.tap(_hub);
+      await tester.pump();
+      await tester.tap(tab);
+      await settle(tester);
+      await tester.tap(_hub);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(tab, findsOneWidget);
+
+      await tester.binding.handlePopRoute();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(tab, findsNothing);
+      expect(find.byType(GenericListScreen), findsOneWidget);
+
+      // With the dial closed Back goes home, as before.
+      await tester.binding.handlePopRoute();
+      await settle(tester);
+      expect(find.byType(GenericListScreen), findsNothing);
+    });
+  });
+
   group('a setting the server will not save (Codex H1)', () {
     const String message =
         'A setting could not be saved to your account. It stays as you set it '

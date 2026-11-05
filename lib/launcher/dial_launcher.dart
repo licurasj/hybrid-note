@@ -60,7 +60,7 @@ class DialLauncher extends StatefulWidget {
     this.haptics = true,
     this.onHubMoved,
     this.onOrderChanged,
-    this.onArrangingChanged,
+    this.onOwnsBackChanged,
     this.config = const LauncherConfig(),
     this.hubTooltip = 'Lists',
     this.addLabel = 'New list',
@@ -87,7 +87,7 @@ class DialLauncher extends StatefulWidget {
   final ValueChanged<List<String>>? onOrderChanged;
   // Told, after the frame, when the arrange state opens and ends: Back belongs to
   // it while it is open.
-  final ValueChanged<bool>? onArrangingChanged;
+  final ValueChanged<bool>? onOwnsBackChanged;
   final LauncherConfig config;
   final String hubTooltip;
   final String addLabel;
@@ -214,6 +214,8 @@ class _DialLauncherState extends State<DialLauncher>
   double get _step =>
       _baseStep * (1 + (_config.dialArrangeSpread - 1) * _arrangeIn);
   bool get _arranging => _mode == _Mode.arranging;
+  // Back closes the dial and does nothing else.
+  bool get _ownsBack => _arranging || _mode == _Mode.tap;
   bool get _canArrange =>
       widget.onOrderChanged != null && widget.notes.length >= 2;
 
@@ -274,15 +276,15 @@ class _DialLauncherState extends State<DialLauncher>
   bool get _reduceMotion => MediaQuery.disableAnimationsOf(context);
 
   bool _reportedOpen = false;
-  bool _reportedArranging = false;
+  bool _reportedOwnsBack = false;
 
   void _reportOpen() {
-    if (_arranging != _reportedArranging) {
-      _reportedArranging = _arranging;
-      final bool arranging = _arranging;
-      final ValueChanged<bool>? told = widget.onArrangingChanged;
+    if (_ownsBack != _reportedOwnsBack) {
+      _reportedOwnsBack = _ownsBack;
+      final bool ownsBack = _ownsBack;
+      final ValueChanged<bool>? told = widget.onOwnsBackChanged;
       if (told != null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => told(arranging));
+        WidgetsBinding.instance.addPostFrameCallback((_) => told(ownsBack));
       }
     }
     final bool open = _mode != _Mode.closed;
@@ -2228,10 +2230,9 @@ class _DialLauncherState extends State<DialLauncher>
         final double hub = _config.hubRadius;
 
         return PopScope(
-          // Back ends the arrange state and nothing else.
-          canPop: !_arranging,
+          canPop: !_ownsBack,
           onPopInvokedWithResult: (didPop, _) {
-            if (!didPop && _arranging) {
+            if (!didPop && _ownsBack) {
               _close();
             }
           },

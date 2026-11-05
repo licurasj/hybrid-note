@@ -85,8 +85,8 @@ class _MainShellState extends State<MainShell> {
   Offset? _lastLift;
   bool _keepLift = false;
   bool _dialOpen = false;
-  // The dial's arrange state is open; Back is its own then.
-  bool _dialArranging = false;
+  // The dial is open in tap mode or arranging; Back is its own then.
+  bool _dialOwnsBack = false;
 
   static const String _listRoute = 'list:';
 
@@ -524,7 +524,7 @@ class _MainShellState extends State<MainShell> {
             onEdit: _editList,
             child: NavigatorPopHandler(
               onPopWithResult: (_) {
-                if (_dialArranging) {
+                if (_dialOwnsBack) {
                   return;
                 }
                 if (_ai?.handleBack() ?? false) {
@@ -594,8 +594,7 @@ class _MainShellState extends State<MainShell> {
                             .read<AppSettingsCubit>()
                             .setHubPosition,
                         onOrderChanged: _arranged,
-                        onArrangingChanged: (arranging) =>
-                            _dialArranging = arranging,
+                        onOwnsBackChanged: (owns) => _dialOwnsBack = owns,
                         onOpenChanged: _dialChanged,
                       )
                     : RadialLauncher(
