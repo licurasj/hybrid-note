@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
-import 'app/account_preferences.dart';
 import 'app/app_settings.dart';
 import 'app/app_theme.dart';
 import 'app/hybrid_note_app.dart';
+import 'app/preferences_screen.dart';
 import 'app/starter_note.dart';
 import 'app_colors.dart';
 import 'l10n/generated/app_localizations.dart';
@@ -268,7 +268,8 @@ class _EclipseDot extends StatelessWidget {
   }
 }
 
-// The settings sheet: language, dark mode and the account (email, Log out).
+// The settings sheet: what belongs to this phone (theme, language), the way
+// to Preferences, and the account (email, Log out).
 Future<void> showSettingsSheet(BuildContext context) {
   return showSlideUpSheet<void>(
     context: context,
@@ -299,12 +300,23 @@ class _SettingsSheet extends StatelessWidget {
     }
   }
 
-  static String _askLabel(AppLocalizations loc, AiAskLevel level) =>
-      switch (level) {
-        AiAskLevel.more => loc.aiAskMore,
-        AiAskLevel.balanced => loc.aiAskBalanced,
-        AiAskLevel.less => loc.aiAskLess,
-      };
+  Future<void> _chooseTheme(BuildContext context, AppSettings settings) async {
+    final AppLocalizations loc = AppLocalizations.of(context);
+    final AppSettingsCubit cubit = context.read<AppSettingsCubit>();
+    final ThemeMode? mode = await showChoiceSheet<ThemeMode>(
+      context,
+      title: loc.theme,
+      selected: settings.themeMode,
+      choices: [
+        (value: ThemeMode.system, label: loc.themeFollowPhone),
+        (value: ThemeMode.light, label: loc.themeLight),
+        (value: ThemeMode.dark, label: loc.themeDark),
+      ],
+    );
+    if (mode != null) {
+      await cubit.setThemeMode(mode);
+    }
+  }
 
   Future<void> _showLanguageDialog(
     BuildContext context,
@@ -372,9 +384,11 @@ class _SettingsSheet extends StatelessWidget {
     final AppTypography type = AppTypography.of(context);
     final SignedInAccount account = context.read<SignedInAccount>();
 
-    void toggleDark() => context.read<AppSettingsCubit>().setThemeMode(
-          brightness == Brightness.dark ? ThemeMode.light : ThemeMode.dark,
-        );
+    String themeLabel(ThemeMode mode) => switch (mode) {
+      ThemeMode.system => loc.themeFollowPhone,
+      ThemeMode.light => loc.themeLight,
+      ThemeMode.dark => loc.themeDark,
+    };
 
     Widget hairline() => Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppShapes.sideMargin),
@@ -404,7 +418,13 @@ class _SettingsSheet extends StatelessWidget {
               Expanded(child: label),
               if (trailing != null) ...[
                 const SizedBox(width: 12),
-                trailing,
+                // At the right edge; a long value wraps past half the width.
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.sizeOf(context).width / 2,
+                  ),
+                  child: trailing,
+                ),
               ],
             ],
           ),
@@ -414,9 +434,6 @@ class _SettingsSheet extends StatelessWidget {
 
     return BlocBuilder<AppSettingsCubit, AppSettings>(
       builder: (context, settings) {
-        final AccountPreferences synced = context
-            .watch<AccountPreferencesCubit>()
-            .state;
         return Semantics(
           label: loc.settings,
           explicitChildNodes: true,
@@ -460,15 +477,36 @@ class _SettingsSheet extends StatelessWidget {
                       ),
                       hairline(),
                       row(
+                        key: const ValueKey('settings-theme'),
+                        icon: Icons.dark_mode_outlined,
+                        label: Text(loc.theme, style: type.row),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                themeLabel(settings.themeMode),
+                                style: type.meta.copyWith(fontSize: 15),
+                              ),
+                            ),
+                            Icon(Icons.chevron_right, color: neutrals.muted),
+                          ],
+                        ),
+                        onTap: () => _chooseTheme(context, settings),
+                      ),
+                      hairline(),
+                      row(
                         key: const ValueKey('settings-language'),
                         icon: Icons.language,
                         label: Text(loc.language, style: type.row),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
-                              _languageLabel(loc, settings.localeCode),
-                              style: type.meta.copyWith(fontSize: 15),
+                            Flexible(
+                              child: Text(
+                                _languageLabel(loc, settings.localeCode),
+                                style: type.meta.copyWith(fontSize: 15),
+                              ),
                             ),
                             Icon(Icons.chevron_right, color: neutrals.muted),
                           ],
@@ -477,129 +515,21 @@ class _SettingsSheet extends StatelessWidget {
                       ),
                       hairline(),
                       row(
-                        key: const ValueKey('settings-dark-mode'),
-                        icon: Icons.dark_mode_outlined,
-                        label: Text(loc.darkMode, style: type.row),
-                        trailing: Switch(
-                          value: brightness == Brightness.dark,
-                          activeTrackColor: AppColors.appBlue,
-                          onChanged: (_) => toggleDark(),
+                        key: const ValueKey('settings-preferences'),
+                        icon: Icons.tune,
+                        label: Text(loc.preferences, style: type.row),
+                        trailing: Icon(
+                          Icons.chevron_right,
+                          color: neutrals.muted,
                         ),
-                        onTap: toggleDark,
-                      ),
-                      hairline(),
-                      row(
-                        key: const ValueKey('settings-ai-auto-apply'),
-                        icon: Icons.auto_awesome_outlined,
-                        label: Text(loc.settingsAiAutoApply, style: type.row),
-                        trailing: Switch(
-                          value: synced.aiAutoApply,
-                          activeTrackColor: AppColors.appBlue,
-                          onChanged: (value) => context
-                              .read<AccountPreferencesCubit>()
-                              .setAiAutoApply(value),
-                        ),
-                        onTap: () => context
-                            .read<AccountPreferencesCubit>()
-                            .setAiAutoApply(!synced.aiAutoApply),
-                      ),
-                      hairline(),
-                      // How often the AI checks with you (Q-43): a slider
-                      // from asking to just doing it, with what the stop
-                      // means under it.
-                      Padding(
-                        key: const ValueKey('settings-ai-ask'),
-                        padding: const EdgeInsets.fromLTRB(
-                          AppShapes.sideMargin,
-                          14,
-                          AppShapes.sideMargin,
-                          10,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.help_outline,
-                                  size: 22,
-                                  color: neutrals.text,
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Text(
-                                    loc.settingsAiAsk,
-                                    style: type.row,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            // Styled like the switches above: a thick
-                            // track as tall as theirs, a round knob, and
-                            // the settings blue (owner, 2026-11-04).
-                            SliderTheme(
-                              data: SliderTheme.of(context).copyWith(
-                                trackHeight: 32,
-                                activeTrackColor: AppColors.appBlue,
-                                inactiveTrackColor: neutrals.line,
-                                thumbColor: neutrals.ground,
-                                thumbShape: const RoundSliderThumbShape(
-                                  enabledThumbRadius: 12,
-                                  elevation: 1,
-                                  pressedElevation: 2,
-                                ),
-                                trackShape:
-                                    const RoundedRectSliderTrackShape(),
-                                tickMarkShape: const RoundSliderTickMarkShape(
-                                  tickMarkRadius: 3,
-                                ),
-                                activeTickMarkColor: AppColors.onAppBlue
-                                    .withValues(alpha: 0.35),
-                                inactiveTickMarkColor: neutrals.muted,
-                                overlayColor: AppColors.appBlue.withValues(
-                                  alpha: 0.18,
-                                ),
-                                showValueIndicator: ShowValueIndicator.never,
-                              ),
-                              child: Slider(
-                                key: const ValueKey('settings-ai-ask-slider'),
-                                value: synced.aiAskLevel.index.toDouble(),
-                                max: AiAskLevel.values.length - 1,
-                                divisions: AiAskLevel.values.length - 1,
-                                label: _askLabel(loc, synced.aiAskLevel),
-                                onChanged: (value) => context
-                                    .read<AccountPreferencesCubit>()
-                                    .setAiAskLevel(
-                                      AiAskLevel.values[value.round()],
-                                    ),
+                        // Above the shell, like the list editor: no hub and
+                        // no AI bar on it. Back comes back to this sheet.
+                        onTap: () =>
+                            Navigator.of(context, rootNavigator: true).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const PreferencesScreen(),
                               ),
                             ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                for (final AiAskLevel level in AiAskLevel.values)
-                                  Text(
-                                    _askLabel(loc, level),
-                                    style: type.meta.copyWith(
-                                      color: level == synced.aiAskLevel
-                                          ? neutrals.text
-                                          : neutrals.muted,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              switch (synced.aiAskLevel) {
-                                AiAskLevel.more => loc.aiAskMoreHint,
-                                AiAskLevel.balanced => loc.aiAskBalancedHint,
-                                AiAskLevel.less => loc.aiAskLessHint,
-                              },
-                              key: const ValueKey('settings-ai-ask-hint'),
-                              style: type.meta,
-                            ),
-                          ],
-                        ),
                       ),
                       hairline(),
                       Padding(

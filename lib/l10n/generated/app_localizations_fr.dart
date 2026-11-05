@@ -1243,4 +1243,94 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get itemsNotUpdated =>
       'Certains éléments de cette liste n’ont pas encore pu être mis à jour. L’app réessaiera à sa prochaine ouverture.';
+
+  @override
+  String get theme => 'Thème';
+
+  @override
+  String get themeFollowPhone => 'Comme le téléphone';
+
+  @override
+  String get themeLight => 'Clair';
+
+  @override
+  String get themeDark => 'Sombre';
+
+  @override
+  String get preferences => 'Préférences';
+
+  @override
+  String get preferencesHint => 'Elles suivent le compte sur chaque téléphone.';
+
+  @override
+  String get preferencesLists => 'Listes';
+
+  @override
+  String get preferencesItems => 'Éléments';
+
+  @override
+  String get preferencesAi => 'IA';
+
+  @override
+  String get preferencesGeneral => 'Général';
+
+  @override
+  String get preferencesListOrder => 'Ordre des listes';
+
+  @override
+  String get preferencesListOrderLastUsed => 'Dernière utilisation';
+
+  @override
+  String get preferencesListOrderMine => 'Mon ordre';
+
+  @override
+  String get preferencesListOrderAz => 'A à Z';
+
+  @override
+  String get preferencesStartScreen => 'Écran de démarrage';
+
+  @override
+  String get preferencesStartLastList => 'Dernière liste ouverte';
+
+  @override
+  String get preferencesTicked => 'Éléments cochés';
+
+  @override
+  String get preferencesTickedMove => 'Déplacer vers Terminé';
+
+  @override
+  String get preferencesTickedStay => 'Laisser en place';
+
+  @override
+  String get preferencesTickedHide => 'Masquer';
+
+  @override
+  String get preferencesConfirmDelete => 'Confirmer avant de supprimer';
+
+  @override
+  String get preferencesShowAiBar => 'Afficher la barre IA';
+
+  @override
+  String get preferencesVibration => 'Vibration';
+
+  @override
+  String get preferencesTimeFormat => 'Format de l’heure';
+
+  @override
+  String get preferencesFollowLanguage => 'Selon la langue';
+
+  @override
+  String get preferencesTime12 => '12 heures';
+
+  @override
+  String get preferencesTime24 => '24 heures';
+
+  @override
+  String get preferencesWeekStart => 'La semaine commence le';
+
+  @override
+  String get preferencesMonday => 'Lundi';
+
+  @override
+  String get preferencesSunday => 'Dimanche';
 }

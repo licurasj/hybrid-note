@@ -2101,6 +2101,186 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Some items in this list could not be updated yet. The app will try again next time it opens.'**
   String get itemsNotUpdated;
+
+  /// No description provided for @theme.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get theme;
+
+  /// No description provided for @themeFollowPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow the phone'**
+  String get themeFollowPhone;
+
+  /// No description provided for @themeLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get themeLight;
+
+  /// No description provided for @themeDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get themeDark;
+
+  /// No description provided for @preferences.
+  ///
+  /// In en, this message translates to:
+  /// **'Preferences'**
+  String get preferences;
+
+  /// No description provided for @preferencesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'These follow your account to every phone.'**
+  String get preferencesHint;
+
+  /// No description provided for @preferencesLists.
+  ///
+  /// In en, this message translates to:
+  /// **'Lists'**
+  String get preferencesLists;
+
+  /// No description provided for @preferencesItems.
+  ///
+  /// In en, this message translates to:
+  /// **'Items'**
+  String get preferencesItems;
+
+  /// No description provided for @preferencesAi.
+  ///
+  /// In en, this message translates to:
+  /// **'AI'**
+  String get preferencesAi;
+
+  /// No description provided for @preferencesGeneral.
+  ///
+  /// In en, this message translates to:
+  /// **'General'**
+  String get preferencesGeneral;
+
+  /// No description provided for @preferencesListOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'List order'**
+  String get preferencesListOrder;
+
+  /// No description provided for @preferencesListOrderLastUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Last used'**
+  String get preferencesListOrderLastUsed;
+
+  /// No description provided for @preferencesListOrderMine.
+  ///
+  /// In en, this message translates to:
+  /// **'My order'**
+  String get preferencesListOrderMine;
+
+  /// No description provided for @preferencesListOrderAz.
+  ///
+  /// In en, this message translates to:
+  /// **'A to Z'**
+  String get preferencesListOrderAz;
+
+  /// No description provided for @preferencesStartScreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Start screen'**
+  String get preferencesStartScreen;
+
+  /// No description provided for @preferencesStartLastList.
+  ///
+  /// In en, this message translates to:
+  /// **'Last open list'**
+  String get preferencesStartLastList;
+
+  /// No description provided for @preferencesTicked.
+  ///
+  /// In en, this message translates to:
+  /// **'Ticked items'**
+  String get preferencesTicked;
+
+  /// No description provided for @preferencesTickedMove.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to Done'**
+  String get preferencesTickedMove;
+
+  /// No description provided for @preferencesTickedStay.
+  ///
+  /// In en, this message translates to:
+  /// **'Stay in place'**
+  String get preferencesTickedStay;
+
+  /// No description provided for @preferencesTickedHide.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide'**
+  String get preferencesTickedHide;
+
+  /// No description provided for @preferencesConfirmDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm before deleting'**
+  String get preferencesConfirmDelete;
+
+  /// No description provided for @preferencesShowAiBar.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the AI bar'**
+  String get preferencesShowAiBar;
+
+  /// No description provided for @preferencesVibration.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibration'**
+  String get preferencesVibration;
+
+  /// No description provided for @preferencesTimeFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Time format'**
+  String get preferencesTimeFormat;
+
+  /// No description provided for @preferencesFollowLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow the language'**
+  String get preferencesFollowLanguage;
+
+  /// No description provided for @preferencesTime12.
+  ///
+  /// In en, this message translates to:
+  /// **'12-hour'**
+  String get preferencesTime12;
+
+  /// No description provided for @preferencesTime24.
+  ///
+  /// In en, this message translates to:
+  /// **'24-hour'**
+  String get preferencesTime24;
+
+  /// No description provided for @preferencesWeekStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Week starts on'**
+  String get preferencesWeekStart;
+
+  /// No description provided for @preferencesMonday.
+  ///
+  /// In en, this message translates to:
+  /// **'Monday'**
+  String get preferencesMonday;
+
+  /// No description provided for @preferencesSunday.
+  ///
+  /// In en, this message translates to:
+  /// **'Sunday'**
+  String get preferencesSunday;
 }
 
 class _AppLocalizationsDelegate

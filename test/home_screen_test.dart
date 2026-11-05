@@ -125,7 +125,9 @@ void main() {
 
     MaterialApp app() => tester.widget(find.byType(MaterialApp));
     expect(app().themeMode, ThemeMode.system);
-    await tester.tap(find.byKey(const ValueKey('settings-dark-mode')));
+    await tester.tap(find.byKey(const ValueKey('settings-theme')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('choice-ThemeMode.dark')));
     await settle(tester);
     expect(app().themeMode, ThemeMode.dark);
   });

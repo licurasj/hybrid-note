@@ -1208,4 +1208,94 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get itemsNotUpdated =>
       'このリストの一部の項目をまだ更新できませんでした。次回アプリを開いたときにもう一度試します。';
+
+  @override
+  String get theme => 'テーマ';
+
+  @override
+  String get themeFollowPhone => 'スマホに合わせる';
+
+  @override
+  String get themeLight => 'ライト';
+
+  @override
+  String get themeDark => 'ダーク';
+
+  @override
+  String get preferences => '環境設定';
+
+  @override
+  String get preferencesHint => 'アカウントに紐づき、すべてのスマホに反映されます。';
+
+  @override
+  String get preferencesLists => 'リスト';
+
+  @override
+  String get preferencesItems => '項目';
+
+  @override
+  String get preferencesAi => 'AI';
+
+  @override
+  String get preferencesGeneral => '一般';
+
+  @override
+  String get preferencesListOrder => 'リストの順序';
+
+  @override
+  String get preferencesListOrderLastUsed => '最近使った順';
+
+  @override
+  String get preferencesListOrderMine => '自分の順序';
+
+  @override
+  String get preferencesListOrderAz => '名前順';
+
+  @override
+  String get preferencesStartScreen => '起動時の画面';
+
+  @override
+  String get preferencesStartLastList => '最後に開いたリスト';
+
+  @override
+  String get preferencesTicked => 'チェック済みの項目';
+
+  @override
+  String get preferencesTickedMove => '完了へ移動';
+
+  @override
+  String get preferencesTickedStay => 'その場に残す';
+
+  @override
+  String get preferencesTickedHide => '隠す';
+
+  @override
+  String get preferencesConfirmDelete => '削除前に確認';
+
+  @override
+  String get preferencesShowAiBar => 'AIバーを表示';
+
+  @override
+  String get preferencesVibration => 'バイブレーション';
+
+  @override
+  String get preferencesTimeFormat => '時刻の形式';
+
+  @override
+  String get preferencesFollowLanguage => '言語に合わせる';
+
+  @override
+  String get preferencesTime12 => '12時間';
+
+  @override
+  String get preferencesTime24 => '24時間';
+
+  @override
+  String get preferencesWeekStart => '週の始まり';
+
+  @override
+  String get preferencesMonday => '月曜日';
+
+  @override
+  String get preferencesSunday => '日曜日';
 }

@@ -1201,4 +1201,94 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get itemsNotUpdated => '此列表中的部分项目尚未更新。应用下次打开时会重试。';
+
+  @override
+  String get theme => '主题';
+
+  @override
+  String get themeFollowPhone => '跟随手机';
+
+  @override
+  String get themeLight => '浅色';
+
+  @override
+  String get themeDark => '深色';
+
+  @override
+  String get preferences => '偏好设置';
+
+  @override
+  String get preferencesHint => '这些设置跟随账户同步到每部手机。';
+
+  @override
+  String get preferencesLists => '列表';
+
+  @override
+  String get preferencesItems => '条目';
+
+  @override
+  String get preferencesAi => 'AI';
+
+  @override
+  String get preferencesGeneral => '通用';
+
+  @override
+  String get preferencesListOrder => '列表顺序';
+
+  @override
+  String get preferencesListOrderLastUsed => '最近使用';
+
+  @override
+  String get preferencesListOrderMine => '我的顺序';
+
+  @override
+  String get preferencesListOrderAz => '按名称';
+
+  @override
+  String get preferencesStartScreen => '启动界面';
+
+  @override
+  String get preferencesStartLastList => '上次打开的列表';
+
+  @override
+  String get preferencesTicked => '已勾选的条目';
+
+  @override
+  String get preferencesTickedMove => '移到已完成';
+
+  @override
+  String get preferencesTickedStay => '留在原位';
+
+  @override
+  String get preferencesTickedHide => '隐藏';
+
+  @override
+  String get preferencesConfirmDelete => '删除前确认';
+
+  @override
+  String get preferencesShowAiBar => '显示 AI 栏';
+
+  @override
+  String get preferencesVibration => '振动';
+
+  @override
+  String get preferencesTimeFormat => '时间格式';
+
+  @override
+  String get preferencesFollowLanguage => '跟随语言';
+
+  @override
+  String get preferencesTime12 => '12 小时制';
+
+  @override
+  String get preferencesTime24 => '24 小时制';
+
+  @override
+  String get preferencesWeekStart => '每周开始于';
+
+  @override
+  String get preferencesMonday => '星期一';
+
+  @override
+  String get preferencesSunday => '星期日';
 }

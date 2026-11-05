@@ -665,7 +665,11 @@ void main() {
     await settle(tester);
     await tester.tap(find.byKey(const ValueKey('settings')));
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('settings-preferences')));
+    await tester.pumpAndSettle();
     final Finder hint = find.byKey(const ValueKey('settings-ai-ask-hint'));
+    await tester.ensureVisible(find.text('How often the AI checks with you'));
+    await tester.pumpAndSettle();
     expect(find.text('How often the AI checks with you'), findsOneWidget);
     expect(
       tester.widget<Text>(hint).data,
@@ -681,7 +685,7 @@ void main() {
     expect(tester.widget<Text>(hint).data, startsWith('Goes with its best guess'));
     expect(
       tester
-          .element(find.byKey(const ValueKey('settings-account')))
+          .element(find.byKey(const ValueKey('settings-ai-ask')))
           .read<AccountPreferencesCubit>()
           .state
           .aiAskLevel,
