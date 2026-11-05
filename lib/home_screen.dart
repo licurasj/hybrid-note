@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
+import 'app/account_preferences.dart';
 import 'app/app_settings.dart';
 import 'app/app_theme.dart';
 import 'app/hybrid_note_app.dart';
@@ -371,6 +372,10 @@ class _SettingsSheet extends StatelessWidget {
     final AppTypography type = AppTypography.of(context);
     final SignedInAccount account = context.read<SignedInAccount>();
 
+    void toggleDark() => context.read<AppSettingsCubit>().setThemeMode(
+          brightness == Brightness.dark ? ThemeMode.light : ThemeMode.dark,
+        );
+
     Widget hairline() => Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppShapes.sideMargin),
           child: Divider(color: neutrals.line, height: 1),
@@ -409,6 +414,9 @@ class _SettingsSheet extends StatelessWidget {
 
     return BlocBuilder<AppSettingsCubit, AppSettings>(
       builder: (context, settings) {
+        final AccountPreferences synced = context
+            .watch<AccountPreferencesCubit>()
+            .state;
         return Semantics(
           label: loc.settings,
           explicitChildNodes: true,
@@ -473,13 +481,11 @@ class _SettingsSheet extends StatelessWidget {
                         icon: Icons.dark_mode_outlined,
                         label: Text(loc.darkMode, style: type.row),
                         trailing: Switch(
-                          value: settings.isDarkMode,
+                          value: brightness == Brightness.dark,
                           activeTrackColor: AppColors.appBlue,
-                          onChanged: (_) =>
-                              context.read<AppSettingsCubit>().toggleDarkMode(),
+                          onChanged: (_) => toggleDark(),
                         ),
-                        onTap: () =>
-                            context.read<AppSettingsCubit>().toggleDarkMode(),
+                        onTap: toggleDark,
                       ),
                       hairline(),
                       row(
@@ -487,15 +493,15 @@ class _SettingsSheet extends StatelessWidget {
                         icon: Icons.auto_awesome_outlined,
                         label: Text(loc.settingsAiAutoApply, style: type.row),
                         trailing: Switch(
-                          value: settings.aiAutoApply,
+                          value: synced.aiAutoApply,
                           activeTrackColor: AppColors.appBlue,
                           onChanged: (value) => context
-                              .read<AppSettingsCubit>()
+                              .read<AccountPreferencesCubit>()
                               .setAiAutoApply(value),
                         ),
                         onTap: () => context
-                            .read<AppSettingsCubit>()
-                            .setAiAutoApply(!settings.aiAutoApply),
+                            .read<AccountPreferencesCubit>()
+                            .setAiAutoApply(!synced.aiAutoApply),
                       ),
                       hairline(),
                       // How often the AI checks with you (Q-43): a slider
@@ -557,12 +563,12 @@ class _SettingsSheet extends StatelessWidget {
                               ),
                               child: Slider(
                                 key: const ValueKey('settings-ai-ask-slider'),
-                                value: settings.aiAskLevel.index.toDouble(),
+                                value: synced.aiAskLevel.index.toDouble(),
                                 max: AiAskLevel.values.length - 1,
                                 divisions: AiAskLevel.values.length - 1,
-                                label: _askLabel(loc, settings.aiAskLevel),
+                                label: _askLabel(loc, synced.aiAskLevel),
                                 onChanged: (value) => context
-                                    .read<AppSettingsCubit>()
+                                    .read<AccountPreferencesCubit>()
                                     .setAiAskLevel(
                                       AiAskLevel.values[value.round()],
                                     ),
@@ -575,7 +581,7 @@ class _SettingsSheet extends StatelessWidget {
                                   Text(
                                     _askLabel(loc, level),
                                     style: type.meta.copyWith(
-                                      color: level == settings.aiAskLevel
+                                      color: level == synced.aiAskLevel
                                           ? neutrals.text
                                           : neutrals.muted,
                                     ),
@@ -584,7 +590,7 @@ class _SettingsSheet extends StatelessWidget {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              switch (settings.aiAskLevel) {
+                              switch (synced.aiAskLevel) {
                                 AiAskLevel.more => loc.aiAskMoreHint,
                                 AiAskLevel.balanced => loc.aiAskBalancedHint,
                                 AiAskLevel.less => loc.aiAskLessHint,

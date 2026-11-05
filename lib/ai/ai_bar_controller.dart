@@ -3,9 +3,8 @@ import 'dart:developer' as developer;
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../app/app_settings.dart';
+import '../app/account_preferences.dart';
 import '../lists/list_catalog.dart';
 import '../lists/list_definition.dart';
 import '../lists/list_error.dart';
@@ -131,7 +130,6 @@ class AiBarController extends ChangeNotifier {
     required this.store,
     required this.preferences,
     required this.onOpenList,
-    this.saveAutoApply,
     this.maxListFetches,
     DateTime Function()? clock,
   }) : _clock = clock ?? DateTime.now {
@@ -142,23 +140,15 @@ class AiBarController extends ChangeNotifier {
 
   final AiService service;
   final ListStore store;
-  final SharedPreferences preferences;
+  final AccountPreferencesCubit preferences;
   // Opens a list the AI just created.
   final void Function(String listId) onOpenList;
-  // Saves the auto-apply setting through the settings cubit, so the
-  // Settings switch shows it; without it the preference is written here.
-  final Future<void> Function(bool value)? saveAutoApply;
   // How many lists one request may fetch items for. None today: each list is
   // fetched at most once, so a request stays bounded by the number of lists and
   // by the daily caps. For account tiers later (Q-61).
   final int? maxListFetches;
   final DateTime Function() _clock;
 
-  static const String noticeKey = 'ai.noticeSeen';
-  // Q-40 A: changes apply at once, with Undo, instead of waiting for Apply;
-  // a device setting like the others (Q-24 A). Offered once, after the
-  // first Apply.
-  static const String autoApplyAskedKey = 'ai.autoApplyAsked';
   // How long "Added to ... · Undo" stays (as the list delete's Undo).
   static const Duration doneFor = Duration(seconds: 8);
 
@@ -234,19 +224,15 @@ class AiBarController extends ChangeNotifier {
   // Bumped by cancel, so a late answer is dropped.
   int _generation = 0;
 
-  bool get noticeSeen => preferences.getString(noticeKey) == aiNoticeId;
+  bool get noticeSeen => preferences.state.aiNoticeSeen == aiNoticeId;
 
-  bool get autoApply =>
-      preferences.getBool(AppSettingsCubit.aiAutoApplyKey) ?? false;
+  // Q-40 A: changes apply at once, with Undo, instead of waiting for Apply.
+  // Offered once, after the first Apply.
+  bool get autoApply => preferences.state.aiAutoApply;
 
   Future<void> setAutoApply(bool value) async {
-    final Future<void> Function(bool value)? save = saveAutoApply;
-    if (save != null) {
-      await save(value);
-    } else {
-      await preferences.setBool(AppSettingsCubit.aiAutoApplyKey, value);
-    }
-    await preferences.setBool(autoApplyAskedKey, true);
+    await preferences.setAiAutoApply(value);
+    await preferences.setAiAutoApplyOffered();
     notifyListeners();
   }
 
@@ -432,7 +418,7 @@ class AiBarController extends ChangeNotifier {
   }
 
   Future<void> acceptNotice() async {
-    await preferences.setString(noticeKey, aiNoticeId);
+    await preferences.setAiNoticeSeen(aiNoticeId);
     await _sendPending();
   }
 
@@ -475,9 +461,7 @@ class AiBarController extends ChangeNotifier {
       labels: pending.labels,
       openListId: pending.newList ? null : pending.openListId,
       followUp: pending.newList ? null : _followUp,
-      askLevel: AiAskLevel.of(
-        preferences.getString(AppSettingsCubit.aiAskLevelKey),
-      ).wire,
+      askLevel: preferences.state.aiAskLevel.wire,
     );
     _followUp = null;
     await _run(request, correct: true);
@@ -840,7 +824,7 @@ class AiBarController extends ChangeNotifier {
     // The first Apply offers to skip it from now on (Q-40 A).
     final bool offer =
         (_phase == AiBarPhase.preview || _phase == AiBarPhase.question) &&
-        !(preferences.getBool(autoApplyAskedKey) ?? false);
+        !preferences.state.aiAutoApplyOffered;
     final int generation = ++_generation;
     _set(AiBarPhase.sending);
     _itemsPending = false;
@@ -933,7 +917,7 @@ class AiBarController extends ChangeNotifier {
     _done = AiDone(kind, names);
     _offerAutoApply = offer;
     if (offer) {
-      await preferences.setBool(autoApplyAskedKey, true);
+      await preferences.setAiAutoApplyOffered();
     }
     _set(AiBarPhase.done);
     // The offer stays until it is answered.

@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hybrid_note/ai/ai_bar_controller.dart';
 import 'package:hybrid_note/ai/ai_service.dart';
 import 'package:hybrid_note/ai/prompt_bar.dart';
-import 'package:hybrid_note/app/app_settings.dart';
+import 'package:hybrid_note/app/account_preferences.dart';
 import 'package:hybrid_note/backend/firestore_list_store.dart';
 import 'package:hybrid_note/lists/builtin_templates.dart';
 import 'package:hybrid_note/lists/list_definition.dart';
@@ -62,6 +62,10 @@ final Finder _field = find.byKey(const ValueKey('ai-bar-field'));
 final Finder _send = find.byKey(const ValueKey('ai-bar-send'));
 final Finder _hub = find.byKey(const ValueKey('launcher-hub'));
 
+AccountPreferencesCubit _account(WidgetTester tester) => tester
+    .element(find.byKey(const ValueKey('ai-bar')))
+    .read<AccountPreferencesCubit>();
+
 Future<FirestoreListStore> _pump(
   WidgetTester tester,
   FakeAiService ai, {
@@ -74,7 +78,7 @@ Future<FirestoreListStore> _pump(
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   SharedPreferences.setMockInitialValues({
-    if (noticeSeen) AiBarController.noticeKey: aiNoticeId,
+    if (noticeSeen) AccountPreferencesCubit.legacyNoticeSeenKey: aiNoticeId,
   });
   final FirestoreListStore store = await widgetTestStore(
     tester,
@@ -159,8 +163,7 @@ void main() {
 
     await _tapKey(tester, 'ai-notice-continue');
     expect(ai.requests, hasLength(1));
-    final SharedPreferences preferences = await SharedPreferences.getInstance();
-    expect(preferences.getString(AiBarController.noticeKey), aiNoticeId);
+    expect(_account(tester).state.aiNoticeSeen, aiNoticeId);
 
     await _ask(tester, 'eggs');
     expect(find.byKey(const ValueKey('ai-notice')), findsNothing);
@@ -742,17 +745,7 @@ void main() {
       await tester.pump(AiBarController.doneFor * 2);
       expect(find.byKey(const ValueKey('ai-auto-apply-offer')), findsOneWidget);
       await _tapKey(tester, 'ai-auto-apply-yes');
-      final SharedPreferences preferences =
-          await SharedPreferences.getInstance();
-      expect(preferences.getBool(AppSettingsCubit.aiAutoApplyKey), isTrue);
-      expect(
-        tester
-            .element(find.byKey(const ValueKey('ai-bar')))
-            .read<AppSettingsCubit>()
-            .state
-            .aiAutoApply,
-        isTrue,
-      );
+      expect(_account(tester).state.aiAutoApply, isTrue);
 
       await _ask(tester, 'remove eggs');
       expect(find.byKey(const ValueKey('ai-apply')), findsNothing);
@@ -1025,9 +1018,7 @@ void main() {
           ]),
         ]);
       await _pump(tester, ai);
-      final SharedPreferences preferences =
-          await SharedPreferences.getInstance();
-      await preferences.setString(AppSettingsCubit.aiAskLevelKey, 'more');
+      await _account(tester).setAiAskLevel(AiAskLevel.more);
 
       await _ask(tester, 'dinner tomorrow');
       expect(ai.requests.first.toJson()['askLevel'], 'more');
@@ -1062,9 +1053,7 @@ void main() {
           ]),
         ]);
       final FirestoreListStore store = await _pump(tester, ai);
-      final SharedPreferences preferences =
-          await SharedPreferences.getInstance();
-      await preferences.setBool(AppSettingsCubit.aiAutoApplyKey, true);
+      await _account(tester).setAiAutoApply(true);
       await _openList(tester, _tasks);
 
       // Not named: the preview stays, with auto-apply on.

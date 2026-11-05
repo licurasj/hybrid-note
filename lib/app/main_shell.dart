@@ -24,6 +24,7 @@ import '../lists/list_labels.dart';
 import '../lists/list_patch.dart';
 import '../lists/list_store.dart';
 import '../lists/list_template_picker.dart';
+import 'account_preferences.dart';
 import 'app_settings.dart';
 import 'app_theme.dart' show AppMotion;
 
@@ -90,9 +91,8 @@ class _MainShellState extends State<MainShell> {
       _ai = AiBarController(
         service: service,
         store: context.read<ListStore>(),
-        preferences: context.read<AppSettingsCubit>().preferences,
+        preferences: context.read<AccountPreferencesCubit>(),
         onOpenList: _openList,
-        saveAutoApply: context.read<AppSettingsCubit>().setAiAutoApply,
       );
     }
   }

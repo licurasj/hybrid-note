@@ -124,7 +124,7 @@ void main() {
     expect(find.byKey(const ValueKey('sign-out')), findsOneWidget);
 
     MaterialApp app() => tester.widget(find.byType(MaterialApp));
-    expect(app().themeMode, ThemeMode.light);
+    expect(app().themeMode, ThemeMode.system);
     await tester.tap(find.byKey(const ValueKey('settings-dark-mode')));
     await settle(tester);
     expect(app().themeMode, ThemeMode.dark);

@@ -369,3 +369,82 @@ describe('list order key', () => {
     await assertFails(setDoc(ref, list('books', { _createdAt: 5 })));
   });
 });
+
+describe('account preferences (T-21, Q-48 A)', () => {
+  const path = (uid = OWNER) => `users/${uid}/settings/preferences`;
+  const values = {
+    listOrder: 'myOrder',
+    myListOrder: ['list-a', 'list-b'],
+    startScreen: 'home',
+    tickedItems: 'moveToDone',
+    confirmDelete: false,
+    showAiBar: true,
+    aiAutoApply: false,
+    aiAskLevel: 'balanced',
+    aiAutoApplyOffered: false,
+    aiNoticeSeen: 'notice-1',
+    vibration: true,
+    timeFormat: 'followLanguage',
+    weekStart: 'followLanguage',
+  };
+
+  test('the owner creates, reads and changes one key', async () => {
+    const ref = doc(owner(), path());
+    await assertSucceeds(setDoc(ref, values));
+    await assertSucceeds(getDoc(ref));
+    await assertSucceeds(setDoc(ref, { vibration: false }, { merge: true }));
+  });
+
+  test('one key can be the first write, as on a phone that seeded nothing', async () => {
+    await assertSucceeds(setDoc(doc(owner(), path()), { weekStart: 'sunday' }, { merge: true }));
+  });
+
+  test('keys of a newer build and new choices are allowed', async () => {
+    const ref = doc(owner(), path());
+    await assertSucceeds(setDoc(ref, { ...values, fromANewerBuild: { x: 1 } }));
+    await assertSucceeds(setDoc(ref, { listOrder: 'byColour' }, { merge: true }));
+  });
+
+  for (const [key, bad] of [
+    ['listOrder', 5],
+    ['myListOrder', 'list-a,list-b'],
+    ['startScreen', true],
+    ['tickedItems', 1],
+    ['confirmDelete', 'yes'],
+    ['showAiBar', 0],
+    ['aiAutoApply', 'no'],
+    ['aiAskLevel', 2],
+    ['aiAutoApplyOffered', 'once'],
+    ['aiNoticeSeen', 7],
+    ['vibration', 'off'],
+    ['timeFormat', 24],
+    ['weekStart', 1],
+  ]) {
+    test(`a wrong type for ${key} is refused`, async () => {
+      await assertFails(setDoc(doc(owner(), path()), { [key]: bad }));
+    });
+  }
+
+  test('the app does not delete it', async () => {
+    const ref = doc(owner(), path());
+    await assertSucceeds(setDoc(ref, values));
+    await assertFails(deleteDoc(ref));
+  });
+
+  test('other users and signed-out clients can neither read nor write it', async () => {
+    await env.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), path()), values);
+    });
+    for (const client of [other(), signedOut()]) {
+      await assertFails(getDoc(doc(client, path())));
+      await assertFails(setDoc(doc(client, path()), { vibration: false }, { merge: true }));
+      await assertFails(deleteDoc(doc(client, path())));
+    }
+    await assertFails(setDoc(doc(signedOut(), path('new-uid')), values));
+  });
+
+  test('no other document under settings', async () => {
+    await assertFails(setDoc(doc(owner(), `users/${OWNER}/settings/other`), values));
+    await assertFails(getDoc(doc(owner(), `users/${OWNER}/settings/other`)));
+  });
+});

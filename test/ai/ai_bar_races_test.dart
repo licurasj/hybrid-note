@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hybrid_note/ai/ai_bar_controller.dart';
 import 'package:hybrid_note/ai/ai_match.dart';
 import 'package:hybrid_note/ai/ai_service.dart';
-import 'package:hybrid_note/app/app_settings.dart';
+import 'package:hybrid_note/app/account_preferences.dart';
 import 'package:hybrid_note/backend/firestore_list_store.dart';
 import 'package:hybrid_note/l10n/generated/app_localizations_en.dart';
 import 'package:hybrid_note/lists/builtin_templates.dart';
@@ -122,14 +122,19 @@ Future<AiBarController> _bar(
   int? maxListFetches,
 }) async {
   SharedPreferences.setMockInitialValues({
-    AiBarController.noticeKey: aiNoticeId,
-    AiBarController.autoApplyAskedKey: true,
-    AppSettingsCubit.aiAutoApplyKey: autoApply,
+    AccountPreferencesCubit.legacyNoticeSeenKey: aiNoticeId,
+    AccountPreferencesCubit.legacyAutoApplyOfferedKey: true,
+    AccountPreferencesCubit.legacyAutoApplyKey: autoApply,
   });
+  final AccountPreferencesCubit preferences = AccountPreferencesCubit(
+    await SharedPreferences.getInstance(),
+    'test-user',
+  );
+  addTearDown(preferences.close);
   final AiBarController controller = AiBarController(
     service: service,
     store: store,
-    preferences: await SharedPreferences.getInstance(),
+    preferences: preferences,
     onOpenList: onOpen ?? (_) {},
     maxListFetches: maxListFetches,
   );
