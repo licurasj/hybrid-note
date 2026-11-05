@@ -412,6 +412,79 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
     });
 
+    for (final Size size in const [
+      Size(412, 900),
+      Size(430, 932),
+      Size(393, 852),
+      Size(360, 780),
+      Size(320, 640),
+    ]) {
+      testWidgets('at rest the lists stand on one circle, ${size.width.toInt()} wide', (
+        tester,
+      ) async {
+        await _pump(tester, count: 14, size: size);
+        await _openArranging(tester);
+        final List<double> ends = [
+          for (int i = 1; i < 15; i++)
+            if (reach(tester, i) != null) reach(tester, i)!,
+        ];
+        expect(ends.length, greaterThan(3));
+        final double longest = ends.reduce(math.max);
+        for (final double end in ends) {
+          expect(end, closeTo(longest, 4));
+        }
+      });
+
+      testWidgets('so do they on the normal dial, ${size.width.toInt()} wide', (
+        tester,
+      ) async {
+        await _pump(tester, count: 14, size: size);
+        final TestGesture gesture = await tester.startGesture(_hub(tester));
+        await tester.pump(const Duration(milliseconds: 400));
+        await tester.pump(const Duration(milliseconds: 100));
+        final List<double> ends = [
+          for (int i = 1; i < 15; i++)
+            if (reach(tester, i) != null) reach(tester, i)!,
+        ];
+        expect(ends.length, greaterThan(3));
+        final double longest = ends.reduce(math.max);
+        for (final double end in ends) {
+          expect(end, closeTo(longest, 4));
+        }
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 300));
+      });
+    }
+
+    for (final Offset place in const [
+      Offset(0.9, 0.9),
+      Offset(0.1, 0.9),
+      Offset(0.9, 0.1),
+      Offset(0.1, 0.1),
+      Offset(0.6, 0.6),
+    ]) {
+      for (final Size size in const [Size(412, 900), Size(320, 640)]) {
+        testWidgets('hub at $place, ${size.width.toInt()} wide: no list leaves the screen', (
+          tester,
+        ) async {
+          await _pump(tester, count: 14, hubPosition: place, size: size);
+          await _openArranging(tester);
+          final Rect screen = Offset.zero & size;
+          for (int i = 1; i < 15; i++) {
+            final Finder tab = find.byKey(ValueKey('dial-entry-$i'));
+            if (tab.evaluate().isNotEmpty) {
+              expect(
+                screen.inflate(2).contains(tester.getRect(tab).topLeft) &&
+                    screen.inflate(2).contains(tester.getRect(tab).bottomRight),
+                isTrue,
+                reason: 'list $i',
+              );
+            }
+          }
+        });
+      }
+    }
+
     testWidgets('near the edge Edit still shows on the screen, and is reachable', (
       tester,
     ) async {

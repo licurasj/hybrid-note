@@ -626,11 +626,11 @@ class _DialLauncherState extends State<DialLauncher>
       ? _config.dialEditDepth * (1 + 0.22 * _progress) * _reveal()
       : 0;
 
-  // The length of a tab with no extra growth: a list's rest length, with the
-  // room for Edit it has always kept.
+  // The length of a tab with no extra growth: a list's rest length, on one
+  // circle round the hub unless the screen is too near (owner, 2026-11-05).
   double _restEnd(LauncherGeometry g, double angle, double span) => math.min(
         _inner() + span * _config.dialFarLength,
-        _reachAt(g, angle, 16 + _config.dialEditDepth),
+        _reachAt(g, angle, _config.dialRestMargin),
       );
 
   // How much of its full growth a selected list at [angle] has room for. It
@@ -670,8 +670,9 @@ class _DialLauncherState extends State<DialLauncher>
   // tab needs (owner, 2026-11-05). Elsewhere this limit is never reached.
   double _unselectedLimit(LauncherGeometry g, double span) {
     final double reference = _selectedAngle(g);
-    final double top = _restEnd(g, reference, span) +
-        span * (1 - _config.dialFarLength) * _growthShare(g, reference, span);
+    // How far it can reach, not counting a pull back for Edit: that must not
+    // shorten the others.
+    final double top = math.min(_inner() + span, _reachAt(g, reference, 16));
     return math.max(_inner() + 48, top - _config.dialSelectedLead);
   }
 
@@ -697,7 +698,11 @@ class _DialLauncherState extends State<DialLauncher>
       return rest;
     }
     if (index == _selected) {
-      return rest + growth * _growthShare(g, angle, span);
+      // Below its rest length too, if an Edit showing past its end needs it.
+      return math.min(
+        rest + growth * _growthShare(g, angle, span),
+        _reachAt(g, angle, math.max(16, 8 + _editRoom)),
+      );
     }
     final double share = _growthShare(g, _selectedAngle(g), span);
     double end = math.min(rest + growth * share, _reachAt(g, angle, 16));

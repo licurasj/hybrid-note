@@ -50,6 +50,7 @@ class LauncherConfig {
     this.dialArrangeSwayDegrees = 1.2,
     this.dialPickUpDelay = const Duration(milliseconds: 300),
     this.dialSelectedLead = 24,
+    this.dialRestMargin = 28,
     this.dialSelectedSpread = 1.0,
     this.dialNeighbourLength = 0.8,
     this.dialFarLength = 0.68,
@@ -140,6 +141,8 @@ class LauncherConfig {
   final Duration dialPickUpDelay;
   // In a tight spot, how far the selected tab stands past the others.
   final double dialSelectedLead;
+  // How far a list at rest keeps from the screen's edge.
+  final double dialRestMargin;
   final double dialArrangeSwayDegrees;
   final double dialSelectedSpread;
   final double dialNeighbourLength;
