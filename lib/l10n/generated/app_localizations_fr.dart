@@ -810,34 +810,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get ruleMoveTo => 'Déplacer vers';
 
   @override
-  String get listFilterAll => 'Tout';
-
-  @override
-  String get listDoneGroup => 'Terminé';
-
-  @override
-  String listOpenDoneCount(int open, int done) {
-    return '$open en cours · $done terminés';
-  }
-
-  @override
-  String listItemCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count éléments',
-      one: '1 élément',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String get itemSheetNew => 'Nouvel élément';
-
-  @override
-  String get itemSheetEdit => 'Modifier l’élément';
-
-  @override
   String get account => 'Compte';
 
   @override
@@ -870,6 +842,69 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get startEmpty => 'Commencer sans listes';
+
+  @override
+  String errorMissingArg(String arg) {
+    return 'Il manque « $arg » à une modification.';
+  }
+
+  @override
+  String errorWrongArgType(String arg) {
+    return 'Une modification a une valeur du mauvais type pour « $arg ».';
+  }
+
+  @override
+  String errorUnknownArg(String arg) {
+    return 'Une modification a un paramètre inconnu « $arg ».';
+  }
+
+  @override
+  String get errorUnknownList => 'La liste est introuvable.';
+
+  @override
+  String get errorUnknownItem =>
+      'Un élément à modifier est introuvable dans la liste.';
+
+  @override
+  String errorUnknownField(String field) {
+    return '« $field » n’est pas un champ de cette liste.';
+  }
+
+  @override
+  String get errorListChanged =>
+      'La liste a changé depuis, cette action ne peut donc pas être annulée.';
+
+  @override
+  String get errorAiNotAllowed =>
+      'L’IA n’a pas le droit de modifier cette liste.';
+
+  @override
+  String get listFilterAll => 'Tout';
+
+  @override
+  String get listDoneGroup => 'Terminé';
+
+  @override
+  String listOpenDoneCount(int open, int done) {
+    return '$open en cours · $done terminés';
+  }
+
+  @override
+  String listItemCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count éléments',
+      one: '1 élément',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get itemSheetNew => 'Nouvel élément';
+
+  @override
+  String get itemSheetEdit => 'Modifier l’élément';
 
   @override
   String get settings => 'Réglages';
@@ -918,4 +953,294 @@ class AppLocalizationsFr extends AppLocalizations {
     });
     return '$_temp0';
   }
+
+  @override
+  String get aiBarHint => 'Ajouter ou modifier';
+
+  @override
+  String aiBarHintList(String list) {
+    return 'Ajouter à $list';
+  }
+
+  @override
+  String get aiBarHintNewList => 'Décrivez la liste';
+
+  @override
+  String get aiSend => 'Envoyer';
+
+  @override
+  String get aiBarLabel => 'Demande à l’IA';
+
+  @override
+  String get aiDescribeNewList => 'Décrire une nouvelle liste';
+
+  @override
+  String get aiDescribeNewListMeta => 'L’IA choisit ses champs';
+
+  @override
+  String get aiNoticeTitle => 'Avant votre première demande';
+
+  @override
+  String get aiNoticeDeepSeek =>
+      'Votre demande, les noms, descriptions et champs de vos listes et la liste ouverte, ou une liste dont parle votre demande, avec jusqu’à 20 éléments récents sont envoyés à DeepSeek, un fournisseur d’IA qui traite et stocke les données en Chine. Les listes dont l’IA est désactivée ne sont jamais envoyées. Le texte de votre demande est conservé environ 7 jours pour trouver les problèmes, puis supprimé.';
+
+  @override
+  String get aiNoticeContinue => 'Continuer';
+
+  @override
+  String get aiApply => 'Appliquer';
+
+  @override
+  String aiAddItems(String list, String items) {
+    return '$list : ajouter $items';
+  }
+
+  @override
+  String aiEditItems(String list, String items) {
+    return '$list : modifier $items';
+  }
+
+  @override
+  String aiDeleteItems(String list, String items) {
+    return '$list : supprimer $items';
+  }
+
+  @override
+  String aiOpAddField(String list, String field) {
+    return '$list : ajouter le champ $field';
+  }
+
+  @override
+  String aiOpRemoveField(String list, String field) {
+    return '$list : retirer le champ $field';
+  }
+
+  @override
+  String aiOpRenameField(String list, String field, String label) {
+    return '$list : renommer $field en $label';
+  }
+
+  @override
+  String aiOpChangeField(String list, String field) {
+    return '$list : modifier le champ $field';
+  }
+
+  @override
+  String aiOpSetView(String list, String view) {
+    return '$list : afficher en $view';
+  }
+
+  @override
+  String aiOpBehavior(String list, String behavior) {
+    return '$list : modifier $behavior';
+  }
+
+  @override
+  String aiOpListInfo(String list) {
+    return '$list : modifier le nom, l’icône ou la couleur';
+  }
+
+  @override
+  String aiHiddenValues(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count valeurs ne conviennent plus et restent masquées',
+      one: '1 valeur ne convient plus et reste masquée',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String aiNewList(String name, String fields) {
+    return 'Nouvelle liste $name : $fields';
+  }
+
+  @override
+  String aiDoneAdded(String lists) {
+    return 'Ajouté à $lists';
+  }
+
+  @override
+  String aiDoneChanged(String lists) {
+    return 'Modifié : $lists';
+  }
+
+  @override
+  String aiDoneCreated(String list) {
+    return 'Créée : $list';
+  }
+
+  @override
+  String get aiUndone => 'Annulé';
+
+  @override
+  String get aiDeclinedOffTopic => 'Je ne peux aider qu’avec vos listes.';
+
+  @override
+  String get aiDeclinedNotSupported =>
+      'Je ne peux pas faire cette modification.';
+
+  @override
+  String get aiRefusedAiNotAllowed => 'L’IA est désactivée pour cette liste.';
+
+  @override
+  String get aiRefusedOutputTooLong =>
+      'La réponse était trop longue. Essayez une demande plus courte.';
+
+  @override
+  String get aiRefusedNoValidTool =>
+      'La réponse n’a pas pu être utilisée. Essayez d’autres mots.';
+
+  @override
+  String get aiRefusedDailyCount =>
+      'Vous avez atteint la limite de demandes à l’IA pour aujourd’hui.';
+
+  @override
+  String get aiRefusedBudget => 'L’IA est en pause jusqu’à demain.';
+
+  @override
+  String get aiRefusedPromptTooLong => 'La demande est trop longue.';
+
+  @override
+  String get aiRefusedContextTooLarge =>
+      'Vos listes sont trop grandes pour être envoyées.';
+
+  @override
+  String get aiRefusedAccess =>
+      'Ce compte ou cette app ne peut pas utiliser l’IA.';
+
+  @override
+  String get aiRefusedUnavailable =>
+      'L’IA n’est pas disponible pour le moment. Réessayez plus tard.';
+
+  @override
+  String get aiRefusedBadRequest => 'La demande n’a pas pu être envoyée.';
+
+  @override
+  String get aiInvalidAnswer =>
+      'Les modifications ne correspondent pas à la liste, rien n’a donc été appliqué.';
+
+  @override
+  String get errorUndoTooLarge =>
+      'Cette modification a touché trop d’éléments pour être annulée.';
+
+  @override
+  String get aiPartlyNotDone =>
+      'Une partie de la demande n’a pas pu être faite.';
+
+  @override
+  String get aiRefusedProviderAccount =>
+      'Le compte du fournisseur d’IA demande votre attention : vérifiez la clé ou le solde.';
+
+  @override
+  String aiListOff(String list) {
+    return 'L’IA est désactivée pour « $list ».';
+  }
+
+  @override
+  String get aiAutoApplyOffer =>
+      'Appliquer désormais les changements de ce type sans demander ? Annuler reste possible.';
+
+  @override
+  String get aiAutoApplyYes => 'Oui';
+
+  @override
+  String get aiAutoApplyNo => 'Pas maintenant';
+
+  @override
+  String get settingsAiAutoApply =>
+      'Appliquer les changements de l’IA sans demander';
+
+  @override
+  String get aiAnswerHint => 'Votre réponse';
+
+  @override
+  String aiAnswering(String reply) {
+    return 'Réponse à : $reply';
+  }
+
+  @override
+  String get aiNewRequest => 'Nouvelle demande';
+
+  @override
+  String get listDescription => 'Description de la liste';
+
+  @override
+  String get listDescriptionHint => 'À quoi sert cette liste (facultatif)';
+
+  @override
+  String errorDescriptionTooLong(String max) {
+    return 'La description peut faire au plus $max caractères.';
+  }
+
+  @override
+  String get tasksDescription => 'Choses à faire.';
+
+  @override
+  String get groceryDescription =>
+      'Nourriture et articles ménagers à acheter aux prochaines courses.';
+
+  @override
+  String get journalDescription => 'Notes et pensées du jour, par date.';
+
+  @override
+  String get watchReadDescription =>
+      'Films, séries et livres à voir ou à lire.';
+
+  @override
+  String get settingsAiAsk => 'À quelle fréquence l’IA vous consulte';
+
+  @override
+  String get aiAskMore => 'Demander d’abord';
+
+  @override
+  String get aiAskMoreHint =>
+      'Vous consulte dès qu’elle n’est pas sûre et ne crée de listes que si vous le demandez.';
+
+  @override
+  String get aiAskBalanced => 'Équilibré';
+
+  @override
+  String get aiAskBalancedHint =>
+      'Fait tout de suite ce qui est clair et vous consulte pour ce qui est vague.';
+
+  @override
+  String get aiAskLess => 'Faire directement';
+
+  @override
+  String get aiAskLessHint =>
+      'Suit sa meilleure hypothèse et ne consulte que si deux listes conviennent autant.';
+
+  @override
+  String get errorPreviewChanged =>
+      'La liste a changé depuis cet aperçu, rien n’a donc été modifié. Réessayez.';
+
+  @override
+  String get errorNeedsConnection =>
+      'Cette action nécessite une connexion. Rien n’a été modifié.';
+
+  @override
+  String get errorOutcomeUnknown =>
+      'La connexion est lente, cette action peut donc encore aboutir. Vérifiez la liste avant de réessayer.';
+
+  @override
+  String get errorAnswerTooLarge =>
+      'Trop de modifications pour une seule demande (500 au maximum). Rien n’a été modifié. Essayez avec moins.';
+
+  @override
+  String get aiItemsUpdating =>
+      'Les éléments sont encore en cours de mise à jour.';
+
+  @override
+  String aiListOffOffer(String list) {
+    return '\"$list\" a l’IA désactivée. Envoyer pour vos autres listes ?';
+  }
+
+  @override
+  String get aiListOffSend => 'Envoyer';
+
+  @override
+  String get itemsNotUpdated =>
+      'Certains éléments de cette liste n’ont pas encore pu être mis à jour. L’app réessaiera à sa prochaine ouverture.';
 }

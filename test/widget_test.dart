@@ -15,6 +15,8 @@ import 'package:hybrid_note/lists/generic_list_host.dart';
 import 'package:hybrid_note/lists/generic_list_screen.dart';
 import 'package:hybrid_note/lists/list_definition.dart';
 import 'package:hybrid_note/lists/list_editor_screen.dart';
+import 'package:hybrid_note/lists/list_item.dart';
+import 'package:hybrid_note/lists/list_patch.dart';
 
 import 'support/fake_auth.dart';
 import 'support/firestore_store.dart';
@@ -303,6 +305,76 @@ void main() {
     expect(store.current.definitions.last.templateId, isNull);
   });
 
+  testWidgets('items of a big change that stay stuck get a short message (Q-64)', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues(const {});
+    const String plants = 'list-plants';
+    final DateTime at = DateTime.utc(2026, 11, 4);
+    final _FailingAfterOne firestore = _FailingAfterOne();
+    final FirestoreListStore store = await widgetTestStore(
+      tester,
+      firestore: firestore,
+      lists: [
+        ListDefinition.fromJson({
+          'id': plants,
+          'name': 'Plants',
+          'icon': 'local_florist',
+          'color': '#43A047',
+          'fields': [
+            {'key': 'title', 'type': 'text', 'label': 'Plant', 'primary': true},
+            {'key': 'kind', 'type': 'text', 'label': 'Kind'},
+          ],
+          'view': {'kind': 'cards'},
+          'updatedAt': at.toIso8601String(),
+        }),
+      ],
+      items: [
+        for (int n = 0; n < 4; n++)
+          ListItem(
+            id: 'i$n',
+            listId: plants,
+            values: {'title': 'Plant $n', 'kind': '$n'},
+            createdAt: at,
+            updatedAt: at,
+          ),
+      ],
+      batchLimit: 2,
+    );
+    await tester.pumpWidget(
+      await testApp(
+        auth: FakeAuthService(user: testUser),
+        openStore: (_) => store,
+      ),
+    );
+    await settle(tester);
+
+    firestore.arm();
+    final ListPatchResult? result = await tester.runAsync<ListPatchResult?>(
+      () => store.patchList(plants, const [
+        ListPatchOp(PatchOpKind.changeFieldType, {
+          'key': 'kind',
+          'type': 'counter',
+        }),
+      ]),
+    );
+    expect(result!.itemsPending, isTrue);
+    await settle(tester);
+    await tester.pump();
+
+    expect(
+      find.text(
+        'Some items in this list could not be updated yet. '
+        'The app will try again next time it opens.',
+      ),
+      findsOneWidget,
+    );
+    await tester.pumpAndSettle(const Duration(seconds: 5));
+  });
+
   testWidgets('offline, a new list opens and a deleted one offers Undo at once', (
     WidgetTester tester,
   ) async {
@@ -427,6 +499,74 @@ void main() {
       store.current.definition(BuiltinTemplates.groceryId)!.name,
       isNot('Shops'),
     );
+  });
+
+  testWidgets('renaming the open list in the edit screen shows on its page '
+      'at once', (tester) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues(const {});
+    final FirestoreListStore store = await widgetTestStore(tester);
+    await tester.pumpWidget(
+      await testApp(
+        auth: FakeAuthService(user: testUser),
+        openStore: (_) => store,
+      ),
+    );
+    await settle(tester);
+    const String grocery = BuiltinTemplates.groceryId;
+
+    await tester.tap(_hub);
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('launcher-note-$grocery')));
+    await settle(tester);
+    await tester.tap(_hub);
+    await tester.pump();
+    await tester.longPress(find.byKey(const ValueKey('launcher-note-$grocery')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('list-name')), 'Shops');
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('save-list')));
+    await settle(tester);
+
+    expect(store.current.definition(grocery)!.name, 'Shops');
+    expect(find.text('Shops'), findsWidgets);
+  });
+
+  testWidgets('Settings sets how often the AI asks first (Q-43)', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues(const {});
+    final FirestoreListStore store = await widgetTestStore(tester);
+    await tester.pumpWidget(
+      await testApp(
+        auth: FakeAuthService(user: testUser),
+        openStore: (_) => store,
+      ),
+    );
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('settings')));
+    await tester.pumpAndSettle();
+    final Finder hint = find.byKey(const ValueKey('settings-ai-ask-hint'));
+    expect(find.text('How often the AI checks with you'), findsOneWidget);
+    expect(
+      tester.widget<Text>(hint).data,
+      startsWith('Does clear requests right away'),
+    );
+    // The right end of the slider: Just do it.
+    final Finder slider = find.byKey(const ValueKey('settings-ai-ask-slider'));
+    await tester.ensureVisible(slider);
+    await tester.pumpAndSettle();
+    final Rect rect = tester.getRect(slider);
+    await tester.tapAt(Offset(rect.right - 12, rect.center.dy));
+    await tester.pumpAndSettle();
+    expect(tester.widget<Text>(hint).data, startsWith('Goes with its best guess'));
+    final SharedPreferences preferences = await SharedPreferences.getInstance();
+    expect(preferences.getString(AppSettingsCubit.aiAskLevelKey), 'less');
   });
 
   group('starter lists could not be written (Q-27)', () {
@@ -675,6 +815,33 @@ void main() {
 }
 
 // A server that refuses every transaction, as the rules would.
+// Lets the first transaction after [arm] through, and fails the rest.
+class _FailingAfterOne extends FakeFirebaseFirestore {
+  int? left;
+
+  void arm() => left = 1;
+
+  @override
+  Future<T> runTransaction<T>(
+    TransactionHandler<T> transactionHandler, {
+    Duration timeout = const Duration(seconds: 30),
+    int maxAttempts = 5,
+  }) {
+    final int? remaining = left;
+    if (remaining != null) {
+      if (remaining == 0) {
+        throw FirebaseException(plugin: 'cloud_firestore', code: 'aborted');
+      }
+      left = remaining - 1;
+    }
+    return super.runTransaction(
+      transactionHandler,
+      timeout: timeout,
+      maxAttempts: maxAttempts,
+    );
+  }
+}
+
 class _RefusingTransactions extends FakeFirebaseFirestore {
   @override
   Future<T> runTransaction<T>(

@@ -804,33 +804,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get ruleMoveTo => '移動先';
 
   @override
-  String get listFilterAll => 'すべて';
-
-  @override
-  String get listDoneGroup => '完了';
-
-  @override
-  String listOpenDoneCount(int open, int done) {
-    return '未完了 $open · 完了 $done';
-  }
-
-  @override
-  String listItemCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count 件',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String get itemSheetNew => '新しい項目';
-
-  @override
-  String get itemSheetEdit => '項目を編集';
-
-  @override
   String get account => 'アカウント';
 
   @override
@@ -859,6 +832,65 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get startEmpty => '空で始める';
+
+  @override
+  String errorMissingArg(String arg) {
+    return '変更に「$arg」がありません。';
+  }
+
+  @override
+  String errorWrongArgType(String arg) {
+    return '変更の「$arg」の値の種類が正しくありません。';
+  }
+
+  @override
+  String errorUnknownArg(String arg) {
+    return '変更に不明な設定「$arg」があります。';
+  }
+
+  @override
+  String get errorUnknownList => 'リストが見つかりません。';
+
+  @override
+  String get errorUnknownItem => '変更する項目がリストに見つかりません。';
+
+  @override
+  String errorUnknownField(String field) {
+    return '「$field」はこのリストのフィールドではありません。';
+  }
+
+  @override
+  String get errorListChanged => 'リストがその後変更されたため、元に戻せません。';
+
+  @override
+  String get errorAiNotAllowed => 'AIはこのリストを変更できません。';
+
+  @override
+  String get listFilterAll => 'すべて';
+
+  @override
+  String get listDoneGroup => '完了';
+
+  @override
+  String listOpenDoneCount(int open, int done) {
+    return '未完了 $open · 完了 $done';
+  }
+
+  @override
+  String listItemCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 件',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get itemSheetNew => '新しい項目';
+
+  @override
+  String get itemSheetEdit => '項目を編集';
 
   @override
   String get settings => '設定';
@@ -906,4 +938,274 @@ class AppLocalizationsJa extends AppLocalizations {
     });
     return '$_temp0';
   }
+
+  @override
+  String get aiBarHint => '追加・変更';
+
+  @override
+  String aiBarHintList(String list) {
+    return '$listに追加';
+  }
+
+  @override
+  String get aiBarHintNewList => 'リストを説明';
+
+  @override
+  String get aiSend => '送信';
+
+  @override
+  String get aiBarLabel => 'AIへのリクエスト';
+
+  @override
+  String get aiDescribeNewList => '新しいリストを説明する';
+
+  @override
+  String get aiDescribeNewListMeta => 'AIが項目を選びます';
+
+  @override
+  String get aiNoticeTitle => '最初のリクエストの前に';
+
+  @override
+  String get aiNoticeDeepSeek =>
+      'リクエスト、リストの名前・説明・項目、開いているリスト（またはリクエストが対象とするリスト）と最近の項目最大20件がDeepSeekに送られます。DeepSeekはデータを中国で処理・保存するAIプロバイダーです。AIをオフにしたリストは送信されません。リクエストの文章は不具合調査のため約7日間保存され、その後削除されます。';
+
+  @override
+  String get aiNoticeContinue => '続ける';
+
+  @override
+  String get aiApply => '適用';
+
+  @override
+  String aiAddItems(String list, String items) {
+    return '$list：$itemsを追加';
+  }
+
+  @override
+  String aiEditItems(String list, String items) {
+    return '$list：$itemsを変更';
+  }
+
+  @override
+  String aiDeleteItems(String list, String items) {
+    return '$list：$itemsを削除';
+  }
+
+  @override
+  String aiOpAddField(String list, String field) {
+    return '$list：項目「$field」を追加';
+  }
+
+  @override
+  String aiOpRemoveField(String list, String field) {
+    return '$list：項目「$field」を削除';
+  }
+
+  @override
+  String aiOpRenameField(String list, String field, String label) {
+    return '$list：「$field」を「$label」に名前変更';
+  }
+
+  @override
+  String aiOpChangeField(String list, String field) {
+    return '$list：項目「$field」を変更';
+  }
+
+  @override
+  String aiOpSetView(String list, String view) {
+    return '$list：$viewで表示';
+  }
+
+  @override
+  String aiOpBehavior(String list, String behavior) {
+    return '$list：$behaviorを変更';
+  }
+
+  @override
+  String aiOpListInfo(String list) {
+    return '$list：名前・アイコン・色を変更';
+  }
+
+  @override
+  String aiHiddenValues(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count件の値が合わなくなり、非表示で保存されます',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String aiNewList(String name, String fields) {
+    return '新しいリスト「$name」：$fields';
+  }
+
+  @override
+  String aiDoneAdded(String lists) {
+    return '$listsに追加しました';
+  }
+
+  @override
+  String aiDoneChanged(String lists) {
+    return '$listsを変更しました';
+  }
+
+  @override
+  String aiDoneCreated(String list) {
+    return '$listを作成しました';
+  }
+
+  @override
+  String get aiUndone => '元に戻しました';
+
+  @override
+  String get aiDeclinedOffTopic => 'お手伝いできるのはリストのことだけです。';
+
+  @override
+  String get aiDeclinedNotSupported => 'その変更はできません。';
+
+  @override
+  String get aiRefusedAiNotAllowed => 'このリストではAIがオフになっています。';
+
+  @override
+  String get aiRefusedOutputTooLong => '回答が長すぎました。短いリクエストでお試しください。';
+
+  @override
+  String get aiRefusedNoValidTool => '回答を使えませんでした。別の言葉でお試しください。';
+
+  @override
+  String get aiRefusedDailyCount => '本日のAIリクエストの上限に達しました。';
+
+  @override
+  String get aiRefusedBudget => 'AIは明日まで停止中です。';
+
+  @override
+  String get aiRefusedPromptTooLong => 'リクエストが長すぎます。';
+
+  @override
+  String get aiRefusedContextTooLarge => 'リストが大きすぎて送信できません。';
+
+  @override
+  String get aiRefusedAccess => 'このアカウントまたはアプリはAIを使えません。';
+
+  @override
+  String get aiRefusedUnavailable => 'AIは現在利用できません。後でもう一度お試しください。';
+
+  @override
+  String get aiRefusedBadRequest => 'リクエストを送信できませんでした。';
+
+  @override
+  String get aiInvalidAnswer => '変更がリストに合わないため、何も適用されませんでした。';
+
+  @override
+  String get errorUndoTooLarge => 'この変更は項目が多すぎるため、元に戻せません。';
+
+  @override
+  String get aiPartlyNotDone => 'リクエストの一部は実行できませんでした。';
+
+  @override
+  String get aiRefusedProviderAccount =>
+      'AIプロバイダーのアカウントに問題があります。キーまたは残高を確認してください。';
+
+  @override
+  String aiListOff(String list) {
+    return '「$list」はAIがオフです。';
+  }
+
+  @override
+  String get aiAutoApplyOffer => '今後このような変更を確認せずに適用しますか？元に戻すは引き続き使えます。';
+
+  @override
+  String get aiAutoApplyYes => 'はい';
+
+  @override
+  String get aiAutoApplyNo => '今はしない';
+
+  @override
+  String get settingsAiAutoApply => 'AIの変更を確認せずに適用';
+
+  @override
+  String get aiAnswerHint => '返答';
+
+  @override
+  String aiAnswering(String reply) {
+    return '返答先：$reply';
+  }
+
+  @override
+  String get aiNewRequest => '新しいリクエスト';
+
+  @override
+  String get listDescription => 'リストの説明';
+
+  @override
+  String get listDescriptionHint => 'このリストの用途（任意）';
+
+  @override
+  String errorDescriptionTooLong(String max) {
+    return '説明は$max文字以内にしてください。';
+  }
+
+  @override
+  String get tasksDescription => 'やること。';
+
+  @override
+  String get groceryDescription => '次の買い物で買う食品や日用品。';
+
+  @override
+  String get journalDescription => '日付ごとの毎日のメモや考え。';
+
+  @override
+  String get watchReadDescription => '観たい・読みたい映画、ドラマ、本。';
+
+  @override
+  String get settingsAiAsk => 'AIが確認する頻度';
+
+  @override
+  String get aiAskMore => 'まず確認';
+
+  @override
+  String get aiAskMoreHint => '確信がないときは必ず確認し、新しいリストは頼まれたときだけ作ります。';
+
+  @override
+  String get aiAskBalanced => 'バランス';
+
+  @override
+  String get aiAskBalancedHint => 'はっきりした依頼はすぐ実行し、あいまいな依頼は確認します。';
+
+  @override
+  String get aiAskLess => 'すぐ実行';
+
+  @override
+  String get aiAskLessHint => '最も可能性の高い案で実行し、2つのリストが同じくらい合うときだけ確認します。';
+
+  @override
+  String get errorPreviewChanged =>
+      'このプレビューの後にリストが変更されたため、何も変更しませんでした。もう一度お試しください。';
+
+  @override
+  String get errorNeedsConnection => '接続が必要です。何も変更していません。';
+
+  @override
+  String get errorOutcomeUnknown =>
+      '接続が遅いため、この変更はまだ反映される可能性があります。もう一度試す前にリストを確認してください。';
+
+  @override
+  String get errorAnswerTooLarge =>
+      '1回のリクエストには変更が多すぎます（最大500件）。何も変更していません。件数を減らしてください。';
+
+  @override
+  String get aiItemsUpdating => '項目はまだ更新中です。';
+
+  @override
+  String aiListOffOffer(String list) {
+    return '「$list」はAIがオフです。他のリスト向けに送信しますか？';
+  }
+
+  @override
+  String get aiListOffSend => '送信';
+
+  @override
+  String get itemsNotUpdated =>
+      'このリストの一部の項目をまだ更新できませんでした。次回アプリを開いたときにもう一度試します。';
 }

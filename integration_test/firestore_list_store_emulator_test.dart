@@ -14,6 +14,7 @@ import 'package:hybrid_note/firebase_options.dart';
 import 'package:hybrid_note/lists/builtin_templates.dart';
 import 'package:hybrid_note/lists/list_catalog.dart';
 import 'package:hybrid_note/lists/list_definition.dart';
+import 'package:hybrid_note/lists/list_error.dart';
 import 'package:hybrid_note/lists/list_item.dart';
 import 'package:hybrid_note/lists/list_patch.dart';
 import 'package:hybrid_note/lists/list_rules.dart';
@@ -241,6 +242,71 @@ Future<void> _untilServerUnreachable(String uid) async {
   }, timeout: const Duration(seconds: 120));
 }
 
+// Device one applies an AI change and stops listening; device two changes the
+// same item. Device one's Undo must be refused with [expected], and device two's
+// value must stay once device one is back (Q-53).
+Future<void> _undoAfterOtherDevice({
+  required ListErrorCode expected,
+  required Future<void> Function(String path) goOffline,
+  required Future<void> Function(String path) goOnline,
+}) async {
+  final (String uid, String email) = await _newUser();
+  await _seed(uid);
+  await _auth2.signInWithEmailAndPassword(email: email, password: _password);
+  addTearDown(_auth2.signOut);
+  addTearDown(_db.enableNetwork);
+  final FirestoreListStore one = await _loaded(
+    _db,
+    uid,
+    transactionTimeout: const Duration(seconds: 3),
+  );
+  final FirestoreListStore two = await _loaded(_db2, uid);
+
+  final ListDefinition definition = (await _until(
+    one,
+    (c) => c.definitions.isNotEmpty,
+  )).definitions.first;
+  final String listId = definition.id;
+  ListItem titled(String title) => ListItem(
+    id: 'h5',
+    listId: listId,
+    values: {'title': title},
+    createdAt: _t0,
+    updatedAt: _t0,
+  );
+  final AiWriteResult applied = await one.applyAiItems(
+    AiItemWrite(definition: definition, saved: [titled('Oat milk')]),
+  );
+  expect(applied.errors, isEmpty);
+  await _until(two, (c) => c.itemsOf(listId).any((i) => i.id == 'h5'));
+
+  await _db.disableNetwork();
+  await two.apply(ListChanges(saved: [titled('Newer on two')]));
+  final String listPath = 'users/$uid/lists/$listId';
+  await goOffline(listPath);
+  // Device one's cache still shows its own change.
+  expect(
+    one.current.itemsOf(listId).singleWhere((i) => i.id == 'h5')['title'],
+    'Oat milk',
+  );
+  final List<ListError> refused = await one.restoreSnapshot(applied.snapshot!);
+  expect(refused.single.code, expected);
+
+  await goOnline(listPath);
+  await _db.enableNetwork();
+  final ListCatalog seen = await _until(
+    one,
+    (c) => c.itemsOf(listId).any((i) => i['title'] == 'Newer on two'),
+  );
+  expect(seen.itemsOf(listId).any((i) => i['title'] == 'Oat milk'), isFalse);
+  await Future<void>.delayed(const Duration(seconds: 2));
+  final Map<String, dynamic>? stored = (await _db2
+          .doc('users/$uid/lists/$listId/items/h5')
+          .get(const GetOptions(source: Source.server)))
+      .data();
+  expect((stored!['values'] as Map)['title'], 'Newer on two');
+}
+
 void _measure(String what) => debugPrint('MEASURE $what');
 
 void main() {
@@ -398,6 +464,206 @@ void main() {
         goOnline: _db.enableNetwork,
       );
     });
+
+    // H5 of the Codex review, Q-53: another device's newer change survives an
+    // Undo from a device with a stale cache. disableNetwork stops the listeners
+    // but not transactions (see the MEASURE line of the patch test above), so
+    // here the Undo still reaches the server and sees the change.
+    test('an AI Undo with a stale cache is refused by the stored data', () async {
+      await _undoAfterOtherDevice(
+        expected: ListErrorCode.listChanged,
+        goOffline: (_) async {},
+        goOnline: (_) async {},
+      );
+    });
+
+    // The same with no server at all: the cache alone would call the Undo fine,
+    // and it must not be queued. The other device's emulator client shows when
+    // the device is really cut off. Needs the host, as the airplane test below.
+    test(
+      'an AI Undo in airplane mode needs a connection and overwrites nothing',
+      () async {
+        await _undoAfterOtherDevice(
+          expected: ListErrorCode.needsConnection,
+          goOffline: (path) async {
+            debugPrint('HOST airplane-mode enable');
+            await _eventually(() async {
+              try {
+                await _server(_db2, path).timeout(const Duration(seconds: 3));
+                return false;
+              } on FirebaseException catch (error) {
+                return error.code != 'permission-denied';
+              } on TimeoutException {
+                return true;
+              }
+            }, timeout: const Duration(seconds: 120));
+          },
+          goOnline: (path) async {
+            debugPrint('HOST airplane-mode disable');
+            await _eventually(() async {
+              try {
+                await _server(_db2, path).timeout(const Duration(seconds: 3));
+                return true;
+              } on Object {
+                return false;
+              }
+            }, timeout: const Duration(seconds: 120));
+          },
+        );
+      },
+      skip: !const bool.fromEnvironment('AIRPLANE'),
+      timeout: const Timeout(Duration(minutes: 5)),
+    );
+
+    // R2 of the Codex re-review on the real plugin: a connection that goes quiet
+    // once the writes are handed over. Needs firebase/tests/stall-proxy.cjs
+    // (the runbook has the command). Off unless --dart-define=STALL=true.
+    group('a connection stalling at the commit', () {
+      const Duration stallLimit = Duration(seconds: 2);
+      const Duration stallCommit = Duration(seconds: 5);
+      late FirebaseFirestore stalledDb;
+      late String uid;
+      late ListDefinition definition;
+      late ListItem milk;
+      late FirestoreListStore store;
+
+      setUpAll(() async {
+        final FirebaseApp app = await Firebase.initializeApp(
+          name: 'stalled-device',
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+        stalledDb = FirebaseFirestore.instanceFor(app: app)
+          ..useFirestoreEmulator(_host, 8090);
+        await FirebaseAuth.instanceFor(app: app).useAuthEmulator(_host, 9099);
+      });
+
+      Future<void> open({
+        Future<void> Function()? beforeHandOver,
+        Duration limit = stallLimit,
+      }) async {
+        final (String newUid, String email) = await _newUser();
+        uid = newUid;
+        await _seed(uid);
+        await FirebaseAuth.instanceFor(
+          app: Firebase.app('stalled-device'),
+        ).signInWithEmailAndPassword(email: email, password: _password);
+        store = FirestoreListStore(
+          stalledDb,
+          uid,
+          transactionTimeout: limit,
+          commitTimeout: stallCommit,
+          beforeHandOver: beforeHandOver,
+        );
+        addTearDown(store.close);
+        definition = (await _until(
+          store,
+          (c) => c.definitions.isNotEmpty,
+        )).definitions.first;
+        milk = ListItem(
+          id: 'r2',
+          listId: definition.id,
+          values: {'title': 'Milk'},
+          createdAt: _t0,
+          updatedAt: _t0,
+        );
+        await store.apply(ListChanges(saved: [milk]));
+        await _until(store, (c) => c.itemsOf(definition.id).any((i) => i.id == 'r2'));
+      }
+
+      AiItemWrite edit() => AiItemWrite(
+        definition: definition,
+        saved: [
+          ListItem(
+            id: milk.id,
+            listId: milk.listId,
+            values: {'title': 'Oat milk'},
+            createdAt: _t0,
+            updatedAt: _t0.add(const Duration(minutes: 1)),
+          ),
+        ],
+        base: {milk.id: milk},
+      );
+
+      Future<Object?> storedTitle() async {
+        final Map<String, dynamic>? data = await _server(
+          _db,
+          'users/$uid/lists/${definition.id}/items/r2',
+        );
+        return (data?['values'] as Map?)?['title'];
+      }
+
+      test('stalled after the hand-over: unknown, then it lands', () async {
+        bool stalls = false;
+        await open(
+          // Time to confirm the stall before the writes are handed over.
+          limit: const Duration(seconds: 25),
+          beforeHandOver: () async {
+            if (!stalls) {
+              return;
+            }
+            stalls = false;
+            debugPrint('HOST stall-on');
+            // The log reaches the proxy with a delay: wait until a read through
+            // the stalled connection really gets no answer.
+            await _eventually(() async {
+              try {
+                await _server(
+                  stalledDb,
+                  'users/$uid/lists/${definition.id}',
+                ).timeout(const Duration(seconds: 2));
+                return false;
+              } on Object {
+                return true;
+              }
+            }, timeout: const Duration(seconds: 20));
+          },
+        );
+        stalls = true;
+        final Stopwatch watch = Stopwatch()..start();
+        final AiWriteResult result = await store.applyAiItems(edit());
+        final Object? duringStall = await storedTitle();
+        _measure(
+          'stalled commit: ${result.errors.map((e) => e.code.wire)} after '
+          '${watch.elapsedMilliseconds} ms; stored $duringStall',
+        );
+        expect(result.errors.single.code, ListErrorCode.outcomeUnknown);
+        expect(duringStall, 'Milk');
+        debugPrint('HOST stall-off');
+        final Stopwatch landing = Stopwatch()..start();
+        Object? finalTitle;
+        try {
+          await _eventually(() async {
+            finalTitle = await storedTitle();
+            return finalTitle == 'Oat milk';
+          }, timeout: const Duration(seconds: 90));
+          _measure(
+            'stalled commit landed ${landing.elapsedMilliseconds} ms after '
+            'the connection came back',
+          );
+        } on Object {
+          // Either end is what "may still go through" promises; say which.
+          _measure('stalled commit did not land in 90 s: stored $finalTitle');
+        }
+        expect(finalTitle, anyOf('Oat milk', 'Milk'));
+      }, timeout: const Timeout(Duration(minutes: 4)));
+
+      test('stalled before the hand-over: refused, and nothing lands later', () async {
+        bool holds = false;
+        await open(
+          beforeHandOver: () async {
+            if (holds) {
+              holds = false;
+              await Future<void>.delayed(stallLimit * 2);
+            }
+          },
+        );
+        holds = true;
+        final AiWriteResult result = await store.applyAiItems(edit());
+        expect(result.errors.single.code, ListErrorCode.needsConnection);
+        await Future<void>.delayed(stallLimit * 3);
+        expect(await storedTitle(), 'Milk');
+      }, timeout: const Timeout(Duration(minutes: 2)));
+    }, skip: !const bool.fromEnvironment('STALL'));
 
     // Needs the host to switch the device's airplane mode when it sees the
     // HOST lines; the runbook has the command. Off unless
@@ -563,7 +829,14 @@ void main() {
       ]);
       _measure('patch of $count items: ${watch.elapsedMilliseconds} ms');
       expect(result?.isValid, isTrue);
-      final int revision = result!.definition.schemaRevision;
+      // It returned with the definition saved; the items follow (Q-59).
+      expect(result!.itemsPending, isTrue);
+      await _until(
+        store,
+        (c) => c.itemsOf('big').every((item) => item['n'] is String),
+      );
+      _measure('... items done: ${watch.elapsedMilliseconds} ms');
+      final int revision = result.definition.schemaRevision;
       final QuerySnapshot<Map<String, dynamic>> items = await _db
           .collection('users/$uid/lists/big/items')
           .get(const GetOptions(source: Source.server));

@@ -802,33 +802,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get ruleMoveTo => '移动到';
 
   @override
-  String get listFilterAll => '全部';
-
-  @override
-  String get listDoneGroup => '已完成';
-
-  @override
-  String listOpenDoneCount(int open, int done) {
-    return '$open 项未完成 · $done 项已完成';
-  }
-
-  @override
-  String listItemCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count 项',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String get itemSheetNew => '新建项目';
-
-  @override
-  String get itemSheetEdit => '编辑项目';
-
-  @override
   String get account => '账户';
 
   @override
@@ -857,6 +830,65 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get startEmpty => '从空白开始';
+
+  @override
+  String errorMissingArg(String arg) {
+    return '某项更改缺少“$arg”。';
+  }
+
+  @override
+  String errorWrongArgType(String arg) {
+    return '某项更改中“$arg”的值类型不正确。';
+  }
+
+  @override
+  String errorUnknownArg(String arg) {
+    return '某项更改包含未知设置“$arg”。';
+  }
+
+  @override
+  String get errorUnknownList => '未找到该列表。';
+
+  @override
+  String get errorUnknownItem => '在列表中未找到要更改的条目。';
+
+  @override
+  String errorUnknownField(String field) {
+    return '“$field”不是此列表的字段。';
+  }
+
+  @override
+  String get errorListChanged => '列表在此之后已更改，因此无法撤销。';
+
+  @override
+  String get errorAiNotAllowed => 'AI 不能更改此列表。';
+
+  @override
+  String get listFilterAll => '全部';
+
+  @override
+  String get listDoneGroup => '已完成';
+
+  @override
+  String listOpenDoneCount(int open, int done) {
+    return '$open 项未完成 · $done 项已完成';
+  }
+
+  @override
+  String listItemCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 项',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get itemSheetNew => '新建项目';
+
+  @override
+  String get itemSheetEdit => '编辑项目';
 
   @override
   String get settings => '设置';
@@ -904,4 +936,269 @@ class AppLocalizationsZh extends AppLocalizations {
     });
     return '$_temp0';
   }
+
+  @override
+  String get aiBarHint => '添加或更改';
+
+  @override
+  String aiBarHintList(String list) {
+    return '添加到$list';
+  }
+
+  @override
+  String get aiBarHintNewList => '描述列表';
+
+  @override
+  String get aiSend => '发送';
+
+  @override
+  String get aiBarLabel => 'AI 请求';
+
+  @override
+  String get aiDescribeNewList => '描述新列表';
+
+  @override
+  String get aiDescribeNewListMeta => '由 AI 选择字段';
+
+  @override
+  String get aiNoticeTitle => '首次请求之前';
+
+  @override
+  String get aiNoticeDeepSeek =>
+      '你的请求、各列表的名称、说明和字段，以及打开的列表（或请求涉及的列表）和最多 20 条最近条目会发送给 DeepSeek。DeepSeek 是一家在中国处理和存储数据的 AI 提供商。关闭了 AI 的列表绝不会发送。请求文字会保留约 7 天用于排查问题，之后删除。';
+
+  @override
+  String get aiNoticeContinue => '继续';
+
+  @override
+  String get aiApply => '应用';
+
+  @override
+  String aiAddItems(String list, String items) {
+    return '$list：添加$items';
+  }
+
+  @override
+  String aiEditItems(String list, String items) {
+    return '$list：更改$items';
+  }
+
+  @override
+  String aiDeleteItems(String list, String items) {
+    return '$list：删除$items';
+  }
+
+  @override
+  String aiOpAddField(String list, String field) {
+    return '$list：添加字段“$field”';
+  }
+
+  @override
+  String aiOpRemoveField(String list, String field) {
+    return '$list：移除字段“$field”';
+  }
+
+  @override
+  String aiOpRenameField(String list, String field, String label) {
+    return '$list：将“$field”重命名为“$label”';
+  }
+
+  @override
+  String aiOpChangeField(String list, String field) {
+    return '$list：更改字段“$field”';
+  }
+
+  @override
+  String aiOpSetView(String list, String view) {
+    return '$list：显示为$view';
+  }
+
+  @override
+  String aiOpBehavior(String list, String behavior) {
+    return '$list：更改$behavior';
+  }
+
+  @override
+  String aiOpListInfo(String list) {
+    return '$list：更改名称、图标或颜色';
+  }
+
+  @override
+  String aiHiddenValues(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 个值不再适用，已隐藏保存',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String aiNewList(String name, String fields) {
+    return '新列表“$name”：$fields';
+  }
+
+  @override
+  String aiDoneAdded(String lists) {
+    return '已添加到$lists';
+  }
+
+  @override
+  String aiDoneChanged(String lists) {
+    return '已更改$lists';
+  }
+
+  @override
+  String aiDoneCreated(String list) {
+    return '已创建$list';
+  }
+
+  @override
+  String get aiUndone => '已撤销';
+
+  @override
+  String get aiDeclinedOffTopic => '我只能帮你处理列表。';
+
+  @override
+  String get aiDeclinedNotSupported => '我无法做这项更改。';
+
+  @override
+  String get aiRefusedAiNotAllowed => '此列表已关闭 AI。';
+
+  @override
+  String get aiRefusedOutputTooLong => '回答太长。请尝试更短的请求。';
+
+  @override
+  String get aiRefusedNoValidTool => '无法使用该回答。请换种说法。';
+
+  @override
+  String get aiRefusedDailyCount => '你已达到今天的 AI 请求上限。';
+
+  @override
+  String get aiRefusedBudget => 'AI 暂停到明天。';
+
+  @override
+  String get aiRefusedPromptTooLong => '请求太长。';
+
+  @override
+  String get aiRefusedContextTooLarge => '你的列表太大，无法发送。';
+
+  @override
+  String get aiRefusedAccess => '此账号或应用不能使用 AI。';
+
+  @override
+  String get aiRefusedUnavailable => 'AI 目前不可用。请稍后再试。';
+
+  @override
+  String get aiRefusedBadRequest => '请求无法发送。';
+
+  @override
+  String get aiInvalidAnswer => '这些更改与列表不符，因此没有应用任何内容。';
+
+  @override
+  String get errorUndoTooLarge => '此更改涉及的项目太多，无法撤销。';
+
+  @override
+  String get aiPartlyNotDone => '请求的一部分无法完成。';
+
+  @override
+  String get aiRefusedProviderAccount => 'AI 服务商账户需要处理：请检查密钥或余额。';
+
+  @override
+  String aiListOff(String list) {
+    return '“$list”已关闭 AI。';
+  }
+
+  @override
+  String get aiAutoApplyOffer => '以后像这样的更改不再询问直接应用？仍可撤销。';
+
+  @override
+  String get aiAutoApplyYes => '是';
+
+  @override
+  String get aiAutoApplyNo => '暂不';
+
+  @override
+  String get settingsAiAutoApply => '不询问直接应用 AI 更改';
+
+  @override
+  String get aiAnswerHint => '你的回答';
+
+  @override
+  String aiAnswering(String reply) {
+    return '回答：$reply';
+  }
+
+  @override
+  String get aiNewRequest => '新请求';
+
+  @override
+  String get listDescription => '列表说明';
+
+  @override
+  String get listDescriptionHint => '这个列表的用途（可选）';
+
+  @override
+  String errorDescriptionTooLong(String max) {
+    return '说明最多 $max 个字符。';
+  }
+
+  @override
+  String get tasksDescription => '要做的事。';
+
+  @override
+  String get groceryDescription => '下次购物要买的食品和日用品。';
+
+  @override
+  String get journalDescription => '按日期记录的每日笔记和想法。';
+
+  @override
+  String get watchReadDescription => '想看或想读的电影、剧集和书。';
+
+  @override
+  String get settingsAiAsk => 'AI 向你确认的频率';
+
+  @override
+  String get aiAskMore => '先问我';
+
+  @override
+  String get aiAskMoreHint => '不确定时就向你确认，只在你要求时才新建列表。';
+
+  @override
+  String get aiAskBalanced => '平衡';
+
+  @override
+  String get aiAskBalancedHint => '明确的请求立即执行，模糊的请求先向你确认。';
+
+  @override
+  String get aiAskLess => '直接做';
+
+  @override
+  String get aiAskLessHint => '按最可能的理解执行，只在两个列表同样合适时才确认。';
+
+  @override
+  String get errorPreviewChanged => '此预览之后列表已更改，因此未做任何更改。请重试。';
+
+  @override
+  String get errorNeedsConnection => '需要网络连接。未做任何更改。';
+
+  @override
+  String get errorOutcomeUnknown => '连接较慢，此更改可能仍会生效。请先查看列表再重试。';
+
+  @override
+  String get errorAnswerTooLarge => '一次请求的更改过多（最多 500 项）。未做任何更改。请减少数量。';
+
+  @override
+  String get aiItemsUpdating => '项目仍在更新。';
+
+  @override
+  String aiListOffOffer(String list) {
+    return '“$list”已关闭 AI。要针对其他列表发送吗？';
+  }
+
+  @override
+  String get aiListOffSend => '发送';
+
+  @override
+  String get itemsNotUpdated => '此列表中的部分项目尚未更新。应用下次打开时会重试。';
 }

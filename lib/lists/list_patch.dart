@@ -1,5 +1,6 @@
 import 'list_definition.dart';
 import 'list_error.dart';
+import 'list_input.dart';
 import 'list_item.dart';
 import 'list_vocabulary.dart';
 
@@ -27,7 +28,8 @@ enum PatchOpKind implements WireName {
 }
 
 // One operation. Arguments by kind:
-//   setListInfo {name?, icon?, color?, aiAllowed?}
+//   setListInfo {name?, description?, icon?, color?, aiAllowed?}
+//     (a blank description removes it)
 //   addField {field, index?}           removeField {key}
 //   renameField {key, label}           changeFieldType {key, type, options?}
 //   setFieldProps {key, required?}     setOptions {key, options}
@@ -39,7 +41,76 @@ class ListPatchOp {
   final PatchOpKind kind;
   final Map<String, dynamic> args;
 
-  String? get key => args['key'] as String?;
+  // The arguments of each kind and their JSON types (the comment above);
+  // [requiredArgs] must be present. Ops come from the editor and from the
+  // AI (T-19), so apply checks them before using them.
+  static const Map<PatchOpKind, Map<String, ArgType>> argTypes = {
+    PatchOpKind.setListInfo: {
+      'name': ArgType.string,
+      'description': ArgType.string,
+      'icon': ArgType.string,
+      'color': ArgType.string,
+      'aiAllowed': ArgType.boolean,
+    },
+    PatchOpKind.addField: {'field': ArgType.object, 'index': ArgType.integer},
+    PatchOpKind.removeField: {'key': ArgType.string},
+    PatchOpKind.renameField: {'key': ArgType.string, 'label': ArgType.string},
+    PatchOpKind.changeFieldType: {
+      'key': ArgType.string,
+      'type': ArgType.string,
+      'options': ArgType.list,
+    },
+    PatchOpKind.setFieldProps: {'key': ArgType.string, 'required': ArgType.boolean},
+    PatchOpKind.setOptions: {'key': ArgType.string, 'options': ArgType.list},
+    PatchOpKind.moveField: {'key': ArgType.string, 'index': ArgType.integer},
+    PatchOpKind.setView: {'view': ArgType.object},
+    PatchOpKind.addBehavior: {'behavior': ArgType.object},
+    PatchOpKind.removeBehavior: {'kind': ArgType.string},
+  };
+
+  static const Map<PatchOpKind, Set<String>> requiredArgs = {
+    PatchOpKind.setListInfo: {},
+    PatchOpKind.addField: {'field'},
+    PatchOpKind.removeField: {'key'},
+    PatchOpKind.renameField: {'key', 'label'},
+    PatchOpKind.changeFieldType: {'key', 'type'},
+    PatchOpKind.setFieldProps: {'key'},
+    PatchOpKind.setOptions: {'key', 'options'},
+    PatchOpKind.moveField: {'key'},
+    PatchOpKind.setView: {'view'},
+    PatchOpKind.addBehavior: {'behavior'},
+    PatchOpKind.removeBehavior: {'kind'},
+  };
+
+  String? get key {
+    final Object? key = args['key'];
+    return key is String ? key : null;
+  }
+
+  // Unknown, missing or wrongly typed arguments, also inside the field,
+  // option, view and behavior objects; empty when the op can be applied.
+  List<ListError> argErrors() {
+    final String op = kind.wire;
+    final List<ListError> errors = ListInput.checkArgs(
+      args,
+      op,
+      argTypes[kind]!,
+      required: requiredArgs[kind]!,
+    );
+    if (errors.isNotEmpty) {
+      return errors;
+    }
+    final Object? options = args['options'];
+    if (options is List) {
+      for (int i = 0; i < options.length; i++) {
+        errors.addAll(ListInput.unknownKeys(options[i], InputShape.option, op, 'options[$i]'));
+      }
+    }
+    errors.addAll(ListInput.unknownKeys(args['field'], InputShape.field, op, 'field'));
+    errors.addAll(ListInput.unknownKeys(args['view'], InputShape.view, op, 'view'));
+    errors.addAll(ListInput.unknownKeys(args['behavior'], InputShape.behavior, op, 'behavior'));
+    return errors;
+  }
 
   Map<String, dynamic> toJson() => {'op': kind.wire, ...args};
 
@@ -63,10 +134,32 @@ class ListPatchResult {
     required this.changedItemIds,
     required this.hiddenValues,
     required this.errors,
+    required this.definitionBefore,
+    required this.itemsBefore,
+    this.itemsPending = false,
   });
+
+  // The same result, saved with its items still to come.
+  ListPatchResult withItemsPending() => ListPatchResult(
+    definition: definition,
+    items: items,
+    changedItemIds: changedItemIds,
+    hiddenValues: hiddenValues,
+    errors: errors,
+    definitionBefore: definitionBefore,
+    itemsBefore: itemsBefore,
+    itemsPending: true,
+  );
 
   final ListDefinition definition;
   final List<ListItem> items;
+  // What the ops were applied to: in a store, the list as its write read it,
+  // which is what an Undo must bring back (H6 of the Codex review).
+  final ListDefinition definitionBefore;
+  final List<ListItem> itemsBefore;
+  // A store saved the definition and is still fitting more items than one
+  // write holds; no Undo can cover a change this size (Q-59).
+  final bool itemsPending;
   final Set<String> changedItemIds;
   // Values that could not be converted and were moved to the item's hidden
   // `_legacy` slot, so nothing is destroyed (Q-4, plan 4.4).
@@ -115,8 +208,10 @@ class ListPatch {
     // Moves a value that does not fit any more into the hidden slot.
     void hide(String itemId, String key) {
       final Map<String, dynamic> itemValues = values[itemId]!;
+      // A stored `_legacy` that is not a map is replaced, not cast (N5).
+      final Object? stored = itemValues[legacyKey];
       final Map<String, dynamic> legacy = Map<String, dynamic>.from(
-        itemValues[legacyKey] as Map? ?? const {},
+        stored is Map ? stored : const {},
       );
       legacy[key] = [...archivedValues(legacy, key), itemValues.remove(key)];
       itemValues[legacyKey] = legacy;
@@ -125,6 +220,11 @@ class ListPatch {
     }
 
     for (final ListPatchOp op in ops) {
+      final List<ListError> argErrors = op.argErrors();
+      if (argErrors.isNotEmpty) {
+        errors.addAll(argErrors);
+        continue;
+      }
       final int index = indexOf(op.key);
       final bool needsField = const {
         PatchOpKind.removeField,
@@ -152,11 +252,8 @@ class ListPatch {
               errors.add(ListError(ListErrorCode.fieldExists, {'field': field.key}));
               continue;
             }
-            final Object? at = op.args['index'];
-            fields.insert(
-              at is int ? at.clamp(0, fields.length) : fields.length,
-              field,
-            );
+            final int? at = op.args['index'] as int?;
+            fields.insert((at ?? fields.length).clamp(0, fields.length), field);
           case PatchOpKind.removeField:
             // Values stay on the items, hidden, so an undo restores them.
             fields.removeAt(index);
@@ -245,6 +342,10 @@ class ListPatch {
       id: definition.id,
       name: info.containsKey('name') ? info['name'] as String? : definition.name,
       nameKey: info.containsKey('name') ? null : definition.nameKey,
+      description: info.containsKey('description')
+          ? _description(info['description'] as String?)
+          : definition.description,
+      descriptionKey: info.containsKey('description') ? null : definition.descriptionKey,
       icon: info['icon'] as String? ?? definition.icon,
       color: info['color'] as String? ?? definition.color,
       templateId: definition.templateId,
@@ -259,6 +360,8 @@ class ListPatch {
     errors.addAll(patched.validate());
 
     return ListPatchResult(
+      definitionBefore: definition,
+      itemsBefore: items,
       definition: patched,
       items: [
         for (final ListItem item in items)
@@ -375,6 +478,12 @@ class ListPatch {
       }
     }
     return options;
+  }
+
+  // A description as stored: trimmed, and none when blank.
+  static String? _description(String? text) {
+    final String trimmed = (text ?? '').trim();
+    return trimmed.isEmpty ? null : trimmed;
   }
 
   static bool _roleFits(FieldRole? role, FieldType type) {

@@ -39,6 +39,10 @@ service cloud.firestore {
         && data.view is map
         && (!('behaviors' in data) || data.behaviors is list)
         && (!('schemaRevision' in data) || data.schemaRevision is int)
+        // A description is at most 200 code points, as the app (T-20, Q-56).
+        // size() counts UTF-16 units; an RE2 match counts code points.
+        && (!('description' in data) || (data.description is string && data.description.matches('(?s).{0,200}')))
+        && (!('descriptionKey' in data) || data.descriptionKey == null || data.descriptionKey is string)
         && data.updatedAt is string
         && (!('_createdAt' in data) || data._createdAt is string);
     }
@@ -59,6 +63,23 @@ service cloud.firestore {
       let data = request.resource.data;
       return data.keys().hasAll(['starterSeededAt'])
         && data.starterSeededAt is string;
+    }
+
+    // aiCommand's server-only documents (T-19): the allowlist, the cap
+    // counters and the 7-day prompt log. Only the function (Admin SDK, which
+    // bypasses rules) touches them; no client may read or write them. Rules
+    // deny anything unmatched anyway; these blocks make it explicit.
+    match /aiAllowlist/{doc=**} {
+      allow read, write: if false;
+    }
+    match /aiUsageUser/{doc=**} {
+      allow read, write: if false;
+    }
+    match /aiUsagePool/{doc=**} {
+      allow read, write: if false;
+    }
+    match /aiPromptLog/{doc=**} {
+      allow read, write: if false;
     }
 
     match /users/{uid} {

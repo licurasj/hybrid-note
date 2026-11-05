@@ -131,6 +131,21 @@ describe('own tree', () => {
     await assertSucceeds(setDoc(ref, list('books', { sortOrder: 4, archived: false })));
   });
 
+  test('a list description is text of at most 200 code points, as the app (Q-56); descriptionKey is text or null (T-20)', async () => {
+    const ref = doc(owner(), `users/${OWNER}/lists/books`);
+    await assertSucceeds(setDoc(ref, list('books', { description: 'x'.repeat(200) })));
+    await assertSucceeds(setDoc(ref, list('books', { description: '\u{1F95A}'.repeat(200) })));
+    await assertSucceeds(setDoc(ref, list('books', { description: 'a\nb\n'.repeat(50) })));
+    await assertSucceeds(setDoc(ref, list('books', { description: '' })));
+    await assertSucceeds(setDoc(ref, list('books', { descriptionKey: 'groceryDescription' })));
+    await assertSucceeds(setDoc(ref, list('books', { descriptionKey: null })));
+    await assertFails(setDoc(ref, list('books', { description: 'x'.repeat(201) })));
+    await assertFails(setDoc(ref, list('books', { description: '\u{1F95A}'.repeat(201) })));
+    await assertFails(setDoc(ref, list('books', { description: 'x'.repeat(100) + '\u{1F95A}'.repeat(101) })));
+    await assertFails(setDoc(ref, list('books', { description: 42 })));
+    await assertFails(setDoc(ref, list('books', { descriptionKey: 7 })));
+  });
+
   test('an item without `_rev` is allowed', async () => {
     const ref = doc(owner(), `users/${OWNER}/lists/plants/items/ivy`);
     await assertSucceeds(setDoc(ref, without(item('ivy', 'plants'), '_rev')));

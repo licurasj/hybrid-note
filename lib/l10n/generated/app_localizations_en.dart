@@ -808,34 +808,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ruleMoveTo => 'Move to';
 
   @override
-  String get listFilterAll => 'All';
-
-  @override
-  String get listDoneGroup => 'Done';
-
-  @override
-  String listOpenDoneCount(int open, int done) {
-    return '$open open · $done done';
-  }
-
-  @override
-  String listItemCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count items',
-      one: '1 item',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String get itemSheetNew => 'New item';
-
-  @override
-  String get itemSheetEdit => 'Edit item';
-
-  @override
   String get account => 'Account';
 
   @override
@@ -867,6 +839,67 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get startEmpty => 'Start empty';
+
+  @override
+  String errorMissingArg(String arg) {
+    return 'A change is missing \"$arg\".';
+  }
+
+  @override
+  String errorWrongArgType(String arg) {
+    return 'A change has the wrong kind of value for \"$arg\".';
+  }
+
+  @override
+  String errorUnknownArg(String arg) {
+    return 'A change has an unknown setting \"$arg\".';
+  }
+
+  @override
+  String get errorUnknownList => 'The list was not found.';
+
+  @override
+  String get errorUnknownItem => 'An item to change was not found in the list.';
+
+  @override
+  String errorUnknownField(String field) {
+    return '\"$field\" is not a field of this list.';
+  }
+
+  @override
+  String get errorListChanged =>
+      'The list has changed since, so this cannot be undone.';
+
+  @override
+  String get errorAiNotAllowed => 'The AI may not change this list.';
+
+  @override
+  String get listFilterAll => 'All';
+
+  @override
+  String get listDoneGroup => 'Done';
+
+  @override
+  String listOpenDoneCount(int open, int done) {
+    return '$open open · $done done';
+  }
+
+  @override
+  String listItemCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items',
+      one: '1 item',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get itemSheetNew => 'New item';
+
+  @override
+  String get itemSheetEdit => 'Edit item';
 
   @override
   String get settings => 'Settings';
@@ -915,4 +948,287 @@ class AppLocalizationsEn extends AppLocalizations {
     });
     return '$_temp0';
   }
+
+  @override
+  String get aiBarHint => 'Add or change';
+
+  @override
+  String aiBarHintList(String list) {
+    return 'Add to $list';
+  }
+
+  @override
+  String get aiBarHintNewList => 'Describe the list';
+
+  @override
+  String get aiSend => 'Send';
+
+  @override
+  String get aiBarLabel => 'AI request';
+
+  @override
+  String get aiDescribeNewList => 'Describe a new list';
+
+  @override
+  String get aiDescribeNewListMeta => 'The AI picks its fields';
+
+  @override
+  String get aiNoticeTitle => 'Before your first request';
+
+  @override
+  String get aiNoticeDeepSeek =>
+      'Your request, the names, descriptions and fields of your lists, and the open list, or a list your request is about, with up to 20 recent items go to DeepSeek, an AI provider that processes and stores data in China. Lists with AI turned off are never sent. Your request text is kept for about 7 days to find problems, then deleted.';
+
+  @override
+  String get aiNoticeContinue => 'Continue';
+
+  @override
+  String get aiApply => 'Apply';
+
+  @override
+  String aiAddItems(String list, String items) {
+    return '$list: add $items';
+  }
+
+  @override
+  String aiEditItems(String list, String items) {
+    return '$list: change $items';
+  }
+
+  @override
+  String aiDeleteItems(String list, String items) {
+    return '$list: delete $items';
+  }
+
+  @override
+  String aiOpAddField(String list, String field) {
+    return '$list: add the field $field';
+  }
+
+  @override
+  String aiOpRemoveField(String list, String field) {
+    return '$list: remove the field $field';
+  }
+
+  @override
+  String aiOpRenameField(String list, String field, String label) {
+    return '$list: rename $field to $label';
+  }
+
+  @override
+  String aiOpChangeField(String list, String field) {
+    return '$list: change the field $field';
+  }
+
+  @override
+  String aiOpSetView(String list, String view) {
+    return '$list: show as $view';
+  }
+
+  @override
+  String aiOpBehavior(String list, String behavior) {
+    return '$list: change $behavior';
+  }
+
+  @override
+  String aiOpListInfo(String list) {
+    return '$list: change the name, icon or colour';
+  }
+
+  @override
+  String aiHiddenValues(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count values no longer fit and are kept hidden',
+      one: '1 value no longer fits and is kept hidden',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String aiNewList(String name, String fields) {
+    return 'New list $name: $fields';
+  }
+
+  @override
+  String aiDoneAdded(String lists) {
+    return 'Added to $lists';
+  }
+
+  @override
+  String aiDoneChanged(String lists) {
+    return 'Changed $lists';
+  }
+
+  @override
+  String aiDoneCreated(String list) {
+    return 'Created $list';
+  }
+
+  @override
+  String get aiUndone => 'Undone';
+
+  @override
+  String get aiDeclinedOffTopic => 'I can only help with your lists.';
+
+  @override
+  String get aiDeclinedNotSupported => 'That is not a change I can make.';
+
+  @override
+  String get aiRefusedAiNotAllowed => 'AI is turned off for this list.';
+
+  @override
+  String get aiRefusedOutputTooLong =>
+      'The answer was too long. Try a shorter request.';
+
+  @override
+  String get aiRefusedNoValidTool =>
+      'The answer could not be used. Try other words.';
+
+  @override
+  String get aiRefusedDailyCount =>
+      'You have reached today’s limit of AI requests.';
+
+  @override
+  String get aiRefusedBudget => 'The AI is paused until tomorrow.';
+
+  @override
+  String get aiRefusedPromptTooLong => 'The request is too long.';
+
+  @override
+  String get aiRefusedContextTooLarge => 'Your lists are too large to send.';
+
+  @override
+  String get aiRefusedAccess => 'This account or app may not use the AI.';
+
+  @override
+  String get aiRefusedUnavailable =>
+      'The AI is not available right now. Try again later.';
+
+  @override
+  String get aiRefusedBadRequest => 'The request could not be sent.';
+
+  @override
+  String get aiInvalidAnswer =>
+      'The changes do not fit the list, so nothing was applied.';
+
+  @override
+  String get errorUndoTooLarge =>
+      'This change touched too many items to be undone.';
+
+  @override
+  String get aiPartlyNotDone => 'Part of the request could not be done.';
+
+  @override
+  String get aiRefusedProviderAccount =>
+      'The AI provider account needs attention: check its key or balance.';
+
+  @override
+  String aiListOff(String list) {
+    return '\"$list\" has AI turned off.';
+  }
+
+  @override
+  String get aiAutoApplyOffer =>
+      'Apply changes like this without asking from now on? Undo stays.';
+
+  @override
+  String get aiAutoApplyYes => 'Yes';
+
+  @override
+  String get aiAutoApplyNo => 'Not now';
+
+  @override
+  String get settingsAiAutoApply => 'Apply AI changes without asking';
+
+  @override
+  String get aiAnswerHint => 'Your answer';
+
+  @override
+  String aiAnswering(String reply) {
+    return 'Answering: $reply';
+  }
+
+  @override
+  String get aiNewRequest => 'New request';
+
+  @override
+  String get listDescription => 'List description';
+
+  @override
+  String get listDescriptionHint => 'What this list is for (optional)';
+
+  @override
+  String errorDescriptionTooLong(String max) {
+    return 'The description can be at most $max characters.';
+  }
+
+  @override
+  String get tasksDescription => 'Things to do.';
+
+  @override
+  String get groceryDescription =>
+      'Food and household things to buy on the next shopping trip.';
+
+  @override
+  String get journalDescription => 'Daily notes and thoughts, by date.';
+
+  @override
+  String get watchReadDescription => 'Films, shows and books to watch or read.';
+
+  @override
+  String get settingsAiAsk => 'How often the AI checks with you';
+
+  @override
+  String get aiAskMore => 'Ask first';
+
+  @override
+  String get aiAskMoreHint =>
+      'Checks with you whenever it isn’t sure, and makes new lists only when you ask for one.';
+
+  @override
+  String get aiAskBalanced => 'Balanced';
+
+  @override
+  String get aiAskBalancedHint =>
+      'Does clear requests right away and checks with you on vague ones.';
+
+  @override
+  String get aiAskLess => 'Just do it';
+
+  @override
+  String get aiAskLessHint =>
+      'Goes with its best guess and checks only when two lists fit equally well.';
+
+  @override
+  String get errorPreviewChanged =>
+      'The list changed since this preview, so nothing was changed. Try again.';
+
+  @override
+  String get errorNeedsConnection =>
+      'This needs a connection. Nothing was changed.';
+
+  @override
+  String get errorOutcomeUnknown =>
+      'The connection is slow, so this may still go through. Check the list before trying again.';
+
+  @override
+  String get errorAnswerTooLarge =>
+      'That is too many changes for one request (at most 500). Nothing was changed. Try a smaller one.';
+
+  @override
+  String get aiItemsUpdating => 'Items are still updating.';
+
+  @override
+  String aiListOffOffer(String list) {
+    return '\"$list\" has AI turned off. Send for your other lists?';
+  }
+
+  @override
+  String get aiListOffSend => 'Send';
+
+  @override
+  String get itemsNotUpdated =>
+      'Some items in this list could not be updated yet. The app will try again next time it opens.';
 }

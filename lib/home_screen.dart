@@ -298,6 +298,13 @@ class _SettingsSheet extends StatelessWidget {
     }
   }
 
+  static String _askLabel(AppLocalizations loc, AiAskLevel level) =>
+      switch (level) {
+        AiAskLevel.more => loc.aiAskMore,
+        AiAskLevel.balanced => loc.aiAskBalanced,
+        AiAskLevel.less => loc.aiAskLess,
+      };
+
   Future<void> _showLanguageDialog(
     BuildContext context,
     AppSettings settings,
@@ -467,11 +474,126 @@ class _SettingsSheet extends StatelessWidget {
                         label: Text(loc.darkMode, style: type.row),
                         trailing: Switch(
                           value: settings.isDarkMode,
+                          activeTrackColor: AppColors.appBlue,
                           onChanged: (_) =>
                               context.read<AppSettingsCubit>().toggleDarkMode(),
                         ),
                         onTap: () =>
                             context.read<AppSettingsCubit>().toggleDarkMode(),
+                      ),
+                      hairline(),
+                      row(
+                        key: const ValueKey('settings-ai-auto-apply'),
+                        icon: Icons.auto_awesome_outlined,
+                        label: Text(loc.settingsAiAutoApply, style: type.row),
+                        trailing: Switch(
+                          value: settings.aiAutoApply,
+                          activeTrackColor: AppColors.appBlue,
+                          onChanged: (value) => context
+                              .read<AppSettingsCubit>()
+                              .setAiAutoApply(value),
+                        ),
+                        onTap: () => context
+                            .read<AppSettingsCubit>()
+                            .setAiAutoApply(!settings.aiAutoApply),
+                      ),
+                      hairline(),
+                      // How often the AI checks with you (Q-43): a slider
+                      // from asking to just doing it, with what the stop
+                      // means under it.
+                      Padding(
+                        key: const ValueKey('settings-ai-ask'),
+                        padding: const EdgeInsets.fromLTRB(
+                          AppShapes.sideMargin,
+                          14,
+                          AppShapes.sideMargin,
+                          10,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.help_outline,
+                                  size: 22,
+                                  color: neutrals.text,
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Text(
+                                    loc.settingsAiAsk,
+                                    style: type.row,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            // Styled like the switches above: a thick
+                            // track as tall as theirs, a round knob, and
+                            // the settings blue (owner, 2026-11-04).
+                            SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                trackHeight: 32,
+                                activeTrackColor: AppColors.appBlue,
+                                inactiveTrackColor: neutrals.line,
+                                thumbColor: neutrals.ground,
+                                thumbShape: const RoundSliderThumbShape(
+                                  enabledThumbRadius: 12,
+                                  elevation: 1,
+                                  pressedElevation: 2,
+                                ),
+                                trackShape:
+                                    const RoundedRectSliderTrackShape(),
+                                tickMarkShape: const RoundSliderTickMarkShape(
+                                  tickMarkRadius: 3,
+                                ),
+                                activeTickMarkColor: AppColors.onAppBlue
+                                    .withValues(alpha: 0.35),
+                                inactiveTickMarkColor: neutrals.muted,
+                                overlayColor: AppColors.appBlue.withValues(
+                                  alpha: 0.18,
+                                ),
+                                showValueIndicator: ShowValueIndicator.never,
+                              ),
+                              child: Slider(
+                                key: const ValueKey('settings-ai-ask-slider'),
+                                value: settings.aiAskLevel.index.toDouble(),
+                                max: AiAskLevel.values.length - 1,
+                                divisions: AiAskLevel.values.length - 1,
+                                label: _askLabel(loc, settings.aiAskLevel),
+                                onChanged: (value) => context
+                                    .read<AppSettingsCubit>()
+                                    .setAiAskLevel(
+                                      AiAskLevel.values[value.round()],
+                                    ),
+                              ),
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                for (final AiAskLevel level in AiAskLevel.values)
+                                  Text(
+                                    _askLabel(loc, level),
+                                    style: type.meta.copyWith(
+                                      color: level == settings.aiAskLevel
+                                          ? neutrals.text
+                                          : neutrals.muted,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              switch (settings.aiAskLevel) {
+                                AiAskLevel.more => loc.aiAskMoreHint,
+                                AiAskLevel.balanced => loc.aiAskBalancedHint,
+                                AiAskLevel.less => loc.aiAskLessHint,
+                              },
+                              key: const ValueKey('settings-ai-ask-hint'),
+                              style: type.meta,
+                            ),
+                          ],
+                        ),
                       ),
                       hairline(),
                       Padding(

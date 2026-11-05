@@ -56,6 +56,7 @@ class DialLauncher extends StatefulWidget {
     this.previousLabel = 'Previous',
     this.nextLabel = 'Next',
     this.noteHint = 'Double-tap to open, long-press to edit',
+    this.onOpenChanged,
   });
 
   final List<LauncherNote> notes;
@@ -74,6 +75,10 @@ class DialLauncher extends StatefulWidget {
   final String previousLabel;
   final String nextLabel;
   final String noteHint;
+  // Told when the dial opens (pressed, tap mode or moving) and when it is
+  // closed again, after the frame (T-19 unit 4: the AI bar keeps the hub
+  // raised until then).
+  final ValueChanged<bool>? onOpenChanged;
 
   @override
   State<DialLauncher> createState() => _DialLauncherState();
@@ -143,6 +148,7 @@ class _DialLauncherState extends State<DialLauncher>
   bool _moveShown = false;
   Offset _promptAnchor = Offset.zero;
   Duration _promptAt = Duration.zero;
+  bool _promptOut = false;
   double _progress = 0;
   bool _promptSelected = false;
 
@@ -181,6 +187,20 @@ class _DialLauncherState extends State<DialLauncher>
   }
 
   bool get _reduceMotion => MediaQuery.disableAnimationsOf(context);
+
+  bool _reportedOpen = false;
+
+  void _reportOpen() {
+    final bool open = _mode != _Mode.closed;
+    final ValueChanged<bool>? report = widget.onOpenChanged;
+    if (open == _reportedOpen) {
+      return;
+    }
+    _reportedOpen = open;
+    if (report != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => report(open));
+    }
+  }
 
   List<_Entry> _entriesOf(DialLauncher w) => [
         const _Entry(_Kind.add),
@@ -401,12 +421,17 @@ class _DialLauncherState extends State<DialLauncher>
     return (toward * lead).clamp(0, _config.dialEdgeReach * _step).toDouble();
   }
 
-  // Whether lists still lie in or beyond a zone, to scroll in.
+  // Whether lists still lie in or beyond a zone, to scroll in. Not once the
+  // scroll is at its end that way: the end list then sits in the zone but
+  // cannot come further, and is picked and edited like any other (owner,
+  // 2026-11-04: the first list next to New list offered no Edit).
   bool _more(LauncherGeometry g, int side) {
     final double diagonal = _diagonal(g);
     return side < 0
-        ? diagonal + (_firstList - _scroll) * _step < _zoneLow(g) - 1e-3
-        : diagonal + (_lastList - _scroll) * _step > _zoneHigh(g) + 1e-3;
+        ? _scroll > _firstList + 1e-3 &&
+              diagonal + (_firstList - _scroll) * _step < _zoneLow(g) - 1e-3
+        : _scroll < _lastList - 1e-3 &&
+              diagonal + (_lastList - _scroll) * _step > _zoneHigh(g) + 1e-3;
   }
 
   // The list in the hand while in a zone: the one under the finger, but
@@ -591,7 +616,10 @@ class _DialLauncherState extends State<DialLauncher>
         (zoom - _zoom).abs() > 1e-4;
     final bool animating = moving ||
         _now - _openedAt <= AppMotion.standard ||
-        (_editShown && _now - _promptAt <= _config.revealDuration);
+        ((_editShown || _moveShown) && !_promptOut);
+    // The frame past the duration is still drawn, so a late frame cannot
+    // leave a prompt short of its place.
+    _promptOut = _now - _promptAt >= _config.revealDuration;
     _position = moving ? position : _scroll;
     _focus = moving ? focus : focusTarget;
     _zoom = moving ? zoom : zoomTarget;
@@ -670,6 +698,7 @@ class _DialLauncherState extends State<DialLauncher>
     }
     _promptAnchor = pointer;
     _promptAt = _now;
+    _promptOut = false;
     _progress = 0;
     _promptSelected = false;
     return true;
@@ -1350,33 +1379,43 @@ class _DialLauncherState extends State<DialLauncher>
   Widget _movePrompt(LauncherGeometry g) {
     final AppNeutrals neutrals =
         AppColors.neutrals(Theme.of(context).brightness);
+    // Reaching Move picks the hub up, so it is fully filled by then.
+    final double near =
+        (_progress / _config.promptSelectAt).clamp(0, 1).toDouble();
     final Color fill =
-        Color.lerp(neutrals.promptDark, AppColors.appBlue, _progress)!;
-    final Offset center = g.movePromptCenter;
+        Color.lerp(neutrals.promptDark, AppColors.appBlue, near)!;
+    // Move slides out from behind the hub, painted under it, and grows as
+    // the finger comes closer.
+    final double reveal = _reveal();
+    final Offset center = Offset.lerp(g.hubCenter, g.movePromptCenter, reveal)!;
+    final double scale = (0.6 + 0.4 * reveal) * (1 + 0.22 * near);
     return Positioned(
       key: const ValueKey('launcher-move-prompt'),
       left: center.dx - 50,
       top: center.dy - 20,
       width: 100,
       height: 40,
-      child: Center(
-        child: Container(
-          height: 36,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: fill,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Center(
-            widthFactor: 1,
-            child: Text(
-              widget.moveLabel,
-              maxLines: 1,
-              style: TextStyle(
-                fontFamily: AppFonts.sans,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.onColor(fill),
+      child: Transform.scale(
+        scale: scale,
+        child: Center(
+          child: Container(
+            height: 36,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: fill,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Center(
+              widthFactor: 1,
+              child: Text(
+                widget.moveLabel,
+                maxLines: 1,
+                style: TextStyle(
+                  fontFamily: AppFonts.sans,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.onColor(fill),
+                ),
               ),
             ),
           ),
@@ -1469,6 +1508,7 @@ class _DialLauncherState extends State<DialLauncher>
 
   @override
   Widget build(BuildContext context) {
+    _reportOpen();
     return LayoutBuilder(
       builder: (context, constraints) {
         final Size size = constraints.biggest;

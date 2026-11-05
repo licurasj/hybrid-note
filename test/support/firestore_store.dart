@@ -29,6 +29,10 @@ Future<FirestoreListStore> fakeFirestoreStore({
   FakeFirebaseFirestore? firestore,
   List<ListDefinition>? lists,
   List<ListItem> items = const [],
+  int batchLimit = FirestoreListStore.maxBatchWrites,
+  Duration transactionTimeout = const Duration(seconds: 10),
+  Duration commitTimeout = const Duration(seconds: 30),
+  List<Duration> refitRetryDelays = const [],
 }) async {
   final FakeFirebaseFirestore db = firestore ?? FakeFirebaseFirestore();
   for (final ListDefinition definition in lists ?? starterLists()) {
@@ -36,7 +40,14 @@ Future<FirestoreListStore> fakeFirestoreStore({
         .doc('users/$testUid/lists/${definition.id}')
         .set(definition.toJson());
   }
-  final FirestoreListStore store = FirestoreListStore(db, testUid);
+  final FirestoreListStore store = FirestoreListStore(
+    db,
+    testUid,
+    batchLimit: batchLimit,
+    transactionTimeout: transactionTimeout,
+    commitTimeout: commitTimeout,
+    refitRetryDelays: refitRetryDelays,
+  );
   addTearDown(store.close);
   await store.watch().first.timeout(const Duration(seconds: 10));
   if (items.isNotEmpty) {
@@ -63,9 +74,15 @@ Future<FirestoreListStore> widgetTestStore(
   FakeFirebaseFirestore? firestore,
   List<ListDefinition>? lists,
   List<ListItem> items = const [],
+  int batchLimit = FirestoreListStore.maxBatchWrites,
 }) async {
   return (await tester.runAsync(
-    () => fakeFirestoreStore(firestore: firestore, lists: lists, items: items),
+    () => fakeFirestoreStore(
+      firestore: firestore,
+      lists: lists,
+      items: items,
+      batchLimit: batchLimit,
+    ),
   ))!;
 }
 

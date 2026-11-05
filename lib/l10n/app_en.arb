@@ -661,6 +661,52 @@
   "ruleMoveField": "Field",
   "ruleMoveFrom": "Move from",
   "ruleMoveTo": "Move to",
+  "account": "Account",
+  "blankList": "Blank",
+  "signInFailed": "Sign-in failed. Please try again.",
+  "signInOffline": "No connection. Connect to the internet to sign in.",
+  "signOutFailed": "Sign-out failed. Please try again.",
+  "signOutCleanupFailed": "Signed out, but the lists saved on this device could not be deleted.",
+  "tryAgain": "Try again",
+  "listChangeNotSaved": "A list change could not be saved and was undone.",
+  "starterListsFailed": "The starter lists could not be set up.",
+  "startEmpty": "Start empty",
+  "errorMissingArg": "A change is missing \"{arg}\".",
+  "@errorMissingArg": {
+    "placeholders": {
+      "arg": {
+        "type": "String"
+      }
+    }
+  },
+  "errorWrongArgType": "A change has the wrong kind of value for \"{arg}\".",
+  "@errorWrongArgType": {
+    "placeholders": {
+      "arg": {
+        "type": "String"
+      }
+    }
+  },
+  "errorUnknownArg": "A change has an unknown setting \"{arg}\".",
+  "@errorUnknownArg": {
+    "placeholders": {
+      "arg": {
+        "type": "String"
+      }
+    }
+  },
+  "errorUnknownList": "The list was not found.",
+  "errorUnknownItem": "An item to change was not found in the list.",
+  "errorUnknownField": "\"{field}\" is not a field of this list.",
+  "@errorUnknownField": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "errorListChanged": "The list has changed since, so this cannot be undone.",
+  "errorAiNotAllowed": "The AI may not change this list.",
   "listFilterAll": "All",
   "listDoneGroup": "Done",
   "listOpenDoneCount": "{open} open · {done} done",
@@ -684,16 +730,6 @@
   },
   "itemSheetNew": "New item",
   "itemSheetEdit": "Edit item",
-  "account": "Account",
-  "blankList": "Blank",
-  "signInFailed": "Sign-in failed. Please try again.",
-  "signInOffline": "No connection. Connect to the internet to sign in.",
-  "signOutFailed": "Sign-out failed. Please try again.",
-  "signOutCleanupFailed": "Signed out, but the lists saved on this device could not be deleted.",
-  "tryAgain": "Try again",
-  "listChangeNotSaved": "A list change could not be saved and was undone.",
-  "starterListsFailed": "The starter lists could not be set up.",
-  "startEmpty": "Start empty",
   "settings": "Settings",
   "darkMode": "Dark mode",
   "homeThingsToday": "{count, plural, =0{Nothing due today} =1{1 thing today} other{{count} things today}}",
@@ -719,5 +755,251 @@
         "type": "String"
       }
     }
-  }
+  },
+  "aiBarHint": "Add or change",
+  "aiBarHintList": "Add to {list}",
+  "@aiBarHintList": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      }
+    }
+  },
+  "aiBarHintNewList": "Describe the list",
+  "aiSend": "Send",
+  "aiBarLabel": "AI request",
+  "aiDescribeNewList": "Describe a new list",
+  "aiDescribeNewListMeta": "The AI picks its fields",
+  "aiNoticeTitle": "Before your first request",
+  "aiNoticeDeepSeek": "Your request, the names, descriptions and fields of your lists, and the open list, or a list your request is about, with up to 20 recent items go to DeepSeek, an AI provider that processes and stores data in China. Lists with AI turned off are never sent. Your request text is kept for about 7 days to find problems, then deleted.",
+  "aiNoticeContinue": "Continue",
+  "aiApply": "Apply",
+  "aiAddItems": "{list}: add {items}",
+  "@aiAddItems": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      },
+      "items": {
+        "type": "String"
+      }
+    }
+  },
+  "aiEditItems": "{list}: change {items}",
+  "@aiEditItems": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      },
+      "items": {
+        "type": "String"
+      }
+    }
+  },
+  "aiDeleteItems": "{list}: delete {items}",
+  "@aiDeleteItems": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      },
+      "items": {
+        "type": "String"
+      }
+    }
+  },
+  "aiOpAddField": "{list}: add the field {field}",
+  "@aiOpAddField": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      },
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "aiOpRemoveField": "{list}: remove the field {field}",
+  "@aiOpRemoveField": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      },
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "aiOpRenameField": "{list}: rename {field} to {label}",
+  "@aiOpRenameField": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      },
+      "field": {
+        "type": "String"
+      },
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "aiOpChangeField": "{list}: change the field {field}",
+  "@aiOpChangeField": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      },
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "aiOpSetView": "{list}: show as {view}",
+  "@aiOpSetView": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      },
+      "view": {
+        "type": "String"
+      }
+    }
+  },
+  "aiOpBehavior": "{list}: change {behavior}",
+  "@aiOpBehavior": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      },
+      "behavior": {
+        "type": "String"
+      }
+    }
+  },
+  "aiOpListInfo": "{list}: change the name, icon or colour",
+  "@aiOpListInfo": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      }
+    }
+  },
+  "aiHiddenValues": "{count, plural, =1{1 value no longer fits and is kept hidden} other{{count} values no longer fit and are kept hidden}}",
+  "@aiHiddenValues": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "aiNewList": "New list {name}: {fields}",
+  "@aiNewList": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "fields": {
+        "type": "String"
+      }
+    }
+  },
+  "aiDoneAdded": "Added to {lists}",
+  "@aiDoneAdded": {
+    "placeholders": {
+      "lists": {
+        "type": "String"
+      }
+    }
+  },
+  "aiDoneChanged": "Changed {lists}",
+  "@aiDoneChanged": {
+    "placeholders": {
+      "lists": {
+        "type": "String"
+      }
+    }
+  },
+  "aiDoneCreated": "Created {list}",
+  "@aiDoneCreated": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      }
+    }
+  },
+  "aiUndone": "Undone",
+  "aiDeclinedOffTopic": "I can only help with your lists.",
+  "aiDeclinedNotSupported": "That is not a change I can make.",
+  "aiRefusedAiNotAllowed": "AI is turned off for this list.",
+  "aiRefusedOutputTooLong": "The answer was too long. Try a shorter request.",
+  "aiRefusedNoValidTool": "The answer could not be used. Try other words.",
+  "aiRefusedDailyCount": "You have reached today’s limit of AI requests.",
+  "aiRefusedBudget": "The AI is paused until tomorrow.",
+  "aiRefusedPromptTooLong": "The request is too long.",
+  "aiRefusedContextTooLarge": "Your lists are too large to send.",
+  "aiRefusedAccess": "This account or app may not use the AI.",
+  "aiRefusedUnavailable": "The AI is not available right now. Try again later.",
+  "aiRefusedBadRequest": "The request could not be sent.",
+  "aiInvalidAnswer": "The changes do not fit the list, so nothing was applied.",
+  "errorUndoTooLarge": "This change touched too many items to be undone.",
+  "aiPartlyNotDone": "Part of the request could not be done.",
+  "aiRefusedProviderAccount": "The AI provider account needs attention: check its key or balance.",
+  "aiListOff": "\"{list}\" has AI turned off.",
+  "@aiListOff": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      }
+    }
+  },
+  "aiAutoApplyOffer": "Apply changes like this without asking from now on? Undo stays.",
+  "aiAutoApplyYes": "Yes",
+  "aiAutoApplyNo": "Not now",
+  "settingsAiAutoApply": "Apply AI changes without asking",
+  "aiAnswerHint": "Your answer",
+  "aiAnswering": "Answering: {reply}",
+  "@aiAnswering": {
+    "placeholders": {
+      "reply": {
+        "type": "String"
+      }
+    }
+  },
+  "aiNewRequest": "New request",
+  "listDescription": "List description",
+  "listDescriptionHint": "What this list is for (optional)",
+  "errorDescriptionTooLong": "The description can be at most {max} characters.",
+  "@errorDescriptionTooLong": {
+    "placeholders": {
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "tasksDescription": "Things to do.",
+  "groceryDescription": "Food and household things to buy on the next shopping trip.",
+  "journalDescription": "Daily notes and thoughts, by date.",
+  "watchReadDescription": "Films, shows and books to watch or read.",
+  "settingsAiAsk": "How often the AI checks with you",
+  "aiAskMore": "Ask first",
+  "aiAskMoreHint": "Checks with you whenever it isn’t sure, and makes new lists only when you ask for one.",
+  "aiAskBalanced": "Balanced",
+  "aiAskBalancedHint": "Does clear requests right away and checks with you on vague ones.",
+  "aiAskLess": "Just do it",
+  "aiAskLessHint": "Goes with its best guess and checks only when two lists fit equally well.",
+  "errorPreviewChanged": "The list changed since this preview, so nothing was changed. Try again.",
+  "errorNeedsConnection": "This needs a connection. Nothing was changed.",
+  "errorOutcomeUnknown": "The connection is slow, so this may still go through. Check the list before trying again.",
+  "errorAnswerTooLarge": "That is too many changes for one request (at most 500). Nothing was changed. Try a smaller one.",
+  "aiItemsUpdating": "Items are still updating.",
+  "aiListOffOffer": "\"{list}\" has AI turned off. Send for your other lists?",
+  "@aiListOffOffer": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      }
+    }
+  },
+  "aiListOffSend": "Send",
+  "itemsNotUpdated": "Some items in this list could not be updated yet. The app will try again next time it opens."
 }

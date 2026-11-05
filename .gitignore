@@ -46,3 +46,8 @@ app.*.map.json
 
 # Node (firebase/tests rules tests)
 node_modules/
+
+# Cloud Functions (T-19): build output and the owner's local provider keys
+functions/lib/
+functions/.secret.local
+functions/eval/results/

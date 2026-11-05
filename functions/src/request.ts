@@ -1,0 +1,293 @@
+import type { TierLimits } from './config';
+import { refuse } from './errors';
+
+/** One of the user's lists as the context names it (Q-36): no items. */
+export interface ListSummary {
+  id: string;
+  name: string;
+  /** What the list is for, in the user's words (Q-44); absent when there is none. */
+  description?: string;
+  fields: unknown[];
+  /**
+   * Required (fail closed, L16 of the unit 5 follow-up review). false: the
+   * user turned AI off for this list; it is dropped before the model sees
+   * anything. Unit 4 leaves such lists out altogether.
+   */
+  aiAllowed: boolean;
+}
+
+/** The list open on screen, if any: its definition and recent items. */
+export interface OpenList {
+  definition: Record<string, unknown> & { id: string };
+  items: Record<string, unknown>[];
+}
+
+export interface AiRequest {
+  prompt: string;
+  locale: string;
+  /** The device's local date, YYYY-MM-DD, for "on Friday"; the server's UTC date when absent. */
+  today?: string;
+  lists: ListSummary[];
+  /** Absent or null when no list is open (Q-36): the AI routes to a list. */
+  openList: OpenList | null;
+  /**
+   * The device's self-correction round (Q-34 A): the tool calls of the
+   * previous answer to this request and the ListErrors the device's
+   * validation found in them (English). A new request, counted like any.
+   */
+  correction?: Correction;
+  /**
+   * The user answers the AI's reply (Q-42): the earlier request and the
+   * reply it got, so the new prompt can be read as the answer to it.
+   */
+  followUp?: FollowUp;
+  /** How often the AI asks before acting, the user's setting (Q-43); balanced when absent. */
+  askLevel: AskLevel;
+  /**
+   * The open list is the user's answer to "which list?" (choose_list): the
+   * AI must use it and not ask again (Q-45; it looped on 2026-11-04).
+   */
+  chosenList?: true;
+  /**
+   * The open list was sent only so the AI can name its items: the phone's
+   * matching round (Q-39), not a list the user has open. No structure change
+   * may come of it (M5 of the Codex review). Older app builds leave it out.
+   */
+  itemsOnly?: true;
+  /**
+   * The user asks for a new list (Describe a new list, or New list as the
+   * answer to "which list?"), so the prompt stays only the user's words (L2
+   * of the Codex review). Older app builds put the words
+   * "Create a new list: " in the prompt instead.
+   */
+  newList?: true;
+}
+
+export const ASK_LEVELS = ['more', 'balanced', 'less'] as const;
+export type AskLevel = (typeof ASK_LEVELS)[number];
+
+export interface FollowUp {
+  /** The original request, kept through the whole back-and-forth (Q-55). */
+  prompt: string;
+  /** The latest reply; the request's prompt answers it. */
+  reply: string;
+  /** Earlier replies and the user's answers to them, oldest first. Older app builds leave it out. */
+  earlier?: FollowUpExchange[];
+}
+
+export interface FollowUpExchange {
+  reply: string;
+  answer: string;
+}
+
+/** Q-55: the last 3 pairs in all, the reply this request answers being one of them. */
+export const FOLLOW_UP_EARLIER_MAX = 2;
+
+/** The longest list description: ListDefinition.descriptionMaxLength. */
+export const DESCRIPTION_MAX_CHARS = 200;
+
+/**
+ * [record] with [description] as its description: text cut to
+ * DESCRIPTION_MAX_CHARS code points, anything else or blank left out. A
+ * built-in list's l10n key means nothing to the model, so it goes too (L4).
+ */
+function withDescription(record: Record<string, unknown>, description: unknown): Record<string, unknown> {
+  const { description: _old, descriptionKey: _key, ...rest } = record;
+  const text = typeof description === 'string' ? [...description.trim()].slice(0, DESCRIPTION_MAX_CHARS).join('') : '';
+  return text === '' ? rest : { ...rest, description: text };
+}
+
+/** The longest reply a follow-up may quote: the reply schema's maxLength. */
+export const FOLLOW_UP_REPLY_MAX_CHARS = 500;
+
+export interface Correction {
+  toolCalls: { name: string; args: unknown }[];
+  errors: string[];
+}
+
+/** Limits of the correction part; its JSON also counts towards contextMaxBytes. */
+export const CORRECTION_MAX_CALLS = 10;
+export const CORRECTION_MAX_ERRORS = 20;
+export const CORRECTION_ERROR_MAX_CHARS = 300;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isId(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length <= 128;
+}
+
+/**
+ * Checks the request's shape and the tier's input limits, in this order:
+ * shape, prompt length, context size, aiAllowed. Messages name the rule
+ * only, never the request's text.
+ */
+export function parseRequest(data: unknown, limits: TierLimits): AiRequest {
+  if (!isRecord(data)) throw refuse('badRequest', 'request must be an object');
+  const { prompt, locale, lists } = data;
+  const openList = data.openList ?? null;
+
+  if (typeof prompt !== 'string' || prompt.trim().length === 0) {
+    throw refuse('badRequest', 'prompt must be a non-empty string');
+  }
+  // A BCP-47 language tag as Flutter's toLanguageTag() gives it ("en",
+  // "zh-Hans-CN"); it goes into the prompt, so nothing else is let in (N2).
+  if (typeof locale !== 'string' || locale.length > 35 || !/^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$/.test(locale)) {
+    throw refuse('badRequest', 'locale must be a language tag');
+  }
+  const today = data.today ?? undefined;
+  if (today !== undefined && (typeof today !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(today))) {
+    throw refuse('badRequest', 'today must be YYYY-MM-DD');
+  }
+  if (!Array.isArray(lists)) throw refuse('badRequest', 'lists must be an array');
+  for (const list of lists) {
+    if (!isRecord(list) || !isId(list.id) || typeof list.name !== 'string' || !Array.isArray(list.fields)) {
+      throw refuse('badRequest', 'each list needs id, name and fields');
+    }
+    if (typeof list.aiAllowed !== 'boolean') {
+      throw refuse('badRequest', 'each list needs aiAllowed true or false');
+    }
+  }
+  if (new Set(lists.map((list) => list.id)).size !== lists.length) {
+    throw refuse('badRequest', 'list ids must be unique');
+  }
+  const correction = data.correction ?? undefined;
+  if (correction !== undefined) {
+    if (
+      !isRecord(correction) ||
+      !Array.isArray(correction.toolCalls) ||
+      !Array.isArray(correction.errors) ||
+      correction.toolCalls.length === 0 ||
+      correction.toolCalls.length > CORRECTION_MAX_CALLS ||
+      !correction.toolCalls.every((call) => isRecord(call) && typeof call.name === 'string' && call.name.length <= 64) ||
+      correction.errors.length === 0 ||
+      correction.errors.length > CORRECTION_MAX_ERRORS ||
+      !correction.errors.every((error) => typeof error === 'string' && error.length <= CORRECTION_ERROR_MAX_CHARS)
+    ) {
+      throw refuse('badRequest', 'correction needs 1-10 tool calls and 1-20 short errors');
+    }
+  }
+  const askLevel = data.askLevel ?? 'balanced';
+  if (!(ASK_LEVELS as readonly unknown[]).includes(askLevel)) {
+    throw refuse('badRequest', 'askLevel must be more, balanced or less');
+  }
+  const chosenList = data.chosenList ?? undefined;
+  if (chosenList !== undefined && (chosenList !== true || data.openList == null)) {
+    throw refuse('badRequest', 'chosenList must be true and come with the open list');
+  }
+  const itemsOnly = data.itemsOnly ?? undefined;
+  if (itemsOnly !== undefined && (itemsOnly !== true || data.openList == null)) {
+    throw refuse('badRequest', 'itemsOnly must be true and come with the open list');
+  }
+  const newList = data.newList ?? undefined;
+  if (newList !== undefined && newList !== true) {
+    throw refuse('badRequest', 'newList must be true');
+  }
+  const followUp = data.followUp ?? undefined;
+  if (followUp !== undefined) {
+    if (
+      !isRecord(followUp) ||
+      typeof followUp.prompt !== 'string' ||
+      typeof followUp.reply !== 'string' ||
+      followUp.prompt.trim().length === 0 ||
+      [...followUp.prompt].length > limits.promptMaxChars ||
+      [...followUp.reply].length > FOLLOW_UP_REPLY_MAX_CHARS
+    ) {
+      throw refuse('badRequest', 'followUp needs the earlier prompt and a reply of at most 500 characters');
+    }
+    const earlier = followUp.earlier ?? undefined;
+    if (
+      earlier !== undefined &&
+      (!Array.isArray(earlier) ||
+        earlier.length > FOLLOW_UP_EARLIER_MAX ||
+        !earlier.every(
+          (turn) =>
+            isRecord(turn) &&
+            typeof turn.reply === 'string' &&
+            typeof turn.answer === 'string' &&
+            [...turn.reply].length <= FOLLOW_UP_REPLY_MAX_CHARS &&
+            [...turn.answer].length <= limits.promptMaxChars,
+        ))
+    ) {
+      throw refuse('badRequest', 'followUp.earlier needs at most 2 short replies and answers');
+    }
+  }
+  if (openList !== null) {
+    if (!isRecord(openList) || !isRecord(openList.definition) || !Array.isArray(openList.items)) {
+      throw refuse('badRequest', 'openList needs definition and items');
+    }
+    const openId = openList.definition.id;
+    if (!isId(openId) || !lists.some((list) => list.id === openId)) {
+      throw refuse('badRequest', 'the open list must be one of the lists');
+    }
+    if (!openList.items.every(isRecord)) throw refuse('badRequest', 'items must be objects');
+  }
+
+  if ([...prompt].length > limits.promptMaxChars) {
+    throw refuse('promptTooLong', `prompt is over ${limits.promptMaxChars} characters`);
+  }
+  if (lists.length > limits.maxLists) {
+    throw refuse('contextTooLarge', `more than ${limits.maxLists} lists`);
+  }
+  if (openList !== null && (openList.items as unknown[]).length > limits.maxItems) {
+    throw refuse('contextTooLarge', `more than ${limits.maxItems} items`);
+  }
+  // Descriptions are bounded, never refused (T-20 review M1): one odd stored
+  // value must not stop every request. Over the size cap they are the first
+  // thing left out (L5), before the request is refused.
+  let summaries = (lists as Record<string, unknown>[]).map((list) => withDescription(list, list.description));
+  let open = openList === null ? null : { ...openList, definition: withDescription(openList.definition as Record<string, unknown>, (openList.definition as Record<string, unknown>).description) };
+  const size = () => Buffer.byteLength(JSON.stringify({ lists: summaries, openList: open, correction, followUp }), 'utf8');
+  if (size() > limits.contextMaxBytes) {
+    summaries = summaries.map((list) => withDescription(list, undefined));
+    open = open === null ? null : { ...open, definition: withDescription(open.definition, undefined) };
+    if (size() > limits.contextMaxBytes) {
+      throw refuse('contextTooLarge', `context is over ${limits.contextMaxBytes} bytes, even without list descriptions`);
+    }
+  }
+  const openId = openList === null ? undefined : (openList.definition as Record<string, unknown>).id;
+  const openSummary = (lists as Record<string, unknown>[]).find((list) => list.id === openId);
+  if (openList !== null && ((openList.definition as Record<string, unknown>).aiAllowed === false || openSummary?.aiAllowed === false)) {
+    throw refuse('aiNotAllowed', 'AI is off for the open list');
+  }
+  // Lists with AI off are dropped (Q-36): the model never sees them, and the
+  // output filter refuses any tool call that names one (its id is unknown).
+  const allowed = summaries.filter((list) => list.aiAllowed !== false);
+
+  return {
+    prompt,
+    locale,
+    ...(today !== undefined ? { today } : {}),
+    lists: allowed as unknown as ListSummary[],
+    askLevel: askLevel as AskLevel,
+    ...(chosenList === true ? { chosenList: true as const } : {}),
+    ...(itemsOnly === true ? { itemsOnly: true as const } : {}),
+    ...(newList === true ? { newList: true as const } : {}),
+    openList: open as OpenList | null,
+    ...(correction !== undefined
+      ? {
+          correction: {
+            toolCalls: (correction.toolCalls as Record<string, unknown>[]).map((call) => ({ name: call.name as string, args: call.args })),
+            errors: correction.errors as string[],
+          },
+        }
+      : {}),
+    ...(followUp !== undefined
+      ? {
+          followUp: {
+            prompt: followUp.prompt as string,
+            reply: followUp.reply as string,
+            ...(Array.isArray(followUp.earlier) && followUp.earlier.length > 0
+              ? {
+                  earlier: (followUp.earlier as Record<string, unknown>[]).map((turn) => ({
+                    reply: turn.reply as string,
+                    answer: turn.answer as string,
+                  })),
+                }
+              : {}),
+          },
+        }
+      : {}),
+  };
+}

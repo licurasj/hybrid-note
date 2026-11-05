@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:hybrid_note/app_colors.dart';
 import 'package:hybrid_note/launcher/dial_launcher.dart';
 import 'package:hybrid_note/launcher/radial_launcher.dart';
 
@@ -30,13 +31,14 @@ Future<List<String>> _pump(
   bool inList = false,
   bool reduceMotion = false,
   double textScale = 1,
+  Size size = const Size(400, 800),
   // To change the lists while the dial is open (as a sync would).
   ValueNotifier<List<LauncherNote>>? lists,
 }) async {
   final ValueNotifier<List<LauncherNote>> notes =
       lists ?? ValueNotifier(_notes(count));
   final List<String> log = [];
-  tester.view.physicalSize = const Size(400, 800);
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
 
@@ -44,7 +46,7 @@ Future<List<String>> _pump(
     MaterialApp(
       home: MediaQuery(
         data: MediaQueryData(
-          size: const Size(400, 800),
+          size: size,
           disableAnimations: reduceMotion,
           textScaler: TextScaler.linear(textScale),
         ),
@@ -79,6 +81,28 @@ Offset _at(WidgetTester tester, double angle, double radius) =>
 double _diagonal(WidgetTester tester) {
   final Offset hub = _hub(tester);
   return math.atan2(hub.dy, -hub.dx);
+}
+
+final Finder _movePill = find.descendant(
+  of: find.byKey(const ValueKey('launcher-move-prompt')),
+  matching: find.byType(Container),
+);
+
+// The app's theme in these tests is light.
+final Color _dark = AppColors.neutrals(Brightness.light).promptDark;
+
+Color _moveColor(WidgetTester tester) {
+  final Container pill = tester.widget<Container>(_movePill);
+  return (pill.decoration! as BoxDecoration).color!;
+}
+
+// Holds in small steps and stops on the frame Move first shows.
+Future<void> _holdUntilMoveShows(WidgetTester tester) async {
+  final Finder prompt = find.byKey(const ValueKey('launcher-move-prompt'));
+  for (int i = 0; i < 200 && prompt.evaluate().isEmpty; i++) {
+    await tester.pump(const Duration(milliseconds: 10));
+  }
+  expect(prompt, findsOneWidget);
 }
 
 // Moves the finger in small steps, letting the dial follow.
@@ -262,6 +286,49 @@ void main() {
     expect(log, ['edit n0']);
   });
 
+  testWidgets('resting on the first list, next to New list, shows Edit too', (
+    WidgetTester tester,
+  ) async {
+    for (final (int count, bool inList, Size size) in [
+      (6, false, const Size(400, 800)),
+      (12, false, const Size(400, 800)),
+      (8, true, const Size(400, 800)),
+      (8, false, const Size(411, 960)),
+      (8, true, const Size(411, 960)),
+      (3, false, const Size(411, 960)),
+    ]) {
+      final List<String> log = await _pump(
+        tester,
+        count: count,
+        inList: inList,
+        size: size,
+      );
+      final TestGesture gesture = await _pickFirst(tester);
+      for (int i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 80));
+      }
+      expect(
+        find.byKey(const ValueKey('dial-edit')),
+        findsOneWidget,
+        reason: '$count lists, in a list: $inList, $size',
+      );
+      final double diagonal = _diagonal(tester);
+      await _moveTo(
+        tester,
+        gesture,
+        _at(tester, diagonal, 160),
+        _at(tester, diagonal, 192),
+      );
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(
+        log,
+        ['edit n0'],
+        reason: '$count lists, in a list: $inList, $size',
+      );
+    }
+  });
+
   testWidgets('resting on the hub offers Move; sliding onto it moves the hub', (
     WidgetTester tester,
   ) async {
@@ -281,6 +348,94 @@ void main() {
     await tester.pump();
     expect(log, ['moved']);
     expect(_hub(tester).dy, lessThan(hub.dy - 100));
+  });
+
+  testWidgets('Move slides out from behind the hub, under it', (
+    WidgetTester tester,
+  ) async {
+    await _pump(tester);
+    final Offset hub = _hub(tester);
+    final TestGesture gesture = await tester.startGesture(hub);
+    await _holdUntilMoveShows(tester);
+
+    // It starts at the hub, small enough to be hidden by it.
+    final Rect start = tester.getRect(_movePill);
+    expect((start.center - hub).distance, lessThan(1));
+    expect(start.width, lessThan(64));
+    expect(start.height, lessThan(64));
+    expect(_moveColor(tester), _dark);
+
+    // It is painted before the hub, so the hub stays on top while it slides.
+    final List<Element> stacked = [];
+    void visit(Element element) {
+      if (element.widget.key == const ValueKey('launcher-move-prompt') ||
+          element.widget.key == const ValueKey('launcher-hub')) {
+        stacked.add(element);
+      }
+      element.visitChildren(visit);
+    }
+
+    tester.binding.rootElement!.visitChildren(visit);
+    expect(
+      stacked.map((e) => e.widget.key),
+      [
+        const ValueKey('launcher-move-prompt'),
+        const ValueKey('launcher-hub'),
+      ],
+    );
+
+    // Halfway through it is on its way, and it ends further out and larger.
+    await tester.pump(const Duration(milliseconds: 60));
+    final Offset middle = tester.getRect(_movePill).center;
+    await tester.pump(const Duration(milliseconds: 300));
+    final Rect end = tester.getRect(_movePill);
+    expect((middle - hub).distance, greaterThan(1));
+    expect((middle - hub).distance, lessThan((end.center - hub).distance));
+    expect(end.width, greaterThan(start.width));
+    // Nothing has filled it: the finger has not moved.
+    expect(_moveColor(tester), _dark);
+    await gesture.up();
+  });
+
+  testWidgets('Move fills and grows as the finger nears, and lets go again', (
+    WidgetTester tester,
+  ) async {
+    await _pump(tester);
+    final Offset hub = _hub(tester);
+    final TestGesture gesture = await tester.startGesture(hub);
+    await _holdUntilMoveShows(tester);
+    await tester.pump(const Duration(milliseconds: 300));
+    final Rect rest = tester.getRect(_movePill);
+    final Offset target = rest.center;
+
+    await _moveTo(tester, gesture, hub, Offset.lerp(hub, target, 0.5)!);
+    final Color halfway = _moveColor(tester);
+    expect(halfway, isNot(_dark));
+    expect(halfway, isNot(AppColors.appBlue));
+    expect(tester.getRect(_movePill).width, greaterThan(rest.width));
+
+    await _moveTo(tester, gesture, Offset.lerp(hub, target, 0.5)!, hub);
+    expect(_moveColor(tester), _dark);
+    expect(tester.getRect(_movePill).width, rest.width);
+    await gesture.up();
+  });
+
+  testWidgets('with reduced motion Move is in place at once and still fills', (
+    WidgetTester tester,
+  ) async {
+    await _pump(tester, reduceMotion: true);
+    final Offset hub = _hub(tester);
+    final TestGesture gesture = await tester.startGesture(hub);
+    await _holdUntilMoveShows(tester);
+
+    final Rect first = tester.getRect(_movePill);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(tester.getRect(_movePill), first);
+    expect((first.center - hub).distance, greaterThan(40));
+
+    await _moveTo(tester, gesture, hub, Offset.lerp(hub, first.center, 0.5)!);
+    expect(_moveColor(tester), isNot(_dark));
+    await gesture.up();
   });
 
   testWidgets('a quick tap opens tap mode; tapping a tab acts on it', (

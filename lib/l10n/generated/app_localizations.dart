@@ -1490,42 +1490,6 @@ abstract class AppLocalizations {
   /// **'Move to'**
   String get ruleMoveTo;
 
-  /// No description provided for @listFilterAll.
-  ///
-  /// In en, this message translates to:
-  /// **'All'**
-  String get listFilterAll;
-
-  /// No description provided for @listDoneGroup.
-  ///
-  /// In en, this message translates to:
-  /// **'Done'**
-  String get listDoneGroup;
-
-  /// No description provided for @listOpenDoneCount.
-  ///
-  /// In en, this message translates to:
-  /// **'{open} open · {done} done'**
-  String listOpenDoneCount(int open, int done);
-
-  /// No description provided for @listItemCount.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1{1 item} other{{count} items}}'**
-  String listItemCount(int count);
-
-  /// No description provided for @itemSheetNew.
-  ///
-  /// In en, this message translates to:
-  /// **'New item'**
-  String get itemSheetNew;
-
-  /// No description provided for @itemSheetEdit.
-  ///
-  /// In en, this message translates to:
-  /// **'Edit item'**
-  String get itemSheetEdit;
-
   /// No description provided for @account.
   ///
   /// In en, this message translates to:
@@ -1586,6 +1550,90 @@ abstract class AppLocalizations {
   /// **'Start empty'**
   String get startEmpty;
 
+  /// No description provided for @errorMissingArg.
+  ///
+  /// In en, this message translates to:
+  /// **'A change is missing \"{arg}\".'**
+  String errorMissingArg(String arg);
+
+  /// No description provided for @errorWrongArgType.
+  ///
+  /// In en, this message translates to:
+  /// **'A change has the wrong kind of value for \"{arg}\".'**
+  String errorWrongArgType(String arg);
+
+  /// No description provided for @errorUnknownArg.
+  ///
+  /// In en, this message translates to:
+  /// **'A change has an unknown setting \"{arg}\".'**
+  String errorUnknownArg(String arg);
+
+  /// No description provided for @errorUnknownList.
+  ///
+  /// In en, this message translates to:
+  /// **'The list was not found.'**
+  String get errorUnknownList;
+
+  /// No description provided for @errorUnknownItem.
+  ///
+  /// In en, this message translates to:
+  /// **'An item to change was not found in the list.'**
+  String get errorUnknownItem;
+
+  /// No description provided for @errorUnknownField.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{field}\" is not a field of this list.'**
+  String errorUnknownField(String field);
+
+  /// No description provided for @errorListChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'The list has changed since, so this cannot be undone.'**
+  String get errorListChanged;
+
+  /// No description provided for @errorAiNotAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI may not change this list.'**
+  String get errorAiNotAllowed;
+
+  /// No description provided for @listFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get listFilterAll;
+
+  /// No description provided for @listDoneGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get listDoneGroup;
+
+  /// No description provided for @listOpenDoneCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{open} open · {done} done'**
+  String listOpenDoneCount(int open, int done);
+
+  /// No description provided for @listItemCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 item} other{{count} items}}'**
+  String listItemCount(int count);
+
+  /// No description provided for @itemSheetNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New item'**
+  String get itemSheetNew;
+
+  /// No description provided for @itemSheetEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit item'**
+  String get itemSheetEdit;
+
   /// No description provided for @settings.
   ///
   /// In en, this message translates to:
@@ -1615,6 +1663,444 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{name, select, pending_actions{Clipboard} checklist{Checklist} shopping_cart{Shopping cart} book{Book} movie{Film} local_florist{Flower} other{List}}'**
   String listIconName(String name);
+
+  /// No description provided for @aiBarHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add or change'**
+  String get aiBarHint;
+
+  /// No description provided for @aiBarHintList.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to {list}'**
+  String aiBarHintList(String list);
+
+  /// No description provided for @aiBarHintNewList.
+  ///
+  /// In en, this message translates to:
+  /// **'Describe the list'**
+  String get aiBarHintNewList;
+
+  /// No description provided for @aiSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get aiSend;
+
+  /// No description provided for @aiBarLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'AI request'**
+  String get aiBarLabel;
+
+  /// No description provided for @aiDescribeNewList.
+  ///
+  /// In en, this message translates to:
+  /// **'Describe a new list'**
+  String get aiDescribeNewList;
+
+  /// No description provided for @aiDescribeNewListMeta.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI picks its fields'**
+  String get aiDescribeNewListMeta;
+
+  /// No description provided for @aiNoticeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Before your first request'**
+  String get aiNoticeTitle;
+
+  /// No description provided for @aiNoticeDeepSeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Your request, the names, descriptions and fields of your lists, and the open list, or a list your request is about, with up to 20 recent items go to DeepSeek, an AI provider that processes and stores data in China. Lists with AI turned off are never sent. Your request text is kept for about 7 days to find problems, then deleted.'**
+  String get aiNoticeDeepSeek;
+
+  /// No description provided for @aiNoticeContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get aiNoticeContinue;
+
+  /// No description provided for @aiApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get aiApply;
+
+  /// No description provided for @aiAddItems.
+  ///
+  /// In en, this message translates to:
+  /// **'{list}: add {items}'**
+  String aiAddItems(String list, String items);
+
+  /// No description provided for @aiEditItems.
+  ///
+  /// In en, this message translates to:
+  /// **'{list}: change {items}'**
+  String aiEditItems(String list, String items);
+
+  /// No description provided for @aiDeleteItems.
+  ///
+  /// In en, this message translates to:
+  /// **'{list}: delete {items}'**
+  String aiDeleteItems(String list, String items);
+
+  /// No description provided for @aiOpAddField.
+  ///
+  /// In en, this message translates to:
+  /// **'{list}: add the field {field}'**
+  String aiOpAddField(String list, String field);
+
+  /// No description provided for @aiOpRemoveField.
+  ///
+  /// In en, this message translates to:
+  /// **'{list}: remove the field {field}'**
+  String aiOpRemoveField(String list, String field);
+
+  /// No description provided for @aiOpRenameField.
+  ///
+  /// In en, this message translates to:
+  /// **'{list}: rename {field} to {label}'**
+  String aiOpRenameField(String list, String field, String label);
+
+  /// No description provided for @aiOpChangeField.
+  ///
+  /// In en, this message translates to:
+  /// **'{list}: change the field {field}'**
+  String aiOpChangeField(String list, String field);
+
+  /// No description provided for @aiOpSetView.
+  ///
+  /// In en, this message translates to:
+  /// **'{list}: show as {view}'**
+  String aiOpSetView(String list, String view);
+
+  /// No description provided for @aiOpBehavior.
+  ///
+  /// In en, this message translates to:
+  /// **'{list}: change {behavior}'**
+  String aiOpBehavior(String list, String behavior);
+
+  /// No description provided for @aiOpListInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'{list}: change the name, icon or colour'**
+  String aiOpListInfo(String list);
+
+  /// No description provided for @aiHiddenValues.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 value no longer fits and is kept hidden} other{{count} values no longer fit and are kept hidden}}'**
+  String aiHiddenValues(int count);
+
+  /// No description provided for @aiNewList.
+  ///
+  /// In en, this message translates to:
+  /// **'New list {name}: {fields}'**
+  String aiNewList(String name, String fields);
+
+  /// No description provided for @aiDoneAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to {lists}'**
+  String aiDoneAdded(String lists);
+
+  /// No description provided for @aiDoneChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Changed {lists}'**
+  String aiDoneChanged(String lists);
+
+  /// No description provided for @aiDoneCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Created {list}'**
+  String aiDoneCreated(String list);
+
+  /// No description provided for @aiUndone.
+  ///
+  /// In en, this message translates to:
+  /// **'Undone'**
+  String get aiUndone;
+
+  /// No description provided for @aiDeclinedOffTopic.
+  ///
+  /// In en, this message translates to:
+  /// **'I can only help with your lists.'**
+  String get aiDeclinedOffTopic;
+
+  /// No description provided for @aiDeclinedNotSupported.
+  ///
+  /// In en, this message translates to:
+  /// **'That is not a change I can make.'**
+  String get aiDeclinedNotSupported;
+
+  /// No description provided for @aiRefusedAiNotAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'AI is turned off for this list.'**
+  String get aiRefusedAiNotAllowed;
+
+  /// No description provided for @aiRefusedOutputTooLong.
+  ///
+  /// In en, this message translates to:
+  /// **'The answer was too long. Try a shorter request.'**
+  String get aiRefusedOutputTooLong;
+
+  /// No description provided for @aiRefusedNoValidTool.
+  ///
+  /// In en, this message translates to:
+  /// **'The answer could not be used. Try other words.'**
+  String get aiRefusedNoValidTool;
+
+  /// No description provided for @aiRefusedDailyCount.
+  ///
+  /// In en, this message translates to:
+  /// **'You have reached today’s limit of AI requests.'**
+  String get aiRefusedDailyCount;
+
+  /// No description provided for @aiRefusedBudget.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI is paused until tomorrow.'**
+  String get aiRefusedBudget;
+
+  /// No description provided for @aiRefusedPromptTooLong.
+  ///
+  /// In en, this message translates to:
+  /// **'The request is too long.'**
+  String get aiRefusedPromptTooLong;
+
+  /// No description provided for @aiRefusedContextTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Your lists are too large to send.'**
+  String get aiRefusedContextTooLarge;
+
+  /// No description provided for @aiRefusedAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'This account or app may not use the AI.'**
+  String get aiRefusedAccess;
+
+  /// No description provided for @aiRefusedUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI is not available right now. Try again later.'**
+  String get aiRefusedUnavailable;
+
+  /// No description provided for @aiRefusedBadRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'The request could not be sent.'**
+  String get aiRefusedBadRequest;
+
+  /// No description provided for @aiInvalidAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'The changes do not fit the list, so nothing was applied.'**
+  String get aiInvalidAnswer;
+
+  /// No description provided for @errorUndoTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'This change touched too many items to be undone.'**
+  String get errorUndoTooLarge;
+
+  /// No description provided for @aiPartlyNotDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Part of the request could not be done.'**
+  String get aiPartlyNotDone;
+
+  /// No description provided for @aiRefusedProviderAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI provider account needs attention: check its key or balance.'**
+  String get aiRefusedProviderAccount;
+
+  /// No description provided for @aiListOff.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{list}\" has AI turned off.'**
+  String aiListOff(String list);
+
+  /// No description provided for @aiAutoApplyOffer.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply changes like this without asking from now on? Undo stays.'**
+  String get aiAutoApplyOffer;
+
+  /// No description provided for @aiAutoApplyYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get aiAutoApplyYes;
+
+  /// No description provided for @aiAutoApplyNo.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get aiAutoApplyNo;
+
+  /// No description provided for @settingsAiAutoApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply AI changes without asking'**
+  String get settingsAiAutoApply;
+
+  /// No description provided for @aiAnswerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Your answer'**
+  String get aiAnswerHint;
+
+  /// No description provided for @aiAnswering.
+  ///
+  /// In en, this message translates to:
+  /// **'Answering: {reply}'**
+  String aiAnswering(String reply);
+
+  /// No description provided for @aiNewRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'New request'**
+  String get aiNewRequest;
+
+  /// No description provided for @listDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'List description'**
+  String get listDescription;
+
+  /// No description provided for @listDescriptionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'What this list is for (optional)'**
+  String get listDescriptionHint;
+
+  /// No description provided for @errorDescriptionTooLong.
+  ///
+  /// In en, this message translates to:
+  /// **'The description can be at most {max} characters.'**
+  String errorDescriptionTooLong(String max);
+
+  /// No description provided for @tasksDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Things to do.'**
+  String get tasksDescription;
+
+  /// No description provided for @groceryDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Food and household things to buy on the next shopping trip.'**
+  String get groceryDescription;
+
+  /// No description provided for @journalDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily notes and thoughts, by date.'**
+  String get journalDescription;
+
+  /// No description provided for @watchReadDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Films, shows and books to watch or read.'**
+  String get watchReadDescription;
+
+  /// No description provided for @settingsAiAsk.
+  ///
+  /// In en, this message translates to:
+  /// **'How often the AI checks with you'**
+  String get settingsAiAsk;
+
+  /// No description provided for @aiAskMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask first'**
+  String get aiAskMore;
+
+  /// No description provided for @aiAskMoreHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Checks with you whenever it isn’t sure, and makes new lists only when you ask for one.'**
+  String get aiAskMoreHint;
+
+  /// No description provided for @aiAskBalanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Balanced'**
+  String get aiAskBalanced;
+
+  /// No description provided for @aiAskBalancedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Does clear requests right away and checks with you on vague ones.'**
+  String get aiAskBalancedHint;
+
+  /// No description provided for @aiAskLess.
+  ///
+  /// In en, this message translates to:
+  /// **'Just do it'**
+  String get aiAskLess;
+
+  /// No description provided for @aiAskLessHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Goes with its best guess and checks only when two lists fit equally well.'**
+  String get aiAskLessHint;
+
+  /// No description provided for @errorPreviewChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'The list changed since this preview, so nothing was changed. Try again.'**
+  String get errorPreviewChanged;
+
+  /// No description provided for @errorNeedsConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'This needs a connection. Nothing was changed.'**
+  String get errorNeedsConnection;
+
+  /// No description provided for @errorOutcomeUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'The connection is slow, so this may still go through. Check the list before trying again.'**
+  String get errorOutcomeUnknown;
+
+  /// No description provided for @errorAnswerTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'That is too many changes for one request (at most 500). Nothing was changed. Try a smaller one.'**
+  String get errorAnswerTooLarge;
+
+  /// No description provided for @aiItemsUpdating.
+  ///
+  /// In en, this message translates to:
+  /// **'Items are still updating.'**
+  String get aiItemsUpdating;
+
+  /// No description provided for @aiListOffOffer.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{list}\" has AI turned off. Send for your other lists?'**
+  String aiListOffOffer(String list);
+
+  /// No description provided for @aiListOffSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get aiListOffSend;
+
+  /// No description provided for @itemsNotUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Some items in this list could not be updated yet. The app will try again next time it opens.'**
+  String get itemsNotUpdated;
 }
 
 class _AppLocalizationsDelegate

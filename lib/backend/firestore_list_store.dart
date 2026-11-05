@@ -32,6 +32,18 @@ import '../lists/list_store.dart';
 // rejects the write, Firestore undoes it locally and [writeFailures] reports
 // it.
 //
+// AI writes (Q-51 to Q-53) never fall back to the cache, except adds and new
+// lists, which overwrite nothing: they are transactions over the stored data,
+// and without a server they are refused with needsConnection.
+//
+// A timer cannot stop a commit (R2 of the Codex re-review): the plugin collects
+// a transaction's writes when its callback returns and the SDK commits them
+// afterwards, and retries the callback if needed. So [transactionTimeout] gives
+// up on an attempt only until its writes are handed over (_Attempt). After that
+// the store waits for the real outcome for [commitTimeout], then reports it as
+// unknown and writes nothing more, instead of falling back or saying that
+// nothing changed.
+//
 // Patches (Q-16 B with C as the offline fallback): online, patchList runs a
 // transaction over the list document as stored and every item the cache
 // knows, so a concurrent patch from another device makes it retry rather
@@ -53,6 +65,13 @@ class FirestoreListStore implements ListStore {
     void Function(String path, Object error)? onSkipped,
     this.batchLimit = maxBatchWrites,
     this.transactionTimeout = const Duration(seconds: 10),
+    this.commitTimeout = const Duration(seconds: 30),
+    this.beforeHandOver,
+    this.refitRetryDelays = const [
+      Duration(seconds: 2),
+      Duration(seconds: 10),
+      Duration(seconds: 45),
+    ],
   }) : _onSkipped = onSkipped ?? _log {
     _listsSubscription = _lists
         .snapshots(includeMetadataChanges: true)
@@ -67,10 +86,22 @@ class FirestoreListStore implements ListStore {
   static const int maxBatchWrites = 500;
   final int batchLimit;
 
-  // How long a patch waits for its transaction before it saves the patch as
-  // a batch instead. A transaction attempt that runs after that writes
-  // nothing, so the patch is not applied twice (T-14 R2).
+  // How long a transaction may take to reach the point of handing over its
+  // writes. A patch then saves as a batch instead, and an AI write is refused.
+  // An attempt that runs after that writes nothing, so nothing is applied twice
+  // (T-14 R2).
   final Duration transactionTimeout;
+
+  // How long a transaction that handed over its writes is waited for, after
+  // [transactionTimeout] has passed (Q-58).
+  final Duration commitTimeout;
+
+  // Runs in a transaction just before it hands over its writes; tests use it
+  // to cut the connection at that point.
+  final Future<void> Function()? beforeHandOver;
+
+  // The waits before trying items that could not be fitted again (Q-64).
+  final List<Duration> refitRetryDelays;
 
   // Firestore error codes that mean the server cannot be reached.
   static const Set<String> _offlineCodes = {'unavailable', 'deadline-exceeded'};
@@ -110,6 +141,8 @@ class FirestoreListStore implements ListStore {
   // What each item was last checked as for repair: the list revision and
   // the item's updatedAt, so a later stale write of it is checked again.
   final Map<String, String> _checked = {};
+  // Lists whose items were reported as not updated, until a later try works.
+  final Set<String> _notUpdatedReported = {};
   // Paths already reported, so a skipped document is logged once.
   final Set<String> _reported = {};
 
@@ -290,8 +323,8 @@ class FirestoreListStore implements ListStore {
       if (due.isEmpty) {
         continue;
       }
-      _refit(listId, due.keys.toList()).catchError((Object error) {
-        _log('repair $listId', error);
+      _refitRetrying(listId, due.keys.toList()).catchError((Object error) {
+        _refitFailed(listId, error);
         // Checked again on the next change or reconnection.
         for (final MapEntry<String, String> failed in due.entries) {
           if (_checked['$listId/${failed.key}'] == failed.value) {
@@ -300,6 +333,43 @@ class FirestoreListStore implements ListStore {
         }
       });
     }
+  }
+
+  // _refit, tried again after each of [refitRetryDelays] if it fails: nothing
+  // else may come along to set it off again (F3 of the last Codex pass, Q-64).
+  Future<void> _refitRetrying(
+    String listId,
+    List<String> itemIds, {
+    DateTime? touchedAt,
+  }) async {
+    for (int attempt = 0; ; attempt++) {
+      try {
+        await _refit(listId, itemIds, touchedAt: touchedAt);
+        _notUpdatedReported.remove(listId);
+        return;
+      } on Object catch (error) {
+        if (_closed || attempt >= refitRetryDelays.length) {
+          rethrow;
+        }
+        _log('refit $listId, trying again', error);
+      }
+      await Future<void>.delayed(refitRetryDelays[attempt]);
+      if (_closed) {
+        return;
+      }
+    }
+  }
+
+  // Tells the app once per list, however many tries end this way. No connection
+  // is not worth saying: coming back online sets off the repair step.
+  void _refitFailed(String listId, Object error) {
+    _log('refit $listId', error);
+    if ((error is FirebaseException && _offlineCodes.contains(error.code)) ||
+        _writeFailures.isClosed ||
+        !_notUpdatedReported.add(listId)) {
+      return;
+    }
+    _writeFailures.add(ItemsNotUpdated(listId));
   }
 
   // Fits the items as stored to the list as stored and saves the ones that
@@ -689,6 +759,259 @@ class FirestoreListStore implements ListStore {
     return _patch(listId, (_) => ops);
   }
 
+  @override
+  Future<ListPatchResult?> patchListAi(
+    String listId,
+    List<ListPatchOp> ops, {
+    required ListDefinition previewed,
+  }) async {
+    await _ready.future;
+    if (!_definitions.containsKey(listId)) {
+      return null;
+    }
+    ListPatchResult refused(ListDefinition definition, ListErrorCode code) {
+      return ListPatchResult(
+        definition: definition,
+        items: const [],
+        changedItemIds: const {},
+        hiddenValues: 0,
+        errors: [ListError(code, {'list': listId})],
+        definitionBefore: definition,
+        itemsBefore: const [],
+      );
+    }
+
+    return _timed<ListPatchResult?>(
+      (attempt) => _patchInTransaction(
+        listId,
+        (_) => ops,
+        attempt,
+        refuse: (definition) => !definition.aiAllowed
+            ? refused(definition, ListErrorCode.aiNotAllowed)
+            : AiItemWrite.sameFields(definition, previewed)
+            ? null
+            : refused(definition, ListErrorCode.previewChanged),
+      ),
+      notHandedOver: () => refused(previewed, ListErrorCode.needsConnection),
+      unknown: () => refused(previewed, ListErrorCode.outcomeUnknown),
+    );
+  }
+
+  @override
+  Future<AiWriteResult> applyAiItems(AiItemWrite write) async {
+    await _ready.future;
+    final String listId = write.listId;
+    if (write.writes > batchLimit) {
+      return AiWriteResult.refused(ListErrorCode.answerTooLarge, listId);
+    }
+    // Offline: an add overwrites nothing, so it may queue, checked against the
+    // cache. Anything else needs the stored data (Q-53).
+    AiWriteResult offline() {
+      if (!write.addsOnly) {
+        return AiWriteResult.refused(ListErrorCode.needsConnection, listId);
+      }
+      final AiWriteResult result = write.over(_definitions[listId], const {});
+      if (result.isValid) {
+        final int revision = _revisionOf(listId);
+        // Not awaited, as in _patchCached.
+        _write([
+          for (final ListItem item in result.saved) _setItem(item, revision),
+        ]).catchError((Object error) => _log('ai items $listId', error));
+      }
+      return result;
+    }
+
+    return _timed<AiWriteResult>(
+      (attempt) => _applyAiInTransaction(write, attempt),
+      notHandedOver: offline,
+      unknown: () =>
+          AiWriteResult.refused(ListErrorCode.outcomeUnknown, listId),
+    );
+  }
+
+  Future<AiWriteResult> _applyAiInTransaction(
+    AiItemWrite write,
+    _Attempt attempt,
+  ) {
+    final String listId = write.listId;
+    return _readingTransaction((transaction, read) async {
+      final Map<String, dynamic>? data = await read(_lists.doc(listId));
+      final Map<String, ListItem> items = {};
+      for (final String id in write.touchedIds) {
+        final Map<String, dynamic>? itemData = await read(
+          _itemsOf(listId).doc(id),
+        );
+        if (itemData == null) {
+          continue;
+        }
+        try {
+          items[id] = _itemFrom(itemData);
+        } on Object {
+          // Malformed: not what the preview showed.
+          return AiWriteResult.refused(ListErrorCode.previewChanged, listId);
+        }
+      }
+      final ListDefinition? stored = data == null ? null : _definitionFrom(data);
+      final AiWriteResult result = write.over(stored, items);
+      if (!result.isValid || !await attempt.handOver(beforeHandOver)) {
+        return result;
+      }
+      for (final ListItem item in result.saved) {
+        transaction.set(
+          _itemsOf(listId).doc(item.id),
+          itemData(item, stored!.schemaRevision),
+        );
+      }
+      for (final String id in result.deletedIds) {
+        transaction.delete(_itemsOf(listId).doc(id));
+      }
+      return result;
+    });
+  }
+
+  @override
+  Future<List<ListError>> deleteCreatedList(CreatedList created) async {
+    await _ready.future;
+    final String listId = created.listId;
+    List<ListError> refused(ListErrorCode code) => [
+      ListError(code, {'list': listId}),
+    ];
+    Future<List<ListError>> run(_Attempt attempt) async {
+      // A transaction cannot query, so the items are listed first; one added
+      // between the two by another device stays behind, as in deleteList.
+      final Set<String> ids = {
+        for (final doc
+            in (await _itemsOf(listId).get(const GetOptions(source: Source.server))).docs)
+          doc.id,
+      };
+      if (ids.length + 1 > batchLimit) {
+        return refused(ListErrorCode.undoTooLarge);
+      }
+      return _readingTransaction((transaction, read) async {
+        final List<ListError> changed = refused(ListErrorCode.listChanged);
+        final Map<String, dynamic>? data = await read(_lists.doc(listId));
+        if (data == null) {
+          return changed;
+        }
+        final List<ListItem> items = [];
+        for (final String id in ids) {
+          final Map<String, dynamic>? itemData = await read(_itemsOf(listId).doc(id));
+          if (itemData == null) {
+            continue;
+          }
+          try {
+            items.add(_itemFrom(itemData));
+          } on Object {
+            return changed;
+          }
+        }
+        if (!created.isCurrent(_definitionFrom(data), items)) {
+          return changed;
+        }
+        if (!await attempt.handOver(beforeHandOver)) {
+          return const <ListError>[];
+        }
+        for (final String id in ids) {
+          transaction.delete(_itemsOf(listId).doc(id));
+        }
+        transaction.delete(_lists.doc(listId));
+        return const <ListError>[];
+      });
+    }
+
+    return _timed<List<ListError>>(
+      run,
+      notHandedOver: () => refused(ListErrorCode.needsConnection),
+      unknown: () => refused(ListErrorCode.outcomeUnknown),
+    );
+  }
+
+  // Runs [run] under the two time limits (see the class comment). Before the
+  // attempt hands over its writes, running out of time or reaching no server
+  // ends it with [notHandedOver]; a later callback then writes nothing. After
+  // that only the transaction's own result counts, and if it is not there in
+  // [commitTimeout], or the connection failed during the commit, [unknown].
+  Future<T> _timed<T>(
+    Future<T> Function(_Attempt attempt) run, {
+    required FutureOr<T> Function() notHandedOver,
+    required FutureOr<T> Function() unknown,
+  }) {
+    final Completer<T> result = Completer<T>();
+    final _Attempt attempt = _Attempt();
+    Timer? timer;
+    void finish(FutureOr<T> Function() outcome) {
+      if (result.isCompleted) {
+        return;
+      }
+      timer?.cancel();
+      attempt.stop();
+      result.complete(outcome());
+    }
+
+    timer = Timer(transactionTimeout, () {
+      if (!attempt.handedOver) {
+        finish(notHandedOver);
+      } else {
+        timer = Timer(commitTimeout, () => finish(unknown));
+      }
+    });
+    run(attempt).then(
+      (value) {
+        if (!result.isCompleted) {
+          timer?.cancel();
+          result.complete(value);
+        }
+      },
+      onError: (Object error, StackTrace stack) {
+        if (result.isCompleted) {
+          _log('late transaction', error);
+        } else if (error is FirebaseException &&
+            _offlineCodes.contains(error.code)) {
+          finish(attempt.handedOver ? unknown : notHandedOver);
+        } else {
+          timer?.cancel();
+          result.completeError(error, stack);
+        }
+      },
+    );
+    return result.future;
+  }
+
+  // A transaction whose [read]s report a failure on web as the
+  // FirebaseException it was, not the JavaScript error the transaction turns
+  // it into (T-17 F1).
+  Future<T> _readingTransaction<T>(
+    Future<T> Function(
+      Transaction transaction,
+      Future<Map<String, dynamic>?> Function(
+        DocumentReference<Map<String, dynamic>> ref,
+      ) read,
+    ) body,
+  ) async {
+    FirebaseException? readError;
+    try {
+      return await firestore.runTransaction((transaction) async {
+        readError = null;
+        return body(transaction, (ref) async {
+          try {
+            return (await transaction.get(ref)).data();
+          } on FirebaseException catch (error) {
+            readError = error;
+            rethrow;
+          }
+        });
+      });
+    } on FirebaseException {
+      rethrow;
+    } on Object {
+      final FirebaseException? cause = readError;
+      if (cause == null) {
+        rethrow;
+      }
+      throw cause;
+    }
+  }
+
   // [opsFor] gives the ops for the definition they are applied to: the
   // stored one in the transaction, the cached one in the fallback.
   Future<ListPatchResult?> _patch(
@@ -699,39 +1022,36 @@ class FirestoreListStore implements ListStore {
     if (!_definitions.containsKey(listId)) {
       return null;
     }
-    // Set once the patch is saved as a batch instead; shared with the
-    // transaction, which may still run (T-14 R2).
-    bool fellBack = false;
-    try {
-      return await _patchInTransaction(
+    // If the outcome stays unknown the patch counts as what was handed over:
+    // the read side shows the truth when it arrives.
+    ListPatchResult? handedOver;
+    return _timed<ListPatchResult?>(
+      (attempt) => _patchInTransaction(
         listId,
         opsFor,
-        () => fellBack,
-      ).timeout(transactionTimeout);
-    } on TimeoutException {
-      fellBack = true;
-      return _patchCached(listId, opsFor);
-    } on FirebaseException catch (error) {
-      if (!_offlineCodes.contains(error.code)) {
-        rethrow;
-      }
-      return _patchCached(listId, opsFor);
-    }
+        attempt,
+        onHandOver: (result) => handedOver = result,
+      ),
+      notHandedOver: () => _patchCached(listId, opsFor),
+      unknown: () => handedOver,
+    );
   }
 
   // Applies the ops to the list as stored and to every item the cache
   // knows, read again inside the transaction. A patch that changes more
   // items than fit in one transaction saves the definition in it and fits
   // the items to it afterwards, in transactions over the items as stored
-  // (T-14 R1); the repair step covers an interruption.
-  // An attempt that runs once [abandoned] is true, after the patch fell
-  // back to a batch, writes nothing: it would read the batch's result and
-  // apply the ops a second time.
+  // (T-14 R1), which are not waited for (Q-59); the repair step covers an
+  // interruption. An attempt that runs once [attempt] has stopped, after the
+  // patch fell back to a batch, writes nothing: it would read the batch's result
+  // and apply the ops a second time.
   Future<ListPatchResult?> _patchInTransaction(
     String listId,
     List<ListPatchOp> Function(ListDefinition definition) opsFor,
-    bool Function() abandoned,
-  ) async {
+    _Attempt attempt, {
+    ListPatchResult? Function(ListDefinition definition)? refuse,
+    void Function(ListPatchResult result)? onHandOver,
+  }) async {
     final List<String> itemIds = _items[listId]?.keys.toList() ?? const [];
     final DateTime now = DateTime.now().toUtc();
     List<String> later = const [];
@@ -766,6 +1086,10 @@ class FirestoreListStore implements ListStore {
           return null;
         }
         final ListDefinition definition = _definitionFrom(data);
+        final ListPatchResult? refused = refuse?.call(definition);
+        if (refused != null) {
+          return refused;
+        }
         final List<ListItem> items = [];
         for (final String itemId in itemIds) {
           final Map<String, dynamic>? itemData = (await read(
@@ -787,10 +1111,10 @@ class FirestoreListStore implements ListStore {
           opsFor(definition),
           now,
         );
-        // Checked after the last read, with no await before the writes.
-        if (!result.isValid || abandoned()) {
+        if (!result.isValid || !await attempt.handOver(beforeHandOver)) {
           return result;
         }
+        onHandOver?.call(result);
         final int revision = result.definition.schemaRevision;
         final List<ListItem> changed = [
           for (final ListItem item in result.items)
@@ -821,8 +1145,14 @@ class FirestoreListStore implements ListStore {
       }
       throw cause;
     }
-    if (result != null && later.isNotEmpty && !abandoned()) {
-      await _refit(listId, later, touchedAt: now);
+    if (result != null && later.isNotEmpty && !attempt.stopped) {
+      final List<String> pending = later;
+      unawaited(
+        _refitRetrying(listId, pending, touchedAt: now).catchError(
+          (Object error) => _refitFailed(listId, error),
+        ),
+      );
+      return result.withItemsPending();
     }
     return result;
   }
@@ -900,6 +1230,91 @@ class FirestoreListStore implements ListStore {
     );
   }
 
+  // Q-35 A: a transaction over the list and the touched items as stored. Without
+  // a server it is refused, not queued: a check against the cache could not
+  // protect a newer change on another device (Q-53). One transaction holds every
+  // write, so an undo touches fewer than [batchLimit] items (AI changes are far
+  // smaller).
+  @override
+  Future<List<ListError>> restoreSnapshot(ListSnapshot snapshot) async {
+    await _ready.future;
+    // The restore is one transaction (the list plus every touched item), and
+    // a transaction holds at most [batchLimit] writes; a patch that touched
+    // more items (changeFieldType, removeField on a big list) is not undone
+    // at all rather than in part (L13 of the T-19 unit 5 review).
+    final int writes =
+        snapshot.itemIds.length +
+        (ListSnapshot.sameJson(snapshot.before.toJson(), snapshot.after.toJson()) ? 0 : 1);
+    if (writes > batchLimit) {
+      return [
+        ListError(ListErrorCode.undoTooLarge, {'list': snapshot.listId}),
+      ];
+    }
+    return _timed<List<ListError>>(
+      (attempt) => _restoreInTransaction(snapshot, attempt),
+      notHandedOver: () => _refusedRestore(ListErrorCode.needsConnection, snapshot),
+      unknown: () => _refusedRestore(ListErrorCode.outcomeUnknown, snapshot),
+    );
+  }
+
+  static List<ListError> _refusedRestore(ListErrorCode code, ListSnapshot snapshot) {
+    return [ListError(code, {'list': snapshot.listId})];
+  }
+
+  static List<ListError> _changedSince(ListSnapshot snapshot) {
+    return [ListError(ListErrorCode.listChanged, {'list': snapshot.listId})];
+  }
+
+  // An attempt that runs once [attempt] has stopped writes nothing, as in
+  // _patchInTransaction (T-14 R2); so does one whose web read failed
+  // (T-17 F1: the read error is thrown instead).
+  Future<List<ListError>> _restoreInTransaction(
+    ListSnapshot snapshot,
+    _Attempt attempt,
+  ) {
+    final String listId = snapshot.listId;
+    final DateTime now = DateTime.now().toUtc();
+    return _readingTransaction((transaction, read) async {
+      final Map<String, dynamic>? data = await read(_lists.doc(listId));
+      final Map<String, ListItem> items = {};
+      for (final String id in snapshot.itemIds) {
+        final Map<String, dynamic>? itemData = await read(_itemsOf(listId).doc(id));
+        if (itemData != null) {
+          try {
+            items[id] = _itemFrom(itemData);
+          } on Object {
+            // Malformed: not as the change left it.
+            return _changedSince(snapshot);
+          }
+        }
+      }
+      final ListDefinition? current = data == null ? null : _definitionFrom(data);
+      if (current == null || !snapshot.isCurrent(current, items)) {
+        return _changedSince(snapshot);
+      }
+      if (!await attempt.handOver(beforeHandOver)) {
+        return const <ListError>[];
+      }
+      final ListDefinition? definition = snapshot.restoredDefinition(current, now);
+      final int revision = (definition ?? current).schemaRevision;
+      if (definition != null) {
+        transaction.set(
+          _lists.doc(listId),
+          definitionData(definition, createdAt: _createdAtOf(data!)),
+        );
+      }
+      for (final String id in snapshot.itemIds) {
+        final ListItem? item = snapshot.itemsBefore[id];
+        if (item == null) {
+          transaction.delete(_itemsOf(listId).doc(id));
+        } else {
+          transaction.set(_itemsOf(listId).doc(id), itemData(item, revision));
+        }
+      }
+      return const <ListError>[];
+    });
+  }
+
   static Object? _encode(Object? value, {bool inList = false}) {
     if (value is Map) {
       return {
@@ -935,4 +1350,38 @@ class FirestoreListStore implements ListStore {
     }
     return value;
   }
+}
+
+// One transaction under _timed's limits. Once it has handed over its writes, it
+// stays that way through the SDK's retries: an earlier commit may have landed
+// even if its answer was lost.
+class _Attempt {
+  bool handedOver = false;
+  bool stopped = false;
+
+  void stop() => stopped = true;
+
+  // Whether the callback may write now; it must then write without another
+  // await, so nothing can stop it between this check and its writes.
+  Future<bool> handOver(Future<void> Function()? before) async {
+    if (stopped) {
+      return false;
+    }
+    if (before != null) {
+      await before();
+      if (stopped) {
+        return false;
+      }
+    }
+    handedOver = true;
+    return true;
+  }
+}
+
+// On writeFailures: a list's items could not be fitted to its new fields, after
+// retrying (Q-64). They stay as they are until the next try at the next start.
+class ItemsNotUpdated {
+  const ItemsNotUpdated(this.listId);
+
+  final String listId;
 }

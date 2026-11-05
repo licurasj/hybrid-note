@@ -8,6 +8,7 @@ import 'package:hybrid_note/backend/firestore_list_store.dart';
 import 'package:hybrid_note/lists/builtin_templates.dart';
 import 'package:hybrid_note/lists/list_catalog.dart';
 import 'package:hybrid_note/lists/list_definition.dart';
+import 'package:hybrid_note/lists/list_error.dart';
 import 'package:hybrid_note/lists/list_item.dart';
 import 'package:hybrid_note/lists/list_patch.dart';
 import 'package:hybrid_note/lists/list_rules.dart';
@@ -599,6 +600,116 @@ void main() {
         await _until(store, (c) => c.itemsOf('list-big').length == count);
       },
     );
+
+    test(
+      'an undo larger than one transaction is refused and changes nothing',
+      () async {
+        final FakeFirebaseFirestore firestore = await _seeded();
+        final FirestoreListStore store = await _loaded(
+          firestore,
+          batchLimit: 10,
+        );
+        final List<ListItem> items = [
+          for (int n = 0; n < 9; n++) _row('list-big', n),
+        ];
+        expect(
+          await store.createList(_simple('list-big'), items: items),
+          isEmpty,
+        );
+        await _until(store, (c) => c.itemsOf('list-big').length == 9);
+        final ListDefinition definition = store.current.definition(
+          'list-big',
+        )!;
+        // An item change writes no definition: ten fit in ten writes, eleven
+        // do not.
+        final ListChanges fits = ListChanges(saved: items);
+        final ListChanges tooMany = ListChanges(
+          saved: [for (int n = 9; n < 20; n++) _row('list-big', n)],
+        );
+        await store.apply(tooMany);
+        await _until(store, (c) => c.itemsOf('list-big').length == 20);
+
+        final List<ListError> refused = await store.restoreSnapshot(
+          ListSnapshot.ofChanges(definition, items, tooMany),
+        );
+        expect(refused.single.code, ListErrorCode.undoTooLarge);
+        expect(store.current.itemsOf('list-big'), hasLength(20));
+        expect(
+          await store.restoreSnapshot(
+            ListSnapshot.ofChanges(definition, items, fits),
+          ),
+          isEmpty,
+        );
+      },
+    );
+
+    for (final (String how, void Function(_ScriptedFirestore) cut) in [
+      (
+        'offline',
+        (f) => f.failWith = FirebaseException(
+          plugin: 'cloud_firestore',
+          code: 'unavailable',
+        ),
+      ),
+      ('with no answer in time', (f) => f.hang = true),
+    ]) {
+      test('$how, AI Undo and changes are refused and queue nothing (Q-53)', () async {
+        final _ScriptedFirestore firestore = await _seeded(_ScriptedFirestore());
+        final FirestoreListStore store = await _loaded(
+          firestore,
+          transactionTimeout: const Duration(milliseconds: 50),
+        );
+        final ListItem row = _row('list-a', 1);
+        await store.createList(_simple('list-a'), items: [row]);
+        final ListDefinition definition = (await _until(
+          store,
+          (c) => c.itemsOf('list-a').length == 1,
+        )).definition('list-a')!;
+        final ListItem stored = store.current.itemsOf('list-a').single;
+        final ListItem deleted = ListItem(
+          id: 'gone',
+          listId: 'list-a',
+          values: stored.values,
+          createdAt: stored.createdAt,
+          updatedAt: stored.updatedAt,
+        );
+        final ListSnapshot snapshot = ListSnapshot(
+          before: definition,
+          after: definition,
+          itemsBefore: {stored.id: stored, deleted.id: deleted},
+          itemsAfter: {stored.id: stored, deleted.id: null},
+        );
+
+        final int writes = firestore.deleted.length;
+        cut(firestore);
+        expect(
+          (await store.restoreSnapshot(snapshot)).single.code,
+          ListErrorCode.needsConnection,
+        );
+        expect(
+          (await store.applyAiItems(
+            AiItemWrite(
+              definition: definition,
+              saved: [stored],
+              base: {stored.id: stored},
+            ),
+          )).errors.single.code,
+          ListErrorCode.needsConnection,
+        );
+        expect(
+          (await store.patchListAi(
+            'list-a',
+            const [ListPatchOp(PatchOpKind.setListInfo, {'name': 'New'})],
+            previewed: definition,
+          ))!.errors.single.code,
+          ListErrorCode.needsConnection,
+        );
+        await pumpEventQueue();
+        expect(firestore.deleted.length, writes);
+        expect(store.current.definition('list-a')!.name, definition.name);
+        expect(await firestore.collection('users/$_uid/lists/list-a/items').doc('gone').get().then((d) => d.exists), isFalse);
+      });
+    }
 
     test('a patch saves only the changed items', () async {
       final FakeFirebaseFirestore firestore = await _seeded();
@@ -1248,6 +1359,11 @@ void main() {
           _toCounter,
         );
         expect(result!.changedItemIds, hasLength(25));
+        expect(result.itemsPending, isTrue);
+        await _until(
+          store,
+          (c) => c.itemsOf('list-a').every((item) => item['kind'] is int),
+        );
         final QuerySnapshot<Map<String, dynamic>> stored = await firestore
             .collection('users/$_uid/lists/list-a/items')
             .get();
@@ -1258,6 +1374,191 @@ void main() {
         }
       },
     );
+
+    test(
+      'a big patch returns once the definition is saved; a slow item step '
+      'does not count against the limit and its items end up right (Q-59)',
+      () async {
+        final _ScriptedFirestore firestore = await _seeded(
+          _ScriptedFirestore(),
+        );
+        final FirestoreListStore store = await _loaded(
+          firestore,
+          batchLimit: 10,
+          transactionTimeout: const Duration(milliseconds: 60),
+        );
+        final List<ListItem> items = [
+          for (int n = 0; n < 25; n++) _kind('i$n', '$n'),
+        ];
+        await store.createList(_simple('list-a'), items: items);
+        await _until(store, (c) => c.itemsOf('list-a').length == 25);
+
+        final Completer<void> slow = Completer<void>();
+        firestore.beforeTransaction = () async {
+          firestore.beforeTransaction = () => slow.future;
+        };
+        final ListPatchResult? result = await store.patchList(
+          'list-a',
+          _toCounter,
+        );
+        expect(result!.errors, isEmpty);
+        expect(result.itemsPending, isTrue);
+        await Future<void>.delayed(const Duration(milliseconds: 120));
+        expect(
+          store.current.definition('list-a')!.field('kind')!.type.wire,
+          'counter',
+        );
+        slow.complete();
+        firestore.beforeTransaction = null;
+        final ListCatalog catalog = await _until(
+          store,
+          (c) => c.itemsOf('list-a').every((item) => item['kind'] is int),
+        );
+        expect(
+          catalog.definition('list-a')!.schemaRevision,
+          result.definition.schemaRevision,
+        );
+      },
+    );
+
+    group('items a big patch could not save at first (F3, Q-64)', () {
+      Future<(_ScriptedFirestore, FirestoreListStore, List<Object>)> bigList() async {
+        final _ScriptedFirestore firestore = await _seeded(_ScriptedFirestore());
+        final FirestoreListStore store = FirestoreListStore(
+          firestore,
+          _uid,
+          batchLimit: 10,
+          refitRetryDelays: const [
+            Duration(milliseconds: 10),
+            Duration(milliseconds: 10),
+            Duration(milliseconds: 10),
+          ],
+        );
+        addTearDown(store.close);
+        await store.watch().first;
+        final List<Object> failures = [];
+        store.writeFailures.listen(failures.add);
+        await store.createList(
+          _simple('list-a'),
+          items: [for (int n = 0; n < 25; n++) _kind('i$n', '$n')],
+        );
+        await _until(store, (c) => c.itemsOf('list-a').length == 25);
+        return (firestore, store, failures);
+      }
+
+      FirebaseException failure(String code) =>
+          FirebaseException(plugin: 'cloud_firestore', code: code);
+
+      test('a failed try is tried again with no other event, and ends right', () async {
+        final (firestore, store, failures) = await bigList();
+        // The definition's transaction passes; the first tries of the items, by
+        // the patch and by the repair its change sets off, fail. No event follows.
+        final int start = firestore.transactions;
+        firestore.beforeTransaction = () async {
+          final int at = firestore.transactions - start;
+          firestore.failWith = at >= 2 && at <= 5 ? failure('aborted') : null;
+        };
+        final ListPatchResult? result = await store.patchList('list-a', _toCounter);
+        expect(result!.itemsPending, isTrue);
+        await _until(
+          store,
+          (c) => c.itemsOf('list-a').every((item) => item['kind'] is int),
+        );
+        expect(failures, isEmpty);
+      });
+
+      test('after the last try the failure is reported once', () async {
+        final (firestore, store, failures) = await bigList();
+        final int start = firestore.transactions;
+        firestore.beforeTransaction = () async {
+          firestore.failWith = firestore.transactions > start + 1
+              ? failure('aborted')
+              : null;
+        };
+        final ListPatchResult? result = await store.patchList('list-a', _toCounter);
+        expect(result!.errors, isEmpty);
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        final List<Object> reported = [
+          for (final Object failure in failures)
+            if (failure is ItemsNotUpdated) failure,
+        ];
+        expect(reported, hasLength(1));
+        expect((reported.single as ItemsNotUpdated).listId, 'list-a');
+        expect(
+          store.current.definition('list-a')!.field('kind')!.type.wire,
+          'counter',
+        );
+      });
+
+      test('no connection is not a failure to report', () async {
+        final (firestore, store, failures) = await bigList();
+        final int start = firestore.transactions;
+        firestore.beforeTransaction = () async {
+          firestore.failWith = firestore.transactions > start + 1
+              ? failure('unavailable')
+              : null;
+        };
+        await store.patchList('list-a', _toCounter);
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        expect(failures, isEmpty);
+      });
+
+      test('the repair step tries again with no other event too', () async {
+        final (firestore, store, failures) = await bigList();
+        final int start = firestore.transactions;
+        // Another device's patch: the definition changes, the items stay old,
+        // and this device's first repair fails.
+        final ListDefinition patched = ListPatch.apply(
+          store.current.definition('list-a')!,
+          const [],
+          _toCounter,
+          _t0,
+        ).definition;
+        firestore.beforeTransaction = () async {
+          firestore.failWith = firestore.transactions == start + 1
+              ? failure('aborted')
+              : null;
+        };
+        await firestore
+            .doc('users/$_uid/lists/list-a')
+            .set(patched.toJson());
+        await _until(
+          store,
+          (c) => c.itemsOf('list-a').every((item) => item['kind'] is int),
+        );
+        expect(failures, isEmpty);
+      });
+    });
+
+    test('the AI write limit is checked at the store, at the limit and past it (Q-60)', () async {
+      final FakeFirebaseFirestore firestore = await _seeded();
+      final FirestoreListStore store = await _loaded(firestore, batchLimit: 10);
+      await store.createList(_simple('list-a'));
+      final ListDefinition definition = (await _until(
+        store,
+        (c) => c.definition('list-a') != null,
+      )).definition('list-a')!;
+      final AiWriteResult over = await store.applyAiItems(
+        AiItemWrite(
+          definition: definition,
+          saved: [for (int n = 0; n < 11; n++) _kind('i$n', '$n')],
+        ),
+      );
+      expect(over.errors.single.code, ListErrorCode.answerTooLarge);
+      await pumpEventQueue();
+      expect(store.current.itemsOf('list-a'), isEmpty);
+
+      final AiWriteResult fits = await store.applyAiItems(
+        AiItemWrite(
+          definition: definition,
+          saved: [for (int n = 0; n < 10; n++) _kind('i$n', '$n')],
+        ),
+      );
+      expect(fits.errors, isEmpty);
+      await _until(store, (c) => c.itemsOf('list-a').length == 10);
+      expect(await store.restoreSnapshot(fits.snapshot!), isEmpty);
+      await _until(store, (c) => c.itemsOf('list-a').isEmpty);
+    });
 
     test(
       'items written for an older revision are fitted to the fields and saved',
@@ -1510,6 +1811,12 @@ void main() {
         };
         final ListPatchResult? result = await a.patchList('list-a', _toCounter);
         expect(result!.changedItemIds, hasLength(25));
+        await _until(
+          a,
+          (c) =>
+              c.itemsOf('list-a').length == 24 &&
+              c.itemsOf('list-a').every((item) => item['kind'] is int),
+        );
         expect(raced, isTrue);
         await pumpEventQueue();
 

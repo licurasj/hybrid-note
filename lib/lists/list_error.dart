@@ -12,6 +12,7 @@ enum ListErrorCode implements WireName {
   emptyId('emptyId'),
   missingName('missingName'),
   badColor('badColor'),
+  descriptionTooLong('descriptionTooLong'), // {max}
   noFields('noFields'),
   primaryCount('primaryCount'),
   primaryNotText('primaryNotText'),
@@ -69,7 +70,29 @@ enum ListErrorCode implements WireName {
   listExists('listExists'), // {list}
   duplicateItemId('duplicateItemId'),
   itemIdTaken('itemIdTaken'),
-  itemInOtherList('itemInOtherList'); // {list}
+  itemInOtherList('itemInOtherList'), // {list}
+
+  // Malformed arguments of a patch op or an AI tool call (T-19): {op, arg}
+  // where op is the op kind or tool name and arg the argument's path, for
+  // example "field.colour"; wrongArgType also {expected}: string, boolean,
+  // integer, number, object or list.
+  missingArg('missingArg'),
+  wrongArgType('wrongArgType'),
+  unknownArg('unknownArg'),
+
+  // AI tool calls that name what is not there (T-19, Q-36).
+  unknownList('unknownList'), // {list}
+  unknownItem('unknownItem'), // {item, list}
+  unknownField('unknownField'), // {field, list}
+  aiNotAllowed('aiNotAllowed'), // {list}: the user turned AI off for it (Q-36)
+
+  // Undo of an AI change (Q-35 A).
+  listChanged('listChanged'), // {list}
+  undoTooLarge('undoTooLarge'), // {list}: more items than one write holds
+  previewChanged('previewChanged'), // {list}: stored data conflicts with an AI preview (Q-51)
+  needsConnection('needsConnection'), // {list}: this write needs the server's data (Q-53)
+  outcomeUnknown('outcomeUnknown'), // {list}: handed to the server, no answer yet (Q-58)
+  answerTooLarge('answerTooLarge'); // {list}: more item changes than one write holds (Q-60)
 
   const ListErrorCode(this.wire);
 
@@ -112,6 +135,8 @@ class ListError {
         return 'list needs a name or nameKey';
       case ListErrorCode.badColor:
         return 'color must look like #RRGGBB';
+      case ListErrorCode.descriptionTooLong:
+        return 'description is over ${arg('max')} characters';
       case ListErrorCode.noFields:
         return 'list has no fields';
       case ListErrorCode.primaryCount:
@@ -209,6 +234,47 @@ class ListError {
         return 'id already used by another list';
       case ListErrorCode.itemInOtherList:
         return 'belongs to list "${arg('list')}"';
+      case ListErrorCode.missingArg:
+        return '${arg('op')}: missing "${arg('arg')}"';
+      case ListErrorCode.wrongArgType:
+        return '${arg('op')}: "${arg('arg')}" must be ${_argShape(arg('expected'))}';
+      case ListErrorCode.unknownArg:
+        return '${arg('op')}: unknown "${arg('arg')}"';
+      case ListErrorCode.unknownList:
+        return 'no list "${arg('list')}" among the user lists';
+      case ListErrorCode.unknownItem:
+        return 'no item "${arg('item')}" in list "${arg('list')}"';
+      case ListErrorCode.unknownField:
+        return '$field is not a field of list "${arg('list')}"';
+      case ListErrorCode.aiNotAllowed:
+        return 'list "${arg('list')}" does not allow AI changes';
+      case ListErrorCode.listChanged:
+        return 'list "${arg('list')}" changed since the change was applied; nothing was undone';
+      case ListErrorCode.undoTooLarge:
+        return 'the change to list "${arg('list')}" touched too many items to undo; nothing was undone';
+      case ListErrorCode.previewChanged:
+        return 'list "${arg('list')}" changed since the preview; nothing was changed';
+      case ListErrorCode.needsConnection:
+        return 'changing list "${arg('list')}" this way needs a connection; nothing was changed';
+      case ListErrorCode.outcomeUnknown:
+        return 'no answer from the server about list "${arg('list')}"; the change may still land';
+      case ListErrorCode.answerTooLarge:
+        return 'more item changes than fit in one write; nothing was changed';
+    }
+  }
+
+  static String _argShape(String expected) {
+    switch (expected) {
+      case 'object':
+        return 'a JSON object';
+      case 'list':
+        return 'a list';
+      case 'integer':
+        return 'a whole number';
+      case 'boolean':
+        return 'true or false';
+      default:
+        return 'a $expected';
     }
   }
 
