@@ -1,3 +1,4 @@
+import 'dart:async' show Timer;
 import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
@@ -182,11 +183,15 @@ class _DialLauncherState extends State<DialLauncher>
   double _arrangeIn = 0;
   int? _dragPointer;
   List<_Entry> _dragStart = const [];
-  // A finger off the lists: a tap ends the state, a swipe turns the dial.
+  // A finger not holding a list: a swipe turns the dial, anywhere. Resting on a
+  // list picks it up; lifting without moving ends the state, unless on a list.
   int? _swipePointer;
   Offset _swipeStart = Offset.zero;
+  Offset _swipeFinger = Offset.zero;
   bool _swiping = false;
   double _swipeAngle = 0;
+  bool _swipeOnList = false;
+  Timer? _pickUpTimer;
 
   Offset? _movedHub;
   Offset _moveGrab = Offset.zero;
@@ -242,6 +247,7 @@ class _DialLauncherState extends State<DialLauncher>
 
   @override
   void dispose() {
+    _pickUpTimer?.cancel();
     _ticker.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -630,6 +636,7 @@ class _DialLauncherState extends State<DialLauncher>
   // --- Gestures -------------------------------------------------------------
 
   void _close() {
+    _pickUpTimer?.cancel();
     _ticker.stop();
     setState(() {
       if (_arranging) {
@@ -1119,22 +1126,34 @@ class _DialLauncherState extends State<DialLauncher>
     if (g == null || _dragPointer != null || _swipePointer != null) {
       return;
     }
-    final int? list = _listAt(g, event.position);
-    if (list == null) {
-      _swipePointer = event.pointer;
-      _swipeStart = event.position;
-      _swiping = false;
-      _swipeAngle = _polar(g, event.position).$1;
+    _swipePointer = event.pointer;
+    _swipeStart = event.position;
+    _swipeFinger = event.position;
+    _swiping = false;
+    _swipeAngle = _polar(g, event.position).$1;
+    _swipeOnList = _listAt(g, event.position) != null;
+    _pickUpTimer?.cancel();
+    if (_swipeOnList) {
+      _pickUpTimer = Timer(_config.dialPickUpDelay, _pickUp);
+    }
+  }
+
+  // The finger has rested on a list long enough: it is now in the hand.
+  void _pickUp() {
+    final LauncherGeometry? g = _geometry;
+    final int? list = g == null ? null : _listAt(g, _swipeFinger);
+    if (!mounted || !_arranging || _swipePointer == null || list == null) {
       return;
     }
     if (widget.haptics) {
       HapticFeedback.mediumImpact();
     }
     setState(() {
-      _dragPointer = event.pointer;
+      _dragPointer = _swipePointer;
+      _swipePointer = null;
       _dragStart = _entries;
       _selected = list;
-      _pointer = event.position;
+      _pointer = _swipeFinger;
       _edge = 0;
     });
     _wake();
@@ -1161,16 +1180,25 @@ class _DialLauncherState extends State<DialLauncher>
     });
   }
 
-  // A swipe off the lists: the lists follow the finger round the hub, as far as
-  // there are more lists that way.
+  // A swipe: the lists follow the finger round the hub, as far as there are more
+  // lists that way. A small shake stays a rest, and can still pick a list up.
   void _swipe(LauncherGeometry g, Offset finger) {
+    _swipeFinger = finger;
     if (!_swiping &&
         (finger - _swipeStart).distance <= _config.moveTolerance) {
       return;
     }
     _swiping = true;
+    _pickUpTimer?.cancel();
     final (double angle, double _) = _polar(g, finger);
-    final double lists = (angle - _swipeAngle) / _step;
+    double turn = angle - _swipeAngle;
+    // Past the point where the angle wraps, the short way round.
+    if (turn > math.pi) {
+      turn -= 2 * math.pi;
+    } else if (turn < -math.pi) {
+      turn += 2 * math.pi;
+    }
+    final double lists = turn / _step;
     _swipeAngle = angle;
     // The lists move with the finger, so the dial's place moves against it.
     final int side = lists > 0 ? -1 : 1;
@@ -1248,8 +1276,9 @@ class _DialLauncherState extends State<DialLauncher>
 
   void _onArrangeUp(PointerUpEvent event) {
     if (event.pointer == _swipePointer) {
+      _pickUpTimer?.cancel();
       _swipePointer = null;
-      if (!_swiping) {
+      if (!_swiping && !_swipeOnList) {
         _close();
       }
       return;
@@ -1273,6 +1302,7 @@ class _DialLauncherState extends State<DialLauncher>
 
   void _onArrangeCancel(PointerCancelEvent event) {
     if (event.pointer == _swipePointer) {
+      _pickUpTimer?.cancel();
       _swipePointer = null;
       return;
     }

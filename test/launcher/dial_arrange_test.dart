@@ -48,6 +48,7 @@ Future<_Harness> _pump(
   bool inList = false,
   bool reduceMotion = false,
   bool canArrange = true,
+  bool haptics = true,
   Offset? hubPosition,
   Size size = const Size(412, 900),
 }) async {
@@ -65,6 +66,7 @@ Future<_Harness> _pump(
             builder: (context, value, _) => DialLauncher(
               notes: value,
               hubPosition: hubPosition,
+              haptics: haptics,
               onOpen: (note) => h.log.add('open ${note.id}'),
               onEdit: (note) => h.log.add('edit ${note.id}'),
               onNew: () => h.log.add('new'),
@@ -126,10 +128,13 @@ Future<void> _openArranging(WidgetTester tester) async {
   expect(_area, findsOneWidget);
 }
 
+// Long enough for a resting finger to pick a list up.
+final Duration _rest = _config.dialPickUpDelay + const Duration(milliseconds: 50);
+
 Future<void> _drag(WidgetTester tester, int from, int to) async {
   final Offset start = _list(tester, from);
   final TestGesture gesture = await tester.startGesture(start);
-  await tester.pump(const Duration(milliseconds: 100));
+  await tester.pump(_rest);
   await _steps(tester, gesture, start, _list(tester, to));
   await tester.pump(const Duration(milliseconds: 100));
   await gesture.up();
@@ -316,7 +321,7 @@ void main() {
       await _openArranging(tester);
       final Offset start = _list(tester, 1);
       final TestGesture gesture = await tester.startGesture(start);
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(_rest);
       await _steps(tester, gesture, start, _list(tester, 3));
       await _steps(tester, gesture, _list(tester, 3), start);
       await gesture.up();
@@ -331,6 +336,10 @@ void main() {
       final double neighbour = _tab(tester, 2).longestSide;
 
       final TestGesture gesture = await tester.startGesture(_list(tester, 0));
+      // Not yet: only a rest picks it up, and then it grows.
+      await tester.pump(_config.dialPickUpDelay - const Duration(milliseconds: 50));
+      expect((_tab(tester, 1).longestSide - held).abs(), lessThan(6));
+      await tester.pump(const Duration(milliseconds: 100));
       await tester.pump(const Duration(milliseconds: 400));
       expect(_tab(tester, 1).longestSide, greaterThan(held + 10));
       expect((_tab(tester, 2).longestSide - neighbour).abs(), lessThan(6));
@@ -380,7 +389,7 @@ void main() {
       await _openArranging(tester);
       final Offset start = _list(tester, 0);
       final TestGesture gesture = await tester.startGesture(start);
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(_rest);
       await _steps(tester, gesture, start, _list(tester, 2));
 
       h.lists.value = _notes(5);
@@ -396,7 +405,7 @@ void main() {
       final _Harness h = await _pump(tester);
       await _openArranging(tester);
       final TestGesture gesture = await tester.startGesture(_list(tester, 3));
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(_rest);
 
       h.lists.value = _notes(3);
       await tester.pump(const Duration(milliseconds: 50));
@@ -430,7 +439,7 @@ void main() {
         await _openArranging(tester);
         final Offset start = _list(tester, 1);
         final TestGesture gesture = await tester.startGesture(start);
-        await tester.pump(const Duration(milliseconds: 100));
+        await tester.pump(_rest);
         // Far round towards the bottom edge, and hold there.
         final Offset edge = _at(tester, math.pi - 0.05, 170);
         await _steps(tester, gesture, start, edge);
@@ -447,6 +456,149 @@ void main() {
         expect(ids.indexOf('n1'), greaterThan(7));
       },
     );
+
+    group('resting and swiping on a list', () {
+      // A finger from a list, round the hub, starting at once.
+      Future<void> swipeFrom(WidgetTester tester, int list, double degrees) async {
+        final double from = _diagonal(tester) + list * _step;
+        final double to = from + degrees * math.pi / 180;
+        final TestGesture gesture = await tester.startGesture(_list(tester, list));
+        await tester.pump(const Duration(milliseconds: 16));
+        for (int i = 1; i <= 10; i++) {
+          await gesture.moveTo(_at(tester, from + (to - from) * i / 10, 170));
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        // However long it then stays down, nothing is picked up.
+        await tester.pump(_rest * 3);
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+
+      testWidgets('a swipe that begins on a list turns the dial, and moves no list', (
+        tester,
+      ) async {
+        final _Harness h = await _pump(tester, count: 14);
+        await _openArranging(tester);
+        final Rect before = _tab(tester, 3);
+
+        await swipeFrom(tester, 1, -40);
+
+        expect(
+          (_tab(tester, 3).center - before.center).distance,
+          greaterThan(20),
+        );
+        expect(_area, findsOneWidget);
+        expect(h.log, isEmpty);
+      });
+
+      testWidgets('a finger passing under the hub does not throw the dial', (
+        tester,
+      ) async {
+        await _pump(tester, count: 14);
+        await _openArranging(tester);
+        final Offset hub = _hub(tester);
+        final TestGesture gesture = await tester.startGesture(
+          hub + const Offset(-20, 60),
+        );
+        await tester.pump(const Duration(milliseconds: 16));
+        await _steps(
+          tester,
+          gesture,
+          hub + const Offset(-20, 60),
+          hub + const Offset(-1, 60),
+        );
+        final Rect beside = _tab(tester, 3);
+        await gesture.moveTo(hub + const Offset(1, 60));
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect((_tab(tester, 3).center - beside.center).distance, lessThan(12));
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 300));
+      });
+
+      testWidgets('a small shake while resting still picks the list up', (
+        tester,
+      ) async {
+        final _Harness h = await _pump(tester, count: 14);
+        await _openArranging(tester);
+        final Rect before = _tab(tester, 3);
+        final double held = _tab(tester, 1).longestSide;
+        final Offset start = _list(tester, 0);
+
+        final TestGesture gesture = await tester.startGesture(start);
+        final double shake = _config.moveTolerance - 2;
+        for (final Offset move in [
+          Offset(shake, 0),
+          Offset(0, shake),
+          Offset(-shake, 0),
+          Offset(0, -shake),
+        ]) {
+          await gesture.moveTo(start + move);
+          await tester.pump(_config.dialPickUpDelay * 0.25);
+        }
+        await tester.pump(const Duration(milliseconds: 500));
+
+        // In the hand, and the shake did not turn the dial.
+        expect(_tab(tester, 1).longestSide, greaterThan(held + 10));
+        expect((_tab(tester, 3).center - before.center).distance, lessThan(12));
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(h.log, isEmpty);
+      });
+
+      testWidgets('a press on a list that lifts without moving does nothing', (
+        tester,
+      ) async {
+        final _Harness h = await _pump(tester);
+        await _openArranging(tester);
+        await tester.tapAt(_list(tester, 1));
+        await tester.pump(_rest * 2);
+        expect(_area, findsOneWidget);
+        expect(h.log, isEmpty);
+
+        // Nor does a rest that lifts where it picked up.
+        final TestGesture gesture = await tester.startGesture(_list(tester, 1));
+        await tester.pump(_rest);
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(_area, findsOneWidget);
+        expect(h.log, isEmpty);
+      });
+
+      for (final bool haptics in [true, false]) {
+        testWidgets('picking up ${haptics ? 'buzzes' : 'stays quiet with Vibration off'}', (
+          tester,
+        ) async {
+          final List<String> buzzes = [];
+          tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            SystemChannels.platform,
+            (call) async {
+              if (call.method == 'HapticFeedback.vibrate') {
+                buzzes.add(call.arguments as String);
+              }
+              return null;
+            },
+          );
+          addTearDown(
+            () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+              SystemChannels.platform,
+              null,
+            ),
+          );
+          await _pump(tester, haptics: haptics);
+          await _openArranging(tester);
+          buzzes.clear();
+
+          final TestGesture gesture = await tester.startGesture(_list(tester, 1));
+          await tester.pump(_config.dialPickUpDelay - const Duration(milliseconds: 50));
+          expect(buzzes, isEmpty);
+          await tester.pump(const Duration(milliseconds: 100));
+          expect(buzzes, haptics ? ['HapticFeedbackType.mediumImpact'] : isEmpty);
+          await gesture.up();
+          await tester.pump(const Duration(milliseconds: 300));
+        });
+      }
+    });
 
     group('a swipe off the lists', () {
       // A spot off the lists, near the far corner.

@@ -15,6 +15,7 @@ import 'package:hybrid_note/app/list_order.dart';
 import 'package:hybrid_note/backend/firestore_list_store.dart';
 import 'package:hybrid_note/home_screen.dart';
 import 'package:hybrid_note/launcher/dial_launcher.dart';
+import 'package:hybrid_note/launcher/launcher_geometry.dart';
 import 'package:hybrid_note/lists/builtin_templates.dart';
 import 'package:hybrid_note/lists/generic_list_screen.dart';
 import 'package:hybrid_note/lists/list_definition.dart';
@@ -233,7 +234,7 @@ void main() {
       Offset at(double angle) =>
           hub + Offset(math.cos(angle), -math.sin(angle)) * 170;
       final TestGesture gesture = await tester.startGesture(at(diagonal));
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const LauncherConfig().dialPickUpDelay + const Duration(milliseconds: 50));
       for (int i = 1; i <= 8; i++) {
         await gesture.moveTo(at(diagonal + step * i / 8));
         await tester.pump(const Duration(milliseconds: 16));

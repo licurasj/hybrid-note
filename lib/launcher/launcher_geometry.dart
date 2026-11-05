@@ -48,6 +48,7 @@ class LauncherConfig {
     this.dialStepDegrees = 12,
     this.dialArrangeSpread = 1.3,
     this.dialArrangeSwayDegrees = 1.2,
+    this.dialPickUpDelay = const Duration(milliseconds: 400),
     this.dialSelectedSpread = 1.0,
     this.dialNeighbourLength = 0.8,
     this.dialFarLength = 0.68,
@@ -131,6 +132,9 @@ class LauncherConfig {
   // In the arrange state: how much further apart the lists stand, and how far
   // each sways to either side (being tuned with the owner, Q-49).
   final double dialArrangeSpread;
+  // In the arrange state: how long a finger rests on a list to pick it up
+  // (being tuned with the owner, Q-49).
+  final Duration dialPickUpDelay;
   final double dialArrangeSwayDegrees;
   final double dialSelectedSpread;
   final double dialNeighbourLength;
