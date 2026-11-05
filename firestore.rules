@@ -73,7 +73,8 @@ service cloud.firestore {
     function isPreferences() {
       let data = request.resource.data;
       return (!('listOrder' in data) || data.listOrder is string)
-        && (!('myListOrder' in data) || data.myListOrder is list)
+        && (!('myListOrder' in data)
+            || (data.myListOrder is list && data.myListOrder.size() <= 1000))
         && (!('startScreen' in data) || data.startScreen is string)
         && (!('tickedItems' in data) || data.tickedItems is string)
         && (!('confirmDelete' in data) || data.confirmDelete is bool)

@@ -425,6 +425,14 @@ describe('account preferences (T-21, Q-48 A)', () => {
     });
   }
 
+  test('myListOrder may hold 1000 lists, not more', async () => {
+    const ids = (count) => Array.from({ length: count }, (_, i) => `list-${i}`);
+    const ref = doc(owner(), path());
+    await assertSucceeds(setDoc(ref, { myListOrder: ids(1000) }));
+    await assertFails(setDoc(ref, { myListOrder: ids(1001) }));
+    await assertFails(setDoc(ref, { myListOrder: ids(1001) }, { merge: true }));
+  });
+
   test('the app does not delete it', async () => {
     const ref = doc(owner(), path());
     await assertSucceeds(setDoc(ref, values));
