@@ -234,7 +234,10 @@ void main() {
       Offset at(double angle) =>
           hub + Offset(math.cos(angle), -math.sin(angle)) * 170;
       final TestGesture gesture = await tester.startGesture(at(diagonal));
-      await tester.pump(const LauncherConfig().dialPickUpDelay + const Duration(milliseconds: 50));
+      await tester.pump(
+        const LauncherConfig().dialPickUpDelay +
+            const Duration(milliseconds: 50),
+      );
       for (int i = 1; i <= 8; i++) {
         await gesture.moveTo(at(diagonal + step * i / 8));
         await tester.pump(const Duration(milliseconds: 16));
@@ -654,24 +657,110 @@ void main() {
       );
     });
 
-    testWidgets('the time picker follows it', (tester) async {
-      bool? shown;
-      Widget probe(TimeFormat format) => Builder(
-        builder: (context) => timePickerIn(
-          format,
-          context,
-          Builder(
-            builder: (inner) {
-              shown = MediaQuery.alwaysUse24HourFormatOf(inner);
-              return const SizedBox();
-            },
+    // The real picker at 15:05: 12 hours shows 3 and AM and PM, 24 shows 15,
+    // and the labels stay translated.
+    Future<void> openPicker(
+      WidgetTester tester,
+      TimeFormat format,
+      Locale locale, {
+      bool phoneUses24Hours = false,
+    }) async {
+      await tester.pumpWidget(
+        MediaQuery(
+          data: MediaQueryData(alwaysUse24HourFormat: phoneUses24Hours),
+          child: MaterialApp(
+            locale: locale,
+            localizationsDelegates: GlobalMaterialLocalizations.delegates,
+            supportedLocales: const [
+              Locale('en'),
+              Locale('de'),
+              Locale('es'),
+              Locale('fr'),
+              Locale('ja'),
+              Locale('zh'),
+            ],
+            useInheritedMediaQuery: true,
+            home: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showTimePicker(
+                  context: context,
+                  initialTime: const TimeOfDay(hour: 15, minute: 5),
+                  builder: (context, child) =>
+                      timePickerIn(format, context, child),
+                ),
+                child: const Text('open'),
+              ),
+            ),
           ),
         ),
       );
-      await tester.pumpWidget(MaterialApp(home: probe(TimeFormat.h24)));
-      expect(shown, isTrue);
-      await tester.pumpWidget(MaterialApp(home: probe(TimeFormat.h12)));
-      expect(shown, isFalse);
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      expect(find.byType(TimePickerDialog), findsOneWidget);
+    }
+
+    const Map<String, String> cancelLabels = {
+      'en': 'Cancel',
+      'de': 'Abbrechen',
+      'es': 'Cancelar',
+      'fr': 'Annuler',
+      'ja': 'キャンセル',
+      'zh': '取消',
+    };
+
+    MaterialLocalizations pickerLabels(WidgetTester tester) =>
+        MaterialLocalizations.of(tester.element(find.byType(TimePickerDialog)));
+
+    for (final MapEntry(key: String language, value: String cancel)
+        in cancelLabels.entries) {
+      testWidgets('12 hours in $language: the picker shows 3 and PM', (
+        tester,
+      ) async {
+        await openPicker(tester, TimeFormat.h12, Locale(language));
+        expect(find.text('3'), findsWidgets);
+        expect(find.text('15'), findsNothing);
+        expect(find.text(cancel), findsOneWidget);
+        expect(
+          find.text(pickerLabels(tester).postMeridiemAbbreviation),
+          findsOneWidget,
+        );
+        expect(
+          find.text(pickerLabels(tester).anteMeridiemAbbreviation),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('24 hours in $language: the picker shows 15, no PM', (
+        tester,
+      ) async {
+        await openPicker(tester, TimeFormat.h24, Locale(language));
+        expect(find.text('15'), findsWidgets);
+        expect(find.text(cancel), findsOneWidget);
+        expect(
+          find.text(pickerLabels(tester).postMeridiemAbbreviation),
+          findsNothing,
+        );
+      });
+    }
+
+    testWidgets('12 hours wins over a phone set to 24 hours', (tester) async {
+      await openPicker(
+        tester,
+        TimeFormat.h12,
+        const Locale('en'),
+        phoneUses24Hours: true,
+      );
+      expect(find.text('3'), findsWidgets);
+      expect(find.text('PM'), findsOneWidget);
+    });
+
+    testWidgets("Follow the language keeps the language's own", (tester) async {
+      await openPicker(tester, TimeFormat.followLanguage, const Locale('de'));
+      expect(find.text('15'), findsWidgets);
+      await tester.pumpWidget(const SizedBox());
+      await openPicker(tester, TimeFormat.followLanguage, const Locale('en'));
+      expect(find.text('3'), findsWidgets);
+      expect(find.text('PM'), findsOneWidget);
     });
   });
 

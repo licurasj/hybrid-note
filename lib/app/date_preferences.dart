@@ -21,16 +21,27 @@ DateFormat dateTimeFormat(String locale, TimeFormat format) => switch (format) {
   TimeFormat.h24 => DateFormat.yMMMd(locale).add_Hm(),
 };
 
-// For showTimePicker's builder.
+// For showTimePicker's builder. 24 hours only needs the phone's flag. The flag
+// off gives the language's own format, which in German or French is still 24
+// hours, so 12 hours also gives the picker the same translations with its format
+// changed.
 Widget timePickerIn(TimeFormat format, BuildContext context, Widget? child) {
   if (format == TimeFormat.followLanguage) {
     return child!;
   }
-  return MediaQuery(
+  final Widget picker = MediaQuery(
     data: MediaQuery.of(
       context,
     ).copyWith(alwaysUse24HourFormat: format == TimeFormat.h24),
     child: child!,
+  );
+  if (format == TimeFormat.h24) {
+    return picker;
+  }
+  return Localizations.override(
+    context: context,
+    delegates: const [_PickerDelegate(twelveHours: true)],
+    child: picker,
   );
 }
 
@@ -44,30 +55,45 @@ Widget datePickerIn(WeekStart start, BuildContext context, Widget? child) {
   }
   return Localizations.override(
     context: context,
-    delegates: [_WeekStartDelegate(start == WeekStart.sunday ? 0 : 1)],
+    delegates: [_PickerDelegate(firstDay: start == WeekStart.sunday ? 0 : 1)],
     child: child,
   );
 }
 
-mixin _FirstDay on GlobalMaterialLocalizations {
-  int firstDay = 0;
+mixin _PickerChoices on GlobalMaterialLocalizations {
+  int? firstDay;
+  bool twelveHours = false;
 
   @override
-  int get firstDayOfWeekIndex => firstDay;
+  int get firstDayOfWeekIndex => firstDay ?? super.firstDayOfWeekIndex;
+
+  // A language with its own 12-hour format keeps it (Chinese puts AM first).
+  @override
+  TimeOfDayFormat timeOfDayFormat({bool alwaysUse24HourFormat = false}) {
+    if (!twelveHours) {
+      return super.timeOfDayFormat(
+        alwaysUse24HourFormat: alwaysUse24HourFormat,
+      );
+    }
+    return hourFormat(of: timeOfDayFormatRaw) == HourFormat.h
+        ? timeOfDayFormatRaw
+        : TimeOfDayFormat.h_colon_mm_space_a;
+  }
 }
 
 // One for each language the app ships (AppLocalizations.supportedLocales).
-class _En = MaterialLocalizationEn with _FirstDay;
-class _De = MaterialLocalizationDe with _FirstDay;
-class _Es = MaterialLocalizationEs with _FirstDay;
-class _Fr = MaterialLocalizationFr with _FirstDay;
-class _Ja = MaterialLocalizationJa with _FirstDay;
-class _Zh = MaterialLocalizationZh with _FirstDay;
+class _En = MaterialLocalizationEn with _PickerChoices;
+class _De = MaterialLocalizationDe with _PickerChoices;
+class _Es = MaterialLocalizationEs with _PickerChoices;
+class _Fr = MaterialLocalizationFr with _PickerChoices;
+class _Ja = MaterialLocalizationJa with _PickerChoices;
+class _Zh = MaterialLocalizationZh with _PickerChoices;
 
-class _WeekStartDelegate extends LocalizationsDelegate<MaterialLocalizations> {
-  const _WeekStartDelegate(this.firstDay);
+class _PickerDelegate extends LocalizationsDelegate<MaterialLocalizations> {
+  const _PickerDelegate({this.firstDay, this.twelveHours = false});
 
-  final int firstDay;
+  final int? firstDay;
+  final bool twelveHours;
 
   @override
   bool isSupported(Locale locale) =>
@@ -86,7 +112,7 @@ class _WeekStartDelegate extends LocalizationsDelegate<MaterialLocalizations> {
     final NumberFormat decimal = NumberFormat.decimalPattern(name);
     final NumberFormat twoDigits = NumberFormat('00', name);
 
-    final _FirstDay localizations = switch (name) {
+    final _PickerChoices localizations = switch (name) {
       'de' => _De(
         localeName: name,
         fullYearFormat: year,
@@ -161,10 +187,13 @@ class _WeekStartDelegate extends LocalizationsDelegate<MaterialLocalizations> {
       ),
     };
     return SynchronousFuture<MaterialLocalizations>(
-      localizations..firstDay = firstDay,
+      localizations
+        ..firstDay = firstDay
+        ..twelveHours = twelveHours,
     );
   }
 
   @override
-  bool shouldReload(_WeekStartDelegate old) => old.firstDay != firstDay;
+  bool shouldReload(_PickerDelegate old) =>
+      old.firstDay != firstDay || old.twelveHours != twelveHours;
 }
