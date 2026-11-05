@@ -1296,4 +1296,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String confirmDeleteTitle(String name) {
     return '删除“$name”?';
   }
+
+  @override
+  String get arrangeLists => '排列';
 }

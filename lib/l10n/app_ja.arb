@@ -426,5 +426,6 @@
   "preferencesWeekStart": "週の始まり",
   "preferencesMonday": "月曜日",
   "preferencesSunday": "日曜日",
-  "confirmDeleteTitle": "「{name}」を削除しますか?"
+  "confirmDeleteTitle": "「{name}」を削除しますか?",
+  "arrangeLists": "並べ替え"
 }

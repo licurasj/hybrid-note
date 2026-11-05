@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +9,7 @@ import 'package:flutter/services.dart';
 import '../app/app_theme.dart';
 import '../app_colors.dart';
 import '../lists/list_icons.dart';
+import 'arrange_sway.dart';
 import 'launcher_geometry.dart';
 import 'radial_launcher.dart' show LauncherNote, LauncherWedgePainter;
 
@@ -37,6 +39,12 @@ final List<LauncherNote> debugDialExtraNotes = [];
 // opens tap mode: tap a tab to open it, long-press or right-click to edit;
 // the arrows (and the arrow keys) step through every entry, turning the dial
 // to it; Enter opens and E edits the selected one; Esc closes.
+//
+// Rest on the hub and Arrange slides out beside Move (Q-49); reaching it and
+// letting go opens the arrange state: the lists stand further apart and sway
+// slowly, the hub's blue disc comes to the front, and any list can be dragged
+// along the dial at once. It stays open for several drags and ends on a press
+// outside the lists, Back or Esc (INTERACTIONS rule 6, its written exception).
 class DialLauncher extends StatefulWidget {
   const DialLauncher({
     super.key,
@@ -48,12 +56,15 @@ class DialLauncher extends StatefulWidget {
     this.hubPosition,
     this.haptics = true,
     this.onHubMoved,
+    this.onOrderChanged,
+    this.onArrangingChanged,
     this.config = const LauncherConfig(),
     this.hubTooltip = 'Lists',
     this.addLabel = 'New list',
     this.homeLabel = 'Home',
     this.editLabel = 'Edit',
     this.moveLabel = 'Move',
+    this.arrangeLabel = 'Arrange',
     this.previousLabel = 'Previous',
     this.nextLabel = 'Next',
     this.noteHint = 'Double-tap to open, long-press to edit',
@@ -69,12 +80,18 @@ class DialLauncher extends StatefulWidget {
   // The Vibration preference (Q-50): whether the dial clicks under the finger.
   final bool haptics;
   final ValueChanged<Offset>? onHubMoved;
+  // The lists' ids in the order just arranged; without it Arrange is not offered.
+  final ValueChanged<List<String>>? onOrderChanged;
+  // Told, after the frame, when the arrange state opens and ends: Back belongs to
+  // it while it is open.
+  final ValueChanged<bool>? onArrangingChanged;
   final LauncherConfig config;
   final String hubTooltip;
   final String addLabel;
   final String homeLabel;
   final String editLabel;
   final String moveLabel;
+  final String arrangeLabel;
   final String previousLabel;
   final String nextLabel;
   final String noteHint;
@@ -87,7 +104,7 @@ class DialLauncher extends StatefulWidget {
   State<DialLauncher> createState() => _DialLauncherState();
 }
 
-enum _Mode { closed, hold, tap, moving }
+enum _Mode { closed, hold, tap, moving, arranging }
 
 enum _Kind { home, note, add }
 
@@ -154,6 +171,15 @@ class _DialLauncherState extends State<DialLauncher>
   bool _promptOut = false;
   double _progress = 0;
   bool _promptSelected = false;
+  // Arrange, which is offered with Move and fills on its own.
+  double _arrangeProgress = 0;
+  bool _arrangeSelected = false;
+
+  // The arrange state: how far its look has come in (0 to 1), the finger
+  // dragging a list, and the order when that drag began.
+  double _arrangeIn = 0;
+  int? _dragPointer;
+  List<_Entry> _dragStart = const [];
 
   Offset? _movedHub;
   Offset _moveGrab = Offset.zero;
@@ -161,7 +187,12 @@ class _DialLauncherState extends State<DialLauncher>
   LauncherGeometry? _geometry;
 
   LauncherConfig get _config => widget.config;
-  double get _step => _config.dialStepDegrees * math.pi / 180;
+  double get _baseStep => _config.dialStepDegrees * math.pi / 180;
+  double get _step =>
+      _baseStep * (1 + (_config.dialArrangeSpread - 1) * _arrangeIn);
+  bool get _arranging => _mode == _Mode.arranging;
+  bool get _canArrange =>
+      widget.onOrderChanged != null && widget.notes.length >= 2;
 
   @override
   void initState() {
@@ -178,8 +209,28 @@ class _DialLauncherState extends State<DialLauncher>
     }
     if (oldWidget.notes != widget.notes ||
         (oldWidget.onHome == null) != (widget.onHome == null)) {
-      _reconcile(_entriesOf(widget));
+      _reconcile(_arranging ? _keepingOrder(_entriesOf(widget)) : _entriesOf(widget));
     }
+  }
+
+  // While arranging, the order on screen is the user's: a sync or a rebuild
+  // changes which lists there are, not where they stand. New ones go at the end.
+  List<_Entry> _keepingOrder(List<_Entry> entries) {
+    final Map<String, _Entry> byKey = {for (final _Entry e in entries) e.key: e};
+    final List<_Entry> notes = [
+      for (final _Entry e in _entries)
+        if (e.kind == _Kind.note && byKey.containsKey(e.key)) byKey[e.key]!,
+    ];
+    final Set<String> kept = {for (final _Entry e in notes) e.key};
+    return [
+      for (final _Entry e in entries)
+        if (e.kind == _Kind.add) e,
+      ...notes,
+      for (final _Entry e in entries)
+        if (e.kind == _Kind.note && !kept.contains(e.key)) e,
+      for (final _Entry e in entries)
+        if (e.kind == _Kind.home) e,
+    ];
   }
 
   @override
@@ -192,8 +243,17 @@ class _DialLauncherState extends State<DialLauncher>
   bool get _reduceMotion => MediaQuery.disableAnimationsOf(context);
 
   bool _reportedOpen = false;
+  bool _reportedArranging = false;
 
   void _reportOpen() {
+    if (_arranging != _reportedArranging) {
+      _reportedArranging = _arranging;
+      final bool arranging = _arranging;
+      final ValueChanged<bool>? told = widget.onArrangingChanged;
+      if (told != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => told(arranging));
+      }
+    }
     final bool open = _mode != _Mode.closed;
     final ValueChanged<bool>? report = widget.onOpenChanged;
     if (open == _reportedOpen) {
@@ -249,7 +309,7 @@ class _DialLauncherState extends State<DialLauncher>
   bool _isFixed(int index) => _entries[index].kind != _Kind.note;
 
   // New list and Home take a list's angle.
-  double get _fixedWidth => _step;
+  double get _fixedWidth => _baseStep;
 
   // --- Geometry, in the corner frame of LauncherGeometry -------------------
 
@@ -454,10 +514,14 @@ class _DialLauncherState extends State<DialLauncher>
     return index.clamp(_firstList, _lastList);
   }
 
-  // 1 for the selected entry, less with distance from it.
+  // 1 for the selected entry, less with distance from it. In the arrange
+  // state only the list being dragged grows.
   double _emphasis(int index) {
     if (_selected == index) {
       return lerpDouble(_config.dialFarLength, 1, _zoom)!;
+    }
+    if (_arranging) {
+      return _config.dialFarLength;
     }
     final double near = _config.dialNeighbourLength;
     final double far = _config.dialFarLength;
@@ -561,7 +625,13 @@ class _DialLauncherState extends State<DialLauncher>
   void _close() {
     _ticker.stop();
     setState(() {
+      if (_arranging) {
+        _entries = _entriesOf(widget);
+      }
       _mode = _Mode.closed;
+      _arrangeIn = 0;
+      _dragPointer = null;
+      _edge = 0;
       _selected = null;
       _zoom = 0;
       _editShown = false;
@@ -613,12 +683,15 @@ class _DialLauncherState extends State<DialLauncher>
     final int? selected = _selected;
     final double focusTarget = selected?.toDouble() ?? _focus;
     final double zoomTarget = selected == null ? 0 : 1;
+    final double arrangeTarget = _arranging ? 1 : 0;
+    final double arrangeIn = _arrangeIn + (arrangeTarget - _arrangeIn) * t;
     final double position = _position + (_scroll - _position) * t;
     final double focus = _focus + (focusTarget - _focus) * t;
     final double zoom = _zoom + (zoomTarget - _zoom) * t;
     final bool moving = (position - _position).abs() > 1e-4 ||
         (focus - _focus).abs() > 1e-4 ||
-        (zoom - _zoom).abs() > 1e-4;
+        (zoom - _zoom).abs() > 1e-4 ||
+        (arrangeIn - _arrangeIn).abs() > 1e-4;
     final bool animating = moving ||
         _now - _openedAt <= AppMotion.standard ||
         ((_editShown || _moveShown) && !_promptOut);
@@ -628,15 +701,23 @@ class _DialLauncherState extends State<DialLauncher>
     _position = moving ? position : _scroll;
     _focus = moving ? focus : focusTarget;
     _zoom = moving ? zoom : zoomTarget;
+    _arrangeIn = moving ? arrangeIn : arrangeTarget;
 
     bool changed = animating;
     if (_mode == _Mode.hold && g != null && pointer != null) {
       changed = _scrollAtEdge(g, pointer, seconds) || changed;
       changed = _offerPrompt(g, pointer) || changed;
     }
+    if (_arranging) {
+      if (g != null && pointer != null && _dragPointer != null) {
+        changed = _scrollWhileDragging(g, pointer, seconds) || changed;
+      }
+      // The sway needs every frame.
+      changed = changed || !_reduceMotion;
+    }
     if (changed) {
       setState(() {});
-    } else if (_mode == _Mode.tap) {
+    } else if (_mode == _Mode.tap || _arranging) {
       _ticker.stop();
     }
   }
@@ -656,19 +737,10 @@ class _DialLauncherState extends State<DialLauncher>
       _select(_pointed(g, angle));
       return true;
     }
-    // 0 at the zone's inner border, 1 from the outermost list's far side.
-    final double depth = (_edge < 0
-            ? (_zoneLow(g) - angle) / (_zoneLow(g) - _listsLow(g))
-            : (angle - _zoneHigh(g)) / (_roomHigh(g) - _zoneHigh(g)))
-        .clamp(0, 1)
-        .toDouble();
     // A swipe carries on at the finger's own speed if that is faster.
     final double swipe =
         math.max(0, _edge * _turnSpeed) / _step * _config.dialEdgeCarry;
-    final double speed = math.max(
-      lerpDouble(_config.dialEdgeSpeedMin, _config.dialEdgeSpeedMax, depth)!,
-      swipe,
-    );
+    final double speed = math.max(_zoneSpeed(g, angle), swipe);
     _scroll = (_scroll + _edge * speed * seconds)
         .clamp(_firstList.toDouble(), _lastList.toDouble())
         .toDouble();
@@ -676,6 +748,17 @@ class _DialLauncherState extends State<DialLauncher>
     _position = _scroll;
     _select(_inHand(g, angle));
     return true;
+  }
+
+  // How fast a finger in a zone scrolls: slowest at the zone's inner border,
+  // fastest from the outermost list's far side.
+  double _zoneSpeed(LauncherGeometry g, double angle) {
+    final double depth = (_edge < 0
+            ? (_zoneLow(g) - angle) / (_zoneLow(g) - _listsLow(g))
+            : (angle - _zoneHigh(g)) / (_roomHigh(g) - _zoneHigh(g)))
+        .clamp(0, 1)
+        .toDouble();
+    return lerpDouble(_config.dialEdgeSpeedMin, _config.dialEdgeSpeedMax, depth)!;
   }
 
   // After a rest: Edit on a list (not while at an edge, where the hold
@@ -696,7 +779,7 @@ class _DialLauncherState extends State<DialLauncher>
       _editShown = true;
     } else if (selected == null &&
         !_leftHub &&
-        widget.onHubMoved != null) {
+        (widget.onHubMoved != null || _canArrange)) {
       _moveShown = true;
     } else {
       return false;
@@ -706,11 +789,13 @@ class _DialLauncherState extends State<DialLauncher>
     _promptOut = false;
     _progress = 0;
     _promptSelected = false;
+    _arrangeProgress = 0;
+    _arrangeSelected = false;
     return true;
   }
 
   void _onPointerDown(PointerDownEvent event) {
-    if (_mode == _Mode.tap) {
+    if (_mode == _Mode.tap || _arranging) {
       _close();
       return;
     }
@@ -781,6 +866,21 @@ class _DialLauncherState extends State<DialLauncher>
       }
 
       if (_moveShown) {
+        if (_canArrange) {
+          // Arrange acts on letting go; moving away lets it go again.
+          _arrangeProgress =
+              _towards(finger, _promptAnchor, g.arrangePromptCenter);
+          final bool was = _arrangeSelected;
+          _arrangeSelected = was
+              ? _arrangeProgress >= _config.promptUnselectAt
+              : _arrangeProgress >= _config.promptSelectAt;
+          if (_arrangeSelected && !was && widget.haptics) {
+            HapticFeedback.selectionClick();
+          }
+        }
+        if (widget.onHubMoved == null) {
+          return;
+        }
         final Offset target = g.movePromptCenter;
         _progress = _towards(finger, _promptAnchor, target);
         _promptSelected = _promptSelected
@@ -926,6 +1026,10 @@ class _DialLauncherState extends State<DialLauncher>
     if (_mode != _Mode.hold || g == null) {
       return;
     }
+    if (_moveShown && _arrangeSelected) {
+      _openArranging();
+      return;
+    }
     final bool quickTap = !_leftHub &&
         !_moveShown &&
         _now - _openedAt <= _config.tapMaxDuration;
@@ -957,6 +1061,183 @@ class _DialLauncherState extends State<DialLauncher>
     }
   }
 
+  // --- The arrange state ----------------------------------------------------
+
+  void _openArranging() {
+    if (widget.haptics) {
+      HapticFeedback.mediumImpact();
+    }
+    setState(() {
+      _mode = _Mode.arranging;
+      _selected = null;
+      _position = _firstList.toDouble();
+      _scroll = _position;
+      _focus = _position;
+      _zoom = 0;
+      _moveShown = false;
+      _editShown = false;
+      _pointer = null;
+      _dragPointer = null;
+      _edge = 0;
+      if (_reduceMotion) {
+        _arrangeIn = 1;
+      }
+    });
+    _focusNode.requestFocus();
+    _wake();
+  }
+
+  // The list under a press, if any: a press anywhere else ends the state.
+  int? _listAt(LauncherGeometry g, Offset point) {
+    final (double angle, double radius) = _polar(g, point);
+    final double keep = _config.dialSelectKeep * _step;
+    for (int i = _firstList; i <= _lastList && i < _entries.length; i++) {
+      final (double, double)? sides = _sides(g, i);
+      if (sides == null ||
+          angle > sides.$1 + keep ||
+          angle < sides.$2 - keep) {
+        continue;
+      }
+      if (radius >= _inner() - 8 &&
+          radius <= _outer(g, i, (sides.$1 + sides.$2) / 2) + 16) {
+        return i;
+      }
+    }
+    return null;
+  }
+
+  void _onArrangeDown(PointerDownEvent event) {
+    final LauncherGeometry? g = _geometry;
+    if (g == null || _dragPointer != null) {
+      return;
+    }
+    final int? list = _listAt(g, event.position);
+    if (list == null) {
+      _close();
+      return;
+    }
+    if (widget.haptics) {
+      HapticFeedback.mediumImpact();
+    }
+    setState(() {
+      _dragPointer = event.pointer;
+      _dragStart = _entries;
+      _selected = list;
+      _pointer = event.position;
+      _edge = 0;
+    });
+    _wake();
+  }
+
+  void _onArrangeMove(PointerMoveEvent event) {
+    final LauncherGeometry? g = _geometry;
+    if (g == null || event.pointer != _dragPointer) {
+      return;
+    }
+    final (double angle, double _) = _polar(g, event.position);
+    setState(() {
+      _pointer = event.position;
+      _edge = angle < _zoneLow(g) && _more(g, -1)
+          ? -1
+          : angle > _zoneHigh(g) && _more(g, 1)
+          ? 1
+          : 0;
+      _placeDragged(g, angle);
+    });
+  }
+
+  // The dragged list takes the place under the finger.
+  void _placeDragged(LauncherGeometry g, double angle) {
+    final int? current = _selected;
+    if (current == null) {
+      return;
+    }
+    final (double, double)? sides = _sides(g, current);
+    final double keep = _config.dialSelectKeep * _step;
+    if (sides != null && angle <= sides.$1 + keep && angle >= sides.$2 - keep) {
+      return;
+    }
+    final int target = (_position + (angle - _diagonal(g)) / _step)
+        .round()
+        .clamp(_firstList, _lastList);
+    if (target == current) {
+      return;
+    }
+    final List<_Entry> entries = [..._entries];
+    entries.insert(target, entries.removeAt(current));
+    _entries = entries;
+    _selected = target;
+    if (widget.haptics) {
+      HapticFeedback.selectionClick();
+    }
+  }
+
+  // Held in a scroll zone, the lists scroll in under the dragged one.
+  bool _scrollWhileDragging(LauncherGeometry g, Offset pointer, double seconds) {
+    if (_edge == 0) {
+      return false;
+    }
+    if (!_more(g, _edge)) {
+      _edge = 0;
+      return false;
+    }
+    final (double angle, double _) = _polar(g, pointer);
+    _scroll = (_scroll + _edge * _zoneSpeed(g, angle) * seconds)
+        .clamp(_firstList.toDouble(), _lastList.toDouble())
+        .toDouble();
+    _position = _scroll;
+    final int? current = _selected;
+    if (current != null) {
+      final int target = (_position + (angle - _diagonal(g)) / _step)
+          .round()
+          .clamp(_firstList, _lastList);
+      if (target != current) {
+        final List<_Entry> entries = [..._entries];
+        entries.insert(target, entries.removeAt(current));
+        _entries = entries;
+        _selected = target;
+      }
+    }
+    return true;
+  }
+
+  List<String> _listIds(List<_Entry> entries) => [
+    for (final _Entry entry in entries)
+      if (entry.kind == _Kind.note && !entry.isDemo) entry.note!.id,
+  ];
+
+  void _onArrangeUp(PointerUpEvent event) {
+    if (event.pointer != _dragPointer) {
+      return;
+    }
+    final List<String> before = _listIds(_dragStart);
+    final List<String> after = _listIds(_entries);
+    setState(() {
+      _dragPointer = null;
+      _selected = null;
+      _pointer = null;
+      _edge = 0;
+    });
+    _wake();
+    if (!listEquals(before, after)) {
+      widget.onOrderChanged?.call(after);
+    }
+  }
+
+  void _onArrangeCancel(PointerCancelEvent event) {
+    if (event.pointer != _dragPointer) {
+      return;
+    }
+    setState(() {
+      _entries = _dragStart;
+      _dragPointer = null;
+      _selected = null;
+      _pointer = null;
+      _edge = 0;
+    });
+    _wake();
+  }
+
   // --- Tap mode and keyboard ------------------------------------------------
 
   void _openTapMode() {
@@ -972,6 +1253,16 @@ class _DialLauncherState extends State<DialLauncher>
     });
     _wake();
     _focusNode.requestFocus();
+  }
+
+  // Arranging with more lists than fit: the arrows turn the dial.
+  void _turnArranging(int direction) {
+    setState(() {
+      _scroll = (_scroll + direction)
+          .clamp(_firstList.toDouble(), _lastList.toDouble())
+          .toDouble();
+    });
+    _wake();
   }
 
   // Steps the selection through every entry (New list, the lists, Home);
@@ -1006,6 +1297,10 @@ class _DialLauncherState extends State<DialLauncher>
         return KeyEventResult.handled;
       }
       return KeyEventResult.ignored;
+    }
+    if (_arranging && key == LogicalKeyboardKey.escape) {
+      _close();
+      return KeyEventResult.handled;
     }
     if (_mode != _Mode.tap) {
       return KeyEventResult.ignored;
@@ -1117,10 +1412,23 @@ class _DialLauncherState extends State<DialLauncher>
       scaler.scale(fontSize) * 1.3 + 4;
 
   List<Widget> _entryWidgets(LauncherGeometry g, int index) {
-    final (double, double)? sides = _sides(g, index);
-    if (sides == null) {
+    final (double, double)? placed = _sides(g, index);
+    if (placed == null) {
       return const [];
     }
+    // Arranging moves lists only: New list and Home step aside, and the lists
+    // sway slowly, all but the one in the hand.
+    if (_arranging && _isFixed(index)) {
+      return const [];
+    }
+    final double sway = _arranging && !_reduceMotion && _selected != index
+        ? arrangeSway(_now, index) *
+              _config.dialArrangeSwayDegrees *
+              math.pi /
+              180 *
+              _arrangeIn
+        : 0;
+    final (double, double) sides = (placed.$1 + sway, placed.$2 + sway);
     final Brightness brightness = Theme.of(context).brightness;
     final AppNeutrals neutrals = AppColors.neutrals(brightness);
     final TextScaler scaler = MediaQuery.textScalerOf(context);
@@ -1205,9 +1513,11 @@ class _DialLauncherState extends State<DialLauncher>
 
     final double discSize = 28 + 8 * zoom;
     final double fontSize = 15 + 6 * zoom;
-    // The icon and name keep clear of the tab's end.
+    // The icon and name keep clear of the tab's end; arranging, a grip mark
+    // stands between them.
     final double end = outer - 18;
-    final double labelEnd = end - discSize - 14;
+    final double gripRoom = _arranging ? 22 : 0;
+    final double labelEnd = end - discSize - 14 - gripRoom;
     // The name at the user's text size where the petal is wide enough for
     // a useful length of it, else as large as fits, never smaller than its
     // design size; the tab carries the full name for screen readers. Text
@@ -1233,6 +1543,7 @@ class _DialLauncherState extends State<DialLauncher>
     final bool outward = g.readsOutward(angle);
     final Offset labelCenter = g.pointAt(angle, (labelStart + labelEnd) / 2);
     final Offset discCenter = g.pointAt(angle, end - discSize / 2);
+    final Offset gripCenter = g.pointAt(angle, end - discSize - 8 - gripRoom / 2);
     final bool fits = 2 * halfAt(labelEnd) >= lineHeight;
 
     return [
@@ -1266,6 +1577,24 @@ class _DialLauncherState extends State<DialLauncher>
                     fontWeight: FontWeight.w500,
                     color: AppColors.onColor(fill),
                   ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      if (_arranging && labelLength > 0)
+        Positioned(
+          key: ValueKey('dial-grip-$index'),
+          left: gripCenter.dx - 10,
+          top: gripCenter.dy - 10,
+          child: IgnorePointer(
+            child: ExcludeSemantics(
+              child: Transform.rotate(
+                angle: g.tabRotation(angle),
+                child: Icon(
+                  Icons.drag_indicator,
+                  size: 20,
+                  color: AppColors.onColor(fill),
                 ),
               ),
             ),
@@ -1385,24 +1714,46 @@ class _DialLauncherState extends State<DialLauncher>
     ];
   }
 
-  Widget _movePrompt(LauncherGeometry g) {
+  Widget _movePrompt(LauncherGeometry g) => _hubPrompt(
+        g,
+        key: const ValueKey('launcher-move-prompt'),
+        label: widget.moveLabel,
+        target: g.movePromptCenter,
+        progress: _progress,
+      );
+
+  Widget _arrangePrompt(LauncherGeometry g) => _hubPrompt(
+        g,
+        key: const ValueKey('launcher-arrange-prompt'),
+        label: widget.arrangeLabel,
+        target: g.arrangePromptCenter,
+        progress: _arrangeProgress,
+      );
+
+  Widget _hubPrompt(
+    LauncherGeometry g, {
+    required Key key,
+    required String label,
+    required Offset target,
+    required double progress,
+  }) {
     final AppNeutrals neutrals =
         AppColors.neutrals(Theme.of(context).brightness);
-    // Reaching Move picks the hub up, so it is fully filled by then.
+    // Fully filled by the time it is reached.
     final double near =
-        (_progress / _config.promptSelectAt).clamp(0, 1).toDouble();
+        (progress / _config.promptSelectAt).clamp(0, 1).toDouble();
     final Color fill =
         Color.lerp(neutrals.promptDark, AppColors.appBlue, near)!;
-    // Move slides out from behind the hub, painted under it, and grows as
+    // A prompt slides out from behind the hub, painted under it, and grows as
     // the finger comes closer.
     final double reveal = _reveal();
-    final Offset center = Offset.lerp(g.hubCenter, g.movePromptCenter, reveal)!;
+    final Offset center = Offset.lerp(g.hubCenter, target, reveal)!;
     final double scale = (0.6 + 0.4 * reveal) * (1 + 0.22 * near);
     return Positioned(
-      key: const ValueKey('launcher-move-prompt'),
-      left: center.dx - 50,
+      key: key,
+      left: center.dx - 70,
       top: center.dy - 20,
-      width: 100,
+      width: 140,
       height: 40,
       child: Transform.scale(
         scale: scale,
@@ -1413,11 +1764,13 @@ class _DialLauncherState extends State<DialLauncher>
             decoration: BoxDecoration(
               color: fill,
               borderRadius: BorderRadius.circular(20),
+              // Clear of the tabs it may lie over.
+              border: Border.all(color: neutrals.ground, width: 1.5),
             ),
             child: Center(
               widthFactor: 1,
               child: Text(
-                widget.moveLabel,
+                label,
                 maxLines: 1,
                 style: TextStyle(
                   fontFamily: AppFonts.sans,
@@ -1437,8 +1790,10 @@ class _DialLauncherState extends State<DialLauncher>
   // pointing the way the dial turns.
   Widget _arrow(LauncherGeometry g, int direction) {
     final int? selected = _selected;
-    final bool enabled = selected != null &&
-        (direction < 0 ? selected > 0 : selected < _entries.length - 1);
+    final bool enabled = _arranging
+        ? _more(g, direction)
+        : selected != null &&
+              (direction < 0 ? selected > 0 : selected < _entries.length - 1);
     final double angle = _diagonal(g) + direction * 0.42;
     final double radius = _halfDiagonal(g) * 0.92;
     final Offset spot = g.pointAt(angle, radius);
@@ -1457,7 +1812,11 @@ class _DialLauncherState extends State<DialLauncher>
         child: IconButton(
           key: ValueKey(direction < 0 ? 'launcher-prev' : 'launcher-next'),
           tooltip: direction < 0 ? widget.previousLabel : widget.nextLabel,
-          onPressed: enabled ? () => _stepTap(direction) : null,
+          onPressed: !enabled
+              ? null
+              : _arranging
+              ? () => _turnArranging(direction)
+              : () => _stepTap(direction),
           color: neutrals.text,
           icon: Transform.rotate(
             angle: math.atan2(turn.dy, turn.dx),
@@ -1490,7 +1849,7 @@ class _DialLauncherState extends State<DialLauncher>
             height: size,
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: AppColors.appBlue,
+                color: _arranging ? neutrals.text : AppColors.appBlue,
                 shape: BoxShape.circle,
                 border: ring,
               ),
@@ -1501,7 +1860,8 @@ class _DialLauncherState extends State<DialLauncher>
             width: size,
             height: size,
             decoration: BoxDecoration(
-              color: neutrals.text,
+              // Arranging, the blue disc comes to the front.
+              color: _arranging ? AppColors.appBlue : neutrals.text,
               shape: BoxShape.circle,
               border: ring,
               boxShadow: AppShadows.floating(brightness),
@@ -1532,7 +1892,8 @@ class _DialLauncherState extends State<DialLauncher>
                   : Offset(saved.dx * size.width, saved.dy * size.height)),
         );
         _geometry = g;
-        final bool open = _mode == _Mode.hold || _mode == _Mode.tap;
+        final bool open =
+            _mode == _Mode.hold || _mode == _Mode.tap || _arranging;
         final int count = _entries.length;
         // Far entries first, the selected one last (on top).
         final List<int> order = [for (int i = 0; i < count; i++) i]
@@ -1541,7 +1902,15 @@ class _DialLauncherState extends State<DialLauncher>
           );
         final double hub = _config.hubRadius;
 
-        return Focus(
+        return PopScope(
+          // Back ends the arrange state and nothing else.
+          canPop: !_arranging,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop && _arranging) {
+              _close();
+            }
+          },
+          child: Focus(
           focusNode: _focusNode,
           onKeyEvent: _onKey,
           // The hub and the tabs are the screen reader's nodes.
@@ -1557,25 +1926,44 @@ class _DialLauncherState extends State<DialLauncher>
                     child: const SizedBox.expand(),
                   ),
                 ),
+              // Arranging, the lists are found from the finger, and a press
+              // anywhere else ends the state.
+              if (_arranging)
+                Positioned.fill(
+                  child: Listener(
+                    key: const ValueKey('launcher-arrange-area'),
+                    behavior: HitTestBehavior.opaque,
+                    onPointerDown: _onArrangeDown,
+                    onPointerMove: _onArrangeMove,
+                    onPointerUp: _onArrangeUp,
+                    onPointerCancel: _onArrangeCancel,
+                    child: const SizedBox.expand(),
+                  ),
+                ),
               // The tabs stand on the middle of the hub's two discs.
               if (open)
                 Positioned.fill(
-                  child: Transform.translate(
-                    offset: Offset(g.flipX ? 7 : -7, g.flipY ? 4 : -4),
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        ..._editWidgets(g),
-                        for (final int i in order) ..._entryWidgets(g, i),
-                      ],
+                  child: IgnorePointer(
+                    ignoring: _arranging,
+                    child: Transform.translate(
+                      offset: Offset(g.flipX ? 7 : -7, g.flipY ? 4 : -4),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          ..._editWidgets(g),
+                          for (final int i in order) ..._entryWidgets(g, i),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              if (_mode == _Mode.tap && count > 1) ...[
+              if ((_mode == _Mode.tap && count > 1) ||
+                  (_arranging && (_more(g, -1) || _more(g, 1)))) ...[
                 _arrow(g, -1),
                 _arrow(g, 1),
               ],
-              if (_moveShown) _movePrompt(g),
+              if (_moveShown && widget.onHubMoved != null) _movePrompt(g),
+              if (_moveShown && _canArrange) _arrangePrompt(g),
               Positioned(
                 left: g.hubCenter.dx - hub,
                 top: g.hubCenter.dy - hub,
@@ -1600,6 +1988,7 @@ class _DialLauncherState extends State<DialLauncher>
                 ),
               ),
             ],
+          ),
           ),
         );
       },

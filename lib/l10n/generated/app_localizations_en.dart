@@ -1326,4 +1326,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String confirmDeleteTitle(String name) {
     return 'Delete “$name”?';
   }
+
+  @override
+  String get arrangeLists => 'Arrange';
 }

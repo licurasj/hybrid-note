@@ -426,5 +426,6 @@
   "preferencesWeekStart": "La semana empieza el",
   "preferencesMonday": "Lunes",
   "preferencesSunday": "Domingo",
-  "confirmDeleteTitle": "¿Eliminar «{name}»?"
+  "confirmDeleteTitle": "¿Eliminar «{name}»?",
+  "arrangeLists": "Ordenar"
 }

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -200,6 +202,87 @@ void main() {
       await _account(tester).setListOrder(ListOrder.myOrder);
       await tester.pump();
       expect(_dialIds(tester), ['b', 'c', 'a']);
+    });
+  });
+
+  group('arranging on the dial (Q-49)', () {
+    final Finder area = find.byKey(const ValueKey('launcher-arrange-area'));
+    final Finder prompt = find.byKey(const ValueKey('launcher-arrange-prompt'));
+
+    Future<void> openArranging(WidgetTester tester) async {
+      final Offset hub = tester.getCenter(_hub);
+      final TestGesture gesture = await tester.startGesture(hub);
+      for (int i = 0; i < 200 && prompt.evaluate().isEmpty; i++) {
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+      await tester.pump(const Duration(milliseconds: 300));
+      final Offset target = tester.getCenter(prompt);
+      for (int i = 1; i <= 8; i++) {
+        await gesture.moveTo(Offset.lerp(hub, target, i / 8)!);
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(area, findsOneWidget);
+    }
+
+    Future<void> dragFirstPastSecond(WidgetTester tester) async {
+      final Offset hub = tester.getCenter(_hub);
+      final double diagonal = math.atan2(hub.dy, -hub.dx);
+      final double step = 12 * 1.3 * math.pi / 180;
+      Offset at(double angle) =>
+          hub + Offset(math.cos(angle), -math.sin(angle)) * 170;
+      final TestGesture gesture = await tester.startGesture(at(diagonal));
+      await tester.pump(const Duration(milliseconds: 100));
+      for (int i = 1; i <= 8; i++) {
+        await gesture.moveTo(at(diagonal + step * i / 8));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    testWidgets('the first drag switches to My order, from what is on screen', (
+      tester,
+    ) async {
+      await _pumpApp(
+        tester,
+        lists: [_list('a', 'zeta'), _list('b', 'Mid'), _list('c', 'alpha')],
+      );
+      await _account(tester).setListOrder(ListOrder.alphabetical);
+      await tester.pump();
+      expect(_dialIds(tester), ['c', 'b', 'a']);
+
+      await openArranging(tester);
+      // Opening it alone changes nothing.
+      expect(_account(tester).state.listOrder, ListOrder.alphabetical);
+
+      await dragFirstPastSecond(tester);
+      expect(_account(tester).state.listOrder, ListOrder.myOrder);
+      expect(_account(tester).state.myListOrder, ['b', 'c', 'a']);
+      expect(_dialIds(tester), ['b', 'c', 'a']);
+      expect(area, findsOneWidget);
+    });
+
+    testWidgets('inside a list Back ends it and leaves the list open', (
+      tester,
+    ) async {
+      await _pumpApp(tester, lists: [_list('a', 'One'), _list('b', 'Two')]);
+      await tester.tap(_hub);
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('launcher-note-a')));
+      await settle(tester);
+      await openArranging(tester);
+
+      await tester.binding.handlePopRoute();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(area, findsNothing);
+      expect(find.byType(GenericListScreen), findsOneWidget);
+
+      // The next Back goes home as usual.
+      await tester.binding.handlePopRoute();
+      await settle(tester);
+      expect(find.byType(GenericListScreen), findsNothing);
     });
   });
 

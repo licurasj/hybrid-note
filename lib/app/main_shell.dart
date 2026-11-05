@@ -80,6 +80,8 @@ class _MainShellState extends State<MainShell> {
   Offset? _lastLift;
   bool _keepLift = false;
   bool _dialOpen = false;
+  // The dial's arrange state is open; Back is its own then.
+  bool _dialArranging = false;
 
   static const String _listRoute = 'list:';
 
@@ -205,6 +207,18 @@ class _MainShellState extends State<MainShell> {
           ),
         ),
     ];
+  }
+
+  // Arranged on the dial (Q-49): the order is what was on screen with the drag
+  // applied, and from the first drag it is My order, so Last used or A to Z
+  // cannot undo it.
+  void _arranged(List<String> listIds) {
+    final AccountPreferencesCubit cubit = context
+        .read<AccountPreferencesCubit>();
+    unawaited(cubit.setMyListOrder(listIds));
+    if (cubit.state.listOrder != ListOrder.myOrder) {
+      unawaited(cubit.setListOrder(ListOrder.myOrder));
+    }
   }
 
   // Blank or a template first, then the editor on that fresh copy, which can
@@ -486,6 +500,9 @@ class _MainShellState extends State<MainShell> {
             onEdit: _editList,
             child: NavigatorPopHandler(
               onPopWithResult: (_) {
+                if (_dialArranging) {
+                  return;
+                }
                 if (_ai?.handleBack() ?? false) {
                   return;
                 }
@@ -542,6 +559,7 @@ class _MainShellState extends State<MainShell> {
                         hubTooltip: loc.launcherHub,
                         editLabel: loc.edit,
                         moveLabel: loc.moveHub,
+                        arrangeLabel: loc.arrangeLists,
                         addLabel: loc.newList,
                         previousLabel: loc.previous,
                         nextLabel: loc.next,
@@ -551,6 +569,9 @@ class _MainShellState extends State<MainShell> {
                         onHubMoved: context
                             .read<AppSettingsCubit>()
                             .setHubPosition,
+                        onOrderChanged: _arranged,
+                        onArrangingChanged: (arranging) =>
+                            _dialArranging = arranging,
                         onOpenChanged: _dialChanged,
                       )
                     : RadialLauncher(

@@ -426,5 +426,6 @@
   "preferencesWeekStart": "每周开始于",
   "preferencesMonday": "星期一",
   "preferencesSunday": "星期日",
-  "confirmDeleteTitle": "删除“{name}”?"
+  "confirmDeleteTitle": "删除“{name}”?",
+  "arrangeLists": "排列"
 }

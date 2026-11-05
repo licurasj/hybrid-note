@@ -1331,4 +1331,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String confirmDeleteTitle(String name) {
     return '¿Eliminar «$name»?';
   }
+
+  @override
+  String get arrangeLists => 'Ordenar';
 }

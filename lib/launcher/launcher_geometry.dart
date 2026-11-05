@@ -46,6 +46,8 @@ class LauncherConfig {
     this.neighbourTabScale = 1.08,
     this.selectedSpread = 2.0,
     this.dialStepDegrees = 12,
+    this.dialArrangeSpread = 1.3,
+    this.dialArrangeSwayDegrees = 1.2,
     this.dialSelectedSpread = 1.0,
     this.dialNeighbourLength = 0.8,
     this.dialFarLength = 0.68,
@@ -126,6 +128,10 @@ class LauncherConfig {
   // the screen diagonal; its neighbours and the rest reach these shares of
   // that.
   final double dialStepDegrees;
+  // In the arrange state: how much further apart the lists stand, and how far
+  // each sways to either side (being tuned with the owner, Q-49).
+  final double dialArrangeSpread;
+  final double dialArrangeSwayDegrees;
   final double dialSelectedSpread;
   final double dialNeighbourLength;
   final double dialFarLength;
@@ -299,6 +305,15 @@ class LauncherGeometry {
   Offset get movePromptCenter {
     return _keepOnScreen(
       _flip(_hubFrame + Offset(-(config.hubRadius + 40), 40)),
+    );
+  }
+
+  // Arrange prompt: straight out from the hub towards the screen's middle and
+  // a little inward, so a finger going there never crosses Move, which picks the
+  // hub up on contact.
+  Offset get arrangePromptCenter {
+    return _keepOnScreen(
+      _flip(_hubFrame + Offset(-32, -(config.hubRadius + 44))),
     );
   }
 

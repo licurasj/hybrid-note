@@ -2287,6 +2287,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Delete “{name}”?'**
   String confirmDeleteTitle(String name);
+
+  /// No description provided for @arrangeLists.
+  ///
+  /// In en, this message translates to:
+  /// **'Arrange'**
+  String get arrangeLists;
 }
 
 class _AppLocalizationsDelegate

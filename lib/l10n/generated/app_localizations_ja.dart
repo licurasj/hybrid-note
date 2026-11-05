@@ -1303,4 +1303,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String confirmDeleteTitle(String name) {
     return '「$name」を削除しますか?';
   }
+
+  @override
+  String get arrangeLists => '並べ替え';
 }

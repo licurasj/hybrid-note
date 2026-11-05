@@ -1338,4 +1338,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String confirmDeleteTitle(String name) {
     return 'Supprimer « $name » ?';
   }
+
+  @override
+  String get arrangeLists => 'Organiser';
 }
