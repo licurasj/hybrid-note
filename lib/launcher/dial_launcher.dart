@@ -181,10 +181,11 @@ class _DialLauncherState extends State<DialLauncher>
   bool _arrangeSelected = false;
 
   // The arrange state: how far its look has come in (0 to 1), the finger
-  // dragging a list, and the order when that drag began.
+  // dragging a list, and the order (entry keys) when that drag began. Keys, as
+  // the catalog can change while a list is held.
   double _arrangeIn = 0;
   int? _dragPointer;
-  List<_Entry> _dragStart = const [];
+  List<String> _dragStart = const [];
   // The held list follows the finger: how far the finger was from the list's
   // middle when it was picked up.
   double _dragGrab = 0;
@@ -231,17 +232,24 @@ class _DialLauncherState extends State<DialLauncher>
     }
     if (oldWidget.notes != widget.notes ||
         (oldWidget.onHome == null) != (widget.onHome == null)) {
-      _reconcile(_arranging ? _keepingOrder(_entriesOf(widget)) : _entriesOf(widget));
+      _reconcile(
+        _arranging
+            ? _keepingOrder(_entriesOf(widget), [
+                for (final _Entry e in _entries) e.key,
+              ])
+            : _entriesOf(widget),
+      );
     }
   }
 
   // While arranging, the order on screen is the user's: a sync or a rebuild
-  // changes which lists there are, not where they stand. New ones go at the end.
-  List<_Entry> _keepingOrder(List<_Entry> entries) {
+  // changes which lists there are, not where they stand. [entries] in the order
+  // of [keys], with new ones at the end.
+  List<_Entry> _keepingOrder(List<_Entry> entries, List<String> keys) {
     final Map<String, _Entry> byKey = {for (final _Entry e in entries) e.key: e};
     final List<_Entry> notes = [
-      for (final _Entry e in _entries)
-        if (e.kind == _Kind.note && byKey.containsKey(e.key)) byKey[e.key]!,
+      for (final String key in keys)
+        if (byKey[key]?.kind == _Kind.note) byKey[key]!,
     ];
     final Set<String> kept = {for (final _Entry e in notes) e.key};
     return [
@@ -313,6 +321,12 @@ class _DialLauncherState extends State<DialLauncher>
       } else {
         _selected = _mode == _Mode.tap && _notes > 0 ? _firstList : null;
         _editShown = false;
+        // The list in the hand is gone, and with it the drag.
+        if (_dragPointer != null) {
+          _dragPointer = null;
+          _pointer = null;
+          _edge = 0;
+        }
       }
     } else {
       _selected = null;
@@ -1356,7 +1370,7 @@ class _DialLauncherState extends State<DialLauncher>
       _dragGrab = _polar(g, _swipeFinger).$1 - (start + end) / 2;
       _dragPointer = _swipePointer;
       _swipePointer = null;
-      _dragStart = _entries;
+      _dragStart = [for (final _Entry e in _entries) e.key];
       _selected = list;
       _pointer = _swipeFinger;
       _edge = 0;
@@ -1465,10 +1479,23 @@ class _DialLauncherState extends State<DialLauncher>
     return true;
   }
 
-  List<String> _listIds(List<_Entry> entries) => [
+  List<_Entry> _lists(List<_Entry> entries) => [
     for (final _Entry entry in entries)
-      if (entry.kind == _Kind.note && !entry.isDemo) entry.note!.id,
+      if (entry.kind == _Kind.note && !entry.isDemo) entry,
   ];
+
+  // Did the user move a list since the drag began? A list added or deleted
+  // elsewhere in the meantime is not a move: only the lists there both then and
+  // now are compared.
+  bool get _movedSinceDragStart {
+    final List<String> now = [for (final _Entry e in _lists(_entries)) e.key];
+    final Set<String> nowKeys = now.toSet();
+    final Set<String> startKeys = _dragStart.toSet();
+    return !listEquals(
+      _dragStart.where(nowKeys.contains).toList(),
+      now.where(startKeys.contains).toList(),
+    );
+  }
 
   void _onArrangeUp(PointerUpEvent event) {
     if (event.pointer == _swipePointer) {
@@ -1485,8 +1512,7 @@ class _DialLauncherState extends State<DialLauncher>
     if (event.pointer != _dragPointer) {
       return;
     }
-    final List<String> before = _listIds(_dragStart);
-    final List<String> after = _listIds(_entries);
+    final bool moved = _movedSinceDragStart;
     final LauncherGeometry? g = _geometry;
     final int? held = _selected;
     if (g != null && held != null && !_reduceMotion) {
@@ -1501,8 +1527,10 @@ class _DialLauncherState extends State<DialLauncher>
       _edge = 0;
     });
     _wake();
-    if (!listEquals(before, after)) {
-      widget.onOrderChanged?.call(after);
+    if (moved) {
+      widget.onOrderChanged?.call([
+        for (final _Entry e in _lists(_entries)) e.note!.id,
+      ]);
     }
   }
 
@@ -1517,7 +1545,7 @@ class _DialLauncherState extends State<DialLauncher>
       return;
     }
     setState(() {
-      _entries = _dragStart;
+      _entries = _keepingOrder(_entriesOf(widget), _dragStart);
       _slides.clear();
       _dragPointer = null;
       _selected = null;

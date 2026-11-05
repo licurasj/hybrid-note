@@ -830,6 +830,190 @@ void main() {
       expect(h.log.where((entry) => entry.contains('n3')), isEmpty);
     });
 
+    group('a held list that never moved (Codex M2)', () {
+      Future<void> holdThenRelease(
+        WidgetTester tester,
+        _Harness h,
+        List<LauncherNote> lists,
+        int held,
+      ) async {
+        await _openArranging(tester);
+        final TestGesture gesture = await tester.startGesture(
+          _list(tester, held),
+        );
+        await tester.pump(_rest);
+        h.lists.value = lists;
+        await tester.pump(const Duration(milliseconds: 50));
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+
+      testWidgets('a list added elsewhere saves no order', (tester) async {
+        final _Harness h = await _pump(tester);
+        await holdThenRelease(tester, h, _notes(5), 0);
+        expect(h.log, isEmpty);
+      });
+
+      testWidgets('a list deleted elsewhere saves no order', (tester) async {
+        final _Harness h = await _pump(tester);
+        await holdThenRelease(tester, h, _notes(3), 0);
+        expect(h.log, isEmpty);
+      });
+
+      testWidgets('the held list deleted elsewhere saves no order', (
+        tester,
+      ) async {
+        final _Harness h = await _pump(tester);
+        await holdThenRelease(tester, h, _notes(3), 3);
+        expect(h.log, isEmpty);
+      });
+
+      testWidgets('a real move with a list gone elsewhere still saves', (
+        tester,
+      ) async {
+        final _Harness h = await _pump(tester);
+        await _openArranging(tester);
+        final Offset start = _list(tester, 0);
+        final TestGesture gesture = await tester.startGesture(start);
+        await tester.pump(_rest);
+        await _steps(tester, gesture, start, _list(tester, 2));
+        h.lists.value = _notes(3);
+        await tester.pump(const Duration(milliseconds: 50));
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(h.log, ['order n1,n2,n0']);
+      });
+
+      testWidgets('dragged back with a list added saves no order', (
+        tester,
+      ) async {
+        final _Harness h = await _pump(tester);
+        await _openArranging(tester);
+        final Offset start = _list(tester, 0);
+        final TestGesture gesture = await tester.startGesture(start);
+        await tester.pump(_rest);
+        await _steps(tester, gesture, start, _list(tester, 2));
+        h.lists.value = _notes(5);
+        await tester.pump(const Duration(milliseconds: 50));
+        await _steps(tester, gesture, _list(tester, 2), start);
+        await tester.pump(const Duration(milliseconds: 100));
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(h.log, isEmpty);
+      });
+    });
+
+    group('a drag the system cancels (Codex M3)', () {
+      // Picks list 0 up, carries it two places, lets [change] happen, and has
+      // the system take the finger away.
+      Future<TestGesture> cancelAfter(
+        WidgetTester tester,
+        void Function() change,
+      ) async {
+        await _openArranging(tester);
+        final Offset start = _list(tester, 0);
+        final TestGesture gesture = await tester.startGesture(start);
+        await tester.pump(_rest);
+        await _steps(tester, gesture, start, _list(tester, 2));
+        change();
+        await tester.pump(const Duration(milliseconds: 50));
+        await gesture.cancel();
+        await tester.pump(const Duration(milliseconds: 300));
+        return gesture;
+      }
+
+      // The lists' names as they stand round the hub, from the first place on.
+      List<String> labels(WidgetTester tester) {
+        final Offset hub = _hub(tester);
+        double angle(Element text) {
+          final Offset at = tester.getCenter(
+            find.byElementPredicate((e) => e == text),
+          );
+          return math.atan2(hub.dy - at.dy, at.dx - hub.dx);
+        }
+
+        final List<Element> names =
+            find
+                .descendant(
+                  of: find.byType(DialLauncher),
+                  matching: find.byType(Text),
+                )
+                .evaluate()
+                .toList()
+              ..sort((a, b) => angle(a).compareTo(angle(b)));
+        return [
+          for (final Element name in names) (name.widget as Text).data!,
+        ];
+      }
+
+      testWidgets('a list deleted elsewhere does not come back', (
+        tester,
+      ) async {
+        final _Harness h = await _pump(tester);
+        await cancelAfter(tester, () => h.lists.value = _notes(3));
+        expect(find.byKey(const ValueKey('dial-entry-4')), findsNothing);
+        expect(find.byKey(const ValueKey('dial-entry-3')), findsOneWidget);
+        expect(h.log, isEmpty);
+        expect(labels(tester), ['Note 0', 'Note 1', 'Note 2']);
+      });
+
+      testWidgets('a list added elsewhere stays, at the end', (tester) async {
+        final _Harness h = await _pump(tester);
+        await cancelAfter(tester, () => h.lists.value = _notes(5));
+        expect(find.byKey(const ValueKey('dial-entry-5')), findsOneWidget);
+        expect(h.log, isEmpty);
+        expect(labels(tester), [
+          'Note 0',
+          'Note 1',
+          'Note 2',
+          'Note 3',
+          'Note 4',
+        ]);
+      });
+
+      testWidgets('a list renamed elsewhere keeps its new name', (
+        tester,
+      ) async {
+        final _Harness h = await _pump(tester);
+        await cancelAfter(tester, () {
+          h.lists.value = [
+            for (final LauncherNote note in _notes(4))
+              note.id == 'n1'
+                  ? LauncherNote(
+                      id: 'n1',
+                      label: 'Renamed',
+                      icon: Icons.list,
+                      color: Colors.blue,
+                      semanticsLabel: 'Renamed',
+                    )
+                  : note,
+          ];
+        });
+        expect(find.text('Note 1'), findsNothing);
+        expect(labels(tester), ['Note 0', 'Renamed', 'Note 2', 'Note 3']);
+      });
+
+      testWidgets('the held list deleted elsewhere leaves no drag behind', (
+        tester,
+      ) async {
+        final _Harness h = await _pump(tester);
+        await cancelAfter(
+          tester,
+          () => h.lists.value = [
+            for (final LauncherNote note in _notes(4))
+              if (note.id != 'n0') note,
+          ],
+        );
+        expect(tester.takeException(), isNull);
+        expect(labels(tester), ['Note 1', 'Note 2', 'Note 3']);
+        expect(h.log, isEmpty);
+
+        // Arranging goes on as before.
+        await _drag(tester, 0, 1);
+        expect(h.log, ['order n2,n1,n3']);
+      });
+    });
+
     testWidgets('with many lists the arrows turn the dial', (tester) async {
       await _pump(tester, count: 14);
       await _openArranging(tester);
