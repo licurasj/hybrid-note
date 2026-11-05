@@ -48,7 +48,7 @@ class LauncherConfig {
     this.dialStepDegrees = 12,
     this.dialArrangeSpread = 1.3,
     this.dialArrangeSwayDegrees = 1.2,
-    this.dialPickUpDelay = const Duration(milliseconds: 400),
+    this.dialPickUpDelay = const Duration(milliseconds: 300),
     this.dialSelectedSpread = 1.0,
     this.dialNeighbourLength = 0.8,
     this.dialFarLength = 0.68,
