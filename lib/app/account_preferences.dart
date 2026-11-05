@@ -284,15 +284,26 @@ abstract class AccountPreferencesSync {
 // silently undo the choice, and could turn auto-apply back on after it was turned
 // off. So a refused change stays in force on this phone, is tried again at the
 // next open, and [saveFailures] tells the app to say so.
+//
+// A listener error ends Firestore's stream for good, as when the rules or sign-in
+// have a passing problem, and other phones' changes would stop arriving. So it
+// listens again after each of [relistenDelays], quietly, and sends what is still
+// unconfirmed once the server answers. Being offline is not such an error.
 class AccountPreferencesCubit extends Cubit<AccountPreferences> {
-  AccountPreferencesCubit(this.preferences, this.uid, {this.sync})
-    : _known = preferences.containsKey(mirrorKey(uid)),
-      _pending = _readMap(preferences, pendingKey(uid)),
-      super(_read(preferences, uid)) {
-    _subscription = sync?.watch().listen(
-      _onSnapshot,
-      onError: (Object error) => _log('listener', error),
-    );
+  AccountPreferencesCubit(
+    this.preferences,
+    this.uid, {
+    this.sync,
+    this.relistenDelays = const [
+      Duration(seconds: 5),
+      Duration(seconds: 30),
+      Duration(minutes: 2),
+      Duration(minutes: 10),
+    ],
+  }) : _known = preferences.containsKey(mirrorKey(uid)),
+       _pending = _readMap(preferences, pendingKey(uid)),
+       super(_read(preferences, uid)) {
+    _listen();
     if (_known) {
       _resend();
     }
@@ -301,6 +312,7 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
   final SharedPreferences preferences;
   final String uid;
   final AccountPreferencesSync? sync;
+  final List<Duration> relistenDelays;
 
   // These were per phone until T-21; the first account to see them takes them.
   static const String legacyAutoApplyKey = 'settings.aiAutoApply';
@@ -312,6 +324,11 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
   static String pendingKey(String uid) => 'preferences.$uid.pending';
 
   StreamSubscription<AccountPreferencesSnapshot>? _subscription;
+  Timer? _relisten;
+  // Retries used since the server last answered.
+  int _relistens = 0;
+  // The listener has failed, and the server has not answered since.
+  bool _listenFailed = false;
   // This phone has seen the account's values; changes go straight to it.
   bool _known;
   // Changes the server has not confirmed: made before that, on their way, or
@@ -375,22 +392,48 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
     developer.log('$what: $error', name: 'AccountPreferences');
   }
 
+  void _listen() {
+    _subscription = sync?.watch().listen(
+      _onSnapshot,
+      onError: _onListenError,
+      cancelOnError: true,
+    );
+  }
+
+  void _onListenError(Object error) {
+    _log('listener', error);
+    _listenFailed = true;
+    if (_relistens < relistenDelays.length) {
+      _relisten = Timer(relistenDelays[_relistens], _listen);
+      _relistens++;
+    }
+  }
+
   void _onSnapshot(AccountPreferencesSnapshot snapshot) {
+    // A copy from the cache can come just before the same error again.
+    final bool recovered = _listenFailed && !snapshot.fromCache;
+    if (!snapshot.fromCache) {
+      _relistens = 0;
+      _listenFailed = false;
+    }
     final Map<String, Object?>? data = snapshot.data;
     if (data != null) {
-      unawaited(_onAccountValues(data));
+      unawaited(_onAccountValues(data, recovered: recovered));
     } else if (!snapshot.fromCache) {
       unawaited(_seed());
     }
   }
 
-  Future<void> _onAccountValues(Map<String, Object?> data) async {
+  Future<void> _onAccountValues(
+    Map<String, Object?> data, {
+    required bool recovered,
+  }) async {
     final bool firstSeen = !_known;
     _known = true;
     if (!isClosed) {
       emit(AccountPreferences.fromJson({...data, ..._pending}));
     }
-    if (firstSeen) {
+    if (firstSeen || recovered) {
       _resend();
     }
     await _saveMirror();
@@ -528,6 +571,7 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
 
   @override
   Future<void> close() async {
+    _relisten?.cancel();
     await _subscription?.cancel();
     await _saveFailures.close();
     return super.close();

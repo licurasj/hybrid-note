@@ -14,13 +14,17 @@ class _FakeSync implements AccountPreferencesSync {
       StreamController<AccountPreferencesSnapshot>.broadcast();
   final List<Map<String, Object?>> seeds = [];
   final List<Map<String, Object?>> writes = [];
+  int watches = 0;
   Object? seedError;
   Object? writeError;
   // Set: the next write stays open until the test answers it, as offline.
   Completer<void>? heldWrite;
 
   @override
-  Stream<AccountPreferencesSnapshot> watch() => snapshots.stream;
+  Stream<AccountPreferencesSnapshot> watch() {
+    watches++;
+    return snapshots.stream;
+  }
 
   @override
   Future<void> seed(Map<String, Object?> values) async {
@@ -588,6 +592,131 @@ void main() {
           isFalse,
         );
       });
+    });
+  });
+
+  group('a listener that ends with an error (Codex M4)', () {
+    // Each retry comes after a turn of the event loop, so tests need no clock.
+    Future<(AccountPreferencesCubit, _FakeSync)> listening({
+      List<Duration> delays = const [
+        Duration.zero,
+        Duration.zero,
+        Duration.zero,
+      ],
+    }) async {
+      SharedPreferences.setMockInitialValues(const {});
+      final _FakeSync sync = _FakeSync();
+      addTearDown(sync.snapshots.close);
+      final AccountPreferencesCubit cubit = AccountPreferencesCubit(
+        await SharedPreferences.getInstance(),
+        _uid,
+        sync: sync,
+        relistenDelays: delays,
+      );
+      addTearDown(cubit.close);
+      await sync.send(const {});
+      return (cubit, sync);
+    }
+
+    Future<void> fail(_FakeSync sync) async {
+      sync.snapshots.addError(StateError('permission-denied'));
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      await pumpEventQueue();
+    }
+
+    test('it listens again, and changes from another phone arrive', () async {
+      final (AccountPreferencesCubit cubit, _FakeSync sync) = await listening();
+
+      await fail(sync);
+      expect(sync.watches, 2);
+
+      await sync.send({'vibration': false});
+      expect(cubit.state.vibration, isFalse);
+    });
+
+    test('it stops after the last retry', () async {
+      final (_, _FakeSync sync) = await listening();
+
+      for (int i = 0; i < 6; i++) {
+        await fail(sync);
+      }
+
+      expect(sync.watches, 4);
+    });
+
+    test('a copy from the cache does not start the retries over', () async {
+      final (_, _FakeSync sync) = await listening();
+
+      for (int i = 0; i < 6; i++) {
+        await sync.send(const {}, fromCache: true);
+        await fail(sync);
+      }
+
+      expect(sync.watches, 4);
+    });
+
+    test('a word from the server starts them over', () async {
+      final (_, _FakeSync sync) = await listening();
+
+      for (int i = 0; i < 6; i++) {
+        await sync.send(const {});
+        await fail(sync);
+      }
+
+      expect(sync.watches, 7);
+    });
+
+    test('closing, as at sign-out, cancels a retry on its way', () async {
+      final (AccountPreferencesCubit cubit, _FakeSync sync) = await listening(
+        delays: const [Duration(milliseconds: 5)],
+      );
+
+      sync.snapshots.addError(StateError('permission-denied'));
+      await pumpEventQueue();
+      await cubit.close();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(sync.watches, 1);
+    });
+
+    test('a refused change is kept, and sent again once it listens', () async {
+      final (AccountPreferencesCubit cubit, _FakeSync sync) = await listening();
+      final List<void> failures = [];
+      final StreamSubscription<void> watching = cubit.saveFailures.listen(
+        failures.add,
+      );
+      addTearDown(watching.cancel);
+      sync.writeError = StateError('permission-denied');
+      await cubit.setVibration(false);
+      await pumpEventQueue();
+      expect(failures, hasLength(1));
+
+      await fail(sync);
+      // The rules are right again.
+      sync.writeError = null;
+      await sync.send({'vibration': true});
+
+      expect(cubit.state.vibration, isFalse);
+      expect(sync.writes, [
+        {'vibration': false},
+      ]);
+
+      // Only once: the server's next words send nothing more.
+      await sync.send({'vibration': false});
+      expect(sync.writes, hasLength(1));
+    });
+
+    test('nothing is shown for it', () async {
+      final (AccountPreferencesCubit cubit, _FakeSync sync) = await listening();
+      final List<void> failures = [];
+      final StreamSubscription<void> watching = cubit.saveFailures.listen(
+        failures.add,
+      );
+      addTearDown(watching.cancel);
+
+      await fail(sync);
+
+      expect(failures, isEmpty);
     });
   });
 
