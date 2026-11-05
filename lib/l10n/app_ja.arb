@@ -370,5 +370,10 @@
   "preferencesSunday": "日曜日",
   "confirmDeleteTitle": "「{name}」を削除しますか?",
   "arrangeLists": "並べ替え",
-  "preferenceNotSaved": "設定をアカウントに保存できませんでした。この端末では選んだとおりのままです。"
+  "preferenceNotSaved": "設定をアカウントに保存できませんでした。この端末では選んだとおりのままです。",
+  "homeNothingOpen": "未完了の項目はありません",
+  "homePin": "ホームにピン留め",
+  "homeUnpin": "ホームのピン留めを解除",
+  "preferencesHomeCards": "ホームにリストカードを表示",
+  "preferencesHomeSuggestions": "おすすめを表示"
 }

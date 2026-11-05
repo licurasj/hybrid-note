@@ -1223,4 +1223,19 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get preferenceNotSaved =>
       'Eine Einstellung konnte nicht in deinem Konto gespeichert werden. Auf diesem Telefon bleibt sie, wie du sie gewählt hast.';
+
+  @override
+  String get homeNothingOpen => 'Nichts offen';
+
+  @override
+  String get homePin => 'Auf Startseite anheften';
+
+  @override
+  String get homeUnpin => 'Von Startseite lösen';
+
+  @override
+  String get preferencesHomeCards => 'Listenkarten auf der Startseite anzeigen';
+
+  @override
+  String get preferencesHomeSuggestions => 'Vorschläge anzeigen';
 }

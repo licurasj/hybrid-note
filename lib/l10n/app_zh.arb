@@ -370,5 +370,10 @@
   "preferencesSunday": "星期日",
   "confirmDeleteTitle": "删除“{name}”?",
   "arrangeLists": "排列",
-  "preferenceNotSaved": "设置无法保存到你的账户。在这部手机上仍保持你的选择。"
+  "preferenceNotSaved": "设置无法保存到你的账户。在这部手机上仍保持你的选择。",
+  "homeNothingOpen": "没有未完成的项目",
+  "homePin": "固定到首页",
+  "homeUnpin": "从首页取消固定",
+  "preferencesHomeCards": "在首页显示列表卡片",
+  "preferencesHomeSuggestions": "显示建议"
 }

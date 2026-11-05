@@ -1210,4 +1210,19 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get preferenceNotSaved =>
       'A setting could not be saved to your account. It stays as you set it on this phone.';
+
+  @override
+  String get homeNothingOpen => 'Nothing open';
+
+  @override
+  String get homePin => 'Pin to home';
+
+  @override
+  String get homeUnpin => 'Unpin from home';
+
+  @override
+  String get preferencesHomeCards => 'Show list cards on home';
+
+  @override
+  String get preferencesHomeSuggestions => 'Show suggestions';
 }

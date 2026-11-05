@@ -1183,4 +1183,19 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get preferenceNotSaved => '设置无法保存到你的账户。在这部手机上仍保持你的选择。';
+
+  @override
+  String get homeNothingOpen => '没有未完成的项目';
+
+  @override
+  String get homePin => '固定到首页';
+
+  @override
+  String get homeUnpin => '从首页取消固定';
+
+  @override
+  String get preferencesHomeCards => '在首页显示列表卡片';
+
+  @override
+  String get preferencesHomeSuggestions => '显示建议';
 }

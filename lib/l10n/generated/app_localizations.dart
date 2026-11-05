@@ -2077,6 +2077,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A setting could not be saved to your account. It stays as you set it on this phone.'**
   String get preferenceNotSaved;
+
+  /// No description provided for @homeNothingOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing open'**
+  String get homeNothingOpen;
+
+  /// No description provided for @homePin.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin to home'**
+  String get homePin;
+
+  /// No description provided for @homeUnpin.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin from home'**
+  String get homeUnpin;
+
+  /// No description provided for @preferencesHomeCards.
+  ///
+  /// In en, this message translates to:
+  /// **'Show list cards on home'**
+  String get preferencesHomeCards;
+
+  /// No description provided for @preferencesHomeSuggestions.
+  ///
+  /// In en, this message translates to:
+  /// **'Show suggestions'**
+  String get preferencesHomeSuggestions;
 }
 
 class _AppLocalizationsDelegate

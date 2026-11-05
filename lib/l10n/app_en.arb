@@ -976,5 +976,10 @@
     }
   },
   "arrangeLists": "Arrange",
-  "preferenceNotSaved": "A setting could not be saved to your account. It stays as you set it on this phone."
+  "preferenceNotSaved": "A setting could not be saved to your account. It stays as you set it on this phone.",
+  "homeNothingOpen": "Nothing open",
+  "homePin": "Pin to home",
+  "homeUnpin": "Unpin from home",
+  "preferencesHomeCards": "Show list cards on home",
+  "preferencesHomeSuggestions": "Show suggestions"
 }

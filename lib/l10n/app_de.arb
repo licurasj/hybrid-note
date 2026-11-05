@@ -370,5 +370,10 @@
   "preferencesSunday": "Sonntag",
   "confirmDeleteTitle": "„{name}“ löschen?",
   "arrangeLists": "Anordnen",
-  "preferenceNotSaved": "Eine Einstellung konnte nicht in deinem Konto gespeichert werden. Auf diesem Telefon bleibt sie, wie du sie gewählt hast."
+  "preferenceNotSaved": "Eine Einstellung konnte nicht in deinem Konto gespeichert werden. Auf diesem Telefon bleibt sie, wie du sie gewählt hast.",
+  "homeNothingOpen": "Nichts offen",
+  "homePin": "Auf Startseite anheften",
+  "homeUnpin": "Von Startseite lösen",
+  "preferencesHomeCards": "Listenkarten auf der Startseite anzeigen",
+  "preferencesHomeSuggestions": "Vorschläge anzeigen"
 }

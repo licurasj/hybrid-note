@@ -1223,4 +1223,20 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get preferenceNotSaved =>
       'Un réglage n’a pas pu être enregistré dans votre compte. Sur ce téléphone, il reste tel que vous l’avez choisi.';
+
+  @override
+  String get homeNothingOpen => 'Rien en cours';
+
+  @override
+  String get homePin => 'Épingler à l\'accueil';
+
+  @override
+  String get homeUnpin => 'Retirer de l\'accueil';
+
+  @override
+  String get preferencesHomeCards =>
+      'Afficher les cartes de listes sur l\'accueil';
+
+  @override
+  String get preferencesHomeSuggestions => 'Afficher les suggestions';
 }

@@ -1215,4 +1215,19 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get preferenceNotSaved =>
       'No se pudo guardar un ajuste en tu cuenta. En este teléfono sigue como lo dejaste.';
+
+  @override
+  String get homeNothingOpen => 'Nada pendiente';
+
+  @override
+  String get homePin => 'Fijar en el inicio';
+
+  @override
+  String get homeUnpin => 'Quitar del inicio';
+
+  @override
+  String get preferencesHomeCards => 'Mostrar tarjetas de listas en el inicio';
+
+  @override
+  String get preferencesHomeSuggestions => 'Mostrar sugerencias';
 }

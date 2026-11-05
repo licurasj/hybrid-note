@@ -78,21 +78,26 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('TODAY'), findsOneWidget);
-    expect(find.text('Submit milestone'), findsOneWidget);
-    expect(find.text('Return books'), findsOneWidget);
-    expect(find.text('Tomorrow thing'), findsNothing);
-    expect(find.text('Done already'), findsNothing);
+    // In the Today rows; the Tasks card below may show them too (Q-65).
+    Finder inRow(String id, String text) => find.descendant(
+      of: find.byKey(ValueKey('home-due-$id')),
+      matching: find.text(text),
+    );
+    expect(inRow('t-today', 'Submit milestone'), findsOneWidget);
+    expect(inRow('t-late', 'Return books'), findsOneWidget);
+    expect(find.byKey(const ValueKey('home-due-t-tomorrow')), findsNothing);
+    expect(find.byKey(const ValueKey('home-due-t-done')), findsNothing);
     // Overdue first, with its date; today's with its time.
     expect(
-      tester.getTopLeft(find.text('Return books')).dy,
-      lessThan(tester.getTopLeft(find.text('Submit milestone')).dy),
+      tester.getTopLeft(inRow('t-late', 'Return books')).dy,
+      lessThan(tester.getTopLeft(inRow('t-today', 'Submit milestone')).dy),
     );
     expect(
-      find.text(DateFormat.MMMd('en').format(_today.subtract(const Duration(days: 2)))),
+      inRow('t-late', DateFormat.MMMd('en').format(_today.subtract(const Duration(days: 2)))),
       findsOneWidget,
     );
     expect(
-      find.text(DateFormat.jm('en').format(_today.add(const Duration(hours: 17)))),
+      inRow('t-today', DateFormat.jm('en').format(_today.add(const Duration(hours: 17)))),
       findsOneWidget,
     );
     expect(find.byType(Card), findsNothing);

@@ -1188,4 +1188,19 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get preferenceNotSaved => '設定をアカウントに保存できませんでした。この端末では選んだとおりのままです。';
+
+  @override
+  String get homeNothingOpen => '未完了の項目はありません';
+
+  @override
+  String get homePin => 'ホームにピン留め';
+
+  @override
+  String get homeUnpin => 'ホームのピン留めを解除';
+
+  @override
+  String get preferencesHomeCards => 'ホームにリストカードを表示';
+
+  @override
+  String get preferencesHomeSuggestions => 'おすすめを表示';
 }

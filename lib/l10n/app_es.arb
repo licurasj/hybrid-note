@@ -370,5 +370,10 @@
   "preferencesSunday": "Domingo",
   "confirmDeleteTitle": "¿Eliminar «{name}»?",
   "arrangeLists": "Ordenar",
-  "preferenceNotSaved": "No se pudo guardar un ajuste en tu cuenta. En este teléfono sigue como lo dejaste."
+  "preferenceNotSaved": "No se pudo guardar un ajuste en tu cuenta. En este teléfono sigue como lo dejaste.",
+  "homeNothingOpen": "Nada pendiente",
+  "homePin": "Fijar en el inicio",
+  "homeUnpin": "Quitar del inicio",
+  "preferencesHomeCards": "Mostrar tarjetas de listas en el inicio",
+  "preferencesHomeSuggestions": "Mostrar sugerencias"
 }
