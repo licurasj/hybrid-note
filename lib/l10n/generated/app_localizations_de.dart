@@ -1219,4 +1219,8 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get arrangeLists => 'Anordnen';
+
+  @override
+  String get preferenceNotSaved =>
+      'Eine Einstellung konnte nicht in deinem Konto gespeichert werden. Auf diesem Telefon bleibt sie, wie du sie gewählt hast.';
 }

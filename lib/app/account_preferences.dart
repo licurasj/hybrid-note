@@ -266,7 +266,8 @@ abstract class AccountPreferencesSync {
   Future<void> seed(Map<String, Object?> values);
 
   // Stores [changes] next to the other values. Completes when the server
-  // has them, so offline it stays open while the change waits.
+  // has them, so offline it stays open while the change waits; fails when the
+  // server refuses them.
   Future<void> write(Map<String, Object?> changes);
 }
 
@@ -277,6 +278,12 @@ abstract class AccountPreferencesSync {
 // values win over what the phone had, except for those changes. An account
 // without a document is seeded once from the phone, which carries over the
 // AI settings it kept before they synced.
+//
+// A change stays on top of the account's values until the server has confirmed
+// it. Firestore takes a refused write back through the listener, which would
+// silently undo the choice, and could turn auto-apply back on after it was turned
+// off. So a refused change stays in force on this phone, is tried again at the
+// next open, and [saveFailures] tells the app to say so.
 class AccountPreferencesCubit extends Cubit<AccountPreferences> {
   AccountPreferencesCubit(this.preferences, this.uid, {this.sync})
     : _known = preferences.containsKey(mirrorKey(uid)),
@@ -286,6 +293,9 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
       _onSnapshot,
       onError: (Object error) => _log('listener', error),
     );
+    if (_known) {
+      _resend();
+    }
   }
 
   final SharedPreferences preferences;
@@ -304,9 +314,15 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
   StreamSubscription<AccountPreferencesSnapshot>? _subscription;
   // This phone has seen the account's values; changes go straight to it.
   bool _known;
-  // Changes made before that.
+  // Changes the server has not confirmed: made before that, on their way, or
+  // refused.
   final Map<String, Object?> _pending;
   bool _seeding = false;
+  final StreamController<void> _saveFailures =
+      StreamController<void>.broadcast();
+
+  // The server refused a change. Offline is not a failure: the write waits.
+  Stream<void> get saveFailures => _saveFailures.stream;
 
   // Sign-out clears the Firestore cache (Q-25 A); this copy goes with it. The
   // account's own document stays.
@@ -317,7 +333,10 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
 
   static AccountPreferences _read(SharedPreferences preferences, String uid) {
     if (preferences.containsKey(mirrorKey(uid))) {
-      return AccountPreferences.fromJson(_readMap(preferences, mirrorKey(uid)));
+      return AccountPreferences.fromJson({
+        ..._readMap(preferences, mirrorKey(uid)),
+        ..._readMap(preferences, pendingKey(uid)),
+      });
     }
     return AccountPreferences.fromJson({
       AccountPreferences.aiAutoApplyKey: preferences.getBool(
@@ -366,17 +385,15 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
   }
 
   Future<void> _onAccountValues(Map<String, Object?> data) async {
-    final Map<String, Object?> changes = Map.of(_pending);
-    _pending.clear();
+    final bool firstSeen = !_known;
     _known = true;
     if (!isClosed) {
-      emit(AccountPreferences.fromJson({...data, ...changes}));
+      emit(AccountPreferences.fromJson({...data, ..._pending}));
     }
-    if (changes.isNotEmpty) {
-      _send(changes);
+    if (firstSeen) {
+      _resend();
     }
     await _saveMirror();
-    await preferences.remove(pendingKey(uid));
     await preferences.remove(legacyAutoApplyKey);
     await preferences.remove(legacyAskLevelKey);
     await preferences.remove(legacyAutoApplyOfferedKey);
@@ -399,10 +416,55 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
     }
   }
 
+  // Key by key, so one the server refuses does not hold back the others.
+  void _resend() {
+    for (final MapEntry<String, Object?> change in _pending.entries) {
+      _send({change.key: change.value});
+    }
+  }
+
   void _send(Map<String, Object?> changes) {
     unawaited(
-      sync?.write(changes).catchError((Object error) => _log('write', error)),
+      sync
+          ?.write(changes)
+          .then(
+            (_) => _onConfirmed(changes),
+            onError: (Object error) => _onRefused(changes, error),
+          ),
     );
+  }
+
+  // Unless the person has chosen again since. Compared as JSON, since a value
+  // can be a list.
+  bool _isPending(String key, Object? value) =>
+      _pending.containsKey(key) &&
+      jsonEncode(_pending[key]) == jsonEncode(value);
+
+  Future<void> _onConfirmed(Map<String, Object?> changes) async {
+    if (isClosed) {
+      return;
+    }
+    changes.forEach((key, value) {
+      if (_isPending(key, value)) {
+        _pending.remove(key);
+      }
+    });
+    await _savePending();
+  }
+
+  void _onRefused(Map<String, Object?> changes, Object error) {
+    _log('write', error);
+    if (!isClosed && changes.keys.any((k) => _isPending(k, changes[k]))) {
+      _saveFailures.add(null);
+    }
+  }
+
+  Future<void> _savePending() async {
+    if (_pending.isEmpty) {
+      await preferences.remove(pendingKey(uid));
+    } else {
+      await preferences.setString(pendingKey(uid), jsonEncode(_pending));
+    }
   }
 
   Future<void> _saveMirror() async {
@@ -414,12 +476,14 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
       return;
     }
     emit(AccountPreferences.fromJson({...state.toJson(), key: value}));
-    if (_known && sync != null) {
+    _pending[key] = value;
+    final bool send = _known && sync != null;
+    if (send) {
       _send({key: value});
+    }
+    await _savePending();
+    if (send) {
       await _saveMirror();
-    } else {
-      _pending[key] = value;
-      await preferences.setString(pendingKey(uid), jsonEncode(_pending));
     }
   }
 
@@ -465,6 +529,7 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
   @override
   Future<void> close() async {
     await _subscription?.cancel();
+    await _saveFailures.close();
     return super.close();
   }
 }

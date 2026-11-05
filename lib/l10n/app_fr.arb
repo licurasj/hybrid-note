@@ -369,5 +369,6 @@
   "preferencesMonday": "Lundi",
   "preferencesSunday": "Dimanche",
   "confirmDeleteTitle": "Supprimer « {name} » ?",
-  "arrangeLists": "Organiser"
+  "arrangeLists": "Organiser",
+  "preferenceNotSaved": "Un réglage n’a pas pu être enregistré dans votre compte. Sur ce téléphone, il reste tel que vous l’avez choisi."
 }

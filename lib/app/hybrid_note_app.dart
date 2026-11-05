@@ -75,6 +75,7 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
   StarterSeeding? _starter;
   AccountPreferencesCubit? _preferences;
   StreamSubscription<Object>? _writeFailures;
+  StreamSubscription<void>? _preferenceFailures;
   // The user Firebase last reported; shown once no sign-out is running.
   AuthUser? _latest;
   // A sign-out (with its cache clear) is running. Auth transitions run one
@@ -95,6 +96,7 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
   void dispose() {
     _subscription.cancel();
     _writeFailures?.cancel();
+    _preferenceFailures?.cancel();
     unawaited(_store?.close());
     unawaited(_preferences?.close());
     _banners.dispose();
@@ -154,6 +156,13 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
               ? loc.itemsNotUpdated
               : loc.listChangeNotSaved,
         );
+      }
+    });
+    _preferenceFailures?.cancel();
+    _preferenceFailures = _preferences?.saveFailures.listen((_) {
+      final BuildContext? context = _messenger.currentContext;
+      if (context != null && context.mounted) {
+        _banners.show(AppLocalizations.of(context).preferenceNotSaved);
       }
     });
   }

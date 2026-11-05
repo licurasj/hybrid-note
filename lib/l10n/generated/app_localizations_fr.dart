@@ -1219,4 +1219,8 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get arrangeLists => 'Organiser';
+
+  @override
+  String get preferenceNotSaved =>
+      'Un réglage n’a pas pu être enregistré dans votre compte. Sur ce téléphone, il reste tel que vous l’avez choisi.';
 }

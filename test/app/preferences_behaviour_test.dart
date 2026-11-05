@@ -23,6 +23,7 @@ import 'package:hybrid_note/lists/list_item.dart';
 
 import '../support/fake_auth.dart';
 import '../support/firestore_store.dart';
+import '../support/scripted_preferences_sync.dart';
 
 // What each preference does in the app (T-21 unit 3). The page that sets them
 // is in preferences_screen_test.dart.
@@ -54,6 +55,7 @@ Future<FirestoreListStore> _pumpApp(
   List<ListDefinition>? lists,
   List<ListItem> items = const [],
   Widget Function(Widget app)? wrap,
+  AccountPreferencesSync? sync,
 }) async {
   tester.view.physicalSize = const Size(412, 900);
   tester.view.devicePixelRatio = 1;
@@ -67,6 +69,7 @@ Future<FirestoreListStore> _pumpApp(
   final Widget app = await testApp(
     auth: FakeAuthService(user: testUser),
     openStore: (_) => store,
+    openPreferences: sync == null ? null : (_) => sync,
   );
   await tester.pumpWidget(wrap == null ? app : wrap(app));
   await settle(tester);
@@ -287,6 +290,48 @@ void main() {
       await tester.binding.handlePopRoute();
       await settle(tester);
       expect(find.byType(GenericListScreen), findsNothing);
+    });
+  });
+
+  group('a setting the server will not save (Codex H1)', () {
+    const String message =
+        'A setting could not be saved to your account. It stays as you set it '
+        'on this phone.';
+
+    testWidgets('a banner says so, and the choice stays', (tester) async {
+      final ScriptedPreferencesSync sync = ScriptedPreferencesSync();
+      addTearDown(sync.snapshots.close);
+      await _pumpApp(tester, sync: sync);
+      sync.send(const {'vibration': true});
+      await settle(tester);
+      expect(find.text(message), findsNothing);
+
+      sync.refuse = true;
+      await _account(tester).setVibration(false);
+      await tester.pump();
+      await tester.pump();
+      expect(find.text(message), findsOneWidget);
+
+      sync.send(const {'vibration': true});
+      await tester.pump();
+      expect(_account(tester).state.vibration, isFalse);
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pump(const Duration(seconds: 1));
+    });
+
+    testWidgets('offline nothing is said', (tester) async {
+      final ScriptedPreferencesSync sync = ScriptedPreferencesSync();
+      addTearDown(sync.snapshots.close);
+      await _pumpApp(tester, sync: sync);
+      sync.send(const {'vibration': true});
+      await settle(tester);
+
+      sync.offline = true;
+      await _account(tester).setVibration(false);
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(find.text(message), findsNothing);
+      expect(_account(tester).state.vibration, isFalse);
     });
   });
 
@@ -679,7 +724,6 @@ void main() {
               Locale('ja'),
               Locale('zh'),
             ],
-            useInheritedMediaQuery: true,
             home: Builder(
               builder: (context) => TextButton(
                 onPressed: () => showTimePicker(

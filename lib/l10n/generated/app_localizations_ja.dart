@@ -1185,4 +1185,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get arrangeLists => '並べ替え';
+
+  @override
+  String get preferenceNotSaved => '設定をアカウントに保存できませんでした。この端末では選んだとおりのままです。';
 }

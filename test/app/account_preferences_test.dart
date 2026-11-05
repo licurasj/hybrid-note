@@ -16,6 +16,8 @@ class _FakeSync implements AccountPreferencesSync {
   final List<Map<String, Object?>> writes = [];
   Object? seedError;
   Object? writeError;
+  // Set: the next write stays open until the test answers it, as offline.
+  Completer<void>? heldWrite;
 
   @override
   Stream<AccountPreferencesSnapshot> watch() => snapshots.stream;
@@ -30,6 +32,11 @@ class _FakeSync implements AccountPreferencesSync {
 
   @override
   Future<void> write(Map<String, Object?> changes) async {
+    final Completer<void>? held = heldWrite;
+    if (held != null) {
+      await held.future;
+      return;
+    }
     if (writeError != null) {
       throw writeError!;
     }
@@ -426,16 +433,161 @@ void main() {
       expect(restarted.state.vibration, isFalse);
     });
 
-    test('a refused write keeps the app running', () async {
-      final (AccountPreferencesCubit cubit, _FakeSync sync) = await known();
-      sync.writeError = StateError('permission-denied');
+    group('a write the server refuses (Codex H1)', () {
+      Future<(AccountPreferencesCubit, _FakeSync, List<void>)> refused() async {
+        final (AccountPreferencesCubit cubit, _FakeSync sync) = await _cubit();
+        await sync.send({'aiAutoApply': true, 'vibration': true});
+        final List<void> failures = [];
+        final StreamSubscription<void> watching = cubit.saveFailures.listen(
+          failures.add,
+        );
+        addTearDown(watching.cancel);
+        sync.writeError = StateError('permission-denied');
+        await cubit.setAiAutoApply(false);
+        await pumpEventQueue();
+        return (cubit, sync, failures);
+      }
 
-      await cubit.setVibration(false);
-      await pumpEventQueue();
+      test('auto-apply stays off when the server takes it back', () async {
+        final (AccountPreferencesCubit cubit, _FakeSync sync, _) =
+            await refused();
 
-      // Firestore takes a refused change back through the listener.
-      await sync.send({'vibration': true});
-      expect(cubit.state.vibration, isTrue);
+        // Firestore takes a refused change back through the listener.
+        await sync.send({'aiAutoApply': true, 'vibration': true});
+
+        expect(cubit.state.aiAutoApply, isFalse);
+      });
+
+      test('it also holds when the taking back comes first', () async {
+        final (AccountPreferencesCubit cubit, _FakeSync sync) = await _cubit();
+        await sync.send({'aiAutoApply': true});
+        final Completer<void> answer = Completer<void>();
+        sync.heldWrite = answer;
+
+        await cubit.setAiAutoApply(false);
+        await sync.send({'aiAutoApply': true});
+        expect(cubit.state.aiAutoApply, isFalse);
+
+        answer.completeError(StateError('permission-denied'));
+        await pumpEventQueue();
+        expect(cubit.state.aiAutoApply, isFalse);
+      });
+
+      test('it says so, once for each refusal', () async {
+        final (_, _, List<void> failures) = await refused();
+        expect(failures, hasLength(1));
+      });
+
+      test('it survives a restart and is tried again, its key only', () async {
+        final (_, _FakeSync sync, _) = await refused();
+        await sync.send({'aiAutoApply': true, 'vibration': true});
+        expect(sync.writes, isEmpty);
+
+        final _FakeSync next = _FakeSync();
+        addTearDown(next.snapshots.close);
+        final AccountPreferencesCubit restarted = AccountPreferencesCubit(
+          await SharedPreferences.getInstance(),
+          _uid,
+          sync: next,
+        );
+        addTearDown(restarted.close);
+        expect(restarted.state.aiAutoApply, isFalse);
+        await pumpEventQueue();
+        expect(next.writes, [
+          {'aiAutoApply': false},
+        ]);
+
+        // The server has it now: nothing is left to send.
+        await next.send({'aiAutoApply': false});
+        final _FakeSync third = _FakeSync();
+        addTearDown(third.snapshots.close);
+        final AccountPreferencesCubit again = AccountPreferencesCubit(
+          await SharedPreferences.getInstance(),
+          _uid,
+          sync: third,
+        );
+        addTearDown(again.close);
+        await pumpEventQueue();
+        expect(third.writes, isEmpty);
+      });
+
+      test('other values from the account still arrive', () async {
+        final (AccountPreferencesCubit cubit, _FakeSync sync, _) =
+            await refused();
+
+        await sync.send({'aiAutoApply': true, 'vibration': false});
+
+        expect(cubit.state.aiAutoApply, isFalse);
+        expect(cubit.state.vibration, isFalse);
+      });
+
+      test('a newer choice replaces it, and an old refusal is quiet', () async {
+        final (AccountPreferencesCubit cubit, _FakeSync sync) = await _cubit();
+        await sync.send(const {});
+        final List<void> failures = [];
+        final StreamSubscription<void> watching = cubit.saveFailures.listen(
+          failures.add,
+        );
+        addTearDown(watching.cancel);
+        final Completer<void> first = Completer<void>();
+        sync.heldWrite = first;
+        await cubit.setVibration(false);
+        sync.heldWrite = null;
+        await cubit.setVibration(true);
+
+        first.completeError(StateError('permission-denied'));
+        await pumpEventQueue();
+
+        expect(failures, isEmpty);
+        expect(cubit.state.vibration, isTrue);
+      });
+
+      test('offline: no message, and the change just waits', () async {
+        final (AccountPreferencesCubit cubit, _FakeSync sync) = await _cubit();
+        await sync.send(const {});
+        final List<void> failures = [];
+        final StreamSubscription<void> watching = cubit.saveFailures.listen(
+          failures.add,
+        );
+        addTearDown(watching.cancel);
+        // Offline a write stays open until the server can answer.
+        final Completer<void> answer = Completer<void>();
+        sync.heldWrite = answer;
+
+        await cubit.setVibration(false);
+        await sync.send(const {'vibration': false}, fromCache: true);
+        await pumpEventQueue();
+        expect(failures, isEmpty);
+        expect(cubit.state.vibration, isFalse);
+
+        answer.complete();
+        await pumpEventQueue();
+        expect(failures, isEmpty);
+        final SharedPreferences stored = await SharedPreferences.getInstance();
+        expect(
+          stored.containsKey(AccountPreferencesCubit.pendingKey(_uid)),
+          isFalse,
+        );
+      });
+
+      test('an answer after sign-out leaves nothing behind', () async {
+        final (AccountPreferencesCubit cubit, _FakeSync sync) = await _cubit();
+        await sync.send(const {});
+        final Completer<void> answer = Completer<void>();
+        sync.heldWrite = answer;
+        await cubit.setVibration(false);
+
+        await cubit.close();
+        final SharedPreferences stored = await SharedPreferences.getInstance();
+        await AccountPreferencesCubit.forget(stored, _uid);
+        answer.completeError(StateError('permission-denied'));
+        await pumpEventQueue();
+
+        expect(
+          stored.containsKey(AccountPreferencesCubit.pendingKey(_uid)),
+          isFalse,
+        );
+      });
     });
   });
 

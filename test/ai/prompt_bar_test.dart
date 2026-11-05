@@ -19,6 +19,7 @@ import 'package:hybrid_note/lists/list_rules.dart';
 
 import '../support/fake_auth.dart';
 import '../support/firestore_store.dart';
+import '../support/scripted_preferences_sync.dart';
 
 // Answers the bar's requests from a script and keeps them for the checks.
 class FakeAiService implements AiService {
@@ -73,6 +74,7 @@ Future<FirestoreListStore> _pump(
   List<ListDefinition>? lists,
   List<ListItem> items = const [],
   Size size = const Size(360, 780),
+  AccountPreferencesSync? sync,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -88,6 +90,7 @@ Future<FirestoreListStore> _pump(
   final Widget app = await testApp(
     auth: FakeAuthService(user: testUser),
     openStore: (_) => store,
+    openPreferences: sync == null ? null : (_) => sync,
   );
   await tester.pumpWidget(
     RepositoryProvider<AiService>.value(value: ai, child: app),
@@ -138,7 +141,9 @@ List<String> _titles(FirestoreListStore store, String listId) => [
 ];
 
 void main() {
-  testWidgets('a chosen week start goes with each request (Q-50 f)', (tester) async {
+  testWidgets('a chosen week start goes with each request (Q-50 f)', (
+    tester,
+  ) async {
     final FakeAiService ai = FakeAiService()..answers.add(_calls(const []));
     await _pump(tester, ai);
     await _account(tester).setWeekStart(WeekStart.sunday);
@@ -721,6 +726,47 @@ void main() {
       expect(ai.requests.last.openItems, hasLength(3));
       await _tapKey(tester, 'ai-apply');
       expect(_titles(store, _grocery), ['Bread']);
+    });
+
+    testWidgets('auto-apply turned off, refused by the server: the AI asks', (
+      tester,
+    ) async {
+      final FakeAiService ai = FakeAiService()
+        ..answers.add(
+          _calls([
+            const AiToolCall('delete_items', {
+              'listId': _grocery,
+              'ids': ['g1'],
+            }),
+          ]),
+        );
+      final ScriptedPreferencesSync sync = ScriptedPreferencesSync();
+      addTearDown(sync.snapshots.close);
+      final Map<String, Object?> account = {
+        'aiAutoApply': true,
+        'aiNoticeSeen': aiNoticeId,
+      };
+      final FirestoreListStore store = await _pump(
+        tester,
+        ai,
+        items: [item('g1', 'Milk')],
+        sync: sync,
+      );
+      sync.send(account);
+      await settle(tester);
+      expect(_account(tester).state.aiAutoApply, isTrue);
+
+      sync.refuse = true;
+      await _account(tester).setAiAutoApply(false);
+      await tester.pump();
+      // Firestore takes the refused change back through the listener.
+      sync.send(account);
+      await settle(tester);
+
+      await _ask(tester, 'remove milk');
+
+      expect(find.byKey(const ValueKey('ai-apply')), findsOneWidget);
+      expect(_titles(store, _grocery), contains('Milk'));
     });
 
     testWidgets('the first Apply offers auto-apply; after a yes changes apply '

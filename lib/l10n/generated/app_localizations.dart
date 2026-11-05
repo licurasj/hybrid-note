@@ -2071,6 +2071,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Arrange'**
   String get arrangeLists;
+
+  /// No description provided for @preferenceNotSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'A setting could not be saved to your account. It stays as you set it on this phone.'**
+  String get preferenceNotSaved;
 }
 
 class _AppLocalizationsDelegate

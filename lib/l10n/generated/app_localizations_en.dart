@@ -1206,4 +1206,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get arrangeLists => 'Arrange';
+
+  @override
+  String get preferenceNotSaved =>
+      'A setting could not be saved to your account. It stays as you set it on this phone.';
 }

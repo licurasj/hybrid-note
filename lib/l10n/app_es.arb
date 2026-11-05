@@ -369,5 +369,6 @@
   "preferencesMonday": "Lunes",
   "preferencesSunday": "Domingo",
   "confirmDeleteTitle": "¿Eliminar «{name}»?",
-  "arrangeLists": "Ordenar"
+  "arrangeLists": "Ordenar",
+  "preferenceNotSaved": "No se pudo guardar un ajuste en tu cuenta. En este teléfono sigue como lo dejaste."
 }

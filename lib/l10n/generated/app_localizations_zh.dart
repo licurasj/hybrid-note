@@ -1180,4 +1180,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get arrangeLists => '排列';
+
+  @override
+  String get preferenceNotSaved => '设置无法保存到你的账户。在这部手机上仍保持你的选择。';
 }

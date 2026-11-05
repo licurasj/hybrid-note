@@ -975,5 +975,6 @@
       }
     }
   },
-  "arrangeLists": "Arrange"
+  "arrangeLists": "Arrange",
+  "preferenceNotSaved": "A setting could not be saved to your account. It stays as you set it on this phone."
 }

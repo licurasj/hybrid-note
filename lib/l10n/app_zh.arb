@@ -369,5 +369,6 @@
   "preferencesMonday": "星期一",
   "preferencesSunday": "星期日",
   "confirmDeleteTitle": "删除“{name}”?",
-  "arrangeLists": "排列"
+  "arrangeLists": "排列",
+  "preferenceNotSaved": "设置无法保存到你的账户。在这部手机上仍保持你的选择。"
 }
