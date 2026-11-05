@@ -49,6 +49,7 @@ class LauncherConfig {
     this.dialArrangeSpread = 1.3,
     this.dialArrangeSwayDegrees = 1.2,
     this.dialPickUpDelay = const Duration(milliseconds: 300),
+    this.dialSelectedLead = 24,
     this.dialSelectedSpread = 1.0,
     this.dialNeighbourLength = 0.8,
     this.dialFarLength = 0.68,
@@ -135,6 +136,8 @@ class LauncherConfig {
   // In the arrange state: how long a finger rests on a list to pick it up
   // (being tuned with the owner, Q-49).
   final Duration dialPickUpDelay;
+  // In a tight spot, how far the selected tab stands past the others.
+  final double dialSelectedLead;
   final double dialArrangeSwayDegrees;
   final double dialSelectedSpread;
   final double dialNeighbourLength;

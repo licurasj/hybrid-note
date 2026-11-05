@@ -665,6 +665,16 @@ class _DialLauncherState extends State<DialLauncher>
     )!;
   }
 
+  // In a tight spot the selected list cannot stand clearly past the others, so
+  // while one is selected they stop this short of it, and no shorter than a
+  // tab needs (owner, 2026-11-05). Elsewhere this limit is never reached.
+  double _unselectedLimit(LauncherGeometry g, double span) {
+    final double reference = _selectedAngle(g);
+    final double top = _restEnd(g, reference, span) +
+        span * (1 - _config.dialFarLength) * _growthShare(g, reference, span);
+    return math.max(_inner() + 48, top - _config.dialSelectedLead);
+  }
+
   // A tab's end. Lists at rest keep their length: their share of half the
   // diagonal, kept from the screen's edge. Only the growth above that is limited:
   // the selected list reaches as far as it has room for, and its neighbours'
@@ -678,7 +688,10 @@ class _DialLauncherState extends State<DialLauncher>
       return math.min(_inner() + span * emphasis, _reachAt(g, angle, 16));
     }
     final double far = _config.dialFarLength;
-    final double rest = _restEnd(g, angle, span);
+    double rest = _restEnd(g, angle, span);
+    if (index != _selected) {
+      rest -= math.max(0, rest - _unselectedLimit(g, span)) * _zoom;
+    }
     final double growth = span * (emphasis - far);
     if (growth <= 0) {
       return rest;
@@ -694,7 +707,12 @@ class _DialLauncherState extends State<DialLauncher>
         ? null
         : _sides(g, selected);
     if (sides != null) {
-      end = math.min(end, _outer(g, selected!, (sides.$1 + sides.$2) / 2));
+      // A third of the lead, so the selected list stays the longest.
+      end = math.min(
+        end,
+        _outer(g, selected!, (sides.$1 + sides.$2) / 2) -
+            _config.dialSelectedLead / 3,
+      );
     }
     return math.max(rest, end);
   }

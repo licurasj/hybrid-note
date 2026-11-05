@@ -342,6 +342,76 @@ void main() {
       });
     }
 
+    for (final Offset place in const [
+      Offset(0.9, 0.9),
+      Offset(0.62, 0.55),
+      Offset(0.55, 0.62),
+    ]) {
+      for (final Size size in const [Size(412, 900), Size(320, 640)]) {
+        testWidgets('hub at $place, ${size.width.toInt()} wide: the selected stays longest', (
+          tester,
+        ) async {
+          await _pump(tester, count: 5, hubPosition: place, size: size);
+          final Offset hub = _hub(tester);
+          final TestGesture gesture = await tester.startGesture(hub);
+          await tester.pump(const Duration(milliseconds: 300));
+          for (double t = 0.1; t <= 0.9; t += 0.1) {
+            final double angle = math.pi / 2 + (math.pi / 2) * t;
+            await gesture.moveTo(_at(tester, angle, 80 + 40 * t));
+            await tester.pump(const Duration(milliseconds: 500));
+            await tester.pump(const Duration(milliseconds: 100));
+            int? selected;
+            double top = 0;
+            for (int i = 0; i < 7; i++) {
+              final Finder disc = find.byKey(ValueKey('dial-disc-$i'));
+              if (disc.evaluate().isNotEmpty &&
+                  tester.getSize(disc).width > 35.5) {
+                selected = i;
+                top = reach(tester, i)!;
+              }
+            }
+            if (selected == null) {
+              continue;
+            }
+            for (int i = 1; i <= 5; i++) {
+              final double? other = reach(tester, i);
+              if (i == selected || other == null) {
+                continue;
+              }
+              // Longest, unless both are down at the shortest a tab can be.
+              if (other > 24 + 48 + 4) {
+                expect(other, lessThan(top - 4), reason: 'list $i at $t');
+              }
+            }
+          }
+          await gesture.up();
+          await tester.pump(const Duration(milliseconds: 300));
+        });
+      }
+    }
+
+    testWidgets('with room to spare, far lists keep their length', (tester) async {
+      await _pump(tester, count: 14);
+      final Offset hub = _hub(tester);
+      final List<double> atRest = [];
+      final TestGesture gesture = await tester.startGesture(hub);
+      await tester.pump(const Duration(milliseconds: 300));
+      await gesture.moveTo(_at(tester, _diagonal(tester), 200));
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump(const Duration(milliseconds: 100));
+      final double far = 24 + (hub.distance / 2 - 24) * _config.dialFarLength;
+      for (int i = 3; i < 6; i++) {
+        final double? other = reach(tester, i);
+        if (other != null) {
+          atRest.add(other);
+          expect(other, closeTo(far, 40));
+        }
+      }
+      expect(atRest, isNotEmpty);
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 300));
+    });
+
     testWidgets('near the edge Edit still shows on the screen, and is reachable', (
       tester,
     ) async {
