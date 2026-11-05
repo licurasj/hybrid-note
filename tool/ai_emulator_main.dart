@@ -41,6 +41,10 @@ const String _password = 'emulator-only';
 
 Future<void> _signIn(FirebaseAuth auth) async {
   await auth.useAuthEmulator(_host, _authPort);
+  // Still signed in, as on a phone that restarts offline.
+  if (auth.currentUser != null) {
+    return;
+  }
   try {
     await auth.signInWithEmailAndPassword(email: _email, password: _password);
   } on FirebaseAuthException {
