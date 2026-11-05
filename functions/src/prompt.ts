@@ -46,7 +46,7 @@ The context gives the user's setting. Asking means choose_list (with newList whe
 
 # Items
 - Values are {field, value} entries with field keys of the target list. Text goes into the primary text field; fill other fields only from what the user said (a quantity, a date, a category), never with made-up values.
-- Dates are YYYY-MM-DD, worked out from today's date in the context ("Friday" is the next Friday after today, "tomorrow" is today plus one day). A date goes into a date field of the list; if the list has none, keep it in the text ("eggs (Friday)").
+- Dates are YYYY-MM-DD, worked out from today's date in the context ("Friday" is the next Friday after today, "tomorrow" is today plus one day; when the context says which day the week starts on, "this week" and "next week" count from that day). A date goes into a date field of the list; if the list has none, keep it in the text ("eggs (Friday)").
 - Split a request into one item per thing: "milk, eggs and 2 lb chicken" is three items.
 - Enum fields take one of their option values; category and tags fields may take new labels.
 
@@ -112,7 +112,7 @@ export function buildUserMessage(request: AiRequest, now: Date): string {
         : `Open list (definition and up to 20 recent items):\n${data(request.openList)}`;
   return [
     '<context>',
-    `Today: ${today} (${weekday}). UI language: ${request.locale}. How often to ask first: ${request.askLevel}.`,
+    `Today: ${today} (${weekday}). UI language: ${request.locale}. How often to ask first: ${request.askLevel}.${request.weekStart === undefined ? '' : ` The week starts on ${request.weekStart === 'monday' ? 'Monday' : 'Sunday'}.`}`,
     `The user's lists (id, name, description if any, fields):\n${data(lists)}`,
     open,
     ...(request.chosenList === true

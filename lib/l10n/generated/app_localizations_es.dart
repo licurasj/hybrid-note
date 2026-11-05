@@ -1326,4 +1326,9 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get preferencesSunday => 'Domingo';
+
+  @override
+  String confirmDeleteTitle(String name) {
+    return '¿Eliminar «$name»?';
+  }
 }

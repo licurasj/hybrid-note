@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
@@ -25,8 +26,11 @@ import '../lists/list_patch.dart';
 import '../lists/list_store.dart';
 import '../lists/list_template_picker.dart';
 import 'account_preferences.dart';
+import 'app_banner.dart';
 import 'app_settings.dart';
 import 'app_theme.dart' show AppMotion;
+import 'hybrid_note_app.dart' show SignedInAccount;
+import 'list_order.dart';
 
 // The launcher is the dial (owner's choice, T-16 unit 6, 2026-11-03);
 // --dart-define=FAN_LAUNCHER=true shows the earlier fan instead.
@@ -56,8 +60,12 @@ class MainShell extends StatefulWidget {
 // it (not saved); pressing the hub keeps it there until the dial closes.
 class _MainShellState extends State<MainShell> {
   // Lists in the order they were last opened, newest first, so the common
-  // case never needs scrolling (plan 5.3). Kept in memory for now.
+  // case never needs scrolling (plan 5.3). Kept per phone (Q-49).
   final List<String> _recent = [];
+  // The list reopened at the start (Q-50 a); once the lists have loaded they
+  // show whether it still exists.
+  String? _startList;
+  bool _startChecked = false;
 
   final GlobalKey<NavigatorState> _content = GlobalKey<NavigatorState>();
   final _TopRoute _top = _TopRoute();
@@ -84,6 +92,29 @@ class _MainShellState extends State<MainShell> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _recent.addAll(
+      context.read<AppSettingsCubit>().recentLists(
+        context.read<SignedInAccount>().user.uid,
+      ),
+    );
+    if (_recent.isNotEmpty &&
+        context.accountPreferences.startScreen == StartScreen.lastOpenList) {
+      _startList = _recent.first;
+    }
+  }
+
+  void _saveRecent() {
+    unawaited(
+      context.read<AppSettingsCubit>().setRecentLists(
+        context.read<SignedInAccount>().user.uid,
+        List.of(_recent),
+      ),
+    );
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final AiService? service = context.read<AiService?>();
@@ -104,6 +135,22 @@ class _MainShellState extends State<MainShell> {
     super.dispose();
   }
 
+  // A list deleted on another phone since: back to the home.
+  void _checkStartList(ListCatalog catalog) {
+    final String? start = _startList;
+    if (start == null || _startChecked || catalog.definitions.isEmpty) {
+      return;
+    }
+    _startChecked = true;
+    if (catalog.definition(start) == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _goHome();
+        }
+      });
+    }
+  }
+
   bool _isList(Route<dynamic>? route) =>
       route?.settings.name?.startsWith(_listRoute) ?? false;
 
@@ -117,6 +164,7 @@ class _MainShellState extends State<MainShell> {
         ..remove(listId)
         ..insert(0, listId);
     });
+    _saveRecent();
     final NavigatorState? content = _content.currentState;
     final String? open = _openListId;
     if (content == null || open == listId) {
@@ -135,17 +183,14 @@ class _MainShellState extends State<MainShell> {
 
   List<LauncherNote> _notes(AppLocalizations loc, ListCatalog catalog) {
     final ListLabels labels = ListLabels(loc);
-    final List<ListDefinition> ordered = [...catalog.definitions]
-      ..sort((a, b) {
-        int rank(ListDefinition definition) {
-          final int index = _recent.indexOf(definition.id);
-          return index < 0
-              ? _recent.length + catalog.definitions.indexOf(definition)
-              : index;
-        }
-
-        return rank(a).compareTo(rank(b));
-      });
+    final AccountPreferences preferences = context.accountPreferences;
+    final List<ListDefinition> ordered = orderLists(
+      catalog.definitions,
+      order: preferences.listOrder,
+      myOrder: preferences.myListOrder,
+      recent: _recent,
+      nameOf: labels.listName,
+    );
 
     return [
       for (final ListDefinition definition in ordered)
@@ -168,7 +213,9 @@ class _MainShellState extends State<MainShell> {
     bool describe = false;
     final ListDefinition? draft = await showListTemplatePicker(
       context,
-      onDescribe: _ai == null ? null : () => describe = true,
+      onDescribe: _ai == null || !context.accountPreferences.showAiBar
+          ? null
+          : () => describe = true,
     );
     if (mounted && describe) {
       // After the picker's route has handed focus back.
@@ -225,41 +272,34 @@ class _MainShellState extends State<MainShell> {
     // meanwhile, and saves only a valid result. The editor has closed, so a
     // failure is reported here rather than lost (T-17 F1).
     final AppLocalizations loc = AppLocalizations.of(context);
-    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    final AppBannerController banners = context.read<AppBannerController>();
     try {
       await store.patchList(listId, outcome.ops);
     } on Object catch (error) {
       developer.log('patch $listId failed: $error', name: 'MainShell');
-      messenger.showSnackBar(SnackBar(content: Text(loc.listChangeNotSaved)));
+      banners.show(loc.listChangeNotSaved);
     }
   }
 
-  // Deleting is immediate, with Undo in a snackbar and no trash bin (D-5).
+  // Deleting is immediate, with Undo in a banner and no trash bin (D-5).
   Future<void> _deleteList(String listId) async {
     final AppLocalizations loc = AppLocalizations.of(context);
     final ListStore store = context.read<ListStore>();
-    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    final AppBannerController banners = context.read<AppBannerController>();
     final DeletedList? deleted = await store.deleteList(listId);
     if (deleted == null) {
       return;
     }
 
     setState(() => _recent.remove(listId));
+    _saveRecent();
     if (_openListId == listId) {
       _goHome();
     }
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(loc.listDeleted),
-        // A snackbar with an action stays until dismissed unless told
-        // otherwise; Undo is only offered for a short while.
-        persist: false,
-        duration: const Duration(seconds: 6),
-        action: SnackBarAction(
-          label: loc.undo,
-          onPressed: () => store.restoreList(deleted),
-        ),
-      ),
+    banners.show(
+      loc.listDeleted,
+      actionLabel: loc.undo,
+      onAction: () => store.restoreList(deleted),
     );
   }
 
@@ -275,7 +315,8 @@ class _MainShellState extends State<MainShell> {
 
   bool _barHidden(Route<dynamic>? top, ListCatalog catalog) {
     final ListDefinition? open = _openOf(top, catalog);
-    return (top != null && top is! PageRoute) ||
+    return !context.accountPreferences.showAiBar ||
+        (top != null && top is! PageRoute) ||
         (open != null && !open.aiAllowed);
   }
 
@@ -364,11 +405,14 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    // The order, the bar and the haptics follow these as they change.
+    context.watchAccountPreferences;
     return Scaffold(
       body: ListCatalogBuilder(
         builder: (context, catalog) =>
             BlocBuilder<AppSettingsCubit, AppSettings>(
               builder: (context, settings) {
+                _checkStartList(catalog);
                 final AppLocalizations loc = AppLocalizations.of(context);
                 return ListenableBuilder(
                   listenable: Listenable.merge([
@@ -460,6 +504,11 @@ class _MainShellState extends State<MainShell> {
                       child: HomeScreen(onOpenList: _openList),
                     ),
                   ),
+                  if (_startList case final String start)
+                    MaterialPageRoute<void>(
+                      settings: RouteSettings(name: '$_listRoute$start'),
+                      builder: (_) => GenericListHost(listId: start),
+                    ),
                 ],
               ),
             ),
@@ -498,6 +547,7 @@ class _MainShellState extends State<MainShell> {
                         nextLabel: loc.next,
                         noteHint: loc.launcherNoteHint,
                         hubPosition: hubPosition,
+                        haptics: context.accountPreferences.vibration,
                         onHubMoved: context
                             .read<AppSettingsCubit>()
                             .setHubPosition,
@@ -519,6 +569,7 @@ class _MainShellState extends State<MainShell> {
                         nextLabel: loc.next,
                         noteHint: loc.launcherNoteHint,
                         hubPosition: hubPosition,
+                        haptics: context.accountPreferences.vibration,
                         onHubMoved: context
                             .read<AppSettingsCubit>()
                             .setHubPosition,

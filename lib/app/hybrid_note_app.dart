@@ -10,6 +10,7 @@ import '../backend/firestore_setup.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../lists/list_store.dart';
 import 'account_preferences.dart';
+import 'app_banner.dart';
 import 'app_settings.dart';
 import 'app_theme.dart';
 import 'main_shell.dart';
@@ -63,6 +64,7 @@ class HybridNoteApp extends StatefulWidget {
 class _HybridNoteAppState extends State<HybridNoteApp> {
   final GlobalKey<ScaffoldMessengerState> _messenger =
       GlobalKey<ScaffoldMessengerState>();
+  final AppBannerController _banners = AppBannerController();
   late final StreamSubscription<AuthUser?> _subscription;
   // False until Firebase has said whether a user is signed in, so a
   // restored session does not flash the sign-in screen.
@@ -95,6 +97,7 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
     _writeFailures?.cancel();
     unawaited(_store?.close());
     unawaited(_preferences?.close());
+    _banners.dispose();
     super.dispose();
   }
 
@@ -146,14 +149,10 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
       final BuildContext? context = _messenger.currentContext;
       if (context != null && context.mounted) {
         final AppLocalizations loc = AppLocalizations.of(context);
-        _messenger.currentState?.showSnackBar(
-          SnackBar(
-            content: Text(
-              failure is ItemsNotUpdated
-                  ? loc.itemsNotUpdated
-                  : loc.listChangeNotSaved,
-            ),
-          ),
+        _banners.show(
+          failure is ItemsNotUpdated
+              ? loc.itemsNotUpdated
+              : loc.listChangeNotSaved,
         );
       }
     });
@@ -171,6 +170,8 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
     final SharedPreferences stored = context
         .read<AppSettingsCubit>()
         .preferences;
+    final AppSettingsCubit settings = context.read<AppSettingsCubit>();
+    _banners.dismiss();
     setState(() {
       _signingOut = true;
       _user = null;
@@ -185,14 +186,13 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
       cleared = await widget.auth.signOut();
       if (uid != null) {
         await AccountPreferencesCubit.forget(stored, uid);
+        await settings.forgetRecentLists(uid);
       }
     } on Object catch (error) {
       debugPrint('Sign-out failed: $error');
       final BuildContext? context = _messenger.currentContext;
       if (context != null && context.mounted) {
-        _messenger.currentState?.showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context).signOutFailed)),
-        );
+        _banners.show(AppLocalizations.of(context).signOutFailed);
       }
       // Still signed in: back to that user's lists.
       if (mounted) {
@@ -257,6 +257,8 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
             return AppLocalizations.of(context).appTitle;
           },
           debugShowCheckedModeBanner: false,
+          builder: (context, child) =>
+              AppBannerHost(controller: _banners, child: child!),
           locale: settings.localeCode == null
               ? null
               : Locale(settings.localeCode!),
@@ -271,10 +273,14 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
     );
 
     if (user == null || store == null || preferences == null) {
-      return app;
+      return RepositoryProvider<AppBannerController>.value(
+        value: _banners,
+        child: app,
+      );
     }
     return MultiRepositoryProvider(
       providers: [
+        RepositoryProvider<AppBannerController>.value(value: _banners),
         RepositoryProvider<ListStore>.value(value: store),
         RepositoryProvider<StarterSeeding>.value(
           value: _starter ?? StarterSeeding.done(),

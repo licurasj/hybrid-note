@@ -1298,4 +1298,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get preferencesSunday => '日曜日';
+
+  @override
+  String confirmDeleteTitle(String name) {
+    return '「$name」を削除しますか?';
+  }
 }

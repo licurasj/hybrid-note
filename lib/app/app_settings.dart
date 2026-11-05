@@ -50,6 +50,10 @@ class AppSettingsCubit extends Cubit<AppSettings> {
   static const String hubXKey = 'settings.hubX';
   static const String hubYKey = 'settings.hubY';
 
+  // Lists by when they were last opened, newest first. Per phone and per
+  // user; the first is the last open list (Q-49, Q-50 a).
+  static String recentListsKey(String uid) => 'settings.recentLists.$uid';
+
   static ThemeMode _readTheme(SharedPreferences preferences) {
     final String? stored = preferences.getString(themeModeKey);
     if (stored != null) {
@@ -73,6 +77,18 @@ class AppSettingsCubit extends Cubit<AppSettings> {
       themeMode: _readTheme(preferences),
       hubPosition: hubX == null || hubY == null ? null : Offset(hubX, hubY),
     );
+  }
+
+  List<String> recentLists(String uid) =>
+      preferences.getStringList(recentListsKey(uid)) ?? const [];
+
+  Future<void> setRecentLists(String uid, List<String> listIds) async {
+    await preferences.setStringList(recentListsKey(uid), listIds);
+  }
+
+  // Sign-out clears what this phone knows of the user (Q-25 A).
+  Future<void> forgetRecentLists(String uid) async {
+    await preferences.remove(recentListsKey(uid));
   }
 
   Future<void> setLocaleCode(String? localeCode) async {

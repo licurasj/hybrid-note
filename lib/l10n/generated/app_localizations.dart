@@ -2281,6 +2281,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sunday'**
   String get preferencesSunday;
+
+  /// No description provided for @confirmDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete “{name}”?'**
+  String confirmDeleteTitle(String name);
 }
 
 class _AppLocalizationsDelegate

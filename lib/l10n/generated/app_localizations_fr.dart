@@ -1333,4 +1333,9 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get preferencesSunday => 'Dimanche';
+
+  @override
+  String confirmDeleteTitle(String name) {
+    return 'Supprimer « $name » ?';
+  }
 }

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:uuid/uuid.dart';
 
+import '../app/account_preferences.dart';
 import '../app/app_theme.dart';
+import '../app/date_preferences.dart';
 import '../app_colors.dart';
 import '../l10n/generated/app_localizations.dart';
 import 'list_definition.dart';
@@ -257,11 +259,14 @@ class _GenericItemDialogState extends State<GenericItemDialog> {
             ?.toLocal() ??
         DateTime.now();
 
+    final AccountPreferences preferences = context.accountPreferences;
     final DateTime? day = await showDatePicker(
       context: context,
       initialDate: current,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
+      builder: (context, child) =>
+          datePickerIn(preferences.weekStart, context, child),
     );
     if (day == null || !mounted) {
       return;
@@ -272,6 +277,8 @@ class _GenericItemDialogState extends State<GenericItemDialog> {
       final TimeOfDay? picked = await showTimePicker(
         context: context,
         initialTime: time,
+        builder: (context, child) =>
+            timePickerIn(preferences.timeFormat, context, child),
       );
       if (picked == null || !mounted) {
         return;
@@ -716,7 +723,7 @@ class _GenericItemDialogState extends State<GenericItemDialog> {
             : null;
         final String locale = Localizations.localeOf(context).toLanguageTag();
         final DateFormat format = field.type == FieldType.dateTime
-            ? DateFormat.yMMMd(locale).add_jm()
+            ? dateTimeFormat(locale, context.watchAccountPreferences.timeFormat)
             : DateFormat.yMMMd(locale);
         return _row(
           look,

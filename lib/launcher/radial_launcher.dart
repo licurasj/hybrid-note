@@ -59,6 +59,7 @@ class RadialLauncher extends StatefulWidget {
     this.onNew,
     this.onHome,
     this.hubPosition,
+    this.haptics = true,
     this.onHubMoved,
     this.config = const LauncherConfig(),
     this.hubTooltip = 'Lists',
@@ -80,6 +81,8 @@ class RadialLauncher extends StatefulWidget {
   final VoidCallback? onHome;
   // Saved hub centre as a fraction of the launcher's size; null = default.
   final Offset? hubPosition;
+  // The Vibration preference (Q-50): whether the dial clicks under the finger.
+  final bool haptics;
   // Receives the dropped hub centre as a fraction of the launcher's size.
   // Null turns the Move prompt off.
   final ValueChanged<Offset>? onHubMoved;
@@ -243,7 +246,9 @@ class RadialLauncherState extends State<RadialLauncher>
         ? prompt.progress >= widget.config.promptUnselectAt
         : prompt.progress >= widget.config.promptSelectAt;
     if (prompt.selected && !wasSelected) {
-      HapticFeedback.selectionClick();
+      if (widget.haptics) {
+        HapticFeedback.selectionClick();
+      }
     }
   }
 
@@ -387,7 +392,9 @@ class RadialLauncherState extends State<RadialLauncher>
             _hover = LauncherTarget.none;
             _movedHub = geometry.hubCenter;
             _moveGrab = geometry.hubCenter - finger;
-            HapticFeedback.mediumImpact();
+            if (widget.haptics) {
+              HapticFeedback.mediumImpact();
+            }
           }
           return;
         }
@@ -400,7 +407,9 @@ class RadialLauncherState extends State<RadialLauncher>
         if (target.kind == LauncherTargetKind.note ||
             target == LauncherTarget.add ||
             target == LauncherTarget.home) {
-          HapticFeedback.selectionClick();
+          if (widget.haptics) {
+            HapticFeedback.selectionClick();
+          }
         }
       } else if ((finger - (_restAnchor ?? finger)).distance >
           widget.config.moveTolerance) {

@@ -425,5 +425,6 @@
   "preferencesTime24": "24 horas",
   "preferencesWeekStart": "La semana empieza el",
   "preferencesMonday": "Lunes",
-  "preferencesSunday": "Domingo"
+  "preferencesSunday": "Domingo",
+  "confirmDeleteTitle": "¿Eliminar «{name}»?"
 }

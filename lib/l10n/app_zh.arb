@@ -425,5 +425,6 @@
   "preferencesTime24": "24 小时制",
   "preferencesWeekStart": "每周开始于",
   "preferencesMonday": "星期一",
-  "preferencesSunday": "星期日"
+  "preferencesSunday": "星期日",
+  "confirmDeleteTitle": "删除“{name}”?"
 }

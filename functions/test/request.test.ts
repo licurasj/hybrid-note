@@ -83,6 +83,14 @@ describe('parseRequest', () => {
     assert.equal(reason(base({ followUp: 'milk' })), 'badRequest');
   });
 
+  test('weekStart is monday or sunday, left out when absent (Q-50 f)', () => {
+    for (const weekStart of ['monday', 'sunday']) {
+      assert.equal(parseRequest(base({ weekStart }), limits).weekStart, weekStart);
+    }
+    assert.equal(parseRequest(base(), limits).weekStart, undefined);
+    assert.equal(reason(base({ weekStart: 'tuesday' })), 'badRequest');
+  });
+
   test('askLevel is more, balanced or less, balanced when absent (Q-43)', () => {
     for (const askLevel of ['more', 'balanced', 'less']) {
       assert.equal(parseRequest(base({ askLevel }), limits).askLevel, askLevel);

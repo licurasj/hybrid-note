@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
+import 'app/account_preferences.dart';
 import 'app/app_settings.dart';
 import 'app/app_theme.dart';
+import 'app/date_preferences.dart';
 import 'app/hybrid_note_app.dart';
 import 'app/preferences_screen.dart';
 import 'app/starter_note.dart';
@@ -108,7 +110,10 @@ class HomeScreen extends StatelessWidget {
       final String when = overdue
           ? DateFormat.MMMd(locale).format(due.due)
           : due.hasTime
-              ? DateFormat.jm(locale).format(due.due)
+              ? timeFormat(
+                  locale,
+                  context.accountPreferences.timeFormat,
+                ).format(due.due)
               : '';
       return InkWell(
         key: ValueKey('home-due-${due.item.id}'),

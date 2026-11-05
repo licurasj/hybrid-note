@@ -46,6 +46,7 @@ class DialLauncher extends StatefulWidget {
     this.onNew,
     this.onHome,
     this.hubPosition,
+    this.haptics = true,
     this.onHubMoved,
     this.config = const LauncherConfig(),
     this.hubTooltip = 'Lists',
@@ -65,6 +66,8 @@ class DialLauncher extends StatefulWidget {
   final VoidCallback? onNew;
   final VoidCallback? onHome;
   final Offset? hubPosition;
+  // The Vibration preference (Q-50): whether the dial clicks under the finger.
+  final bool haptics;
   final ValueChanged<Offset>? onHubMoved;
   final LauncherConfig config;
   final String hubTooltip;
@@ -575,7 +578,9 @@ class _DialLauncherState extends State<DialLauncher>
     _editShown = false;
     _restStart = _now;
     if (index != null) {
-      HapticFeedback.selectionClick();
+      if (widget.haptics) {
+        HapticFeedback.selectionClick();
+      }
     }
   }
 
@@ -788,7 +793,9 @@ class _DialLauncherState extends State<DialLauncher>
           _moveShown = false;
           _movedHub = g.hubCenter;
           _moveGrab = g.hubCenter - finger;
-          HapticFeedback.mediumImpact();
+          if (widget.haptics) {
+            HapticFeedback.mediumImpact();
+          }
         }
         return;
       }
@@ -813,7 +820,9 @@ class _DialLauncherState extends State<DialLauncher>
             ? _progress >= _config.promptUnselectAt
             : _progress >= _config.promptSelectAt;
         if (_promptSelected && !was) {
-          HapticFeedback.selectionClick();
+          if (widget.haptics) {
+            HapticFeedback.selectionClick();
+          }
         }
         // Pulling back in or turning away lets Edit go; the dial turns again.
         if (radius < anchorRadius - 30 ||

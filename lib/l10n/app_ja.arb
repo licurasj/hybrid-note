@@ -425,5 +425,6 @@
   "preferencesTime24": "24時間",
   "preferencesWeekStart": "週の始まり",
   "preferencesMonday": "月曜日",
-  "preferencesSunday": "日曜日"
+  "preferencesSunday": "日曜日",
+  "confirmDeleteTitle": "「{name}」を削除しますか?"
 }

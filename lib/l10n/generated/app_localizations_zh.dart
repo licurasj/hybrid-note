@@ -1291,4 +1291,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get preferencesSunday => '星期日';
+
+  @override
+  String confirmDeleteTitle(String name) {
+    return '删除“$name”?';
+  }
 }

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -234,6 +235,17 @@ class AccountPreferences {
     timeFormat,
     weekStart,
   );
+}
+
+extension AccountPreferencesOf on BuildContext {
+  // For handlers: the values now. Parts tested without the gate get the
+  // defaults.
+  AccountPreferences get accountPreferences =>
+      read<AccountPreferencesCubit?>()?.state ?? const AccountPreferences();
+
+  // For build methods: rebuilds when a value changes.
+  AccountPreferences get watchAccountPreferences =>
+      watch<AccountPreferencesCubit?>()?.state ?? const AccountPreferences();
 }
 
 // The account's stored preferences as the listener saw them: [data] is null

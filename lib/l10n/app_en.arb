@@ -1031,5 +1031,13 @@
   "preferencesTime24": "24-hour",
   "preferencesWeekStart": "Week starts on",
   "preferencesMonday": "Monday",
-  "preferencesSunday": "Sunday"
+  "preferencesSunday": "Sunday",
+  "confirmDeleteTitle": "Delete “{name}”?",
+  "@confirmDeleteTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

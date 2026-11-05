@@ -138,6 +138,14 @@ List<String> _titles(FirestoreListStore store, String listId) => [
 ];
 
 void main() {
+  testWidgets('a chosen week start goes with each request (Q-50 f)', (tester) async {
+    final FakeAiService ai = FakeAiService()..answers.add(_calls(const []));
+    await _pump(tester, ai);
+    await _account(tester).setWeekStart(WeekStart.sunday);
+    await _ask(tester, 'this week');
+    expect(ai.requests.first.toJson()['weekStart'], 'sunday');
+  });
+
   testWidgets('the one-time notice names DeepSeek and China before the first '
       'request, then never again', (tester) async {
     final FakeAiService ai = FakeAiService()
@@ -1022,6 +1030,8 @@ void main() {
 
       await _ask(tester, 'dinner tomorrow');
       expect(ai.requests.first.toJson()['askLevel'], 'more');
+      // Follow the language, the default, sends no week start (Q-50 f).
+      expect(ai.requests.first.toJson().containsKey('weekStart'), isFalse);
       expect(find.byKey(const ValueKey('ai-chip-$_tasks')), findsOneWidget);
       // Typing had started; a button answers instead, so the request does
       // not quote the question.

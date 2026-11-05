@@ -462,6 +462,11 @@ class AiBarController extends ChangeNotifier {
       openListId: pending.newList ? null : pending.openListId,
       followUp: pending.newList ? null : _followUp,
       askLevel: preferences.state.aiAskLevel.wire,
+      weekStart: switch (preferences.state.weekStart) {
+        WeekStart.followLanguage => null,
+        WeekStart.monday => 'monday',
+        WeekStart.sunday => 'sunday',
+      },
     );
     _followUp = null;
     await _run(request, correct: true);

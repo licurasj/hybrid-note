@@ -423,14 +423,6 @@ class AppTheme {
           side: BorderSide(color: n.line),
         ),
       ),
-      snackBarTheme: SnackBarThemeData(
-        backgroundColor: n.text,
-        contentTextStyle: sans(14, color: n.ground),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppShapes.fieldRadius),
-        ),
-      ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: n.ground,
         indicatorColor: n.surface,
