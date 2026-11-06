@@ -191,18 +191,34 @@ class PreferencesScreen extends StatelessWidget {
               ],
               onChanged: cubit.setStartScreen,
             ),
-            _SwitchRow(
-              key: const ValueKey('preferences-home-cards'),
-              label: loc.preferencesHomeCards,
-              value: preferences.homeCards,
-              onChanged: cubit.setHomeCards,
+            _ChoiceRow<HomeContent>(
+              key: const ValueKey('preferences-home-content'),
+              label: loc.preferencesHomeContent,
+              selected: preferences.homeContent,
+              choices: [
+                (
+                  value: HomeContent.both,
+                  label: loc.preferencesHomeContentBoth,
+                ),
+                (
+                  value: HomeContent.cards,
+                  label: loc.preferencesHomeContentCards,
+                ),
+                (
+                  value: HomeContent.dueToday,
+                  label: loc.preferencesHomeContentDue,
+                ),
+              ],
+              onChanged: cubit.setHomeContent,
             ),
-            _SwitchRow(
-              key: const ValueKey('preferences-home-suggestions'),
-              label: loc.preferencesHomeSuggestions,
-              value: preferences.homeSuggestions,
-              onChanged: cubit.setHomeSuggestions,
-            ),
+            // It means nothing without cards, and keeps its value meanwhile.
+            if (preferences.homeContent.showsCards)
+              _SwitchRow(
+                key: const ValueKey('preferences-home-suggestions'),
+                label: loc.preferencesHomeSuggestions,
+                value: preferences.homeSuggestions,
+                onChanged: cubit.setHomeSuggestions,
+              ),
             look.sectionLabel(loc.preferencesItems),
             _ChoiceRow<TickedItems>(
               key: const ValueKey('preferences-ticked-items'),

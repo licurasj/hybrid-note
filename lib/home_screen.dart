@@ -225,10 +225,7 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.only(top: 10),
       child: HomeListCard(
         definition: definition,
-        openItems: catalog
-            .itemsOf(listId)
-            .where((item) => !ListRules.isCompleted(definition, item))
-            .toList(),
+        openItems: homeTopItems(definition, catalog.itemsOf(listId)),
         pinned: suggested ? null : !_unfilled.contains(listId),
         onTap: () => widget.onOpenList?.call(listId),
         onPin: suggested ? null : () => _tapPin(listId, catalog),
@@ -340,7 +337,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           padding: EdgeInsets.only(top: 28),
                           child: StarterNote(),
                         ),
-                      if (due.isNotEmpty) ...[
+                      if (preferences.homeContent.showsDue &&
+                          due.isNotEmpty) ...[
                         const SizedBox(height: 40),
                         Text(loc.today.toUpperCase(), style: type.sectionLabel),
                         const SizedBox(height: 10),
@@ -350,7 +348,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           hairline(),
                         ],
                       ],
-                      if (preferences.homeCards &&
+                      if (preferences.homeContent.showsCards &&
                           (_pinned!.isNotEmpty || _suggested.isNotEmpty)) ...[
                         const SizedBox(height: 40),
                         for (final String listId in _pinned!)

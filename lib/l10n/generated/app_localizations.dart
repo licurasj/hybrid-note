@@ -2096,11 +2096,29 @@ abstract class AppLocalizations {
   /// **'Unpin from home'**
   String get homeUnpin;
 
-  /// No description provided for @preferencesHomeCards.
+  /// No description provided for @preferencesHomeContent.
   ///
   /// In en, this message translates to:
-  /// **'Show list cards on home'**
-  String get preferencesHomeCards;
+  /// **'Home shows'**
+  String get preferencesHomeContent;
+
+  /// No description provided for @preferencesHomeContentBoth.
+  ///
+  /// In en, this message translates to:
+  /// **'List cards and items due today'**
+  String get preferencesHomeContentBoth;
+
+  /// No description provided for @preferencesHomeContentCards.
+  ///
+  /// In en, this message translates to:
+  /// **'List cards'**
+  String get preferencesHomeContentCards;
+
+  /// No description provided for @preferencesHomeContentDue.
+  ///
+  /// In en, this message translates to:
+  /// **'Items due today'**
+  String get preferencesHomeContentDue;
 
   /// No description provided for @preferencesHomeSuggestions.
   ///

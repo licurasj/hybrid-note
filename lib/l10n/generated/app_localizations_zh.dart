@@ -1194,7 +1194,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get homeUnpin => '从首页取消固定';
 
   @override
-  String get preferencesHomeCards => '在首页显示列表卡片';
+  String get preferencesHomeContent => '首页显示';
+
+  @override
+  String get preferencesHomeContentBoth => '列表卡片和今日到期项目';
+
+  @override
+  String get preferencesHomeContentCards => '列表卡片';
+
+  @override
+  String get preferencesHomeContentDue => '今日到期项目';
 
   @override
   String get preferencesHomeSuggestions => '显示建议';

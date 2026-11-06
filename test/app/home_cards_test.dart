@@ -207,6 +207,84 @@ void main() {
     });
   });
 
+  group('a card\'s top items', () {
+    ListItem dated(
+      String id, {
+      DateTime? due,
+      DateTime? made,
+      bool done = false,
+    }) {
+      final DateTime at = made ?? _now;
+      return ListItem(
+        id: id,
+        listId: 'l',
+        values: {
+          'title': id,
+          'done': done,
+          if (due != null) 'reminderAt': due.toIso8601String(),
+        },
+        createdAt: at,
+        updatedAt: at,
+      );
+    }
+
+    List<String> top(ListDefinition list, List<ListItem> items) => [
+      for (final ListItem item in homeTopItems(list, items)) item.id,
+    ];
+
+    test('earliest due first, overdue leading, then newest', () {
+      expect(
+        top(_list('l'), [
+          dated('old', made: _now.subtract(const Duration(days: 9))),
+          dated('next-week', due: _now.add(const Duration(days: 8))),
+          dated('tomorrow', due: _now.add(const Duration(days: 1))),
+          dated('new', made: _now.subtract(const Duration(days: 1))),
+          dated('late', due: _now.subtract(const Duration(days: 3))),
+        ]),
+        ['late', 'tomorrow', 'next-week', 'new', 'old'],
+      );
+    });
+
+    test('done items do not count, however soon', () {
+      expect(
+        top(_list('l'), [dated('done', due: _now, done: true), dated('open')]),
+        ['open'],
+      );
+    });
+
+    test('a list with no reminders is newest first, whatever its dates', () {
+      final ListDefinition journal = ListDefinition.fromJson({
+        ...BuiltinTemplates.journal().toJson(),
+        'id': 'l',
+      });
+      ListItem entry(String id, DateTime made) => ListItem(
+        id: id,
+        listId: 'l',
+        values: {'title': id, 'date': made.toIso8601String()},
+        createdAt: made,
+        updatedAt: made,
+      );
+      expect(
+        top(journal, [
+          entry('older', _now.subtract(const Duration(days: 5))),
+          entry('newer', _now.subtract(const Duration(days: 1))),
+        ]),
+        ['newer', 'older'],
+      );
+    });
+  });
+
+  group('what home shows', () {
+    test('each choice, and an unknown one is both', () {
+      expect(HomeContent.both.showsCards && HomeContent.both.showsDue, isTrue);
+      expect(HomeContent.cards.showsCards, isTrue);
+      expect(HomeContent.cards.showsDue, isFalse);
+      expect(HomeContent.dueToday.showsCards, isFalse);
+      expect(HomeContent.dueToday.showsDue, isTrue);
+      expect(HomeContent.of('later'), HomeContent.both);
+    });
+  });
+
   group('deleted lists', () {
     test('a pin or an order id with no list is skipped', () {
       expect(_cards(_manyLists(2), pins: ['gone', 'l1']).pinned, ['l1']);
@@ -495,14 +573,14 @@ void main() {
         const AccountPreferences(homePins: ['a'], homeRemoved: ['b']),
       );
       await cubit.setHomeSuggestions(false);
-      await cubit.setHomeCards(false);
+      await cubit.setHomeContent(HomeContent.dueToday);
       expect(
         cubit.state,
         const AccountPreferences(
           homePins: ['a'],
           homeRemoved: ['b'],
           homeSuggestions: false,
-          homeCards: false,
+          homeContent: HomeContent.dueToday,
         ),
       );
     });

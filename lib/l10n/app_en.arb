@@ -980,6 +980,9 @@
   "homeNothingOpen": "Nothing open",
   "homePin": "Pin to home",
   "homeUnpin": "Unpin from home",
-  "preferencesHomeCards": "Show list cards on home",
+  "preferencesHomeContent": "Home shows",
+  "preferencesHomeContentBoth": "List cards and items due today",
+  "preferencesHomeContentCards": "List cards",
+  "preferencesHomeContentDue": "Items due today",
   "preferencesHomeSuggestions": "Show suggestions"
 }

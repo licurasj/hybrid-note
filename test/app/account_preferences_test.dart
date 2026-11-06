@@ -90,7 +90,7 @@ void main() {
       expect(preferences.vibration, isTrue);
       expect(preferences.timeFormat, TimeFormat.followLanguage);
       expect(preferences.weekStart, WeekStart.followLanguage);
-      expect(preferences.homeCards, isTrue);
+      expect(preferences.homeContent, HomeContent.both);
       expect(preferences.homeSuggestions, isTrue);
       expect(preferences.homePins, isEmpty);
       expect(preferences.homeRemoved, isEmpty);
@@ -114,7 +114,7 @@ void main() {
         vibration: false,
         timeFormat: TimeFormat.h24,
         weekStart: WeekStart.sunday,
-        homeCards: false,
+        homeContent: HomeContent.dueToday,
         homeSuggestions: false,
         homePins: ['a'],
         homeRemoved: ['b'],

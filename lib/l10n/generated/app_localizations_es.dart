@@ -1226,7 +1226,17 @@ class AppLocalizationsEs extends AppLocalizations {
   String get homeUnpin => 'Quitar del inicio';
 
   @override
-  String get preferencesHomeCards => 'Mostrar tarjetas de listas en el inicio';
+  String get preferencesHomeContent => 'El inicio muestra';
+
+  @override
+  String get preferencesHomeContentBoth =>
+      'Tarjetas de listas y elementos de hoy';
+
+  @override
+  String get preferencesHomeContentCards => 'Tarjetas de listas';
+
+  @override
+  String get preferencesHomeContentDue => 'Elementos de hoy';
 
   @override
   String get preferencesHomeSuggestions => 'Mostrar sugerencias';

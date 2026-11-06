@@ -1199,7 +1199,16 @@ class AppLocalizationsJa extends AppLocalizations {
   String get homeUnpin => 'ホームのピン留めを解除';
 
   @override
-  String get preferencesHomeCards => 'ホームにリストカードを表示';
+  String get preferencesHomeContent => 'ホームの表示';
+
+  @override
+  String get preferencesHomeContentBoth => 'リストカードと今日が期限の項目';
+
+  @override
+  String get preferencesHomeContentCards => 'リストカード';
+
+  @override
+  String get preferencesHomeContentDue => '今日が期限の項目';
 
   @override
   String get preferencesHomeSuggestions => 'おすすめを表示';

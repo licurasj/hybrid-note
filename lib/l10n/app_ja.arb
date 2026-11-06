@@ -374,6 +374,9 @@
   "homeNothingOpen": "未完了の項目はありません",
   "homePin": "ホームにピン留め",
   "homeUnpin": "ホームのピン留めを解除",
-  "preferencesHomeCards": "ホームにリストカードを表示",
+  "preferencesHomeContent": "ホームの表示",
+  "preferencesHomeContentBoth": "リストカードと今日が期限の項目",
+  "preferencesHomeContentCards": "リストカード",
+  "preferencesHomeContentDue": "今日が期限の項目",
   "preferencesHomeSuggestions": "おすすめを表示"
 }

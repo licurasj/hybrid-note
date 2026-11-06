@@ -374,6 +374,9 @@
   "homeNothingOpen": "Nada pendiente",
   "homePin": "Fijar en el inicio",
   "homeUnpin": "Quitar del inicio",
-  "preferencesHomeCards": "Mostrar tarjetas de listas en el inicio",
+  "preferencesHomeContent": "El inicio muestra",
+  "preferencesHomeContentBoth": "Tarjetas de listas y elementos de hoy",
+  "preferencesHomeContentCards": "Tarjetas de listas",
+  "preferencesHomeContentDue": "Elementos de hoy",
   "preferencesHomeSuggestions": "Mostrar sugerencias"
 }

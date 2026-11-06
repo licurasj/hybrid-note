@@ -289,22 +289,79 @@ void main() {
   });
 
   group('the switches', () {
-    testWidgets('cards off: weekday, date and Today only, pins kept', (
+    List<ListItem> withDue() => [
+      ..._items,
+      ListItem(
+        id: 'due-one',
+        listId: BuiltinTemplates.tasksId,
+        values: {
+          'title': 'Due today',
+          'done': false,
+          'reminderAt': _now
+              .subtract(const Duration(minutes: 1))
+              .toIso8601String(),
+        },
+        createdAt: _now,
+        updatedAt: _now,
+      ),
+    ];
+    const ValueKey<String> dueRow = ValueKey('home-due-due-one');
+
+    testWidgets('both is the default', (tester) async {
+      await _pumpApp(tester, items: withDue());
+      expect(find.byKey(dueRow), findsOneWidget);
+      expect(find.byType(HomeListCard), findsWidgets);
+    });
+
+    testWidgets('items due today: the due rows and no cards, pins kept', (
+      tester,
+    ) async {
+      await _pumpApp(
+        tester,
+        items: withDue(),
+        preferences: {
+          AccountPreferences.homeContentKey: HomeContent.dueToday.wire,
+          AccountPreferences.homePinsKey: [BuiltinTemplates.tasksId],
+        },
+      );
+      expect(find.byType(HomeListCard), findsNothing);
+      expect(find.byKey(dueRow), findsOneWidget);
+      expect(
+        tester
+            .element(find.byKey(const ValueKey('home-weekday')))
+            .accountPreferences
+            .homePins,
+        [BuiltinTemplates.tasksId],
+      );
+    });
+
+    testWidgets('items due today with none due: the header says so', (
       tester,
     ) async {
       await _pumpApp(
         tester,
         preferences: {
-          AccountPreferences.homeCardsKey: false,
-          AccountPreferences.homePinsKey: [BuiltinTemplates.tasksId],
+          AccountPreferences.homeContentKey: HomeContent.dueToday.wire,
         },
       );
       expect(find.byType(HomeListCard), findsNothing);
-      expect(find.byKey(const ValueKey('home-weekday')), findsOneWidget);
-      final AccountPreferences preferences = tester
-          .element(find.byKey(const ValueKey('home-weekday')))
-          .accountPreferences;
-      expect(preferences.homePins, [BuiltinTemplates.tasksId]);
+      expect(find.textContaining('Nothing due today'), findsOneWidget);
+    });
+
+    testWidgets('list cards: no Today rows, and the header still counts them', (
+      tester,
+    ) async {
+      await _pumpApp(
+        tester,
+        items: withDue(),
+        preferences: {
+          AccountPreferences.homeContentKey: HomeContent.cards.wire,
+        },
+      );
+      expect(find.byKey(dueRow), findsNothing);
+      expect(find.text('TODAY'), findsNothing);
+      expect(find.byType(HomeListCard), findsWidgets);
+      expect(find.textContaining('1 thing today'), findsOneWidget);
     });
 
     testWidgets(

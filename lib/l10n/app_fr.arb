@@ -374,6 +374,9 @@
   "homeNothingOpen": "Rien en cours",
   "homePin": "Épingler à l'accueil",
   "homeUnpin": "Retirer de l'accueil",
-  "preferencesHomeCards": "Afficher les cartes de listes sur l'accueil",
+  "preferencesHomeContent": "L'accueil affiche",
+  "preferencesHomeContentBoth": "Cartes de listes et éléments du jour",
+  "preferencesHomeContentCards": "Cartes de listes",
+  "preferencesHomeContentDue": "Éléments du jour",
   "preferencesHomeSuggestions": "Afficher les suggestions"
 }

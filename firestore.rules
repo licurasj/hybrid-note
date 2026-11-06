@@ -86,7 +86,7 @@ service cloud.firestore {
         && (!('vibration' in data) || data.vibration is bool)
         && (!('timeFormat' in data) || data.timeFormat is string)
         && (!('weekStart' in data) || data.weekStart is string)
-        && (!('homeCards' in data) || data.homeCards is bool)
+        && (!('homeContent' in data) || data.homeContent is string)
         && (!('homeSuggestions' in data) || data.homeSuggestions is bool)
         && (!('homePins' in data)
             || (data.homePins is list && data.homePins.size() <= 1000))

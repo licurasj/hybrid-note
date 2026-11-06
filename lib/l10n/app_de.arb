@@ -374,6 +374,9 @@
   "homeNothingOpen": "Nichts offen",
   "homePin": "Auf Startseite anheften",
   "homeUnpin": "Von Startseite lösen",
-  "preferencesHomeCards": "Listenkarten auf der Startseite anzeigen",
+  "preferencesHomeContent": "Startseite zeigt",
+  "preferencesHomeContentBoth": "Listenkarten und heute Fälliges",
+  "preferencesHomeContentCards": "Listenkarten",
+  "preferencesHomeContentDue": "Heute Fälliges",
   "preferencesHomeSuggestions": "Vorschläge anzeigen"
 }

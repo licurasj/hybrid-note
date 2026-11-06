@@ -374,6 +374,9 @@
   "homeNothingOpen": "没有未完成的项目",
   "homePin": "固定到首页",
   "homeUnpin": "从首页取消固定",
-  "preferencesHomeCards": "在首页显示列表卡片",
+  "preferencesHomeContent": "首页显示",
+  "preferencesHomeContentBoth": "列表卡片和今日到期项目",
+  "preferencesHomeContentCards": "列表卡片",
+  "preferencesHomeContentDue": "今日到期项目",
   "preferencesHomeSuggestions": "显示建议"
 }

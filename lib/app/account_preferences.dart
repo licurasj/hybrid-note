@@ -105,6 +105,25 @@ enum WeekStart {
   );
 }
 
+// What home shows under its header (Q-73).
+enum HomeContent {
+  both('both'),
+  cards('cards'),
+  dueToday('dueToday');
+
+  const HomeContent(this.wire);
+
+  final String wire;
+
+  bool get showsCards => this != dueToday;
+  bool get showsDue => this != cards;
+
+  static HomeContent of(Object? wire) => values.firstWhere(
+    (content) => content.wire == wire,
+    orElse: () => HomeContent.both,
+  );
+}
+
 // Choices that follow the account to every phone (Q-48 A). Choices that
 // belong to one phone are in AppSettings.
 @immutable
@@ -123,7 +142,7 @@ class AccountPreferences {
     this.vibration = true,
     this.timeFormat = TimeFormat.followLanguage,
     this.weekStart = WeekStart.followLanguage,
-    this.homeCards = true,
+    this.homeContent = HomeContent.both,
     this.homeSuggestions = true,
     this.homePins = const [],
     this.homeRemoved = const [],
@@ -145,7 +164,7 @@ class AccountPreferences {
   static const String vibrationKey = 'vibration';
   static const String timeFormatKey = 'timeFormat';
   static const String weekStartKey = 'weekStart';
-  static const String homeCardsKey = 'homeCards';
+  static const String homeContentKey = 'homeContent';
   static const String homeSuggestionsKey = 'homeSuggestions';
   static const String homePinsKey = 'homePins';
   static const String homeRemovedKey = 'homeRemoved';
@@ -172,8 +191,8 @@ class AccountPreferences {
   final bool vibration;
   final TimeFormat timeFormat;
   final WeekStart weekStart;
-  // Home shows list cards (Q-73), and suggestions among them.
-  final bool homeCards;
+  final HomeContent homeContent;
+  // Suggestions among the cards, when cards show (Q-73).
   final bool homeSuggestions;
   // Pinned list ids, with no limit (Q-70).
   final List<String> homePins;
@@ -219,7 +238,7 @@ class AccountPreferences {
       vibration: flag(vibrationKey, true),
       timeFormat: TimeFormat.of(json[timeFormatKey]),
       weekStart: WeekStart.of(json[weekStartKey]),
-      homeCards: flag(homeCardsKey, true),
+      homeContent: HomeContent.of(json[homeContentKey]),
       homeSuggestions: flag(homeSuggestionsKey, true),
       homePins: ids(homePinsKey),
       homeRemoved: ids(homeRemovedKey),
@@ -243,7 +262,7 @@ class AccountPreferences {
     vibrationKey: vibration,
     timeFormatKey: timeFormat.wire,
     weekStartKey: weekStart.wire,
-    homeCardsKey: homeCards,
+    homeContentKey: homeContent.wire,
     homeSuggestionsKey: homeSuggestions,
     homePinsKey: homePins,
     homeRemovedKey: homeRemoved,
@@ -268,7 +287,7 @@ class AccountPreferences {
       other.vibration == vibration &&
       other.timeFormat == timeFormat &&
       other.weekStart == weekStart &&
-      other.homeCards == homeCards &&
+      other.homeContent == homeContent &&
       other.homeSuggestions == homeSuggestions &&
       listEquals(other.homePins, homePins) &&
       listEquals(other.homeRemoved, homeRemoved) &&
@@ -291,7 +310,7 @@ class AccountPreferences {
     vibration,
     timeFormat,
     weekStart,
-    homeCards,
+    homeContent,
     homeSuggestions,
     Object.hashAll(homePins),
     Object.hashAll(homeRemoved),
@@ -641,8 +660,8 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
   Future<void> setWeekStart(WeekStart start) =>
       _change(AccountPreferences.weekStartKey, start.wire);
 
-  Future<void> setHomeCards(bool value) =>
-      _change(AccountPreferences.homeCardsKey, value);
+  Future<void> setHomeContent(HomeContent content) =>
+      _change(AccountPreferences.homeContentKey, content.wire);
 
   Future<void> setHomeSuggestions(bool value) =>
       _change(AccountPreferences.homeSuggestionsKey, value);

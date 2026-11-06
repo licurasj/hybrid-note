@@ -65,6 +65,30 @@ List<String> mergeHomeOrderIntoDial(
 int homeSuggestionCount(int pinned) =>
     math.min(homeMaxSuggestions, math.max(0, homeCardsFilled - pinned));
 
+// A card's open items, top first (Q-65): earliest due first, so overdue ones
+// lead, then those with no due date by newest. Only a reminder is a due date; a
+// journal entry's own date is not.
+List<ListItem> homeTopItems(ListDefinition definition, List<ListItem> items) {
+  final FieldDefinition? field = definition.fieldWithRole(FieldRole.reminder);
+  DateTime? dueOf(ListItem item) {
+    final Object? raw = field == null ? null : item[field.key];
+    return raw is String ? DateTime.tryParse(raw) : null;
+  }
+
+  final List<ListItem> open = items
+      .where((item) => !ListRules.isCompleted(definition, item))
+      .toList();
+  return open..sort((a, b) {
+    final int order = switch ((dueOf(a), dueOf(b))) {
+      (final DateTime x, final DateTime y) => x.compareTo(y),
+      (DateTime(), null) => -1,
+      (null, DateTime()) => 1,
+      _ => b.createdAt.compareTo(a.createdAt),
+    };
+    return order != 0 ? order : a.id.compareTo(b.id);
+  });
+}
+
 // What home shows: pinned lists in [pinnedOrder], which any list without a
 // pin has already left, and below them the suggestions (Q-70, Q-78, Q-79).
 ({List<ListDefinition> pinned, List<ListDefinition> suggested}) chooseHomeCards(

@@ -1234,8 +1234,17 @@ class AppLocalizationsFr extends AppLocalizations {
   String get homeUnpin => 'Retirer de l\'accueil';
 
   @override
-  String get preferencesHomeCards =>
-      'Afficher les cartes de listes sur l\'accueil';
+  String get preferencesHomeContent => 'L\'accueil affiche';
+
+  @override
+  String get preferencesHomeContentBoth =>
+      'Cartes de listes et éléments du jour';
+
+  @override
+  String get preferencesHomeContentCards => 'Cartes de listes';
+
+  @override
+  String get preferencesHomeContentDue => 'Éléments du jour';
 
   @override
   String get preferencesHomeSuggestions => 'Afficher les suggestions';

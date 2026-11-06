@@ -1221,7 +1221,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeUnpin => 'Unpin from home';
 
   @override
-  String get preferencesHomeCards => 'Show list cards on home';
+  String get preferencesHomeContent => 'Home shows';
+
+  @override
+  String get preferencesHomeContentBoth => 'List cards and items due today';
+
+  @override
+  String get preferencesHomeContentCards => 'List cards';
+
+  @override
+  String get preferencesHomeContentDue => 'Items due today';
 
   @override
   String get preferencesHomeSuggestions => 'Show suggestions';
