@@ -93,11 +93,21 @@ void main() {
       lessThan(tester.getTopLeft(inRow('t-today', 'Submit milestone')).dy),
     );
     expect(
-      inRow('t-late', DateFormat.MMMd('en').format(_today.subtract(const Duration(days: 2)))),
+      find.descendant(
+        of: find.byKey(const ValueKey('home-due-t-late')),
+        matching: find.textContaining(
+          DateFormat.MMMd('en').format(_today.subtract(const Duration(days: 2))),
+        ),
+      ),
       findsOneWidget,
     );
     expect(
-      inRow('t-today', DateFormat.jm('en').format(_today.add(const Duration(hours: 17)))),
+      find.descendant(
+        of: find.byKey(const ValueKey('home-due-t-today')),
+        matching: find.textContaining(
+          DateFormat.jm('en').format(_today.add(const Duration(hours: 17))),
+        ),
+      ),
       findsOneWidget,
     );
     expect(find.byType(Card), findsNothing);

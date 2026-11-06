@@ -251,8 +251,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final double headerHeight =
         top + 8 + 40 + 20 + 76 + 10 + scaler.scale(15) * 1.5 + 8;
 
-    Widget hairline() => Divider(color: neutrals.line, height: 1);
-
+    // Like the items on a card (HomeListCard): the title in the text colour with
+    // its date beside it, and no lines between. The dot and the list's name say
+    // which list it is, as these rows cross lists.
     Widget row(HomeDueItem due) {
       final ListDefinition definition = due.definition;
       final Object? title = due.item[
@@ -271,8 +272,8 @@ class _HomeScreenState extends State<HomeScreen> {
       return InkWell(
         key: ValueKey('home-due-${due.item.id}'),
         onTap: () => widget.onOpenList?.call(definition.id),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 36),
           child: Row(
             children: [
               _EclipseDot(
@@ -280,29 +281,27 @@ class _HomeScreenState extends State<HomeScreen> {
                 ring: neutrals.text,
               ),
               const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title is String ? title : '',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: type.row,
-                    ),
-                    Text(
-                      labels.listName(definition),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: type.meta,
-                    ),
-                  ],
+              Flexible(
+                child: Text(
+                  title is String ? title : '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: type.row.copyWith(color: neutrals.text, fontSize: 13),
                 ),
               ),
-              if (when.isNotEmpty) ...[
-                const SizedBox(width: 12),
-                Text(when, style: type.meta),
-              ],
+              const SizedBox(width: 8),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.sizeOf(context).width * 0.4,
+                ),
+                child: Text(
+                  [if (when.isNotEmpty) when, labels.listName(definition)]
+                      .join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: type.meta,
+                ),
+              ),
             ],
           ),
         ),
@@ -341,12 +340,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           due.isNotEmpty) ...[
                         const SizedBox(height: 40),
                         Text(loc.today.toUpperCase(), style: type.sectionLabel),
-                        const SizedBox(height: 10),
-                        hairline(),
-                        for (final HomeDueItem item in due) ...[
-                          row(item),
-                          hairline(),
-                        ],
+                        const SizedBox(height: 6),
+                        for (final HomeDueItem item in due) row(item),
                       ],
                       if (preferences.homeContent.showsDue &&
                           due.isEmpty &&
