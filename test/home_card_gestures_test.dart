@@ -652,6 +652,49 @@ void main() {
       expect(bar(), findsOneWidget);
     });
 
+    testWidgets('a tap on the bar expands it, and a second tap leaves it', (
+      tester,
+    ) async {
+      await openEntry(tester, _journal, 'Walk', body: 'By the river.');
+      final double small = sheetHeight(tester);
+      await tester.tap(bar());
+      await settle(tester);
+      final double big = sheetHeight(tester);
+      expect(big, greaterThan(1400));
+      expect(tester.testTextInput.isVisible, isFalse);
+      await tester.tap(bar());
+      await settle(tester);
+      expect(sheetHeight(tester), big);
+      await dragBar(tester, 1200);
+      expect(sheetHeight(tester), small);
+    });
+
+    testWidgets('a tap expands it at once with reduced motion', (tester) async {
+      await openEntry(tester, _journal, 'Walk', body: 'By the river.');
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      await tester.pump();
+      await tester.tap(bar());
+      await tester.pump();
+      expect(sheetHeight(tester), greaterThan(1400));
+    });
+
+    testWidgets('a cancelled press on the bar does not expand it', (
+      tester,
+    ) async {
+      await openEntry(tester, _journal, 'Walk', body: 'By the river.');
+      final double small = sheetHeight(tester);
+      final TestGesture gesture = await tester.startGesture(
+        tester.getCenter(bar()),
+      );
+      await gesture.cancel();
+      await settle(tester);
+      expect(sheetHeight(tester), small);
+    });
+
     testWidgets('a short pull up settles back', (tester) async {
       await openEntry(tester, _journal, 'Walk', body: 'By the river.');
       final double small = sheetHeight(tester);

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart' show kTouchSlop;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:uuid/uuid.dart';
@@ -61,9 +62,9 @@ class _SubItemDraft {
 
 class _GenericItemDialogState extends State<GenericItemDialog>
     with SingleTickerProviderStateMixin {
-  // A Journal entry's sheet grows for reading (Q-71): the bar at its top drags it
-  // up to almost the full screen, where the text fills the space, and back. Every
-  // other list keeps the small sheet.
+  // A Journal entry's sheet grows for reading (Q-71): a tap on the bar at its top,
+  // or a drag up, takes it to almost the full screen, where the text fills the
+  // space, and a drag down brings it back. Every other list keeps the small sheet.
   bool get _canGrow =>
       widget.item != null &&
       widget.definition.templateId == BuiltinTemplates.journalId;
@@ -71,6 +72,9 @@ class _GenericItemDialogState extends State<GenericItemDialog>
   // How far above the small height it stands now.
   double _grown = 0;
   bool _big = false;
+  // Where the press on the bar began, and whether it can still be a tap.
+  Offset _barPressedAt = Offset.zero;
+  bool _barTapping = false;
   // The text in the big sheet is being edited; until then, no keyboard.
   bool _editingBig = false;
   final ScrollController _bigScroll = ScrollController();
@@ -85,12 +89,17 @@ class _GenericItemDialogState extends State<GenericItemDialog>
 
   void _barDown(PointerDownEvent event) {
     _settle.stop();
+    _barPressedAt = event.position;
+    _barTapping = true;
     if (_grown == 0) {
       _smallHeight = context.size?.height ?? 0;
     }
   }
 
   void _barMoved(PointerMoveEvent event) {
+    if ((event.position - _barPressedAt).distance > kTouchSlop) {
+      _barTapping = false;
+    }
     final double dy = event.delta.dy;
     if (dy < 0 || _grown > 0) {
       setState(() {
@@ -102,11 +111,14 @@ class _GenericItemDialogState extends State<GenericItemDialog>
 
   void _barUp(PointerEvent event) {
     final double most = _mostGrown(context);
-    if (_grown == 0 && !_big) {
+    final bool tapped = event is PointerUpEvent && _barTapping;
+    if (_grown == 0 && !_big && !tapped) {
       return;
     }
-    // Past a third of the way, from either end, it goes on to that end.
-    final bool big = most > 0 && _grown > most * (_big ? 2 / 3 : 1 / 3);
+    // A tap expands it. Otherwise, past a third of the way, from either end, it
+    // goes on to that end.
+    final bool big =
+        most > 0 && (tapped || _grown > most * (_big ? 2 / 3 : 1 / 3));
     final double target = big ? most : 0;
     _big = big;
     final ModalRoute<Object?>? route = ModalRoute.of(context);
@@ -323,7 +335,8 @@ class _GenericItemDialogState extends State<GenericItemDialog>
   Map<String, dynamic> _subItemJson(_SubItemDraft draft, DateTime now) {
     final String title = draft.controller.text.trim();
     final Map<String, dynamic>? original = draft.original;
-    final bool changed = original == null ||
+    final bool changed =
+        original == null ||
         original['title'] != title ||
         original['done'] != draft.done;
 
@@ -352,7 +365,9 @@ class _GenericItemDialogState extends State<GenericItemDialog>
     final List<ListError> errors = result.validateAgainst(widget.definition);
     if (errors.isNotEmpty) {
       setState(() {
-        _error = ListLabels(AppLocalizations.of(context)).error(errors.first, widget.definition);
+        _error = ListLabels(
+          AppLocalizations.of(context),
+        ).error(errors.first, widget.definition);
       });
       return;
     }
@@ -362,8 +377,8 @@ class _GenericItemDialogState extends State<GenericItemDialog>
 
   Future<void> _pickDate(FieldDefinition field) async {
     final Object? raw = _values[field.key];
-    final DateTime current = (raw is String ? DateTime.tryParse(raw) : null)
-            ?.toLocal() ??
+    final DateTime current =
+        (raw is String ? DateTime.tryParse(raw) : null)?.toLocal() ??
         DateTime.now();
 
     final AccountPreferences preferences = context.accountPreferences;
@@ -1041,7 +1056,9 @@ class _GenericItemDialogState extends State<GenericItemDialog>
       if (field == headline) {
         editors.add(_headline(look, field, labels.field(field)));
       } else if (grown && field.type == FieldType.longText) {
-        editors.add(Expanded(child: _bigText(look, field, labels.field(field))));
+        editors.add(
+          Expanded(child: _bigText(look, field, labels.field(field))),
+        );
       } else {
         editors.add(_editor(look, labels, field));
       }
@@ -1094,104 +1111,104 @@ class _GenericItemDialogState extends State<GenericItemDialog>
           child: SizedBox(
             height: grown ? _smallHeight + _grown : null,
             child: Column(
-            mainAxisSize: grown ? MainAxisSize.max : MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (_canGrow)
-                Listener(
-                  key: const ValueKey('item-sheet-bar'),
-                  behavior: HitTestBehavior.opaque,
-                  onPointerDown: _barDown,
-                  onPointerMove: _barMoved,
-                  onPointerUp: _barUp,
-                  onPointerCancel: _barUp,
-                  child: bar,
-                )
-              else
-                bar,
-              if (grown)
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppShapes.sideMargin,
+              mainAxisSize: grown ? MainAxisSize.max : MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_canGrow)
+                  Listener(
+                    key: const ValueKey('item-sheet-bar'),
+                    behavior: HitTestBehavior.opaque,
+                    onPointerDown: _barDown,
+                    onPointerMove: _barMoved,
+                    onPointerUp: _barUp,
+                    onPointerCancel: _barUp,
+                    child: bar,
+                  )
+                else
+                  bar,
+                if (grown)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppShapes.sideMargin,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Text(heading, style: look.type.meta),
+                          ),
+                          ...editors,
+                        ],
+                      ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                  )
+                else
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppShapes.sideMargin,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Text(heading, style: look.type.meta),
+                          ),
+                          ...editors,
+                        ],
+                      ),
+                    ),
+                  ),
+                // Cancel and Save stay at the bottom, within thumb reach.
+                SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppShapes.sideMargin - 8,
+                      12,
+                      AppShapes.sideMargin,
+                      16,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: Text(heading, style: look.type.meta),
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            foregroundColor: look.neutrals.text,
+                            minimumSize: const Size(0, 48),
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          child: Text(loc.cancel),
                         ),
-                        ...editors,
+                        FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: look.color,
+                            foregroundColor: look.onColor,
+                            disabledBackgroundColor: look.neutrals.surface,
+                            disabledForegroundColor: look.neutrals.muted,
+                            minimumSize: const Size(0, 52),
+                            padding: const EdgeInsets.symmetric(horizontal: 30),
+                            textStyle: look.label.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                            shape: AppShapes.pill,
+                          ),
+                          onPressed: _requiredFieldsFilled ? _save : null,
+                          child: Text(loc.save),
+                        ),
                       ],
                     ),
                   ),
-                )
-              else
-              Flexible(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppShapes.sideMargin,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: Text(heading, style: look.type.meta),
-                      ),
-                      ...editors,
-                    ],
-                  ),
                 ),
-              ),
-              // Cancel and Save stay at the bottom, within thumb reach.
-              SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppShapes.sideMargin - 8,
-                    12,
-                    AppShapes.sideMargin,
-                    16,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      TextButton(
-                        style: TextButton.styleFrom(
-                          foregroundColor: look.neutrals.text,
-                          minimumSize: const Size(0, 48),
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                        ),
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                        child: Text(loc.cancel),
-                      ),
-                      FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: look.color,
-                          foregroundColor: look.onColor,
-                          disabledBackgroundColor: look.neutrals.surface,
-                          disabledForegroundColor: look.neutrals.muted,
-                          minimumSize: const Size(0, 52),
-                          padding: const EdgeInsets.symmetric(horizontal: 30),
-                          textStyle: look.label.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                          shape: AppShapes.pill,
-                        ),
-                        onPressed: _requiredFieldsFilled ? _save : null,
-                        child: Text(loc.save),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+              ],
+            ),
           ),
         ),
       ),
