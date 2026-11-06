@@ -1210,4 +1210,37 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get homeNothingDue => '没有待办，今天属于你。';
+
+  @override
+  String get homeRearrange => '重新排列';
+
+  @override
+  String get homeUnpinShort => '取消固定';
+
+  @override
+  String get homePinShort => '固定';
+
+  @override
+  String get homeRemove => '移除';
+
+  @override
+  String get homeNoSuggestions => '不要建议';
+
+  @override
+  String get homeRemovedBanner => '已从首页移除';
+
+  @override
+  String get homeSuggestionsOffBanner => '建议已关闭';
+
+  @override
+  String get homeMoveEarlier => '前移';
+
+  @override
+  String get homeMoveLater => '后移';
+
+  @override
+  String get preferencesMatchDial => '与转盘顺序一致';
+
+  @override
+  String get preferencesHomeOwnOrder => '首页有自己的顺序';
 }

@@ -379,5 +379,16 @@
   "preferencesHomeContentCards": "リストカード",
   "preferencesHomeContentDue": "今日が期限の項目",
   "preferencesHomeSuggestions": "おすすめを表示",
-  "homeNothingDue": "予定なし。今日は自由です。"
+  "homeNothingDue": "予定なし。今日は自由です。",
+  "homeRearrange": "並べ替え",
+  "homeUnpinShort": "ピン留め解除",
+  "homePinShort": "ピン留め",
+  "homeRemove": "削除",
+  "homeNoSuggestions": "おすすめなし",
+  "homeRemovedBanner": "ホームから削除しました",
+  "homeSuggestionsOffBanner": "おすすめをオフにしました",
+  "homeMoveEarlier": "前へ移動",
+  "homeMoveLater": "後ろへ移動",
+  "preferencesMatchDial": "ダイヤルの順に合わせる",
+  "preferencesHomeOwnOrder": "ホームには独自の順序があります"
 }

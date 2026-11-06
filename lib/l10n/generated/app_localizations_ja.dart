@@ -1215,4 +1215,37 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get homeNothingDue => '予定なし。今日は自由です。';
+
+  @override
+  String get homeRearrange => '並べ替え';
+
+  @override
+  String get homeUnpinShort => 'ピン留め解除';
+
+  @override
+  String get homePinShort => 'ピン留め';
+
+  @override
+  String get homeRemove => '削除';
+
+  @override
+  String get homeNoSuggestions => 'おすすめなし';
+
+  @override
+  String get homeRemovedBanner => 'ホームから削除しました';
+
+  @override
+  String get homeSuggestionsOffBanner => 'おすすめをオフにしました';
+
+  @override
+  String get homeMoveEarlier => '前へ移動';
+
+  @override
+  String get homeMoveLater => '後ろへ移動';
+
+  @override
+  String get preferencesMatchDial => 'ダイヤルの順に合わせる';
+
+  @override
+  String get preferencesHomeOwnOrder => 'ホームには独自の順序があります';
 }

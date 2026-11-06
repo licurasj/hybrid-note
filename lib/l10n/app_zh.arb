@@ -379,5 +379,16 @@
   "preferencesHomeContentCards": "列表卡片",
   "preferencesHomeContentDue": "今日到期项目",
   "preferencesHomeSuggestions": "显示建议",
-  "homeNothingDue": "没有待办，今天属于你。"
+  "homeNothingDue": "没有待办，今天属于你。",
+  "homeRearrange": "重新排列",
+  "homeUnpinShort": "取消固定",
+  "homePinShort": "固定",
+  "homeRemove": "移除",
+  "homeNoSuggestions": "不要建议",
+  "homeRemovedBanner": "已从首页移除",
+  "homeSuggestionsOffBanner": "建议已关闭",
+  "homeMoveEarlier": "前移",
+  "homeMoveLater": "后移",
+  "preferencesMatchDial": "与转盘顺序一致",
+  "preferencesHomeOwnOrder": "首页有自己的顺序"
 }

@@ -379,5 +379,16 @@
   "preferencesHomeContentCards": "Tarjetas de listas",
   "preferencesHomeContentDue": "Elementos de hoy",
   "preferencesHomeSuggestions": "Mostrar sugerencias",
-  "homeNothingDue": "Nada pendiente. El día es tuyo."
+  "homeNothingDue": "Nada pendiente. El día es tuyo.",
+  "homeRearrange": "Reordenar",
+  "homeUnpinShort": "Desfijar",
+  "homePinShort": "Fijar",
+  "homeRemove": "Quitar",
+  "homeNoSuggestions": "Sin sugerencias",
+  "homeRemovedBanner": "Quitada del inicio",
+  "homeSuggestionsOffBanner": "Sugerencias desactivadas",
+  "homeMoveEarlier": "Mover antes",
+  "homeMoveLater": "Mover después",
+  "preferencesMatchDial": "Igualar al dial",
+  "preferencesHomeOwnOrder": "El inicio tiene su propio orden"
 }

@@ -379,5 +379,16 @@
   "preferencesHomeContentCards": "Listenkarten",
   "preferencesHomeContentDue": "Heute Fälliges",
   "preferencesHomeSuggestions": "Vorschläge anzeigen",
-  "homeNothingDue": "Nichts fällig. Der Tag gehört dir."
+  "homeNothingDue": "Nichts fällig. Der Tag gehört dir.",
+  "homeRearrange": "Neu anordnen",
+  "homeUnpinShort": "Lösen",
+  "homePinShort": "Anheften",
+  "homeRemove": "Entfernen",
+  "homeNoSuggestions": "Keine Vorschläge",
+  "homeRemovedBanner": "Von der Startseite entfernt",
+  "homeSuggestionsOffBanner": "Vorschläge aus",
+  "homeMoveEarlier": "Nach vorn",
+  "homeMoveLater": "Nach hinten",
+  "preferencesMatchDial": "Wie am Rad anordnen",
+  "preferencesHomeOwnOrder": "Die Startseite hat ihre eigene Reihenfolge"
 }

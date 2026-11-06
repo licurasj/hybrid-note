@@ -1251,4 +1251,37 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get homeNothingDue => 'Rien de prévu. La journée est à vous.';
+
+  @override
+  String get homeRearrange => 'Réorganiser';
+
+  @override
+  String get homeUnpinShort => 'Désépingler';
+
+  @override
+  String get homePinShort => 'Épingler';
+
+  @override
+  String get homeRemove => 'Retirer';
+
+  @override
+  String get homeNoSuggestions => 'Pas de suggestions';
+
+  @override
+  String get homeRemovedBanner => 'Retirée de l\'accueil';
+
+  @override
+  String get homeSuggestionsOffBanner => 'Suggestions désactivées';
+
+  @override
+  String get homeMoveEarlier => 'Déplacer avant';
+
+  @override
+  String get homeMoveLater => 'Déplacer après';
+
+  @override
+  String get preferencesMatchDial => 'Aligner sur le cadran';
+
+  @override
+  String get preferencesHomeOwnOrder => 'L\'accueil a son propre ordre';
 }

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:uuid/uuid.dart';
@@ -7,6 +9,7 @@ import '../app/app_theme.dart';
 import '../app/date_preferences.dart';
 import '../app_colors.dart';
 import '../l10n/generated/app_localizations.dart';
+import 'builtin_templates.dart';
 import 'list_definition.dart';
 import 'list_error.dart';
 import 'list_icons.dart';
@@ -56,7 +59,107 @@ class _SubItemDraft {
   final Map<String, dynamic>? original;
 }
 
-class _GenericItemDialogState extends State<GenericItemDialog> {
+class _GenericItemDialogState extends State<GenericItemDialog>
+    with SingleTickerProviderStateMixin {
+  // A Journal entry's sheet grows for reading (Q-71): the bar at its top drags it
+  // up to almost the full screen, where the text fills the space, and back. Every
+  // other list keeps the small sheet.
+  bool get _canGrow =>
+      widget.item != null &&
+      widget.definition.templateId == BuiltinTemplates.journalId;
+  double _smallHeight = 0;
+  // How far above the small height it stands now.
+  double _grown = 0;
+  bool _big = false;
+  // The text in the big sheet is being edited; until then, no keyboard.
+  bool _editingBig = false;
+  final ScrollController _bigScroll = ScrollController();
+  late final AnimationController _settle;
+
+  double _mostGrown(BuildContext context) {
+    final MediaQueryData media = MediaQuery.of(context);
+    final double most =
+        media.size.height - media.viewInsets.bottom - media.padding.top - 24;
+    return math.max(0, most - _smallHeight);
+  }
+
+  void _barDown(PointerDownEvent event) {
+    _settle.stop();
+    if (_grown == 0) {
+      _smallHeight = context.size?.height ?? 0;
+    }
+  }
+
+  void _barMoved(PointerMoveEvent event) {
+    final double dy = event.delta.dy;
+    if (dy < 0 || _grown > 0) {
+      setState(() {
+        _grown = (_grown - dy).clamp(0.0, _mostGrown(context));
+        _editingBig = false;
+      });
+    }
+  }
+
+  void _barUp(PointerEvent event) {
+    final double most = _mostGrown(context);
+    if (_grown == 0 && !_big) {
+      return;
+    }
+    // Past a third of the way, from either end, it goes on to that end.
+    final bool big = most > 0 && _grown > most * (_big ? 2 / 3 : 1 / 3);
+    final double target = big ? most : 0;
+    _big = big;
+    final ModalRoute<Object?>? route = ModalRoute.of(context);
+    if (route is _ItemSheetRoute) {
+      route.setDragEnabled(!big);
+    }
+    if (MediaQuery.disableAnimationsOf(context)) {
+      setState(() => _grown = target);
+    } else {
+      _settle
+        ..value = _grown
+        ..animateTo(
+          target,
+          duration: AppMotion.standard,
+          curve: AppMotion.curve,
+        );
+    }
+  }
+
+  // The entry's text, filling the big sheet, with the bar only when it is too
+  // long. A tap makes it editable, and the keyboard comes then.
+  Widget _bigText(_Look look, FieldDefinition field, String label) {
+    return ScrollbarTheme(
+      data: ScrollbarThemeData(
+        thumbColor: WidgetStatePropertyAll(look.neutrals.muted),
+        thickness: const WidgetStatePropertyAll(4),
+        radius: const Radius.circular(2),
+      ),
+      child: Scrollbar(
+        controller: _bigScroll,
+        thumbVisibility: true,
+        child: TextField(
+          key: ValueKey('field-${field.key}'),
+          controller: _controllers[field.key],
+          scrollController: _bigScroll,
+          readOnly: !_editingBig,
+          showCursor: _editingBig,
+          expands: true,
+          minLines: null,
+          maxLines: null,
+          textAlignVertical: TextAlignVertical.top,
+          style: look.body,
+          onTap: () => setState(() => _editingBig = true),
+          onChanged: (_) => setState(() {}),
+          decoration: _bare(
+            label,
+            look.body.copyWith(color: look.neutrals.muted),
+          ),
+        ),
+      ),
+    );
+  }
+
   late final Map<String, dynamic> _values;
   final Map<String, TextEditingController> _controllers = {};
   final Map<String, List<_SubItemDraft>> _subItems = {};
@@ -81,6 +184,8 @@ class _GenericItemDialogState extends State<GenericItemDialog> {
   @override
   void initState() {
     super.initState();
+    _settle = AnimationController.unbounded(vsync: this)
+      ..addListener(() => setState(() => _grown = _settle.value));
     _values = Map<String, dynamic>.from(widget.item?.values ?? const {});
 
     for (final FieldDefinition field in widget.definition.fields) {
@@ -129,6 +234,8 @@ class _GenericItemDialogState extends State<GenericItemDialog> {
 
   @override
   void dispose() {
+    _settle.dispose();
+    _bigScroll.dispose();
     for (final TextEditingController controller in [
       ..._controllers.values,
       ..._customDays.values,
@@ -900,6 +1007,7 @@ class _GenericItemDialogState extends State<GenericItemDialog> {
     final ListLabels labels = ListLabels(loc);
     final _Look look = _Look.of(context, widget.definition);
     final List<Widget> editors = [];
+    final bool grown = _canGrow && _grown > 0;
 
     // The headline is the primary text field; long text follows it as the
     // description, then the rows, then the subtask sections.
@@ -932,6 +1040,8 @@ class _GenericItemDialogState extends State<GenericItemDialog> {
     for (final FieldDefinition field in ordered) {
       if (field == headline) {
         editors.add(_headline(look, field, labels.field(field)));
+      } else if (grown && field.type == FieldType.longText) {
+        editors.add(Expanded(child: _bigText(look, field, labels.field(field))));
       } else {
         editors.add(_editor(look, labels, field));
       }
@@ -956,6 +1066,18 @@ class _GenericItemDialogState extends State<GenericItemDialog> {
       widget.item == null ? loc.itemSheetNew : loc.itemSheetEdit,
     ].join(' · ');
 
+    final Widget bar = Center(
+      child: Container(
+        width: 40,
+        height: 4,
+        margin: const EdgeInsets.only(top: 10, bottom: 12),
+        decoration: BoxDecoration(
+          color: look.neutrals.line,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+    );
+
     return Semantics(
       label: widget.title,
       explicitChildNodes: true,
@@ -969,21 +1091,43 @@ class _GenericItemDialogState extends State<GenericItemDialog> {
         ),
         child: Material(
           type: MaterialType.transparency,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: SizedBox(
+            height: grown ? _smallHeight + _grown : null,
+            child: Column(
+            mainAxisSize: grown ? MainAxisSize.max : MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(top: 10, bottom: 12),
-                  decoration: BoxDecoration(
-                    color: look.neutrals.line,
-                    borderRadius: BorderRadius.circular(2),
+              if (_canGrow)
+                Listener(
+                  key: const ValueKey('item-sheet-bar'),
+                  behavior: HitTestBehavior.opaque,
+                  onPointerDown: _barDown,
+                  onPointerMove: _barMoved,
+                  onPointerUp: _barUp,
+                  onPointerCancel: _barUp,
+                  child: bar,
+                )
+              else
+                bar,
+              if (grown)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppShapes.sideMargin,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Text(heading, style: look.type.meta),
+                        ),
+                        ...editors,
+                      ],
+                    ),
                   ),
-                ),
-              ),
+                )
+              else
               Flexible(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(
@@ -1048,6 +1192,7 @@ class _GenericItemDialogState extends State<GenericItemDialog> {
               ),
             ],
           ),
+          ),
         ),
       ),
     );
@@ -1108,6 +1253,17 @@ class _ItemSheetRoute<T> extends PopupRoute<T> {
   // Once the sheet is dragged it follows the finger, without the ease-out.
   bool _dragged = false;
 
+  // The grown Journal sheet is dragged by its bar alone.
+  final ValueNotifier<bool> _dragEnabled = ValueNotifier(true);
+
+  void setDragEnabled(bool enabled) => _dragEnabled.value = enabled;
+
+  @override
+  void dispose() {
+    _dragEnabled.dispose();
+    super.dispose();
+  }
+
   @override
   final String barrierLabel;
 
@@ -1138,20 +1294,25 @@ class _ItemSheetRoute<T> extends PopupRoute<T> {
       parent: animation,
       curve: AppMotion.curve,
     );
-    final Widget sheet = BottomSheet(
-      animationController: controller,
-      onDragStart: (_) => _dragged = true,
-      onClosing: () {
-        if (isCurrent) {
-          Navigator.of(context).pop();
-        }
-      },
-      backgroundColor: Colors.transparent,
-      shadowColor: Colors.transparent,
-      elevation: 0,
-      showDragHandle: false,
-      shape: AppShapes.sheet,
-      builder: builder,
+    // The page is built once, so what changes has its own builder.
+    final Widget sheet = ValueListenableBuilder<bool>(
+      valueListenable: _dragEnabled,
+      builder: (context, dragEnabled, _) => BottomSheet(
+        animationController: controller,
+        enableDrag: dragEnabled,
+        onDragStart: (_) => _dragged = true,
+        onClosing: () {
+          if (isCurrent) {
+            Navigator.of(context).pop();
+          }
+        },
+        backgroundColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        elevation: 0,
+        showDragHandle: false,
+        shape: AppShapes.sheet,
+        builder: builder,
+      ),
     );
 
     return Padding(

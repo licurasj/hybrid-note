@@ -15,6 +15,13 @@ import 'lists/list_vocabulary.dart';
 // How the home blob and the slanted pin look (docs/AESTHETICS.md, Marks).
 const double _pinAngle = math.pi / 4;
 
+typedef HomeCardMenuEntry = ({
+  String key,
+  String label,
+  IconData icon,
+  VoidCallback onSelected,
+});
+
 // A list's card on home (Q-65): the blob with its disc and icon, the name, and
 // the top open items with their dates. [pinned] is null on a suggestion, which
 // has no pin; false is an unfilled pin, on a card that stays until the next
@@ -25,8 +32,9 @@ class HomeListCard extends StatelessWidget {
     required this.definition,
     required this.openItems,
     required this.pinned,
-    this.onTap,
+    this.lifted = false,
     this.onPin,
+    this.menu = const [],
   });
 
   // The items a card shows (Q-65).
@@ -35,8 +43,11 @@ class HomeListCard extends StatelessWidget {
   final ListDefinition definition;
   final List<ListItem> openItems;
   final bool? pinned;
-  final VoidCallback? onTap;
+  // Held or selected: the disc gets the one soft shadow.
+  final bool lifted;
   final VoidCallback? onPin;
+  // The three dots' choices; none hides them.
+  final List<HomeCardMenuEntry> menu;
 
   static DateTime? _dateOf(ListDefinition definition, ListItem item) {
     FieldDefinition? field = definition.fieldWithRole(FieldRole.reminder);
@@ -98,111 +109,206 @@ class HomeListCard extends StatelessWidget {
       );
     }
 
-    return GestureDetector(
-      key: ValueKey('home-card-${definition.id}'),
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Padding(
-        // The name's row is 48 tall for the pin's touch target, which is the
-        // rest of the 16 above it.
-        padding: const EdgeInsets.only(top: 4, bottom: 16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(width: 14),
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: SizedBox(
-                width: 88,
-                height: 84,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Positioned(
-                      left: 0,
-                      top: 0,
-                      child: IgnorePointer(
-                        child: HomeBlob(
-                          seed: homeBlobSeed(definition.id),
-                          color: listColor(
-                            definition.color,
-                            brightness: brightness,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      left: 25,
-                      top: 25,
-                      width: 60,
-                      height: 60,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: neutrals.text,
-                        ),
-                        child: Icon(
-                          listIcon(definition.icon),
-                          size: 27,
-                          color: neutrals.ground,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      // The name's row is 48 tall for the pin's touch target, which is the
+      // rest of the 16 above it.
+      padding: const EdgeInsets.only(top: 4, bottom: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(width: 14),
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: SizedBox(
+              width: 88,
+              height: 84,
+              child: Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  SizedBox(
-                    height: 48,
-                    child: Row(
-                      children: [
-                        Flexible(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: AlignmentDirectional.centerStart,
-                            child: Text(
-                              labels.listName(definition),
-                              maxLines: 1,
-                              style: type.screenTitle.copyWith(
-                                fontSize: 24,
-                                height: 1.05,
-                              ),
-                            ),
-                          ),
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    child: IgnorePointer(
+                      child: HomeBlob(
+                        seed: homeBlobSeed(definition.id),
+                        color: listColor(
+                          definition.color,
+                          brightness: brightness,
                         ),
-                        if (pinned case final bool isPinned)
-                          HomePinButton(
-                            key: ValueKey('home-pin-${definition.id}'),
-                            pinned: isPinned,
-                            size: 18,
-                            onPressed: onPin,
-                          ),
-                      ],
+                      ),
                     ),
                   ),
-                  if (openItems.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 18),
-                      child: Text(
-                        labels.loc.homeNothingOpen,
-                        style: type.row.copyWith(
-                          color: neutrals.muted,
-                          fontSize: 13,
-                        ),
+                  Positioned(
+                    left: 25,
+                    top: 25,
+                    width: 60,
+                    height: 60,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: neutrals.text,
+                        boxShadow: lifted
+                            ? AppShadows.floating(brightness)
+                            : null,
                       ),
-                    )
-                  else
-                    for (final ListItem item in openItems.take(topItems))
-                      itemRow(item),
+                      child: Icon(
+                        listIcon(definition.icon),
+                        size: 27,
+                        color: neutrals.ground,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
-          ],
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  height: 48,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Flexible(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: AlignmentDirectional.centerStart,
+                                child: Text(
+                                  labels.listName(definition),
+                                  maxLines: 1,
+                                  style: type.screenTitle.copyWith(
+                                    fontSize: 24,
+                                    height: 1.05,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            if (pinned case final bool isPinned)
+                              HomePinButton(
+                                key: ValueKey('home-pin-${definition.id}'),
+                                pinned: isPinned,
+                                size: 18,
+                                onPressed: onPin,
+                              ),
+                          ],
+                        ),
+                      ),
+                      if (menu.isNotEmpty)
+                        PopupMenuButton<HomeCardMenuEntry>(
+                          key: ValueKey('home-dots-${definition.id}'),
+                          icon: Icon(
+                            Icons.more_horiz,
+                            size: 20,
+                            color: neutrals.muted,
+                          ),
+                          onSelected: (entry) => entry.onSelected(),
+                          itemBuilder: (context) => [
+                            for (final HomeCardMenuEntry entry in menu)
+                              PopupMenuItem(
+                                key: ValueKey('home-menu-${entry.key}'),
+                                value: entry,
+                                child: ListTile(
+                                  leading: Icon(entry.icon),
+                                  title: Text(entry.label),
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+                if (openItems.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 18),
+                    child: Text(
+                      labels.loc.homeNothingOpen,
+                      style: type.row.copyWith(
+                        color: neutrals.muted,
+                        fontSize: 13,
+                      ),
+                    ),
+                  )
+                else
+                  for (final ListItem item in openItems.take(topItems))
+                    itemRow(item),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// A hold's prompt (interaction law rules 2-3), like the hub's Move and Arrange:
+// dark, filling with blue and growing as the finger comes [near].
+class HomePrompt extends StatelessWidget {
+  const HomePrompt({
+    super.key,
+    required this.label,
+    required this.centre,
+    required this.width,
+    required this.reveal,
+    required this.near,
+  });
+
+  static const double _height = 40;
+
+  final String label;
+  final Offset centre;
+  final double width;
+  final double reveal;
+  final double near;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppNeutrals neutrals = AppColors.neutrals(
+      Theme.of(context).brightness,
+    );
+    final Color fill = Color.lerp(
+      neutrals.promptDark,
+      AppColors.appBlue,
+      near,
+    )!;
+    return Positioned(
+      left: centre.dx - width / 2,
+      top: centre.dy - _height / 2,
+      width: width,
+      height: _height,
+      child: IgnorePointer(
+        child: Transform.scale(
+          scale: (0.6 + 0.4 * reveal) * (1 + 0.22 * near),
+          child: Center(
+            child: Container(
+              height: 36,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: fill,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: neutrals.ground, width: 1.5),
+              ),
+              child: Center(
+                widthFactor: 1,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: AppFonts.sans,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.onColor(fill),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -267,6 +373,9 @@ class HomeBlob extends StatefulWidget {
   @visibleForTesting
   static bool stillForTests = false;
 
+  // Nothing that loops runs in such a test.
+  static bool get isStill => stillForTests;
+
   static const double size = 84;
 
   final Color color;
@@ -281,8 +390,12 @@ class _HomeBlobState extends State<HomeBlob>
   late final AnimationController _loop = AnimationController(
     vsync: this,
     duration: Duration(seconds: 7 + widget.seed % 7),
-    // Each blob starts somewhere of its own, and is still there when stopped.
-    value: (widget.seed % 100) / 100,
+    // By the clock, so that the card in the hand has the same blob as the card
+    // it stands for, and each list its own place in the loop.
+    value:
+        ((DateTime.now().millisecondsSinceEpoch + widget.seed * 137) %
+            ((7 + widget.seed % 7) * 1000)) /
+        ((7 + widget.seed % 7) * 1000),
   );
 
   @override

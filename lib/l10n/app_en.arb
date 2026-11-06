@@ -985,5 +985,16 @@
   "preferencesHomeContentCards": "List cards",
   "preferencesHomeContentDue": "Items due today",
   "preferencesHomeSuggestions": "Show suggestions",
-  "homeNothingDue": "Nothing due. The day is yours."
+  "homeNothingDue": "Nothing due. The day is yours.",
+  "homeRearrange": "Rearrange",
+  "homeUnpinShort": "Unpin",
+  "homePinShort": "Pin",
+  "homeRemove": "Remove",
+  "homeNoSuggestions": "No suggestions",
+  "homeRemovedBanner": "Removed from home",
+  "homeSuggestionsOffBanner": "Suggestions off",
+  "homeMoveEarlier": "Move earlier",
+  "homeMoveLater": "Move later",
+  "preferencesMatchDial": "Match dial order",
+  "preferencesHomeOwnOrder": "Home has its own order"
 }

@@ -1237,4 +1237,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get homeNothingDue => 'Nothing due. The day is yours.';
+
+  @override
+  String get homeRearrange => 'Rearrange';
+
+  @override
+  String get homeUnpinShort => 'Unpin';
+
+  @override
+  String get homePinShort => 'Pin';
+
+  @override
+  String get homeRemove => 'Remove';
+
+  @override
+  String get homeNoSuggestions => 'No suggestions';
+
+  @override
+  String get homeRemovedBanner => 'Removed from home';
+
+  @override
+  String get homeSuggestionsOffBanner => 'Suggestions off';
+
+  @override
+  String get homeMoveEarlier => 'Move earlier';
+
+  @override
+  String get homeMoveLater => 'Move later';
+
+  @override
+  String get preferencesMatchDial => 'Match dial order';
+
+  @override
+  String get preferencesHomeOwnOrder => 'Home has its own order';
 }

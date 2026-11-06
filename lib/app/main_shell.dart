@@ -87,6 +87,8 @@ class _MainShellState extends State<MainShell> {
   bool _dialOpen = false;
   // Home works out its cards again on coming back from a list (Q-74).
   final ValueNotifier<int> _homeReturned = ValueNotifier(0);
+  // A press on the hub or the AI bar ends arranging on home (Q-77).
+  final ValueNotifier<int> _hubOrBarPressed = ValueNotifier(0);
   bool _wasOnList = false;
   // The dial is open in tap mode or arranging; Back is its own then.
   bool _dialOwnsBack = false;
@@ -164,6 +166,7 @@ class _MainShellState extends State<MainShell> {
     _ai?.dispose();
     _top.dispose();
     _homeReturned.dispose();
+    _hubOrBarPressed.dispose();
     super.dispose();
   }
 
@@ -252,12 +255,7 @@ class _MainShellState extends State<MainShell> {
   // applied, and from the first drag it is My order, so Last used or A to Z
   // cannot undo it.
   void _arranged(List<String> listIds) {
-    final AccountPreferencesCubit cubit = context
-        .read<AccountPreferencesCubit>();
-    unawaited(cubit.setMyListOrder(listIds));
-    if (cubit.state.listOrder != ListOrder.myOrder) {
-      unawaited(cubit.setListOrder(ListOrder.myOrder));
-    }
+    unawaited(context.read<AccountPreferencesCubit>().arrangedOnDial(listIds));
   }
 
   // Blank or a template first, then the editor on that fresh copy, which can
@@ -558,6 +556,7 @@ class _MainShellState extends State<MainShell> {
                       onOpenList: _openList,
                       recentLists: () => _recent,
                       returned: _homeReturned,
+                      pressedElsewhere: _hubOrBarPressed,
                     ),
                   ),
                   if (_startList case final String start)
@@ -571,13 +570,20 @@ class _MainShellState extends State<MainShell> {
           ),
         ),
         if (_ai != null)
-          Positioned.fill(child: _bar(_ai!, catalog, settings.hubPosition)),
+          Positioned.fill(
+            child: Listener(
+              behavior: HitTestBehavior.deferToChild,
+              onPointerDown: (_) => _hubOrBarPressed.value++,
+              child: _bar(_ai!, catalog, settings.hubPosition),
+            ),
+          ),
         Positioned.fill(
           // A press on the raised hub keeps it up until the dial
           // closes; a press that opens nothing lets it down.
           child: Listener(
             behavior: HitTestBehavior.deferToChild,
             onPointerDown: (_) {
+              _hubOrBarPressed.value++;
               if (_lift != null && !_keepLift) {
                 setState(() => _keepLift = true);
               }

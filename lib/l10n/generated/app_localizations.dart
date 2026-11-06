@@ -2131,6 +2131,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Nothing due. The day is yours.'**
   String get homeNothingDue;
+
+  /// No description provided for @homeRearrange.
+  ///
+  /// In en, this message translates to:
+  /// **'Rearrange'**
+  String get homeRearrange;
+
+  /// No description provided for @homeUnpinShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin'**
+  String get homeUnpinShort;
+
+  /// No description provided for @homePinShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin'**
+  String get homePinShort;
+
+  /// No description provided for @homeRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get homeRemove;
+
+  /// No description provided for @homeNoSuggestions.
+  ///
+  /// In en, this message translates to:
+  /// **'No suggestions'**
+  String get homeNoSuggestions;
+
+  /// No description provided for @homeRemovedBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed from home'**
+  String get homeRemovedBanner;
+
+  /// No description provided for @homeSuggestionsOffBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggestions off'**
+  String get homeSuggestionsOffBanner;
+
+  /// No description provided for @homeMoveEarlier.
+  ///
+  /// In en, this message translates to:
+  /// **'Move earlier'**
+  String get homeMoveEarlier;
+
+  /// No description provided for @homeMoveLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Move later'**
+  String get homeMoveLater;
+
+  /// No description provided for @preferencesMatchDial.
+  ///
+  /// In en, this message translates to:
+  /// **'Match dial order'**
+  String get preferencesMatchDial;
+
+  /// No description provided for @preferencesHomeOwnOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Home has its own order'**
+  String get preferencesHomeOwnOrder;
 }
 
 class _AppLocalizationsDelegate

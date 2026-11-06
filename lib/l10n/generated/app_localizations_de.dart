@@ -1250,4 +1250,38 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get homeNothingDue => 'Nichts fällig. Der Tag gehört dir.';
+
+  @override
+  String get homeRearrange => 'Neu anordnen';
+
+  @override
+  String get homeUnpinShort => 'Lösen';
+
+  @override
+  String get homePinShort => 'Anheften';
+
+  @override
+  String get homeRemove => 'Entfernen';
+
+  @override
+  String get homeNoSuggestions => 'Keine Vorschläge';
+
+  @override
+  String get homeRemovedBanner => 'Von der Startseite entfernt';
+
+  @override
+  String get homeSuggestionsOffBanner => 'Vorschläge aus';
+
+  @override
+  String get homeMoveEarlier => 'Nach vorn';
+
+  @override
+  String get homeMoveLater => 'Nach hinten';
+
+  @override
+  String get preferencesMatchDial => 'Wie am Rad anordnen';
+
+  @override
+  String get preferencesHomeOwnOrder =>
+      'Die Startseite hat ihre eigene Reihenfolge';
 }

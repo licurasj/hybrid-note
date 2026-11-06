@@ -379,5 +379,16 @@
   "preferencesHomeContentCards": "Cartes de listes",
   "preferencesHomeContentDue": "Éléments du jour",
   "preferencesHomeSuggestions": "Afficher les suggestions",
-  "homeNothingDue": "Rien de prévu. La journée est à vous."
+  "homeNothingDue": "Rien de prévu. La journée est à vous.",
+  "homeRearrange": "Réorganiser",
+  "homeUnpinShort": "Désépingler",
+  "homePinShort": "Épingler",
+  "homeRemove": "Retirer",
+  "homeNoSuggestions": "Pas de suggestions",
+  "homeRemovedBanner": "Retirée de l'accueil",
+  "homeSuggestionsOffBanner": "Suggestions désactivées",
+  "homeMoveEarlier": "Déplacer avant",
+  "homeMoveLater": "Déplacer après",
+  "preferencesMatchDial": "Aligner sur le cadran",
+  "preferencesHomeOwnOrder": "L'accueil a son propre ordre"
 }

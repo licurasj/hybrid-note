@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' show Offset, Rect, Size;
 
 import '../lists/list_catalog.dart';
 import '../lists/list_definition.dart';
@@ -87,6 +88,87 @@ List<ListItem> homeTopItems(ListDefinition definition, List<ListItem> items) {
     };
     return order != 0 ? order : a.id.compareTo(b.id);
   });
+}
+
+// What a card offers, in its hold's prompts and its three dots (Q-76).
+enum HomeCardAction { rearrange, edit, unpin, pin, remove, noSuggestions }
+
+// [pinned] is null on a suggestion and false on an unfilled pin. There is
+// nothing to rearrange with fewer than two pinned lists.
+List<HomeCardAction> homeCardActions({
+  required bool? pinned,
+  required int pinnedLists,
+}) => switch (pinned) {
+  true => [
+    if (pinnedLists >= 2) HomeCardAction.rearrange,
+    HomeCardAction.edit,
+    HomeCardAction.unpin,
+  ],
+  false => const [HomeCardAction.pin, HomeCardAction.edit],
+  null => const [
+    HomeCardAction.pin,
+    HomeCardAction.edit,
+    HomeCardAction.remove,
+    HomeCardAction.noSuggestions,
+  ],
+};
+
+// The prompts' places: a column clear of the finger, on the screen's roomier
+// side, kept on screen and off [avoid] (the hub). A finger within the dial's
+// reach of a prompt has reached it, so centres stand two reaches apart.
+const double homePromptSpacing = 52;
+const double homePromptMargin = 12;
+const double homePromptFingerRoom = 72;
+// The AI bar and the bottom of the screen.
+const double homePromptBottomRoom = 110;
+
+List<Offset> homePromptCentres({
+  required Offset finger,
+  required int count,
+  required double promptWidth,
+  required Size screen,
+  required double top,
+  required double bottom,
+  Rect? avoid,
+}) {
+  const double halfHeight = 20;
+  final double half = promptWidth / 2;
+  final double wanted = finger.dx < screen.width / 2
+      ? finger.dx + homePromptFingerRoom + half
+      : finger.dx - homePromptFingerRoom - half;
+  final double x = wanted.clamp(
+    homePromptMargin + half,
+    math.max(homePromptMargin + half, screen.width - homePromptMargin - half),
+  );
+  final double height = (count - 1) * homePromptSpacing;
+  double highest = top + halfHeight;
+  final double lowest = math.max(highest, bottom - halfHeight - height);
+
+  double first = (finger.dy - height / 2).clamp(highest, lowest);
+  // Too wide to stand beside the finger: above it, or below if there is no room.
+  if ((x - finger.dx).abs() - half < 24) {
+    final double above = finger.dy - homePromptFingerRoom - height;
+    first = (above >= highest ? above : finger.dy + homePromptFingerRoom).clamp(
+      highest,
+      lowest,
+    );
+  }
+  if (avoid != null) {
+    final Rect column = Rect.fromLTRB(
+      x - half,
+      first - halfHeight,
+      x + half,
+      first + height + halfHeight,
+    );
+    if (column.overlaps(avoid)) {
+      final double below = avoid.bottom + 8 + halfHeight;
+      final double above = avoid.top - 8 - halfHeight - height;
+      first = above >= highest ? above : math.min(below, lowest);
+    }
+  }
+  return [
+    for (int i = 0; i < count; i++) Offset(x, first + i * homePromptSpacing),
+  ];
 }
 
 // What home shows: pinned lists in [pinnedOrder], which any list without a

@@ -219,6 +219,29 @@ class PreferencesScreen extends StatelessWidget {
                 value: preferences.homeSuggestions,
                 onChanged: cubit.setHomeSuggestions,
               ),
+            // Only while home and the dial have split (Q-75).
+            if (preferences.homeHasOwnOrder)
+              look.hairline(
+                child: InkWell(
+                  key: const ValueKey('preferences-match-dial'),
+                  onTap: cubit.matchDialOrder,
+                  child: Container(
+                    constraints: const BoxConstraints(minHeight: 56),
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(loc.preferencesMatchDial, style: look.type.row),
+                        Text(
+                          loc.preferencesHomeOwnOrder,
+                          style: look.type.meta,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             look.sectionLabel(loc.preferencesItems),
             _ChoiceRow<TickedItems>(
               key: const ValueKey('preferences-ticked-items'),

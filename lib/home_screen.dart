@@ -1,10 +1,17 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/semantics.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import 'app/account_preferences.dart';
+import 'app/app_banner.dart';
 import 'app/app_settings.dart';
 import 'app/app_theme.dart';
 import 'app/date_preferences.dart';
@@ -16,6 +23,10 @@ import 'app/starter_note.dart';
 import 'app_colors.dart';
 import 'home_cards_view.dart';
 import 'l10n/generated/app_localizations.dart';
+import 'launcher/arrange_sway.dart';
+import 'launcher/launcher_geometry.dart';
+import 'launcher/launcher_hub_area.dart';
+import 'lists/generic_list_screen.dart' show ListEditAction;
 import 'lists/generic_item_dialog.dart';
 import 'lists/list_catalog.dart';
 import 'lists/list_catalog_builder.dart';
@@ -88,6 +99,7 @@ class HomeScreen extends StatefulWidget {
     this.onOpenList,
     this.recentLists,
     this.returned,
+    this.pressedElsewhere,
   });
 
   final ValueChanged<String>? onOpenList;
@@ -95,6 +107,8 @@ class HomeScreen extends StatefulWidget {
   final List<String> Function()? recentLists;
   // Fires on coming back to home from a list.
   final Listenable? returned;
+  // Fires on a press on the hub or the AI bar, which ends arranging.
+  final Listenable? pressedElsewhere;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -104,17 +118,74 @@ class HomeScreen extends StatefulWidget {
 // updating, until coming back from a list, a new start or a pull down (Q-74).
 // A change to the account's choices that this screen did not make also counts,
 // as they arrive after the first frame on a new phone or from another phone.
-class _HomeScreenState extends State<HomeScreen> {
+//
+// Holding a card lifts it, and its choices slide out as prompts (Q-76, interaction
+// law). Rearrange opens arranging (Q-77): pinned cards sway, the held card is ready
+// to drag, and any other is picked up by a short rest; a swipe still scrolls.
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+  // How much a lifted card grows, and how far cards lean while arranging: a
+  // lifted one less than the rest. The owner tunes these on the phone.
+  static const double _liftScale = 1.06;
+  static const double _liftedSwayDegrees = 0.4;
+  static const double _promptWidthPadding = 36;
+  static const double _edgeScrollZone = 80;
+  static const double _edgeScrollSpeed = 700;
+
   List<String>? _pinned;
   List<String> _suggested = const [];
   // Unpinned here, and showing an unfilled pin until the next refresh (Q-65).
   final Set<String> _unfilled = {};
   String? _workedOutFrom;
+  // Changes from this screen on their way, some in several steps.
+  int _ownChanges = 0;
+
+  final ScrollController _scroll = ScrollController();
+  final GlobalKey _stack = GlobalKey();
+  final Map<String, GlobalKey> _cardKeys = {};
+  final ValueNotifier<Duration> _time = ValueNotifier(Duration.zero);
+  late final Ticker _clock;
+  Duration _lastTick = Duration.zero;
+  late final AnimationController _lift;
+  late final AnimationController _reveal;
+
+  // The card under a hold, and once its prompts are out what they offer.
+  String? _heldId;
+  List<HomeCardAction> _prompts = const [];
+  List<Offset> _promptCentres = const [];
+  double _promptWidth = 0;
+  int? _promptSelected;
+  Offset _holdStart = Offset.zero;
+  Offset _finger = Offset.zero;
+  Rect _heldRect = Rect.zero;
+
+  bool _arranging = false;
+  String? _selectedId;
+  String? _dragId;
+  double _dragGrab = 0;
+  bool _dragMoved = false;
+  // Picked up as the selected card, with no rest, which its recognizer keeps.
+  bool _dragFromReady = false;
+  // Cards that have changed place, by how far they still have to slide.
+  final Map<String, double> _slides = {};
+  Offset? _outsideTapFrom;
+
+  bool get _moves =>
+      !HomeBlob.isStill && !MediaQuery.disableAnimationsOf(context);
 
   @override
   void initState() {
     super.initState();
+    _clock = createTicker(_tick);
+    _lift = AnimationController(
+      vsync: this,
+      duration: const LauncherConfig().promptDelay,
+    );
+    _reveal = AnimationController(
+      vsync: this,
+      duration: const LauncherConfig().revealDuration,
+    );
     widget.returned?.addListener(_refresh);
+    widget.pressedElsewhere?.addListener(_endArranging);
   }
 
   @override
@@ -124,11 +195,21 @@ class _HomeScreenState extends State<HomeScreen> {
       old.returned?.removeListener(_refresh);
       widget.returned?.addListener(_refresh);
     }
+    if (old.pressedElsewhere != widget.pressedElsewhere) {
+      old.pressedElsewhere?.removeListener(_endArranging);
+      widget.pressedElsewhere?.addListener(_endArranging);
+    }
   }
 
   @override
   void dispose() {
     widget.returned?.removeListener(_refresh);
+    widget.pressedElsewhere?.removeListener(_endArranging);
+    _clock.dispose();
+    _lift.dispose();
+    _reveal.dispose();
+    _time.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -153,31 +234,39 @@ class _HomeScreenState extends State<HomeScreen> {
     preferences.myListOrder,
   ]);
 
+  List<String> _dialOrder(
+    ListCatalog catalog,
+    AccountPreferences preferences,
+    ListLabels labels,
+  ) => [
+    for (final ListDefinition list in orderLists(
+      catalog.definitions,
+      order: preferences.listOrder,
+      myOrder: preferences.myListOrder,
+      recent: widget.recentLists?.call() ?? const [],
+      nameOf: labels.listName,
+    ))
+      list.id,
+  ];
+
   void _workOutCards(
     ListCatalog catalog,
     AccountPreferences preferences,
     ListLabels labels,
     DateTime now,
   ) {
+    if (_pinned != null && (_ownChanges > 0 || _arranging || _heldId != null)) {
+      return;
+    }
     final String choices = _choices(preferences);
     if (_pinned != null &&
         _workedOutFrom == choices &&
         (_pinned!.isNotEmpty || _suggested.isNotEmpty)) {
       return;
     }
-    final List<String> dialOrder = [
-      for (final ListDefinition list in orderLists(
-        catalog.definitions,
-        order: preferences.listOrder,
-        myOrder: preferences.myListOrder,
-        recent: widget.recentLists?.call() ?? const [],
-        nameOf: labels.listName,
-      ))
-        list.id,
-    ];
     final List<String> pinned = homePinnedOrder(
       pins: preferences.homePins,
-      dialOrder: dialOrder,
+      dialOrder: _dialOrder(catalog, preferences, labels),
       homeOrder: preferences.homeOrder,
       homeArranged: preferences.homeArranged,
     );
@@ -197,40 +286,795 @@ class _HomeScreenState extends State<HomeScreen> {
     _workedOutFrom = choices;
   }
 
-  // The pin on a card: the card stays, and a second tap puts it back in place.
-  void _tapPin(String listId, ListCatalog catalog) {
+  // A change made here: the cards do not treat it as news from elsewhere.
+  Future<void> _own(Future<void> Function(AccountPreferencesCubit) change) async {
     final AccountPreferencesCubit cubit = context
         .read<AccountPreferencesCubit>();
-    setState(() {
-      if (_unfilled.remove(listId)) {
-        cubit.pinToHome(
-          listId,
-          existing: [for (final list in catalog.definitions) list.id],
-          keepPlace: true,
-        );
-      } else {
-        _unfilled.add(listId);
-        cubit.unpinFromHome(listId);
+    _ownChanges++;
+    try {
+      await change(cubit);
+    } finally {
+      _ownChanges--;
+      if (mounted) {
+        setState(() => _workedOutFrom = _choices(cubit.state));
       }
-      _workedOutFrom = _choices(cubit.state);
+    }
+  }
+
+  // The pin on a card: the card stays, and a second tap puts it back in place.
+  void _tapPin(String listId, ListCatalog catalog) {
+    final bool filling = _unfilled.remove(listId);
+    if (!filling) {
+      _unfilled.add(listId);
+    }
+    setState(() {});
+    _own(
+      (cubit) => filling
+          ? cubit.pinToHome(
+              listId,
+              existing: [for (final list in catalog.definitions) list.id],
+              keepPlace: true,
+            )
+          : cubit.unpinFromHome(listId),
+    );
+  }
+
+  void _act(HomeCardAction action, String listId, ListCatalog catalog) {
+    final AppLocalizations loc = AppLocalizations.of(context);
+    final AppBannerController banners = context.read<AppBannerController>();
+    final List<String> existing = [
+      for (final list in catalog.definitions) list.id,
+    ];
+    switch (action) {
+      case HomeCardAction.rearrange:
+        _startArranging(listId);
+      case HomeCardAction.edit:
+        _edit?.onEdit(listId);
+      case HomeCardAction.unpin:
+        _tapPin(listId, catalog);
+      case HomeCardAction.pin:
+        if (_unfilled.contains(listId)) {
+          _tapPin(listId, catalog);
+        } else {
+          // At once to the end of the pinned cards; the suggestions are worked
+          // out again at the next refresh (Q-76).
+          setState(() {
+            _suggested = [..._suggested]..remove(listId);
+            _pinned = [..._pinned!, listId];
+          });
+          _own((cubit) => cubit.pinToHome(listId, existing: existing));
+        }
+      case HomeCardAction.remove:
+        setState(() => _suggested = [..._suggested]..remove(listId));
+        _own((cubit) => cubit.removeFromHome(listId, existing: existing));
+        banners.show(
+          loc.homeRemovedBanner,
+          actionLabel: loc.undo,
+          onAction: () {
+            context.read<AccountPreferencesCubit>().undoRemoveFromHome(listId);
+            _refresh();
+          },
+        );
+      case HomeCardAction.noSuggestions:
+        final AccountPreferencesCubit cubit = context
+            .read<AccountPreferencesCubit>();
+        cubit.setHomeSuggestions(false);
+        banners.show(
+          loc.homeSuggestionsOffBanner,
+          actionLabel: loc.undo,
+          onAction: () => cubit.setHomeSuggestions(true),
+        );
+    }
+  }
+
+  ListEditAction? _edit;
+
+  String _actionLabel(AppLocalizations loc, HomeCardAction action) =>
+      switch (action) {
+        HomeCardAction.rearrange => loc.homeRearrange,
+        HomeCardAction.edit => loc.edit,
+        HomeCardAction.unpin => loc.homeUnpinShort,
+        HomeCardAction.pin => loc.homePinShort,
+        HomeCardAction.remove => loc.homeRemove,
+        HomeCardAction.noSuggestions => loc.homeNoSuggestions,
+      };
+
+  List<HomeCardAction> _actionsOf(String listId, {required bool suggested}) =>
+      homeCardActions(
+        pinned: suggested ? null : !_unfilled.contains(listId),
+        pinnedLists: _filledPins.length,
+      );
+
+  List<String> get _filledPins => [
+    for (final String id in _pinned ?? const <String>[])
+      if (!_unfilled.contains(id)) id,
+  ];
+
+  void _buzz(bool strong) {
+    if (context.accountPreferences.vibration) {
+      strong ? HapticFeedback.mediumImpact() : HapticFeedback.selectionClick();
+    }
+  }
+
+  // Each frame of a hold or of arranging: the sways, the cards sliding to their
+  // places and scrolling at the screen's edges.
+  void _tick(Duration elapsed) {
+    final double seconds = (elapsed - _lastTick).inMicroseconds / 1e6;
+    _lastTick = elapsed;
+    _time.value = elapsed;
+    if (_slides.isNotEmpty) {
+      final double step = seconds / (AppMotion.quick.inMicroseconds / 1e6);
+      setState(() {
+        _slides.updateAll((_, left) {
+          final double done = left * (1 - step).clamp(0.0, 1.0);
+          return done.abs() < 0.5 ? 0 : done;
+        });
+        _slides.removeWhere((_, left) => left == 0);
+      });
+    }
+    if (_dragId != null) {
+      _scrollAtEdge(seconds);
+    }
+    _syncClock();
+  }
+
+  void _syncClock() {
+    final bool wanted =
+        _slides.isNotEmpty ||
+        _dragId != null ||
+        ((_arranging || _heldId != null) && _moves);
+    if (wanted && !_clock.isActive) {
+      _lastTick = Duration.zero;
+      _clock.start();
+    } else if (!wanted && _clock.isActive) {
+      _clock.stop();
+    }
+  }
+
+  RenderBox? get _stackBox =>
+      _stack.currentContext?.findRenderObject() as RenderBox?;
+
+  // Where a card lies in the stack, without its sway or slide.
+  Rect? _rectOf(String listId) {
+    final RenderBox? box =
+        _cardKeys[listId]?.currentContext?.findRenderObject() as RenderBox?;
+    final RenderBox? stack = _stackBox;
+    if (box == null || stack == null || !box.hasSize) {
+      return null;
+    }
+    return box.localToGlobal(Offset.zero, ancestor: stack) & box.size;
+  }
+
+  // --- The hold ---
+
+  void _holdDown(String listId) {
+    if (_arranging) {
+      return;
+    }
+    setState(() => _heldId = listId);
+    if (_moves) {
+      _lift.forward(from: 0);
+    }
+    _syncClock();
+  }
+
+  void _holdCancelled() {
+    if (_arranging || _prompts.isNotEmpty) {
+      return;
+    }
+    _lift.value = 0;
+    setState(() => _heldId = null);
+    _syncClock();
+  }
+
+  void _holdReached(
+    String listId,
+    Offset global, {
+    required bool suggested,
+    required TextScaler scaler,
+    required AppLocalizations loc,
+  }) {
+    final RenderBox? stack = _stackBox;
+    final Rect? rect = _rectOf(listId);
+    if (stack == null || rect == null) {
+      return;
+    }
+    _buzz(true);
+    _lift.value = 1;
+    final Offset finger = stack.globalToLocal(global);
+    final List<HomeCardAction> actions = _actionsOf(
+      listId,
+      suggested: suggested,
+    );
+    double widest = 0;
+    for (final HomeCardAction action in actions) {
+      final TextPainter painter = TextPainter(
+        text: TextSpan(
+          text: _actionLabel(loc, action),
+          style: const TextStyle(
+            fontFamily: AppFonts.sans,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        textDirection: Directionality.of(context),
+        textScaler: scaler,
+      )..layout();
+      widest = math.max(widest, painter.width);
+      painter.dispose();
+    }
+    final Size screen = stack.size;
+    final LauncherHubArea? hub = LauncherHubArea.maybeOf(context);
+    final Offset? hubCentre = hub?.hubCenter(screen);
+    setState(() {
+      _heldRect = rect;
+      _holdStart = finger;
+      _finger = finger;
+      _prompts = actions;
+      _promptWidth = math.min(
+        widest + _promptWidthPadding,
+        screen.width - 2 * homePromptMargin,
+      );
+      _promptCentres = homePromptCentres(
+        finger: finger,
+        count: actions.length,
+        promptWidth: _promptWidth,
+        screen: screen,
+        top: MediaQuery.paddingOf(context).top + 8,
+        bottom: screen.height - homePromptBottomRoom,
+        avoid: hubCentre == null
+            ? null
+            : Rect.fromCircle(center: hubCentre, radius: hub!.hubReach),
+      );
+      _promptSelected = null;
+    });
+    if (_moves) {
+      _reveal.forward(from: 0);
+    } else {
+      _reveal.value = 1;
+    }
+  }
+
+  // Filled by how far the finger has come, and full once it is there (rule 3).
+  double _promptProgress(int index) {
+    const LauncherConfig config = LauncherConfig();
+    final Offset centre = _promptCentres[index];
+    final double from = math.max(
+      (centre - _holdStart).distance - config.promptHitRadius,
+      1,
+    );
+    final double left = (centre - _finger).distance - config.promptHitRadius;
+    return (1 - left / from).clamp(0.0, 1.0);
+  }
+
+  void _holdMoved(Offset global) {
+    final RenderBox? stack = _stackBox;
+    if (stack == null || _prompts.isEmpty) {
+      return;
+    }
+    final Offset finger = stack.globalToLocal(global);
+    const LauncherConfig config = LauncherConfig();
+    setState(() {
+      _finger = finger;
+      int? best;
+      double bestProgress = 0;
+      for (int i = 0; i < _prompts.length; i++) {
+        final double progress = _promptProgress(i);
+        if (progress > bestProgress) {
+          best = i;
+          bestProgress = progress;
+        }
+      }
+      final int? was = _promptSelected;
+      if (was != null &&
+          (_promptProgress(was) < config.promptUnselectAt || best != was)) {
+        _promptSelected = null;
+      }
+      if (_promptSelected == null &&
+          best != null &&
+          bestProgress >= config.promptSelectAt) {
+        _promptSelected = best;
+        if (best != was) {
+          _buzz(false);
+        }
+      }
     });
   }
 
-  Widget _card(ListCatalog catalog, String listId, {required bool suggested}) {
+  void _holdEnded(ListCatalog catalog) {
+    final String? listId = _heldId;
+    final int? chosen = _promptSelected;
+    final HomeCardAction? action = chosen == null ? null : _prompts[chosen];
+    setState(() {
+      _heldId = null;
+      _prompts = const [];
+      _promptCentres = const [];
+      _promptSelected = null;
+    });
+    _reveal.value = 0;
+    if (listId != null && action != null) {
+      _act(action, listId, catalog);
+    }
+    // Rearrange carries the lift on; anything else settles at once.
+    _lift.value = _arranging ? 1 : 0;
+    _syncClock();
+  }
+
+  // --- Arranging ---
+
+  void _startArranging(String listId) {
+    setState(() {
+      _arranging = true;
+      _selectedId = listId;
+    });
+    _syncClock();
+  }
+
+  void _endArranging() {
+    if (!_arranging || !mounted) {
+      return;
+    }
+    setState(() {
+      _arranging = false;
+      _selectedId = null;
+      _dragId = null;
+      _outsideTapFrom = null;
+    });
+    _syncClock();
+  }
+
+  void _pickUp(String listId, Offset global) {
+    final RenderBox? stack = _stackBox;
+    final Rect? rect = _rectOf(listId);
+    if (stack == null || rect == null) {
+      return;
+    }
+    if (_selectedId != listId) {
+      _buzz(true);
+    }
+    final Offset finger = stack.globalToLocal(global);
+    setState(() {
+      _dragFromReady = _selectedId == listId;
+      _selectedId = listId;
+      _dragId = listId;
+      _dragMoved = false;
+      _finger = finger;
+      _holdStart = finger;
+      _heldRect = rect;
+      _dragGrab = finger.dy - rect.top;
+      _slides.remove(listId);
+    });
+    _syncClock();
+  }
+
+  void _dragMovedTo(Offset global) {
+    final RenderBox? stack = _stackBox;
+    if (stack == null || _dragId == null) {
+      return;
+    }
+    final Offset finger = stack.globalToLocal(global);
+    setState(() {
+      _finger = finger;
+      if ((finger - _holdStart).distance > kTouchSlop) {
+        _dragMoved = true;
+      }
+    });
+    if (_dragMoved) {
+      _changePlaces();
+    }
+  }
+
+  // A place changes when the card's middle passes a neighbour's middle. The
+  // neighbour slides from where it was (T-21's idea for the dial, in y).
+  void _changePlaces() {
+    final String? dragged = _dragId;
+    final List<String>? pinned = _pinned;
+    if (dragged == null || pinned == null) {
+      return;
+    }
+    final double middle = _finger.dy - _dragGrab + _heldRect.height / 2;
+    final List<String> filled = _filledPins;
+    final int at = filled.indexOf(dragged);
+    String? passed;
+    bool down = false;
+    if (at + 1 < filled.length) {
+      final Rect? next = _rectOf(filled[at + 1]);
+      if (next != null && middle > next.center.dy) {
+        passed = filled[at + 1];
+        down = true;
+      }
+    }
+    if (passed == null && at > 0) {
+      final Rect? previous = _rectOf(filled[at - 1]);
+      if (previous != null && middle < previous.center.dy) {
+        passed = filled[at - 1];
+      }
+    }
+    if (passed == null) {
+      return;
+    }
+    final String other = passed;
+    _buzz(false);
+    setState(() {
+      final int from = pinned.indexOf(dragged);
+      final int to = pinned.indexOf(other);
+      pinned
+        ..[from] = other
+        ..[to] = dragged;
+      if (_moves) {
+        _slides[other] =
+            (_slides[other] ?? 0) +
+            (down ? _heldRect.height : -_heldRect.height);
+      }
+    });
+    _syncClock();
+  }
+
+  void _scrollAtEdge(double seconds) {
+    final RenderBox? stack = _stackBox;
+    if (stack == null || !_scroll.hasClients) {
+      return;
+    }
+    final double top = _finger.dy - _edgeScrollZone;
+    final double bottom =
+        stack.size.height - homePromptBottomRoom - _finger.dy;
+    final double depth = top < 0
+        ? top / _edgeScrollZone
+        : bottom < 0
+        ? -bottom / _edgeScrollZone
+        : 0;
+    if (depth == 0) {
+      return;
+    }
+    final ScrollPosition position = _scroll.position;
+    final double target = (position.pixels + depth * _edgeScrollSpeed * seconds)
+        .clamp(position.minScrollExtent, position.maxScrollExtent);
+    if (target != position.pixels) {
+      _scroll.jumpTo(target);
+      _changePlaces();
+    }
+  }
+
+  void _dropped(ListCatalog catalog, ListLabels labels) {
+    final String? dragged = _dragId;
+    if (dragged == null) {
+      return;
+    }
+    if (!_dragMoved) {
+      // A press that lifts without moving leaves it ready to drag.
+      setState(() => _dragId = null);
+      _syncClock();
+      return;
+    }
+    final double top = _finger.dy - _dragGrab;
+    final Rect? place = _rectOf(dragged);
+    setState(() {
+      _dragId = null;
+      _selectedId = null;
+      if (place != null && _moves) {
+        _slides[dragged] = top - place.top;
+      }
+    });
+    _syncClock();
+    _saveOrder(catalog, labels);
+  }
+
+  void _saveOrder(ListCatalog catalog, ListLabels labels) {
+    final List<String> order = _filledPins;
+    final AccountPreferences now = context.accountPreferences;
+    final List<String> shown = homePinnedOrder(
+      pins: now.homePins,
+      dialOrder: _dialOrder(catalog, now, labels),
+      homeOrder: now.homeOrder,
+      homeArranged: now.homeArranged,
+    );
+    if (listEquals(order, shown)) {
+      return;
+    }
+    final List<String> dial = _dialOrder(catalog, now, labels);
+    _own((cubit) => cubit.arrangedOnHome(order, dialOrder: dial));
+  }
+
+  // For a screen reader, which has no hold or drag.
+  void _moveByOne(
+    String listId,
+    int by,
+    ListCatalog catalog,
+    ListLabels labels,
+  ) {
+    final List<String> filled = _filledPins;
+    final int at = filled.indexOf(listId);
+    final int to = at + by;
+    if (at < 0 || to < 0 || to >= filled.length) {
+      return;
+    }
+    final List<String> pinned = _pinned!;
+    final int a = pinned.indexOf(listId);
+    final int b = pinned.indexOf(filled[to]);
+    setState(() {
+      pinned
+        ..[a] = filled[to]
+        ..[b] = listId;
+    });
+    _saveOrder(catalog, labels);
+  }
+
+  // A tap on anything but a pinned card ends arranging; a swipe does not.
+  void _pointerDown(PointerDownEvent event) {
+    if (!_arranging) {
+      return;
+    }
+    final RenderBox? stack = _stackBox;
+    final Offset? at = stack?.globalToLocal(event.position);
+    final bool onCard =
+        at != null &&
+        _filledPins.any((id) => _rectOf(id)?.contains(at) ?? false);
+    _outsideTapFrom = onCard ? null : event.position;
+  }
+
+  void _pointerMove(PointerMoveEvent event) {
+    final Offset? from = _outsideTapFrom;
+    if (from != null && (event.position - from).distance > kTouchSlop) {
+      _outsideTapFrom = null;
+    }
+  }
+
+  void _pointerUp(PointerUpEvent event) {
+    if (_outsideTapFrom != null) {
+      _outsideTapFrom = null;
+      _endArranging();
+    }
+  }
+
+  Widget _cardContent(
+    ListCatalog catalog,
+    ListDefinition definition, {
+    required bool suggested,
+    required bool lifted,
+  }) {
+    final AppLocalizations loc = AppLocalizations.of(context);
+    final String listId = definition.id;
+    return HomeListCard(
+      definition: definition,
+      openItems: homeTopItems(definition, catalog.itemsOf(listId)),
+      pinned: suggested ? null : !_unfilled.contains(listId),
+      lifted: lifted,
+      onPin: suggested || _arranging ? null : () => _tapPin(listId, catalog),
+      menu: _arranging
+          ? const []
+          : [
+              for (final HomeCardAction action in _actionsOf(
+                listId,
+                suggested: suggested,
+              ))
+                (
+                  key: action.name,
+                  label: _actionLabel(loc, action),
+                  icon: _actionIcon(action),
+                  onSelected: () => _act(action, listId, catalog),
+                ),
+            ],
+    );
+  }
+
+  static IconData _actionIcon(HomeCardAction action) => switch (action) {
+    HomeCardAction.rearrange => Icons.swap_vert,
+    HomeCardAction.edit => Icons.edit_outlined,
+    HomeCardAction.unpin => Icons.push_pin_outlined,
+    HomeCardAction.pin => Icons.push_pin,
+    HomeCardAction.remove => Icons.remove_circle_outline,
+    HomeCardAction.noSuggestions => Icons.visibility_off_outlined,
+  };
+
+  Widget _card(
+    ListCatalog catalog,
+    String listId,
+    int index,
+    ListLabels labels, {
+    required bool suggested,
+  }) {
     final ListDefinition? definition = catalog.definition(listId);
     if (definition == null) {
       return const SizedBox.shrink();
     }
-    return Padding(
-      padding: const EdgeInsets.only(top: 10),
-      child: HomeListCard(
-        definition: definition,
-        openItems: homeTopItems(definition, catalog.itemsOf(listId)),
-        pinned: suggested ? null : !_unfilled.contains(listId),
-        onTap: () => widget.onOpenList?.call(listId),
-        onPin: suggested ? null : () => _tapPin(listId, catalog),
+    final AppLocalizations loc = labels.loc;
+    final TextScaler scaler = MediaQuery.textScalerOf(context);
+    final bool draggable = !suggested && !_unfilled.contains(listId);
+    final bool selected = _selectedId == listId;
+    final bool inHand = _dragId == listId || (_heldId == listId && _prompts.isNotEmpty);
+    final Map<Type, GestureRecognizerFactory> gestures = {};
+
+    void holdHandlers(LongPressGestureRecognizer recognizer) {
+      recognizer
+        ..onLongPressDown = ((_) => _holdDown(listId))
+        ..onLongPressCancel = _holdCancelled
+        ..onLongPressStart = ((details) => _holdReached(
+          listId,
+          details.globalPosition,
+          suggested: suggested,
+          scaler: scaler,
+          loc: loc,
+        ))
+        ..onLongPressMoveUpdate = ((details) =>
+            _holdMoved(details.globalPosition))
+        ..onLongPressEnd = ((_) => _holdEnded(catalog));
+    }
+
+    void dragHandlers(LongPressGestureRecognizer recognizer) {
+      recognizer
+        ..onLongPressStart = ((details) =>
+            _pickUp(listId, details.globalPosition))
+        ..onLongPressMoveUpdate = ((details) =>
+            _dragMovedTo(details.globalPosition))
+        ..onLongPressEnd = ((_) => _dropped(catalog, labels));
+    }
+
+    if (!_arranging) {
+      gestures[TapGestureRecognizer] =
+          GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
+            TapGestureRecognizer.new,
+            (recognizer) =>
+                recognizer.onTap = () => widget.onOpenList?.call(listId),
+          );
+      gestures[_HoldRecognizer] =
+          GestureRecognizerFactoryWithHandlers<_HoldRecognizer>(
+            _HoldRecognizer.new,
+            holdHandlers,
+          );
+    } else if (draggable &&
+        selected &&
+        (_dragId != listId || _dragFromReady)) {
+      gestures[_ReadyRecognizer] =
+          GestureRecognizerFactoryWithHandlers<_ReadyRecognizer>(
+            _ReadyRecognizer.new,
+            dragHandlers,
+          );
+    } else if (draggable) {
+      gestures[_RestRecognizer] =
+          GestureRecognizerFactoryWithHandlers<_RestRecognizer>(
+            _RestRecognizer.new,
+            dragHandlers,
+          );
+    }
+
+    final List<String> filled = _filledPins;
+    final int place = filled.indexOf(listId);
+    return KeyedSubtree(
+      key: _cardKeys.putIfAbsent(listId, GlobalKey.new),
+      child: Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: Semantics(
+          container: true,
+          button: !_arranging,
+          onTap: _arranging ? null : () => widget.onOpenList?.call(listId),
+          customSemanticsActions: draggable
+              ? {
+                  if (place > 0)
+                    CustomSemanticsAction(label: loc.homeMoveEarlier): () =>
+                        _moveByOne(listId, -1, catalog, labels),
+                  if (place >= 0 && place + 1 < filled.length)
+                    CustomSemanticsAction(label: loc.homeMoveLater): () =>
+                        _moveByOne(listId, 1, catalog, labels),
+                }
+              : null,
+          child: RawGestureDetector(
+            key: ValueKey('home-card-$listId'),
+            behavior: HitTestBehavior.opaque,
+            excludeFromSemantics: true,
+            gestures: gestures,
+            child: Opacity(
+              // In the hand it is drawn above the prompts, by _floatingCard.
+              opacity: inHand ? 0 : 1,
+              child: _moving(
+                listId,
+                index,
+                draggable: draggable,
+                child: _cardContent(
+                  catalog,
+                  definition,
+                  suggested: suggested,
+                  lifted: selected || _heldId == listId,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
+  }
+
+  // The card's slide, lift and sway.
+  Widget _moving(
+    String listId,
+    int index, {
+    required bool draggable,
+    required Widget child,
+  }) {
+    final bool held = _heldId == listId;
+    final bool selected = _selectedId == listId;
+    final bool swaying = _arranging && draggable;
+    const LauncherConfig config = LauncherConfig();
+    return Transform.translate(
+      offset: Offset(0, _slides[listId] ?? 0),
+      child: AnimatedBuilder(
+        animation: Listenable.merge([_lift, _time]),
+        child: child,
+        builder: (context, child) {
+          final double lift = held
+              ? _lift.value
+              : selected
+              ? 1
+              : 0;
+          final double degrees = !_moves
+              ? 0
+              : lift > 0
+              ? _liftedSwayDegrees * lift
+              : swaying
+              ? config.dialArrangeSwayDegrees
+              : 0;
+          return Transform.rotate(
+            angle: arrangeSway(_time.value, index) * degrees * math.pi / 180,
+            child: Transform.scale(
+              scale: 1 + (_liftScale - 1) * lift,
+              child: child,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // The card in the hand, above everything; under it, while holding, the prompts.
+  List<Widget> _overlay(ListCatalog catalog, ListLabels labels) {
+    final String? listId = _dragId ?? (_prompts.isNotEmpty ? _heldId : null);
+    final ListDefinition? definition = listId == null
+        ? null
+        : catalog.definition(listId);
+    if (listId == null || definition == null) {
+      return const [];
+    }
+    final bool suggested = _suggested.contains(listId);
+    final double top = _dragId != null
+        ? _finger.dy - _dragGrab
+        : _heldRect.top;
+    final Offset discCentre = _heldRect.topLeft + const Offset(69, 81);
+    final List<String> filled = _filledPins;
+    return [
+      for (int i = 0; i < _prompts.length; i++)
+        AnimatedBuilder(
+          animation: _reveal,
+          builder: (context, _) => HomePrompt(
+            key: ValueKey('home-prompt-${_prompts[i].name}'),
+            label: _actionLabel(labels.loc, _prompts[i]),
+            centre: Offset.lerp(discCentre, _promptCentres[i], _reveal.value)!,
+            width: _promptWidth,
+            reveal: _reveal.value,
+            near: (_promptProgress(i) / const LauncherConfig().promptSelectAt)
+                .clamp(0.0, 1.0),
+          ),
+        ),
+      Positioned(
+        left: _heldRect.left,
+        top: top,
+        width: _heldRect.width,
+        child: IgnorePointer(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: _moving(
+              listId,
+              math.max(filled.indexOf(listId), 0),
+              draggable: !suggested,
+              child: _cardContent(
+                catalog,
+                definition,
+                suggested: suggested,
+                lifted: true,
+              ),
+            ),
+          ),
+        ),
+      ),
+    ];
   }
 
   @override
@@ -246,6 +1090,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final AccountPreferences preferences = context.watchAccountPreferences;
     final double top = MediaQuery.paddingOf(context).top;
     final TextScaler scaler = MediaQuery.textScalerOf(context);
+    _edit = ListEditAction.maybeOf(context);
     // What the fixed header takes: its padding, the button, the weekday and the
     // date line, with room to spare under them.
     final double headerHeight =
@@ -271,7 +1116,11 @@ class _HomeScreenState extends State<HomeScreen> {
               : '';
       return InkWell(
         key: ValueKey('home-due-${due.item.id}'),
-        onTap: () => widget.onOpenList?.call(definition.id),
+        onTap: () {
+          if (!_arranging) {
+            widget.onOpenList?.call(definition.id);
+          }
+        },
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 36),
           child: Row(
@@ -308,128 +1157,182 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    return Scaffold(
-      body: ListCatalogBuilder(
-        builder: (context, catalog) {
-          final List<HomeDueItem> due = homeDueItems(catalog, now);
-          _workOutCards(catalog, preferences, labels, now);
-          return Stack(
-            children: [
-              Positioned.fill(
-                child: RefreshIndicator(
-                  onRefresh: _pullDown,
-                  color: AppColors.appBlue,
-                  edgeOffset: headerHeight,
-                  child: ListView(
-                    key: const ValueKey('home-scroll'),
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: EdgeInsets.fromLTRB(
-                      AppShapes.sideMargin,
-                      headerHeight,
-                      AppShapes.sideMargin,
-                      // Room so the hub does not cover the last card.
-                      140,
-                    ),
-                    children: [
-                      if (catalog.definitions.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 28),
-                          child: StarterNote(),
+    return PopScope(
+      canPop: !_arranging,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          _endArranging();
+        }
+      },
+      child: Scaffold(
+        body: ListCatalogBuilder(
+          builder: (context, catalog) {
+            final List<HomeDueItem> due = homeDueItems(catalog, now);
+            _workOutCards(catalog, preferences, labels, now);
+            final List<String> pinned = _pinned!;
+            return Listener(
+              onPointerDown: _pointerDown,
+              onPointerMove: _pointerMove,
+              onPointerUp: _pointerUp,
+              child: Stack(
+                key: _stack,
+                children: [
+                  Positioned.fill(
+                    child: RefreshIndicator(
+                      onRefresh: _pullDown,
+                      color: AppColors.appBlue,
+                      edgeOffset: headerHeight,
+                      child: ListView(
+                        key: const ValueKey('home-scroll'),
+                        controller: _scroll,
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: EdgeInsets.fromLTRB(
+                          AppShapes.sideMargin,
+                          headerHeight,
+                          AppShapes.sideMargin,
+                          // Room so the hub does not cover the last card.
+                          140,
                         ),
-                      if (preferences.homeContent.showsDue &&
-                          due.isNotEmpty) ...[
-                        const SizedBox(height: 40),
-                        Text(loc.today.toUpperCase(), style: type.sectionLabel),
-                        const SizedBox(height: 6),
-                        for (final HomeDueItem item in due) row(item),
-                      ],
-                      if (preferences.homeContent.showsDue &&
-                          due.isEmpty &&
-                          catalog.definitions.isNotEmpty) ...[
-                        const SizedBox(height: 40),
-                        Text(
-                          loc.homeNothingDue,
-                          key: const ValueKey('home-nothing-due'),
-                          style: type.meta.copyWith(fontSize: 15),
-                        ),
-                      ],
-                      if (preferences.homeContent.showsCards &&
-                          (_pinned!.isNotEmpty || _suggested.isNotEmpty)) ...[
-                        const SizedBox(height: 40),
-                        for (final String listId in _pinned!)
-                          _card(catalog, listId, suggested: false),
-                        for (final String listId in _suggested)
-                          _card(catalog, listId, suggested: true),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    AppShapes.sideMargin,
-                    8 + top,
-                    AppShapes.sideMargin,
-                    0,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Align(
-                        alignment: AlignmentDirectional.centerEnd,
-                        child: IconButton(
-                          key: const ValueKey('settings'),
-                          tooltip: loc.settings,
-                          onPressed: () => showSettingsSheet(context),
-                          style: IconButton.styleFrom(
-                            backgroundColor: AppColors.appBlue,
-                            foregroundColor: AppColors.onAppBlue,
-                            fixedSize: const Size(40, 40),
-                            minimumSize: const Size(40, 40),
-                          ),
-                          icon: const Icon(Icons.settings_outlined, size: 20),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      // The weekday stays whole: long names shrink to the width.
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: AlignmentDirectional.centerStart,
-                        child: Text(
-                          DateFormat.EEEE(locale).format(now),
-                          key: const ValueKey('home-weekday'),
-                          style: type.screenTitle.copyWith(
-                            fontSize: 76,
-                            height: 1,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        // The count only when there are due rows to count.
-                        [
-                          DateFormat.MMMMd(locale).format(now),
+                        children: [
+                          if (catalog.definitions.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.only(top: 28),
+                              child: StarterNote(),
+                            ),
                           if (preferences.homeContent.showsDue &&
-                              due.isNotEmpty)
-                            loc.homeThingsToday(due.length),
-                        ].join(' · '),
-                        key: const ValueKey('home-date'),
-                        style: type.meta.copyWith(fontSize: 15),
+                              due.isNotEmpty) ...[
+                            const SizedBox(height: 40),
+                            Text(
+                              loc.today.toUpperCase(),
+                              style: type.sectionLabel,
+                            ),
+                            const SizedBox(height: 6),
+                            for (final HomeDueItem item in due) row(item),
+                          ],
+                          if (preferences.homeContent.showsDue &&
+                              due.isEmpty &&
+                              catalog.definitions.isNotEmpty) ...[
+                            const SizedBox(height: 40),
+                            Text(
+                              loc.homeNothingDue,
+                              key: const ValueKey('home-nothing-due'),
+                              style: type.meta.copyWith(fontSize: 15),
+                            ),
+                          ],
+                          if (preferences.homeContent.showsCards &&
+                              (pinned.isNotEmpty || _suggested.isNotEmpty)) ...[
+                            const SizedBox(height: 40),
+                            for (int i = 0; i < pinned.length; i++)
+                              _card(
+                                catalog,
+                                pinned[i],
+                                i,
+                                labels,
+                                suggested: false,
+                              ),
+                            for (int i = 0; i < _suggested.length; i++)
+                              _card(
+                                catalog,
+                                _suggested[i],
+                                pinned.length + i,
+                                labels,
+                                suggested: true,
+                              ),
+                          ],
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        AppShapes.sideMargin,
+                        8 + top,
+                        AppShapes.sideMargin,
+                        0,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Align(
+                            alignment: AlignmentDirectional.centerEnd,
+                            child: IconButton(
+                              key: const ValueKey('settings'),
+                              tooltip: loc.settings,
+                              onPressed: () {
+                                if (!_arranging) {
+                                  showSettingsSheet(context);
+                                }
+                              },
+                              style: IconButton.styleFrom(
+                                backgroundColor: AppColors.appBlue,
+                                foregroundColor: AppColors.onAppBlue,
+                                fixedSize: const Size(40, 40),
+                                minimumSize: const Size(40, 40),
+                              ),
+                              icon: const Icon(
+                                Icons.settings_outlined,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          // The weekday stays whole: long names shrink to the
+                          // width.
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: AlignmentDirectional.centerStart,
+                            child: Text(
+                              DateFormat.EEEE(locale).format(now),
+                              key: const ValueKey('home-weekday'),
+                              style: type.screenTitle.copyWith(
+                                fontSize: 76,
+                                height: 1,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            // The count only when there are due rows to count.
+                            [
+                              DateFormat.MMMMd(locale).format(now),
+                              if (preferences.homeContent.showsDue &&
+                                  due.isNotEmpty)
+                                loc.homeThingsToday(due.length),
+                            ].join(' · '),
+                            key: const ValueKey('home-date'),
+                            style: type.meta.copyWith(fontSize: 15),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  ..._overlay(catalog, labels),
+                ],
               ),
-            ],
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
+}
+
+// How long each press takes to count (Q-76, Q-77): a hold for the prompts, the
+// dial's short rest for a card while arranging, and none for the one selected.
+class _HoldRecognizer extends LongPressGestureRecognizer {
+  _HoldRecognizer() : super(duration: const LauncherConfig().promptDelay);
+}
+
+class _RestRecognizer extends LongPressGestureRecognizer {
+  _RestRecognizer() : super(duration: const LauncherConfig().dialPickUpDelay);
+}
+
+class _ReadyRecognizer extends LongPressGestureRecognizer {
+  _ReadyRecognizer() : super(duration: Duration.zero);
 }
 
 // A list-colour dot with a ring in the text colour overlapping it, shifted up
