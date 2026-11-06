@@ -378,5 +378,6 @@
   "preferencesHomeContentBoth": "リストカードと今日が期限の項目",
   "preferencesHomeContentCards": "リストカード",
   "preferencesHomeContentDue": "今日が期限の項目",
-  "preferencesHomeSuggestions": "おすすめを表示"
+  "preferencesHomeSuggestions": "おすすめを表示",
+  "homeNothingDue": "予定なし。今日は自由です。"
 }

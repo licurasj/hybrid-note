@@ -378,5 +378,6 @@
   "preferencesHomeContentBoth": "Listenkarten und heute Fälliges",
   "preferencesHomeContentCards": "Listenkarten",
   "preferencesHomeContentDue": "Heute Fälliges",
-  "preferencesHomeSuggestions": "Vorschläge anzeigen"
+  "preferencesHomeSuggestions": "Vorschläge anzeigen",
+  "homeNothingDue": "Nichts fällig. Der Tag gehört dir."
 }

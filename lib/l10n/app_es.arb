@@ -378,5 +378,6 @@
   "preferencesHomeContentBoth": "Tarjetas de listas y elementos de hoy",
   "preferencesHomeContentCards": "Tarjetas de listas",
   "preferencesHomeContentDue": "Elementos de hoy",
-  "preferencesHomeSuggestions": "Mostrar sugerencias"
+  "preferencesHomeSuggestions": "Mostrar sugerencias",
+  "homeNothingDue": "Nada pendiente. El día es tuyo."
 }

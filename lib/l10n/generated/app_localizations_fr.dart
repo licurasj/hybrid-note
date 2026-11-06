@@ -1248,4 +1248,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get preferencesHomeSuggestions => 'Afficher les suggestions';
+
+  @override
+  String get homeNothingDue => 'Rien de prévu. La journée est à vous.';
 }

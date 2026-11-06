@@ -984,5 +984,6 @@
   "preferencesHomeContentBoth": "List cards and items due today",
   "preferencesHomeContentCards": "List cards",
   "preferencesHomeContentDue": "Items due today",
-  "preferencesHomeSuggestions": "Show suggestions"
+  "preferencesHomeSuggestions": "Show suggestions",
+  "homeNothingDue": "Nothing due. The day is yours."
 }

@@ -1247,4 +1247,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get preferencesHomeSuggestions => 'Vorschläge anzeigen';
+
+  @override
+  String get homeNothingDue => 'Nichts fällig. Der Tag gehört dir.';
 }

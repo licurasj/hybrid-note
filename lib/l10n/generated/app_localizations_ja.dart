@@ -1212,4 +1212,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get preferencesHomeSuggestions => 'おすすめを表示';
+
+  @override
+  String get homeNothingDue => '予定なし。今日は自由です。';
 }

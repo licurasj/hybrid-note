@@ -1234,4 +1234,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get preferencesHomeSuggestions => 'Show suggestions';
+
+  @override
+  String get homeNothingDue => 'Nothing due. The day is yours.';
 }

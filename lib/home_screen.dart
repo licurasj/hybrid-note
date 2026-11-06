@@ -348,6 +348,16 @@ class _HomeScreenState extends State<HomeScreen> {
                           hairline(),
                         ],
                       ],
+                      if (preferences.homeContent.showsDue &&
+                          due.isEmpty &&
+                          catalog.definitions.isNotEmpty) ...[
+                        const SizedBox(height: 40),
+                        Text(
+                          loc.homeNothingDue,
+                          key: const ValueKey('home-nothing-due'),
+                          style: type.meta.copyWith(fontSize: 15),
+                        ),
+                      ],
                       if (preferences.homeContent.showsCards &&
                           (_pinned!.isNotEmpty || _suggested.isNotEmpty)) ...[
                         const SizedBox(height: 40),
@@ -405,8 +415,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        '${DateFormat.MMMMd(locale).format(now)} · '
-                        '${loc.homeThingsToday(due.length)}',
+                        // The count only when there are due rows to count.
+                        [
+                          DateFormat.MMMMd(locale).format(now),
+                          if (preferences.homeContent.showsDue &&
+                              due.isNotEmpty)
+                            loc.homeThingsToday(due.length),
+                        ].join(' · '),
                         key: const ValueKey('home-date'),
                         style: type.meta.copyWith(fontSize: 15),
                       ),

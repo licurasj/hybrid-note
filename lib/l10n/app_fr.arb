@@ -378,5 +378,6 @@
   "preferencesHomeContentBoth": "Cartes de listes et éléments du jour",
   "preferencesHomeContentCards": "Cartes de listes",
   "preferencesHomeContentDue": "Éléments du jour",
-  "preferencesHomeSuggestions": "Afficher les suggestions"
+  "preferencesHomeSuggestions": "Afficher les suggestions",
+  "homeNothingDue": "Rien de prévu. La journée est à vous."
 }

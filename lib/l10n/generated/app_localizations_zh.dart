@@ -1207,4 +1207,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get preferencesHomeSuggestions => '显示建议';
+
+  @override
+  String get homeNothingDue => '没有待办，今天属于你。';
 }

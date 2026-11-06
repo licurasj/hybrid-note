@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:hybrid_note/app/account_preferences.dart';
@@ -307,6 +308,16 @@ void main() {
     ];
     const ValueKey<String> dueRow = ValueKey('home-due-due-one');
 
+    testWidgets('both with none due: the line, above the cards', (
+      tester,
+    ) async {
+      await _pumpApp(tester);
+      expect(
+        tester.getTopLeft(find.byKey(const ValueKey('home-nothing-due'))).dy,
+        lessThan(tester.getTopLeft(find.byType(HomeListCard).first).dy),
+      );
+    });
+
     testWidgets('both is the default', (tester) async {
       await _pumpApp(tester, items: withDue());
       expect(find.byKey(dueRow), findsOneWidget);
@@ -335,7 +346,7 @@ void main() {
       );
     });
 
-    testWidgets('items due today with none due: the header says so', (
+    testWidgets('items due today with none due: one light line', (
       tester,
     ) async {
       await _pumpApp(
@@ -345,10 +356,12 @@ void main() {
         },
       );
       expect(find.byType(HomeListCard), findsNothing);
-      expect(find.textContaining('Nothing due today'), findsOneWidget);
+      expect(find.byKey(const ValueKey('home-nothing-due')), findsOneWidget);
+      expect(find.text('Nothing due. The day is yours.'), findsOneWidget);
+      expect(find.text(DateFormat.MMMMd('en').format(_now)), findsOneWidget);
     });
 
-    testWidgets('list cards: no Today rows, and the header still counts them', (
+    testWidgets('list cards: no Today rows, no count and no line', (
       tester,
     ) async {
       await _pumpApp(
@@ -361,7 +374,8 @@ void main() {
       expect(find.byKey(dueRow), findsNothing);
       expect(find.text('TODAY'), findsNothing);
       expect(find.byType(HomeListCard), findsWidgets);
-      expect(find.textContaining('1 thing today'), findsOneWidget);
+      expect(find.text(DateFormat.MMMMd('en').format(_now)), findsOneWidget);
+      expect(find.byKey(const ValueKey('home-nothing-due')), findsNothing);
     });
 
     testWidgets(

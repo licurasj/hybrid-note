@@ -1240,4 +1240,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get preferencesHomeSuggestions => 'Mostrar sugerencias';
+
+  @override
+  String get homeNothingDue => 'Nada pendiente. El día es tuyo.';
 }

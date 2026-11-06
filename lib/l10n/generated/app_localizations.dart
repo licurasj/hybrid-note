@@ -2125,6 +2125,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show suggestions'**
   String get preferencesHomeSuggestions;
+
+  /// No description provided for @homeNothingDue.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing due. The day is yours.'**
+  String get homeNothingDue;
 }
 
 class _AppLocalizationsDelegate

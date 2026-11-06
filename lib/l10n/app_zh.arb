@@ -378,5 +378,6 @@
   "preferencesHomeContentBoth": "列表卡片和今日到期项目",
   "preferencesHomeContentCards": "列表卡片",
   "preferencesHomeContentDue": "今日到期项目",
-  "preferencesHomeSuggestions": "显示建议"
+  "preferencesHomeSuggestions": "显示建议",
+  "homeNothingDue": "没有待办，今天属于你。"
 }
