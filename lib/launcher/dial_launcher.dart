@@ -203,6 +203,12 @@ class _DialLauncherState extends State<DialLauncher>
   double _swipeZoneSeconds = 0;
   int? _swipePassing;
   Timer? _pickUpTimer;
+  // The list under a rest grows a little until it is picked up, and eases back if
+  // the rest ends first: which list, since when, and how far (0 to 1).
+  String? _restKey;
+  Duration _restAt = Duration.zero;
+  bool _restGrowing = false;
+  double _restGrow = 0;
 
   Offset? _movedHub;
   Offset _moveGrab = Offset.zero;
@@ -585,7 +591,13 @@ class _DialLauncherState extends State<DialLauncher>
       return lerpDouble(_config.dialFarLength, 1, _zoom)!;
     }
     if (_arranging) {
-      return _config.dialFarLength;
+      return _entries[index].key == _restKey
+          ? lerpDouble(
+              _config.dialFarLength,
+              1,
+              _config.dialRestGrow * _restGrow,
+            )!
+          : _config.dialFarLength;
     }
     final double near = _config.dialNeighbourLength;
     final double far = _config.dialFarLength;
@@ -781,8 +793,15 @@ class _DialLauncherState extends State<DialLauncher>
 
   // --- Gestures -------------------------------------------------------------
 
-  void _close() {
+  void _stopRest() {
     _pickUpTimer?.cancel();
+    _restGrowing = false;
+  }
+
+  void _close() {
+    _stopRest();
+    _restGrow = 0;
+    _restKey = null;
     _ticker.stop();
     setState(() {
       if (_arranging) {
@@ -877,7 +896,18 @@ class _DialLauncherState extends State<DialLauncher>
       changed = _scrollAtEdge(g, pointer, seconds) || changed;
       changed = _offerPrompt(g, pointer) || changed;
     }
+    // On the hub the discs grow until Move and Arrange come out.
+    changed = changed || (_mode == _Mode.hold && _selected == null);
     if (_arranging) {
+      if (_restGrowing && !_reduceMotion) {
+        _restGrow =
+            ((_now - _restAt).inMicroseconds /
+                    _config.dialPickUpDelay.inMicroseconds)
+                .clamp(0, 1)
+                .toDouble();
+      } else {
+        _restGrow = _reduceMotion || _restGrow < 0.01 ? 0 : _restGrow * (1 - t);
+      }
       _slides.updateAll((key, slide) => slide * (1 - t));
       _slides.removeWhere((key, slide) => slide.abs() < 1e-3);
       if (g != null && pointer != null && _dragPointer != null) {
@@ -1311,12 +1341,15 @@ class _DialLauncherState extends State<DialLauncher>
     _swipePassing = null;
     _turnSpeed = 0;
     _turnAt = null;
-    _pickUpTimer?.cancel();
+    _stopRest();
     _followEmptyHand(g, event.position);
     _trackTurn(event.timeStamp, _polar(g, event.position).$1, false);
     // In a zone the press scrolls, as on the normal dial, and picks nothing up.
     if (_swipeOnList && _edge == 0) {
       _pickUpTimer = Timer(_config.dialPickUpDelay, _pickUp);
+      _restKey = _entries[_listAt(g, event.position)!].key;
+      _restAt = _now;
+      _restGrowing = true;
     }
     _wake();
   }
@@ -1376,6 +1409,11 @@ class _DialLauncherState extends State<DialLauncher>
       _selected = list;
       _pointer = _swipeFinger;
       _edge = 0;
+      // It carries on growing from where the rest took it.
+      _zoom = math.max(_zoom, _config.dialRestGrow * _restGrow);
+      _restGrowing = false;
+      _restGrow = 0;
+      _restKey = null;
     });
     _wake();
   }
@@ -1415,7 +1453,7 @@ class _DialLauncherState extends State<DialLauncher>
       return;
     }
     _swiping = true;
-    _pickUpTimer?.cancel();
+    _stopRest();
     setState(() => _followEmptyHand(g, finger));
     _wake();
   }
@@ -1504,7 +1542,7 @@ class _DialLauncherState extends State<DialLauncher>
 
   void _onArrangeUp(PointerUpEvent event) {
     if (event.pointer == _swipePointer) {
-      _pickUpTimer?.cancel();
+      _stopRest();
       _swipePointer = null;
       _edge = 0;
       final bool scrolled = _swipeZoneSeconds * 1e6 >
@@ -1541,7 +1579,7 @@ class _DialLauncherState extends State<DialLauncher>
 
   void _onArrangeCancel(PointerCancelEvent event) {
     if (event.pointer == _swipePointer) {
-      _pickUpTimer?.cancel();
+      _stopRest();
       _swipePointer = null;
       _edge = 0;
       return;
@@ -2149,6 +2187,29 @@ class _DialLauncherState extends State<DialLauncher>
     );
   }
 
+  // How far the hub's rest has come, as _offerPrompt reads it: from the press, and
+  // again on a finger that has come back; full while Move and Arrange are out.
+  double _hubHold(LauncherGeometry g) {
+    final Offset? pointer = _pointer;
+    if (_mode != _Mode.hold ||
+        pointer == null ||
+        _reduceMotion ||
+        _selected != null ||
+        !(widget.onHubMoved != null || _canArrange)) {
+      return 0;
+    }
+    if (_moveShown) {
+      return 1;
+    }
+    if (_leftHub && _polar(g, pointer).$2 > _config.hubRadius) {
+      return 0;
+    }
+    return ((_now - _restStart).inMicroseconds /
+            _config.promptDelay.inMicroseconds)
+        .clamp(0, 1)
+        .toDouble();
+  }
+
   Widget _hub(LauncherGeometry g) {
     final Brightness brightness = Theme.of(context).brightness;
     final AppNeutrals neutrals = AppColors.neutrals(brightness);
@@ -2158,7 +2219,12 @@ class _DialLauncherState extends State<DialLauncher>
       width: 2.5,
       strokeAlign: BorderSide.strokeAlignOutside,
     );
-    return SizedBox(
+    return AnimatedScale(
+      // Smooths the way back when the rest ends; while building it follows closely.
+      scale: 1 + (_config.hubHoldGrow - 1) * _hubHold(g),
+      duration: _reduceMotion ? Duration.zero : AppMotion.quick,
+      curve: Curves.linear,
+      child: SizedBox(
       width: size,
       height: size,
       child: Stack(
@@ -2193,6 +2259,7 @@ class _DialLauncherState extends State<DialLauncher>
                 : null,
           ),
         ],
+      ),
       ),
     );
   }

@@ -67,8 +67,9 @@ List<HomeDueItem> homeDueItems(ListCatalog catalog, DateTime now) {
     }
     for (final ListItem item in catalog.itemsOf(definition.id)) {
       final Object? raw = item[field.key];
-      final DateTime? date =
-          raw is String ? DateTime.tryParse(raw)?.toLocal() : null;
+      final DateTime? date = raw is String
+          ? DateTime.tryParse(raw)?.toLocal()
+          : null;
       if (date == null ||
           !date.isBefore(tomorrow) ||
           ListRules.isCompleted(definition, item)) {
@@ -120,14 +121,20 @@ class HomeScreen extends StatefulWidget {
 // as they arrive after the first frame on a new phone or from another phone.
 //
 // Holding a card lifts it, and its choices slide out as prompts (Q-76, interaction
-// law). Rearrange opens arranging (Q-77): pinned cards sway, the held card is ready
-// to drag, and any other is picked up by a short rest; a swipe still scrolls.
+// law). Rearrange opens arranging (Q-77): pinned cards sway on a soft surface, the
+// held card is ready to drag, and any other is picked up by a short rest; a swipe
+// still scrolls. Everything else dims, and Done, a tap outside or Back ends it.
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // How much a lifted card grows, and how far cards lean while arranging: a
   // lifted one less than the rest. The owner tunes these on the phone.
-  static const double _liftScale = 1.06;
+  static const double _liftScale = 1.08;
   static const double _liftedSwayDegrees = 0.4;
-  static const double _promptWidthPadding = 36;
+  // What arranging looks like, to judge on screen with the owner: how far all but
+  // the pinned cards dim, and each pinned card's surface, a soft shadow on the
+  // ground colour or, with [_arrangeTint], a soft background with no shadow.
+  static const double _arrangeDim = 0.35;
+  static const bool _arrangeTint = false;
+  static const double _arrangeRadius = 20;
   static const double _edgeScrollZone = 80;
   static const double _edgeScrollSpeed = 700;
 
@@ -147,12 +154,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Duration _lastTick = Duration.zero;
   late final AnimationController _lift;
   late final AnimationController _reveal;
+  // A rest on a pinned card while arranging lifts it until it is picked up.
+  late final AnimationController _rest;
+  String? _restingId;
 
   // The card under a hold, and once its prompts are out what they offer.
   String? _heldId;
   List<HomeCardAction> _prompts = const [];
-  List<Offset> _promptCentres = const [];
-  double _promptWidth = 0;
+  List<String> _promptLabels = const [];
+  List<Rect> _promptRects = const [];
+  HomePromptFit? _promptFit;
   int? _promptSelected;
   Offset _holdStart = Offset.zero;
   Offset _finger = Offset.zero;
@@ -184,6 +195,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       vsync: this,
       duration: const LauncherConfig().revealDuration,
     );
+    _rest = AnimationController(
+      vsync: this,
+      duration: const LauncherConfig().dialPickUpDelay,
+    );
     widget.returned?.addListener(_refresh);
     widget.pressedElsewhere?.addListener(_endArranging);
   }
@@ -208,6 +223,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _clock.dispose();
     _lift.dispose();
     _reveal.dispose();
+    _rest.dispose();
     _time.dispose();
     _scroll.dispose();
     super.dispose();
@@ -272,14 +288,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
     _pinned = pinned;
     _suggested = [
-      for (final ListDefinition list
-          in chooseHomeCards(
-            catalog,
-            pinnedOrder: pinned,
-            removed: preferences.homeRemoved,
-            showSuggestions: preferences.homeSuggestions,
-            now: now,
-          ).suggested)
+      for (final ListDefinition list in chooseHomeCards(
+        catalog,
+        pinnedOrder: pinned,
+        removed: preferences.homeRemoved,
+        showSuggestions: preferences.homeSuggestions,
+        now: now,
+      ).suggested)
         list.id,
     ];
     _unfilled.clear();
@@ -287,7 +302,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   // A change made here: the cards do not treat it as news from elsewhere.
-  Future<void> _own(Future<void> Function(AccountPreferencesCubit) change) async {
+  Future<void> _own(
+    Future<void> Function(AccountPreferencesCubit) change,
+  ) async {
     final AccountPreferencesCubit cubit = context
         .read<AccountPreferencesCubit>();
     _ownChanges++;
@@ -486,24 +503,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       listId,
       suggested: suggested,
     );
-    double widest = 0;
-    for (final HomeCardAction action in actions) {
-      final TextPainter painter = TextPainter(
-        text: TextSpan(
-          text: _actionLabel(loc, action),
-          style: const TextStyle(
-            fontFamily: AppFonts.sans,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        textDirection: Directionality.of(context),
-        textScaler: scaler,
-      )..layout();
-      widest = math.max(widest, painter.width);
-      painter.dispose();
-    }
+    final List<String> labels = [
+      for (final HomeCardAction action in actions) _actionLabel(loc, action),
+    ];
+    final measured = homePromptMeasure(
+      labels,
+      Directionality.of(context),
+      scaler,
+    );
     final Size screen = stack.size;
+    final HomePromptFit fit = homePromptFit(
+      oneLine: measured.oneLine,
+      broken: measured.broken,
+      room: screen.width - 2 * homePromptMargin,
+    );
     final LauncherHubArea? hub = LauncherHubArea.maybeOf(context);
     final Offset? hubCentre = hub?.hubCenter(screen);
     setState(() {
@@ -511,14 +524,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _holdStart = finger;
       _finger = finger;
       _prompts = actions;
-      _promptWidth = math.min(
-        widest + _promptWidthPadding,
-        screen.width - 2 * homePromptMargin,
-      );
-      _promptCentres = homePromptCentres(
+      _promptFit = fit;
+      _promptLabels = [
+        for (int i = 0; i < labels.length; i++)
+          fit.wrapped.contains(i) ? measured.brokenLabels[i] : labels[i],
+      ];
+      _promptRects = homePromptRow(
         finger: finger,
-        count: actions.length,
-        promptWidth: _promptWidth,
+        widths: fit.widths,
+        height: fit.wrapped.isEmpty
+            ? homePromptHeight
+            : homePromptWrappedHeight,
         screen: screen,
         top: MediaQuery.paddingOf(context).top + 8,
         bottom: screen.height - homePromptBottomRoom,
@@ -536,16 +552,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   // Filled by how far the finger has come, and full once it is there (rule 3).
-  double _promptProgress(int index) {
-    const LauncherConfig config = LauncherConfig();
-    final Offset centre = _promptCentres[index];
-    final double from = math.max(
-      (centre - _holdStart).distance - config.promptHitRadius,
-      1,
-    );
-    final double left = (centre - _finger).distance - config.promptHitRadius;
-    return (1 - left / from).clamp(0.0, 1.0);
-  }
+  double _promptProgress(int index) =>
+      homePromptProgress(_holdStart, _finger, _promptRects[index]);
 
   void _holdMoved(Offset global) {
     final RenderBox? stack = _stackBox;
@@ -588,7 +596,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     setState(() {
       _heldId = null;
       _prompts = const [];
-      _promptCentres = const [];
+      _promptLabels = const [];
+      _promptRects = const [];
       _promptSelected = null;
     });
     _reveal.value = 0;
@@ -619,8 +628,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _selectedId = null;
       _dragId = null;
       _outsideTapFrom = null;
+      _restingId = null;
     });
+    _rest.value = 0;
     _syncClock();
+  }
+
+  void _restDown(String listId) {
+    if (_moves && _selectedId != listId) {
+      setState(() => _restingId = listId);
+      _rest.forward(from: 0);
+    }
+  }
+
+  // A finger that moves off lets it ease back.
+  void _restCancelled(String listId) {
+    if (_restingId == listId) {
+      _rest.animateBack(0, duration: AppMotion.quick);
+    }
   }
 
   void _pickUp(String listId, Offset global) {
@@ -636,6 +661,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     setState(() {
       _dragFromReady = _selectedId == listId;
       _selectedId = listId;
+      _restingId = null;
       _dragId = listId;
       _dragMoved = false;
       _finger = finger;
@@ -716,8 +742,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       return;
     }
     final double top = _finger.dy - _edgeScrollZone;
-    final double bottom =
-        stack.size.height - homePromptBottomRoom - _finger.dy;
+    final double bottom = stack.size.height - homePromptBottomRoom - _finger.dy;
     final double depth = top < 0
         ? top / _edgeScrollZone
         : bottom < 0
@@ -831,14 +856,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     ListDefinition definition, {
     required bool suggested,
     required bool lifted,
+    bool markOnly = false,
   }) {
     final AppLocalizations loc = AppLocalizations.of(context);
     final String listId = definition.id;
-    return HomeListCard(
+    final Widget card = HomeListCard(
       definition: definition,
       openItems: homeTopItems(definition, catalog.itemsOf(listId)),
       pinned: suggested ? null : !_unfilled.contains(listId),
       lifted: lifted,
+      markOnly: markOnly,
       onPin: suggested || _arranging ? null : () => _tapPin(listId, catalog),
       menu: _arranging
           ? const []
@@ -854,6 +881,75 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   onSelected: () => _act(action, listId, catalog),
                 ),
             ],
+    );
+    return _arranging && !suggested && !_unfilled.contains(listId)
+        ? _arrangeSurface(listId, card)
+        : card;
+  }
+
+  // Under a pinned card while arranging, wider than the card so its text is clear
+  // of the edge, and with no change to the card's place. The normal home has none.
+  Widget _arrangeSurface(String listId, Widget card) {
+    final Brightness brightness = Theme.of(context).brightness;
+    final AppNeutrals neutrals = AppColors.neutrals(brightness);
+    // A shadow does not show on a black ground.
+    final bool tint = _arrangeTint || brightness == Brightness.dark;
+    final bool selected = _selectedId == listId;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          left: -6,
+          right: -6,
+          top: 0,
+          bottom: 4,
+          child: DecoratedBox(
+            key: ValueKey('home-arrange-surface-$listId'),
+            decoration: BoxDecoration(
+              color: tint ? neutrals.line : neutrals.ground,
+              borderRadius: BorderRadius.circular(_arrangeRadius),
+              border: selected
+                  ? Border.all(color: neutrals.text, width: 1.5)
+                  : null,
+              boxShadow: selected
+                  ? AppShadows.floating(brightness)
+                  : tint
+                  ? null
+                  : AppShadows.arranging,
+            ),
+          ),
+        ),
+        card,
+      ],
+    );
+  }
+
+  // All but the pinned cards while arranging. At once, as nothing fades (Motion).
+  Widget _dim(Widget child) =>
+      Opacity(opacity: _arranging ? _arrangeDim : 1, child: child);
+
+  // Under the thumb, on the side away from the hub.
+  Widget _doneButton(AppLocalizations loc, AppNeutrals neutrals) {
+    final Size screen = MediaQuery.sizeOf(context);
+    final Offset? hub = LauncherHubArea.maybeOf(context)?.hubCenter(screen);
+    final bool atLeft = hub == null || hub.dx > screen.width / 2;
+    return Positioned(
+      left: atLeft ? AppShapes.sideMargin : null,
+      right: atLeft ? null : AppShapes.sideMargin,
+      bottom: homePromptBottomRoom + 4,
+      child: TextButton(
+        key: const ValueKey('home-arrange-done'),
+        onPressed: _endArranging,
+        style: TextButton.styleFrom(
+          backgroundColor: neutrals.promptDark,
+          foregroundColor: AppColors.onColor(neutrals.promptDark),
+          minimumSize: const Size(72, 40),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          shape: AppShapes.pill,
+          textStyle: HomePrompt.labelStyle,
+        ),
+        child: Text(loc.homeArrangeDone),
+      ),
     );
   }
 
@@ -881,7 +977,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final TextScaler scaler = MediaQuery.textScalerOf(context);
     final bool draggable = !suggested && !_unfilled.contains(listId);
     final bool selected = _selectedId == listId;
-    final bool inHand = _dragId == listId || (_heldId == listId && _prompts.isNotEmpty);
+    final bool inHand =
+        _dragId == listId || (_heldId == listId && _prompts.isNotEmpty);
     final Map<Type, GestureRecognizerFactory> gestures = {};
 
     void holdHandlers(LongPressGestureRecognizer recognizer) {
@@ -902,6 +999,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     void dragHandlers(LongPressGestureRecognizer recognizer) {
       recognizer
+        ..onLongPressDown = ((_) => _restDown(listId))
+        ..onLongPressCancel = (() => _restCancelled(listId))
         ..onLongPressStart = ((details) =>
             _pickUp(listId, details.globalPosition))
         ..onLongPressMoveUpdate = ((details) =>
@@ -921,9 +1020,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             _HoldRecognizer.new,
             holdHandlers,
           );
-    } else if (draggable &&
-        selected &&
-        (_dragId != listId || _dragFromReady)) {
+    } else if (draggable && selected && (_dragId != listId || _dragFromReady)) {
       gestures[_ReadyRecognizer] =
           GestureRecognizerFactoryWithHandlers<_ReadyRecognizer>(
             _ReadyRecognizer.new,
@@ -963,8 +1060,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             excludeFromSemantics: true,
             gestures: gestures,
             child: Opacity(
-              // In the hand it is drawn above the prompts, by _floatingCard.
-              opacity: inHand ? 0 : 1,
+              // In the hand it is drawn again above the rest, by _overlay.
+              opacity: inHand
+                  ? 0
+                  : _arranging && !draggable
+                  ? _arrangeDim
+                  : 1,
               child: _moving(
                 listId,
                 index,
@@ -997,13 +1098,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Transform.translate(
       offset: Offset(0, _slides[listId] ?? 0),
       child: AnimatedBuilder(
-        animation: Listenable.merge([_lift, _time]),
+        animation: Listenable.merge([_lift, _time, _rest]),
         child: child,
         builder: (context, child) {
           final double lift = held
               ? _lift.value
               : selected
               ? 1
+              : _restingId == listId
+              ? _rest.value
               : 0;
           final double degrees = !_moves
               ? 0
@@ -1024,7 +1127,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  // The card in the hand, above everything; under it, while holding, the prompts.
+  // The card in the hand, above everything. While holding, the prompts above it,
+  // with its mark above them until they have slid out from behind it.
   List<Widget> _overlay(ListCatalog catalog, ListLabels labels) {
     final String? listId = _dragId ?? (_prompts.isNotEmpty ? _heldId : null);
     final ListDefinition? definition = listId == null
@@ -1034,46 +1138,68 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       return const [];
     }
     final bool suggested = _suggested.contains(listId);
-    final double top = _dragId != null
-        ? _finger.dy - _dragGrab
-        : _heldRect.top;
+    final double top = _dragId != null ? _finger.dy - _dragGrab : _heldRect.top;
     final Offset discCentre = _heldRect.topLeft + const Offset(69, 81);
     final List<String> filled = _filledPins;
-    return [
-      for (int i = 0; i < _prompts.length; i++)
-        AnimatedBuilder(
-          animation: _reveal,
-          builder: (context, _) => HomePrompt(
-            key: ValueKey('home-prompt-${_prompts[i].name}'),
-            label: _actionLabel(labels.loc, _prompts[i]),
-            centre: Offset.lerp(discCentre, _promptCentres[i], _reveal.value)!,
-            width: _promptWidth,
-            reveal: _reveal.value,
-            near: (_promptProgress(i) / const LauncherConfig().promptSelectAt)
-                .clamp(0.0, 1.0),
-          ),
-        ),
-      Positioned(
-        left: _heldRect.left,
-        top: top,
-        width: _heldRect.width,
-        child: IgnorePointer(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: _moving(
-              listId,
-              math.max(filled.indexOf(listId), 0),
-              draggable: !suggested,
-              child: _cardContent(
-                catalog,
-                definition,
-                suggested: suggested,
-                lifted: true,
-              ),
+
+    Widget copy({bool markOnly = false}) {
+      final Widget card = IgnorePointer(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: _moving(
+            listId,
+            math.max(filled.indexOf(listId), 0),
+            draggable: !suggested,
+            child: _cardContent(
+              catalog,
+              definition,
+              suggested: suggested,
+              lifted: true,
+              markOnly: markOnly,
             ),
           ),
         ),
-      ),
+      );
+      return Positioned(
+        left: _heldRect.left,
+        top: top,
+        width: _heldRect.width,
+        child: markOnly
+            ? AnimatedBuilder(
+                animation: _reveal,
+                child: ExcludeSemantics(child: card),
+                builder: (context, child) =>
+                    Offstage(offstage: _reveal.value >= 1, child: child),
+              )
+            : card,
+      );
+    }
+
+    final HomePromptFit? fit = _promptFit;
+    return [
+      copy(),
+      if (fit != null)
+        for (int i = 0; i < _prompts.length; i++)
+          AnimatedBuilder(
+            animation: _reveal,
+            builder: (context, _) => HomePrompt(
+              key: ValueKey('home-prompt-${_prompts[i].name}'),
+              label: _promptLabels[i],
+              centre: Offset.lerp(
+                discCentre,
+                _promptRects[i].center,
+                _reveal.value,
+              )!,
+              width: _promptRects[i].width,
+              height: _promptRects[i].height,
+              padding: fit.padding,
+              textScale: fit.textScale,
+              reveal: _reveal.value,
+              near: (_promptProgress(i) / const LauncherConfig().promptSelectAt)
+                  .clamp(0.0, 1.0),
+            ),
+          ),
+      if (_prompts.isNotEmpty) copy(markOnly: true),
     ];
   }
 
@@ -1101,8 +1227,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // which list it is, as these rows cross lists.
     Widget row(HomeDueItem due) {
       final ListDefinition definition = due.definition;
-      final Object? title = due.item[
-          definition.fields
+      final Object? title =
+          due.item[definition.fields
               .firstWhere(
                 (field) => field.primary,
                 orElse: () => definition.fields.first,
@@ -1112,8 +1238,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       final String when = overdue
           ? DateFormat.MMMd(locale).format(due.due)
           : due.hasTime
-              ? timeFormat(locale, preferences.timeFormat).format(due.due)
-              : '';
+          ? timeFormat(locale, preferences.timeFormat).format(due.due)
+          : '';
       return InkWell(
         key: ValueKey('home-due-${due.item.id}'),
         onTap: () {
@@ -1144,8 +1270,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   maxWidth: MediaQuery.sizeOf(context).width * 0.4,
                 ),
                 child: Text(
-                  [if (when.isNotEmpty) when, labels.listName(definition)]
-                      .join(' · '),
+                  [
+                    if (when.isNotEmpty) when,
+                    labels.listName(definition),
+                  ].join(' · '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: type.meta,
@@ -1190,8 +1318,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           AppShapes.sideMargin,
                           headerHeight,
                           AppShapes.sideMargin,
-                          // Room so the hub does not cover the last card.
-                          140,
+                          // Room so the hub, and while arranging Done, do not
+                          // cover the last card.
+                          _arranging ? 190 : 140,
                         ),
                         children: [
                           if (catalog.definitions.isEmpty)
@@ -1202,21 +1331,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           if (preferences.homeContent.showsDue &&
                               due.isNotEmpty) ...[
                             const SizedBox(height: 40),
-                            Text(
-                              loc.today.toUpperCase(),
-                              style: type.sectionLabel,
+                            _dim(
+                              Text(
+                                loc.today.toUpperCase(),
+                                style: type.sectionLabel,
+                              ),
                             ),
                             const SizedBox(height: 6),
-                            for (final HomeDueItem item in due) row(item),
+                            for (final HomeDueItem item in due) _dim(row(item)),
                           ],
                           if (preferences.homeContent.showsDue &&
                               due.isEmpty &&
                               catalog.definitions.isNotEmpty) ...[
                             const SizedBox(height: 40),
-                            Text(
-                              loc.homeNothingDue,
-                              key: const ValueKey('home-nothing-due'),
-                              style: type.meta.copyWith(fontSize: 15),
+                            _dim(
+                              Text(
+                                loc.homeNothingDue,
+                                key: const ValueKey('home-nothing-due'),
+                                style: type.meta.copyWith(fontSize: 15),
+                              ),
                             ),
                           ],
                           if (preferences.homeContent.showsCards &&
@@ -1254,62 +1387,65 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         AppShapes.sideMargin,
                         0,
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Align(
-                            alignment: AlignmentDirectional.centerEnd,
-                            child: IconButton(
-                              key: const ValueKey('settings'),
-                              tooltip: loc.settings,
-                              onPressed: () {
-                                if (!_arranging) {
-                                  showSettingsSheet(context);
-                                }
-                              },
-                              style: IconButton.styleFrom(
-                                backgroundColor: AppColors.appBlue,
-                                foregroundColor: AppColors.onAppBlue,
-                                fixedSize: const Size(40, 40),
-                                minimumSize: const Size(40, 40),
-                              ),
-                              icon: const Icon(
-                                Icons.settings_outlined,
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          // The weekday stays whole: long names shrink to the
-                          // width.
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: AlignmentDirectional.centerStart,
-                            child: Text(
-                              DateFormat.EEEE(locale).format(now),
-                              key: const ValueKey('home-weekday'),
-                              style: type.screenTitle.copyWith(
-                                fontSize: 76,
-                                height: 1,
+                      child: _dim(
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Align(
+                              alignment: AlignmentDirectional.centerEnd,
+                              child: IconButton(
+                                key: const ValueKey('settings'),
+                                tooltip: loc.settings,
+                                onPressed: () {
+                                  if (!_arranging) {
+                                    showSettingsSheet(context);
+                                  }
+                                },
+                                style: IconButton.styleFrom(
+                                  backgroundColor: AppColors.appBlue,
+                                  foregroundColor: AppColors.onAppBlue,
+                                  fixedSize: const Size(40, 40),
+                                  minimumSize: const Size(40, 40),
+                                ),
+                                icon: const Icon(
+                                  Icons.settings_outlined,
+                                  size: 20,
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            // The count only when there are due rows to count.
-                            [
-                              DateFormat.MMMMd(locale).format(now),
-                              if (preferences.homeContent.showsDue &&
-                                  due.isNotEmpty)
-                                loc.homeThingsToday(due.length),
-                            ].join(' · '),
-                            key: const ValueKey('home-date'),
-                            style: type.meta.copyWith(fontSize: 15),
-                          ),
-                        ],
+                            const SizedBox(height: 20),
+                            // The weekday stays whole: long names shrink to the
+                            // width.
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: AlignmentDirectional.centerStart,
+                              child: Text(
+                                DateFormat.EEEE(locale).format(now),
+                                key: const ValueKey('home-weekday'),
+                                style: type.screenTitle.copyWith(
+                                  fontSize: 76,
+                                  height: 1,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              // The count only when there are due rows to count.
+                              [
+                                DateFormat.MMMMd(locale).format(now),
+                                if (preferences.homeContent.showsDue &&
+                                    due.isNotEmpty)
+                                  loc.homeThingsToday(due.length),
+                              ].join(' · '),
+                              key: const ValueKey('home-date'),
+                              style: type.meta.copyWith(fontSize: 15),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
+                  if (_arranging) _doneButton(loc, neutrals),
                   ..._overlay(catalog, labels),
                 ],
               ),
@@ -1434,10 +1570,16 @@ class _SettingsSheet extends StatelessWidget {
     AppSettings settings,
   ) async {
     final AppLocalizations loc = AppLocalizations.of(context);
-    final AppNeutrals neutrals = AppColors.neutrals(Theme.of(context).brightness);
+    final AppNeutrals neutrals = AppColors.neutrals(
+      Theme.of(context).brightness,
+    );
 
     final List<({String? code, String label, String subtitle})> options = [
-      (code: null, label: loc.languageSystem, subtitle: loc.languageFollowsDevice),
+      (
+        code: null,
+        label: loc.languageSystem,
+        subtitle: loc.languageFollowsDevice,
+      ),
       (code: 'en', label: loc.languageEnglish, subtitle: 'English'),
       (code: 'zh', label: loc.languageChinese, subtitle: 'Chinese'),
       (code: 'ja', label: loc.languageJapanese, subtitle: 'Japanese'),
@@ -1480,7 +1622,9 @@ class _SettingsSheet extends StatelessWidget {
                           title: Text(option.label),
                           subtitle: Text(option.subtitle),
                           onTap: () {
-                            context.read<AppSettingsCubit>().setLocaleCode(option.code);
+                            context.read<AppSettingsCubit>().setLocaleCode(
+                              option.code,
+                            );
                             Navigator.of(dialogContext).pop();
                           },
                         ),
@@ -1518,9 +1662,9 @@ class _SettingsSheet extends StatelessWidget {
     };
 
     Widget hairline() => Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppShapes.sideMargin),
-          child: Divider(color: neutrals.line, height: 1),
-        );
+      padding: const EdgeInsets.symmetric(horizontal: AppShapes.sideMargin),
+      child: Divider(color: neutrals.line, height: 1),
+    );
 
     Widget row({
       required Key key,

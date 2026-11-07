@@ -2162,6 +2162,12 @@ abstract class AppLocalizations {
   /// **'No suggestions'**
   String get homeNoSuggestions;
 
+  /// No description provided for @homeArrangeDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get homeArrangeDone;
+
   /// No description provided for @homeRemovedBanner.
   ///
   /// In en, this message translates to:

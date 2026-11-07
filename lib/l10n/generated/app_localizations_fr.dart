@@ -1268,6 +1268,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get homeNoSuggestions => 'Pas de suggestions';
 
   @override
+  String get homeArrangeDone => 'Terminé';
+
+  @override
   String get homeRemovedBanner => 'Retirée de l\'accueil';
 
   @override

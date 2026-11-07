@@ -135,80 +135,183 @@ void main() {
   });
 
   group('where the prompts go', () {
-    // Every card position, both sides, on small and everyday phones, with a
-    // wide prompt as French and German need, and the hub at each corner.
+    // Every finger position on small and everyday phones, with the shortest and
+    // the widest rows, and the hub at each corner.
     for (final Size screen in const [Size(360, 640), Size(412, 900)]) {
-      for (final double width in const [110.0, 190.0, 300.0]) {
-        for (final int count in const [2, 3, 4]) {
-          test('$count of width $width fit on $screen', () {
-            for (double x = 0; x <= screen.width; x += 30) {
-              for (double y = 40; y <= screen.height; y += 30) {
-                for (final Offset hub in [
-                  Offset(screen.width - 56, screen.height - 72),
-                  Offset(56, screen.height - 72),
-                  Offset(screen.width - 56, 72),
-                  const Offset(56, 72),
-                ]) {
-                  final List<Offset> centres = homePromptCentres(
-                    finger: Offset(x, y),
-                    count: count,
-                    promptWidth: width,
-                    screen: screen,
-                    top: 32,
-                    bottom: screen.height - homePromptBottomRoom,
-                    avoid: Rect.fromCircle(center: hub, radius: 44),
+      for (final List<double> widths in const [
+        [60.0, 60.0],
+        [80.0, 60.0, 70.0],
+        [60.0, 60.0, 80.0, 110.0],
+        [80.0, 80.0, 80.0, 70.0],
+      ]) {
+        test('$widths stays in one clear row on $screen', () {
+          for (double x = 0; x <= screen.width; x += 30) {
+            for (double y = 40; y <= screen.height; y += 30) {
+              for (final Offset hub in [
+                Offset(screen.width - 56, screen.height - 72),
+                Offset(56, screen.height - 72),
+                Offset(screen.width - 56, 72),
+                const Offset(56, 72),
+              ]) {
+                final Rect hubArea = Rect.fromCircle(center: hub, radius: 44);
+                final List<Rect> rects = homePromptRow(
+                  finger: Offset(x, y),
+                  widths: widths,
+                  height: homePromptHeight,
+                  screen: screen,
+                  top: 32,
+                  bottom: screen.height - homePromptBottomRoom,
+                  avoid: hubArea,
+                );
+                expect(rects, hasLength(widths.length));
+                expect(
+                  rects.first.left,
+                  greaterThanOrEqualTo(homePromptMargin),
+                );
+                expect(
+                  rects.last.right,
+                  lessThanOrEqualTo(screen.width - homePromptMargin),
+                );
+                for (int i = 0; i < rects.length; i++) {
+                  final Rect rect = rects[i];
+                  expect(rect.width, widths[i]);
+                  expect(rect.top, rects.first.top);
+                  expect(rect.top, greaterThanOrEqualTo(32));
+                  expect(
+                    rect.bottom,
+                    lessThanOrEqualTo(screen.height - homePromptBottomRoom),
                   );
-                  expect(centres, hasLength(count));
-                  final Rect hubArea = Rect.fromCircle(center: hub, radius: 44);
-                  for (int i = 0; i < count; i++) {
-                    final Offset c = centres[i];
-                    expect(c.dx - width / 2, greaterThanOrEqualTo(0));
-                    expect(c.dx + width / 2, lessThanOrEqualTo(screen.width));
-                    expect(c.dy - 20, greaterThanOrEqualTo(32));
+                  expect(
+                    rect.overlaps(hubArea),
+                    isFalse,
+                    reason: 'finger $x,$y hub $hub',
+                  );
+                  if (i > 0) {
                     expect(
-                      Rect.fromCenter(
-                        center: c,
-                        width: width,
-                        height: 40,
-                      ).overlaps(hubArea),
-                      isFalse,
-                      reason: 'finger $x,$y hub $hub',
+                      rect.left - rects[i - 1].right,
+                      moreOrLessEquals(homePromptGap),
                     );
-                    expect(
-                      c.dy + 20,
-                      lessThanOrEqualTo(screen.height - homePromptBottomRoom),
-                    );
-                    if (i > 0) {
-                      expect(
-                        c.dy - centres[i - 1].dy,
-                        moreOrLessEquals(homePromptSpacing),
-                      );
-                    }
                   }
                 }
               }
             }
-          });
-        }
+          }
+        });
       }
     }
 
-    test('a prompt is not under the finger at the start, on a phone', () {
-      for (double x = 0; x <= 360; x += 30) {
-        for (double y = 200; y <= 500; y += 30) {
-          final List<Offset> centres = homePromptCentres(
-            finger: Offset(x, y),
-            count: 4,
-            promptWidth: 150,
-            screen: const Size(360, 640),
-            top: 32,
-            bottom: 640 - homePromptBottomRoom,
-          );
-          for (final Offset c in centres) {
-            expect((c - Offset(x, y)).distance, greaterThan(26));
+    List<Rect> row(Offset finger, {Size screen = const Size(393, 852)}) =>
+        homePromptRow(
+          finger: finger,
+          widths: const [60, 60, 80, 130],
+          height: homePromptHeight,
+          screen: screen,
+          top: 32,
+          bottom: screen.height - homePromptBottomRoom,
+        );
+
+    test('above the finger and clear of it, whatever the side', () {
+      for (double x = 0; x <= 393; x += 30) {
+        for (double y = 120; y <= 852; y += 30) {
+          for (final Rect rect in row(Offset(x, y))) {
+            expect(rect.bottom, lessThan(y - 40), reason: 'finger $x,$y');
           }
         }
       }
+    });
+
+    test('centred on the finger, and kept on screen at the edges', () {
+      final List<Rect> middle = row(const Offset(196, 400));
+      expect(
+        (middle.first.left + middle.last.right) / 2,
+        moreOrLessEquals(196),
+      );
+      expect(row(const Offset(4, 400)).first.left, homePromptMargin);
+      expect(row(const Offset(390, 400)).last.right, 393 - homePromptMargin);
+    });
+
+    test('below the finger only with no room above', () {
+      expect(row(const Offset(196, 60)).first.top, greaterThan(60));
+      expect(row(const Offset(196, 121)).first.bottom, lessThan(121));
+    });
+
+    test('beside the hub if the row fits there, else above it', () {
+      List<Rect> near(Rect hub, List<double> widths) => homePromptRow(
+        finger: const Offset(300, 700),
+        widths: widths,
+        height: homePromptHeight,
+        screen: const Size(393, 852),
+        top: 32,
+        bottom: 742,
+        avoid: hub,
+      );
+      final Rect hub = Rect.fromCircle(
+        center: const Offset(330, 630),
+        radius: 44,
+      );
+      final List<Rect> short = near(hub, const [60, 60]);
+      expect(short.last.right, lessThan(hub.left));
+      expect(short.first.center.dy, moreOrLessEquals(632));
+      final List<Rect> long = near(hub, const [80, 80, 80, 90]);
+      expect(long.first.bottom, lessThan(hub.top));
+    });
+
+    test('fills by how far the finger has come, and is full once on it', () {
+      const Rect prompt = Rect.fromLTWH(100, 100, 80, 40);
+      const Offset start = Offset(140, 240);
+      expect(homePromptProgress(start, start, prompt), 0);
+      expect(
+        homePromptProgress(start, const Offset(140, 190), prompt),
+        moreOrLessEquals(0.5),
+      );
+      expect(homePromptProgress(start, const Offset(105, 110), prompt), 1);
+      expect(homePromptProgress(start, const Offset(140, 400), prompt), 0);
+    });
+
+    group('fitting the labels', () {
+      HomePromptFit fit(
+        List<double> oneLine,
+        List<double> broken,
+        double room,
+      ) => homePromptFit(oneLine: oneLine, broken: broken, room: room);
+
+      double used(HomePromptFit fit) =>
+          fit.widths.fold<double>(0, (sum, width) => sum + width) +
+          (fit.widths.length - 1) * homePromptGap;
+
+      const List<double> text = [30, 30, 50, 100];
+      const List<double> broken = [30, 30, 50, 60];
+
+      test('roomy when it fits', () {
+        final HomePromptFit roomy = fit(text, broken, 400);
+        expect(roomy.padding, 14);
+        expect(roomy.wrapped, isEmpty);
+        expect(roomy.textScale, 1);
+      });
+
+      test('then tighter', () {
+        final HomePromptFit tight = fit(text, broken, 325);
+        expect(tight.padding, 8);
+        expect(tight.wrapped, isEmpty);
+        expect(used(tight), lessThanOrEqualTo(325));
+      });
+
+      test('then the widest on two lines, and only as many as it takes', () {
+        final HomePromptFit wrapped = fit(
+          const [60, 90, 60, 120],
+          const [60, 50, 60, 70],
+          400,
+        );
+        expect(wrapped.wrapped, {3});
+        expect(used(wrapped), lessThanOrEqualTo(400));
+      });
+
+      test('last the text a little smaller, and never past the room', () {
+        final HomePromptFit small = fit(text, broken, 220);
+        expect(small.wrapped, {3});
+        expect(small.textScale, lessThan(1));
+        expect(used(small), moreOrLessEquals(220));
+      });
     });
   });
 
@@ -231,6 +334,32 @@ void main() {
       await _pumpApp(tester, pins: [_tasks]);
       final TestGesture gesture = await _hold(tester, _tasks);
       expect(_shownPrompts(), [HomeCardAction.edit, HomeCardAction.unpin]);
+      await gesture.up();
+      await settle(tester);
+    });
+
+    testWidgets('the prompts stand in one row above the finger', (
+      tester,
+    ) async {
+      await _pumpApp(tester);
+      final Offset finger = tester.getCenter(_card(_tasks));
+      final TestGesture gesture = await _hold(tester, _tasks);
+      await tester.pump(const Duration(milliseconds: 300));
+      final List<Rect> rects = [
+        for (final HomeCardAction action in homeCardActions(
+          pinned: null,
+          pinnedLists: 0,
+        ))
+          tester.getRect(_prompt(action)),
+      ];
+      expect(rects, hasLength(4));
+      for (int i = 0; i < rects.length; i++) {
+        expect(rects[i].top, rects.first.top);
+        expect(rects[i].bottom, lessThan(finger.dy));
+        if (i > 0) {
+          expect(rects[i].left, greaterThan(rects[i - 1].right));
+        }
+      }
       await gesture.up();
       await settle(tester);
     });
@@ -505,6 +634,119 @@ void main() {
       await tester.dragFrom(const Offset(10, 300), const Offset(0, -40));
       await settle(tester);
       expect(isArranging(), isTrue);
+    });
+
+    testWidgets('a rest lifts the card, and it eases back on moving off', (
+      tester,
+    ) async {
+      double width() => tester
+          .getRect(
+            find.descendant(
+              of: _card(_grocery),
+              matching: find.byType(HomeListCard),
+            ),
+          )
+          .width;
+      await _pumpApp(tester, pins: [_tasks, _grocery, _journal]);
+      await arrange(tester, _tasks);
+      // Movement on, by hand, as the sway never settles.
+      HomeBlob.stillForTests = false;
+      addTearDown(() => HomeBlob.stillForTests = true);
+      await tester.pump();
+      final double atRest = width();
+      final TestGesture gesture = await tester.startGesture(
+        tester.getCenter(_card(_grocery)),
+      );
+      await tester.pump(const Duration(milliseconds: 20));
+      await tester.pump(const Duration(milliseconds: 130));
+      expect(width(), greaterThan(atRest + 8));
+      await gesture.moveBy(const Offset(0, -40));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 20));
+      expect(width(), lessThan(atRest + 6));
+      await gesture.up();
+      await tester.pump();
+      HomeBlob.stillForTests = true;
+      await tester.tap(find.byKey(const ValueKey('home-arrange-done')));
+      await settle(tester);
+    });
+
+    testWidgets('the start of a slow swipe scrolls and picks up nothing', (
+      tester,
+    ) async {
+      await _pumpApp(tester, pins: [_tasks, _grocery, _journal]);
+      await arrange(tester, _tasks);
+      final TestGesture gesture = await tester.startGesture(
+        tester.getCenter(_card(_journal)),
+      );
+      // About 120 dp a second: past the touch slop before the rest ends.
+      for (int i = 0; i < 20; i++) {
+        await gesture.moveBy(const Offset(0, -3));
+        await tester.pump(const Duration(milliseconds: 25));
+      }
+      await gesture.up();
+      await settle(tester);
+      expect(_preferences(tester).homeArranged, isFalse);
+      expect(isArranging(), isTrue);
+    });
+
+    testWidgets('Done ends it', (tester) async {
+      await _pumpApp(tester, pins: [_tasks, _grocery]);
+      final Finder done = find.byKey(const ValueKey('home-arrange-done'));
+      expect(done, findsNothing);
+      await arrange(tester, _tasks);
+      expect(done, findsOneWidget);
+      await tester.tap(done);
+      await settle(tester);
+      expect(isArranging(), isFalse);
+      expect(done, findsNothing);
+    });
+
+    testWidgets('only pinned cards get a surface, and only while arranging', (
+      tester,
+    ) async {
+      Finder surface(String id) =>
+          find.byKey(ValueKey('home-arrange-surface-$id'));
+      await _pumpApp(tester, pins: [_tasks, _grocery]);
+      expect(surface(_tasks), findsNothing);
+      await arrange(tester, _tasks);
+      expect(surface(_tasks), findsOneWidget);
+      expect(surface(_grocery), findsOneWidget);
+      expect(surface(_journal), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('home-arrange-done')));
+      await settle(tester);
+      expect(surface(_tasks), findsNothing);
+    });
+
+    testWidgets('all but the pinned cards dim, and home is not dim after', (
+      tester,
+    ) async {
+      double opacityOf(Finder finder) => tester
+          .widget<Opacity>(
+            find.ancestor(of: finder, matching: find.byType(Opacity)).first,
+          )
+          .opacity;
+      final Finder weekday = find.byKey(const ValueKey('home-weekday'));
+      final Finder suggestion = find.descendant(
+        of: _card(_journal),
+        matching: find.byType(HomeListCard),
+      );
+      final Finder pinned = find.descendant(
+        of: _card(_grocery),
+        matching: find.byType(HomeListCard),
+      );
+      await _pumpApp(tester, pins: [_tasks, _grocery]);
+      expect(opacityOf(weekday), 1);
+      expect(opacityOf(suggestion), 1);
+      await arrange(tester, _tasks);
+      expect(opacityOf(weekday), lessThan(1));
+      expect(opacityOf(suggestion), lessThan(1));
+      expect(opacityOf(pinned), 1);
+      await tester.tap(find.byKey(const ValueKey('home-arrange-done')));
+      await settle(tester);
+      expect(opacityOf(weekday), 1);
+      expect(opacityOf(suggestion), 1);
     });
 
     testWidgets('Back ends it and stays on home', (tester) async {

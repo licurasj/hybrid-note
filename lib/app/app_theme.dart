@@ -48,15 +48,25 @@ class AppShadows {
   const AppShadows._();
 
   static List<BoxShadow> floating(Brightness brightness) => [
-        BoxShadow(
-          color: Colors.black.withValues(
-            alpha: brightness == Brightness.dark ? 0.9 : 0.32,
-          ),
-          offset: const Offset(0, 10),
-          blurRadius: 22,
-          spreadRadius: -6,
-        ),
-      ];
+    BoxShadow(
+      color: Colors.black.withValues(
+        alpha: brightness == Brightness.dark ? 0.9 : 0.32,
+      ),
+      offset: const Offset(0, 10),
+      blurRadius: 22,
+      spreadRadius: -6,
+    ),
+  ];
+
+  // Lighter, for the pinned cards while arranging, which lift only a little.
+  static const List<BoxShadow> arranging = [
+    BoxShadow(
+      color: Color(0x24000000),
+      offset: Offset(0, 4),
+      blurRadius: 14,
+      spreadRadius: -2,
+    ),
+  ];
 }
 
 // Styles that have no Material text-theme slot. Read with
@@ -84,7 +94,9 @@ class AppTypography extends ThemeExtension<AppTypography> {
   static AppTypography of(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     return theme.extension<AppTypography>() ??
-        (theme.brightness == Brightness.dark ? AppTheme.dark() : AppTheme.light())
+        (theme.brightness == Brightness.dark
+                ? AppTheme.dark()
+                : AppTheme.light())
             .extension<AppTypography>()!;
   }
 
@@ -136,8 +148,10 @@ class SlidePageTransitionsBuilder extends PageTransitionsBuilder {
       return child;
     }
     return SlideTransition(
-      position: Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
-          .animate(CurvedAnimation(parent: animation, curve: AppMotion.curve)),
+      position: Tween<Offset>(
+        begin: const Offset(1, 0),
+        end: Offset.zero,
+      ).animate(CurvedAnimation(parent: animation, curve: AppMotion.curve)),
       child: child,
     );
   }
@@ -164,28 +178,27 @@ class AppTheme {
     final bool upright = _uprightTitles(languageCode);
 
     TextStyle serif(double size, {double height = 1.1}) => TextStyle(
-          fontFamily: upright ? AppFonts.sans : AppFonts.serif,
-          fontStyle: upright ? FontStyle.normal : FontStyle.italic,
-          fontWeight: upright ? FontWeight.w500 : FontWeight.w400,
-          fontSize: size,
-          height: height,
-          letterSpacing: upright ? 0 : -0.5,
-          color: n.text,
-        );
+      fontFamily: upright ? AppFonts.sans : AppFonts.serif,
+      fontStyle: upright ? FontStyle.normal : FontStyle.italic,
+      fontWeight: upright ? FontWeight.w500 : FontWeight.w400,
+      fontSize: size,
+      height: height,
+      letterSpacing: upright ? 0 : -0.5,
+      color: n.text,
+    );
 
     TextStyle sans(
       double size, {
       FontWeight weight = FontWeight.w400,
       Color? color,
       double letterSpacing = 0,
-    }) =>
-        TextStyle(
-          fontFamily: AppFonts.sans,
-          fontSize: size,
-          fontWeight: weight,
-          letterSpacing: letterSpacing,
-          color: color ?? n.text,
-        );
+    }) => TextStyle(
+      fontFamily: AppFonts.sans,
+      fontSize: size,
+      fontWeight: weight,
+      letterSpacing: letterSpacing,
+      color: color ?? n.text,
+    );
 
     final TextTheme textTheme = TextTheme(
       displayLarge: serif(56, height: 1),
@@ -206,7 +219,10 @@ class AppTheme {
     );
 
     final AppTypography typography = AppTypography(
-      listTitle: serif(150, height: 0.9).copyWith(letterSpacing: upright ? 0 : -4),
+      listTitle: serif(
+        150,
+        height: 0.9,
+      ).copyWith(letterSpacing: upright ? 0 : -4),
       screenTitle: serif(48, height: 1),
       row: sans(16, weight: FontWeight.w500),
       meta: sans(13, color: n.muted),
@@ -218,39 +234,42 @@ class AppTheme {
       ),
     );
 
-    final ColorScheme colorScheme = ColorScheme.fromSeed(
-      seedColor: AppColors.appBlue,
-      brightness: brightness,
-    ).copyWith(
-      primary: n.text,
-      onPrimary: n.ground,
-      primaryContainer: n.surface,
-      onPrimaryContainer: n.text,
-      secondary: AppColors.appBlue,
-      onSecondary: AppColors.onAppBlue,
-      secondaryContainer: n.surface,
-      onSecondaryContainer: n.text,
-      tertiary: n.muted,
-      onTertiary: n.ground,
-      surface: n.ground,
-      onSurface: n.text,
-      onSurfaceVariant: n.muted,
-      surfaceTint: Colors.transparent,
-      surfaceContainerLowest: n.ground,
-      surfaceContainerLow: n.ground,
-      surfaceContainer: n.surface,
-      surfaceContainerHigh: n.surface,
-      surfaceContainerHighest: n.surface,
-      outline: n.muted,
-      outlineVariant: n.line,
-      inverseSurface: n.text,
-      onInverseSurface: n.ground,
-      shadow: Colors.black,
-    );
+    final ColorScheme colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: AppColors.appBlue,
+          brightness: brightness,
+        ).copyWith(
+          primary: n.text,
+          onPrimary: n.ground,
+          primaryContainer: n.surface,
+          onPrimaryContainer: n.text,
+          secondary: AppColors.appBlue,
+          onSecondary: AppColors.onAppBlue,
+          secondaryContainer: n.surface,
+          onSecondaryContainer: n.text,
+          tertiary: n.muted,
+          onTertiary: n.ground,
+          surface: n.ground,
+          onSurface: n.text,
+          onSurfaceVariant: n.muted,
+          surfaceTint: Colors.transparent,
+          surfaceContainerLowest: n.ground,
+          surfaceContainerLow: n.ground,
+          surfaceContainer: n.surface,
+          surfaceContainerHigh: n.surface,
+          surfaceContainerHighest: n.surface,
+          outline: n.muted,
+          outlineVariant: n.line,
+          inverseSurface: n.text,
+          onInverseSurface: n.ground,
+          shadow: Colors.black,
+        );
 
     final TextStyle buttonText = sans(15, weight: FontWeight.w500);
-    const EdgeInsets buttonPadding =
-        EdgeInsets.symmetric(horizontal: 20, vertical: 12);
+    const EdgeInsets buttonPadding = EdgeInsets.symmetric(
+      horizontal: 20,
+      vertical: 12,
+    );
     final OutlineInputBorder fieldBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(AppShapes.fieldRadius),
       borderSide: BorderSide(color: n.line),
@@ -349,8 +368,10 @@ class AppTheme {
         filled: false,
         labelStyle: sans(15, color: n.muted),
         hintStyle: sans(15, color: n.muted),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: fieldBorder,
         enabledBorder: fieldBorder,
         focusedBorder: fieldBorder.copyWith(
@@ -369,8 +390,7 @@ class AppTheme {
       ),
       radioTheme: RadioThemeData(
         fillColor: WidgetStateProperty.resolveWith(
-          (states) =>
-              states.contains(WidgetState.selected) ? n.text : n.muted,
+          (states) => states.contains(WidgetState.selected) ? n.text : n.muted,
         ),
       ),
       switchTheme: SwitchThemeData(

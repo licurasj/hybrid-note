@@ -1232,6 +1232,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get homeNoSuggestions => 'おすすめなし';
 
   @override
+  String get homeArrangeDone => '完了';
+
+  @override
   String get homeRemovedBanner => 'ホームから削除しました';
 
   @override

@@ -1227,6 +1227,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get homeNoSuggestions => '不要建议';
 
   @override
+  String get homeArrangeDone => '完成';
+
+  @override
   String get homeRemovedBanner => '已从首页移除';
 
   @override

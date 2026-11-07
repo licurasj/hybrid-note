@@ -1254,6 +1254,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeNoSuggestions => 'No suggestions';
 
   @override
+  String get homeArrangeDone => 'Done';
+
+  @override
   String get homeRemovedBanner => 'Removed from home';
 
   @override

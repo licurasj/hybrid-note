@@ -113,62 +113,142 @@ List<HomeCardAction> homeCardActions({
   ],
 };
 
-// The prompts' places: a column clear of the finger, on the screen's roomier
-// side, kept on screen and off [avoid] (the hub). A finger within the dial's
-// reach of a prompt has reached it, so centres stand two reaches apart.
-const double homePromptSpacing = 52;
+// The prompts stand in one row above the finger, side by side, so that a hand
+// coming from below covers none of them whichever hand it is (owner, 2026-11-06).
+const double homePromptGap = 6;
 const double homePromptMargin = 12;
-const double homePromptFingerRoom = 72;
+// From the finger to the middle of the row.
+const double homePromptRise = 68;
 // The AI bar and the bottom of the screen.
 const double homePromptBottomRoom = 110;
+const double homePromptHeight = 40;
+const double homePromptWrappedHeight = 46;
+const double _promptLoosePadding = 14;
+const double _promptTightPadding = 8;
+// A prompt's border on both sides, and a little for rounding.
+const double _promptExtraWidth = 4;
 
-List<Offset> homePromptCentres({
+// How the labels fit one row: [wrapped] holds the prompts on two lines, and
+// [widths] each prompt's whole width.
+typedef HomePromptFit = ({
+  double padding,
+  Set<int> wrapped,
+  double textScale,
+  List<double> widths,
+});
+
+// [oneLine] and [broken] are the labels' widths on one line and at their best
+// break. The first that fits [room] wins: roomy, then tighter, then the widest
+// labels on two lines one by one, and last the text a little smaller.
+HomePromptFit homePromptFit({
+  required List<double> oneLine,
+  required List<double> broken,
+  required double room,
+}) {
+  final int count = oneLine.length;
+  double total(Iterable<double> text, double padding) =>
+      text.fold<double>(0, (sum, width) => sum + width) +
+      count * (2 * padding + _promptExtraWidth) +
+      (count - 1) * homePromptGap;
+  HomePromptFit fit(
+    List<double> text,
+    double padding,
+    Set<int> wrapped,
+    double scale,
+  ) => (
+    padding: padding,
+    wrapped: wrapped,
+    textScale: scale,
+    widths: [
+      for (final double width in text)
+        width * scale + 2 * padding + _promptExtraWidth,
+    ],
+  );
+
+  if (total(oneLine, _promptLoosePadding) <= room) {
+    return fit(oneLine, _promptLoosePadding, const {}, 1);
+  }
+  if (total(oneLine, _promptTightPadding) <= room) {
+    return fit(oneLine, _promptTightPadding, const {}, 1);
+  }
+  final List<double> text = [...oneLine];
+  final Set<int> wrapped = {};
+  final List<int> widestFirst = [for (int i = 0; i < count; i++) i]
+    ..sort((a, b) => oneLine[b].compareTo(oneLine[a]));
+  for (final int i in widestFirst) {
+    if (broken[i] < oneLine[i]) {
+      text[i] = broken[i];
+      wrapped.add(i);
+      if (total(text, _promptTightPadding) <= room) {
+        return fit(text, _promptTightPadding, wrapped, 1);
+      }
+    }
+  }
+  final double chrome = total(text.map((_) => 0.0), _promptTightPadding);
+  final double scale =
+      (room - chrome) / text.fold<double>(0, (sum, w) => sum + w);
+  return fit(text, _promptTightPadding, wrapped, math.min(scale, 1));
+}
+
+// The row's places: centred on the finger, above it, kept on screen and off
+// [avoid] (the hub). Only with no room above does it go below the finger.
+List<Rect> homePromptRow({
   required Offset finger,
-  required int count,
-  required double promptWidth,
+  required List<double> widths,
+  required double height,
   required Size screen,
   required double top,
   required double bottom,
   Rect? avoid,
 }) {
-  const double halfHeight = 20;
-  final double half = promptWidth / 2;
-  final double wanted = finger.dx < screen.width / 2
-      ? finger.dx + homePromptFingerRoom + half
-      : finger.dx - homePromptFingerRoom - half;
-  final double x = wanted.clamp(
-    homePromptMargin + half,
-    math.max(homePromptMargin + half, screen.width - homePromptMargin - half),
+  final double half = height / 2;
+  final double rowWidth =
+      widths.fold<double>(0, (sum, width) => sum + width) +
+      (widths.length - 1) * homePromptGap;
+  final double leftmost = homePromptMargin;
+  final double rightmost = math.max(
+    leftmost,
+    screen.width - homePromptMargin - rowWidth,
   );
-  final double height = (count - 1) * homePromptSpacing;
-  double highest = top + halfHeight;
-  final double lowest = math.max(highest, bottom - halfHeight - height);
-
-  double first = (finger.dy - height / 2).clamp(highest, lowest);
-  // Too wide to stand beside the finger: above it, or below if there is no room.
-  if ((x - finger.dx).abs() - half < 24) {
-    final double above = finger.dy - homePromptFingerRoom - height;
-    first = (above >= highest ? above : finger.dy + homePromptFingerRoom).clamp(
-      highest,
-      lowest,
-    );
+  double left = (finger.dx - rowWidth / 2).clamp(leftmost, rightmost);
+  double y = finger.dy - homePromptRise;
+  if (y - half < top) {
+    y = finger.dy + homePromptRise;
   }
+  y = y.clamp(top + half, math.max(top + half, bottom - half));
   if (avoid != null) {
-    final Rect column = Rect.fromLTRB(
-      x - half,
-      first - halfHeight,
-      x + half,
-      first + height + halfHeight,
-    );
-    if (column.overlaps(avoid)) {
-      final double below = avoid.bottom + 8 + halfHeight;
-      final double above = avoid.top - 8 - halfHeight - height;
-      first = above >= highest ? above : math.min(below, lowest);
+    Rect row() => Rect.fromLTWH(left, y - half, rowWidth, height);
+    if (row().overlaps(avoid)) {
+      // Beside the hub if it fits there, which keeps the row near the finger.
+      final double beforeHub = avoid.left - 8 - rowWidth;
+      final double afterHub = avoid.right + 8;
+      if (beforeHub >= leftmost && beforeHub <= rightmost) {
+        left = beforeHub;
+      } else if (afterHub >= leftmost && afterHub <= rightmost) {
+        left = afterHub;
+      } else if (avoid.top - 8 - height >= top) {
+        y = avoid.top - 8 - half;
+      } else {
+        y = math.max(y, avoid.bottom + 8 + half);
+      }
     }
   }
-  return [
-    for (int i = 0; i < count; i++) Offset(x, first + i * homePromptSpacing),
-  ];
+  final List<Rect> rects = [];
+  double x = left;
+  for (final double width in widths) {
+    rects.add(Rect.fromLTWH(x, y - half, width, height));
+    x += width + homePromptGap;
+  }
+  return rects;
+}
+
+// How far the finger has come from [start] to the prompt: 1 once it is on it.
+double homePromptProgress(Offset start, Offset finger, Rect prompt) {
+  double away(Offset point) => Offset(
+    math.max(math.max(prompt.left - point.dx, point.dx - prompt.right), 0),
+    math.max(math.max(prompt.top - point.dy, point.dy - prompt.bottom), 0),
+  ).distance;
+  return (1 - away(finger) / math.max(away(start), 1)).clamp(0.0, 1.0);
 }
 
 // What home shows: pinned lists in [pinnedOrder], which any list without a
