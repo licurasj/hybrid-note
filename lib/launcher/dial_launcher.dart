@@ -209,6 +209,10 @@ class _DialLauncherState extends State<DialLauncher>
   Duration _restAt = Duration.zero;
   bool _restGrowing = false;
   double _restGrow = 0;
+  // On the open dial, a rest towards Edit: the list growing a little further after
+  // its select grow, and how far (0 to 1), easing back if the rest ends.
+  int? _editGrowIndex;
+  double _editGrow = 0;
 
   Offset? _movedHub;
   Offset _moveGrab = Offset.zero;
@@ -727,13 +731,18 @@ class _DialLauncherState extends State<DialLauncher>
     }
     if (index == _selected) {
       // Below its rest length too, if an Edit showing past its end needs it.
+      // In a tight spot the hold's growth has the margin to use, up to 6 from
+      // the edge, so it still shows.
       return math.min(
-        rest + growth * _growthShare(g, angle, span),
-        _reachAt(g, angle, math.max(16, 8 + _editRoom)),
+        rest + growth * _growthShare(g, angle, span) + _editExtra(index),
+        _reachAt(g, angle, math.max(16 - 10 * _editGrow, 8 + _editRoom)),
       );
     }
     final double share = _growthShare(g, _selectedAngle(g), span);
-    double end = math.min(rest + growth * share, _reachAt(g, angle, 16));
+    double end = math.min(
+      rest + growth * share + _editExtra(index),
+      _reachAt(g, angle, 16),
+    );
     final int? selected = _selected;
     final (double, double)? sides =
         selected == null || selected >= _entries.length
@@ -748,6 +757,24 @@ class _DialLauncherState extends State<DialLauncher>
       );
     }
     return math.max(rest, end);
+  }
+
+  double _editExtra(int index) =>
+      index == _editGrowIndex ? _config.dialEditHoldGrow * _editGrow : 0;
+
+  // How far a rest towards Edit has come, as _offerPrompt reads it: passing over
+  // lists keeps restarting it, and it is full while Edit is out.
+  double _editHold(LauncherGeometry g, Offset pointer) {
+    final int? selected = _selected;
+    if (_reduceMotion ||
+        selected == null ||
+        _entries[selected].kind != _Kind.note ||
+        _entries[selected].isDemo ||
+        _edge != 0 ||
+        _polar(g, pointer).$2 <= _config.hubRadius) {
+      return 0;
+    }
+    return _editShown ? 1 : _config.holdBuild(_now - _restStart);
   }
 
   double _reveal() => _reduceMotion
@@ -802,6 +829,8 @@ class _DialLauncherState extends State<DialLauncher>
     _stopRest();
     _restGrow = 0;
     _restKey = null;
+    _editGrow = 0;
+    _editGrowIndex = null;
     _ticker.stop();
     setState(() {
       if (_arranging) {
@@ -895,16 +924,22 @@ class _DialLauncherState extends State<DialLauncher>
     if (_mode == _Mode.hold && g != null && pointer != null) {
       changed = _scrollAtEdge(g, pointer, seconds) || changed;
       changed = _offerPrompt(g, pointer) || changed;
+      final double build = _editHold(g, pointer);
+      if (build > 0 && _editGrowIndex != _selected) {
+        _editGrowIndex = _selected;
+        _editGrow = 0;
+      }
+      _editGrow = build >= _editGrow
+          ? build
+          : _reduceMotion || _editGrow < 0.01
+          ? 0
+          : _editGrow * (1 - t);
     }
-    // On the hub the discs grow until Move and Arrange come out.
-    changed = changed || (_mode == _Mode.hold && _selected == null);
+    // Holds on the hub and on a list grow until their prompts come out.
+    changed = changed || _mode == _Mode.hold;
     if (_arranging) {
       if (_restGrowing && !_reduceMotion) {
-        _restGrow =
-            ((_now - _restAt).inMicroseconds /
-                    _config.dialPickUpDelay.inMicroseconds)
-                .clamp(0, 1)
-                .toDouble();
+        _restGrow = _config.pickUpBuild(_now - _restAt);
       } else {
         _restGrow = _reduceMotion || _restGrow < 0.01 ? 0 : _restGrow * (1 - t);
       }
@@ -2187,8 +2222,8 @@ class _DialLauncherState extends State<DialLauncher>
     );
   }
 
-  // How far the hub's rest has come, as _offerPrompt reads it: from the press, and
-  // again on a finger that has come back; full while Move and Arrange are out.
+  // How far the hub's rest has come, as _offerPrompt reads it: soon after the press,
+  // and again on a finger that has come back; full while Move and Arrange are out.
   double _hubHold(LauncherGeometry g) {
     final Offset? pointer = _pointer;
     if (_mode != _Mode.hold ||
@@ -2204,10 +2239,7 @@ class _DialLauncherState extends State<DialLauncher>
     if (_leftHub && _polar(g, pointer).$2 > _config.hubRadius) {
       return 0;
     }
-    return ((_now - _restStart).inMicroseconds /
-            _config.promptDelay.inMicroseconds)
-        .clamp(0, 1)
-        .toDouble();
+    return _config.holdBuild(_now - _restStart);
   }
 
   Widget _hub(LauncherGeometry g) {

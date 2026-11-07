@@ -147,8 +147,108 @@ Rect _tab(WidgetTester tester, int index) =>
     tester.getRect(find.byKey(ValueKey('dial-entry-$index')));
 
 void main() {
+  group('the Edit hold shows while it builds', () {
+    double length(WidgetTester tester) => _tab(tester, 1).longestSide;
+
+    // On list 0, past its select grow.
+    Future<TestGesture> onList(WidgetTester tester) async {
+      final TestGesture gesture = await tester.startGesture(
+        tester.getCenter(_hubDisc),
+      );
+      await tester.pump(const Duration(milliseconds: 16));
+      await gesture.moveTo(_list(tester, 0));
+      for (int i = 0; i < 13; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      return gesture;
+    }
+
+    Future<void> rest(WidgetTester tester, int frames) async {
+      for (int i = 0; i < frames; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+    }
+
+    testWidgets(
+      'a further slight grow, after the delay, until Edit comes out',
+      (tester) async {
+        await _pump(tester);
+        final TestGesture gesture = await onList(tester);
+        final double selected = length(tester);
+        await rest(tester, 56);
+        final double building = length(tester);
+        expect(building, greaterThan(selected + 3));
+        expect(find.byKey(const ValueKey('dial-edit')), findsNothing);
+        await rest(tester, 15);
+        expect(find.byKey(const ValueKey('dial-edit')), findsOneWidget);
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 300));
+      },
+    );
+
+    testWidgets('a finger that keeps moving does not build it', (tester) async {
+      await _pump(tester);
+      final TestGesture gesture = await onList(tester);
+      final double selected = length(tester);
+      for (int i = 0; i < 12; i++) {
+        await gesture.moveBy(
+          Offset(0, (i.isEven ? 1 : -1) * (_config.moveTolerance + 1)),
+        );
+        await rest(tester, 6);
+      }
+      expect((length(tester) - selected).abs(), lessThan(3));
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 300));
+    });
+
+    testWidgets('with reduced motion it stays as it is', (tester) async {
+      await _pump(tester, reduceMotion: true);
+      final TestGesture gesture = await onList(tester);
+      final double selected = length(tester);
+      await rest(tester, 56);
+      expect(length(tester), selected);
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 300));
+    });
+
+    testWidgets('in a tight spot it still shows, and stays the longest', (
+      tester,
+    ) async {
+      // The hub in the middle of a narrow screen, so the tabs meet its side.
+      await _pump(
+        tester,
+        size: const Size(360, 640),
+        hubPosition: const Offset(180, 520),
+      );
+      final TestGesture gesture = await onList(tester);
+      final double selected = length(tester);
+      await rest(tester, 56);
+      expect(length(tester), greaterThan(selected + 3));
+      expect(length(tester), greaterThan(_tab(tester, 2).longestSide));
+      final Rect tab = _tab(tester, 1);
+      expect(tab.left, greaterThanOrEqualTo(0));
+      expect(tab.top, greaterThanOrEqualTo(0));
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 300));
+    });
+  });
+
   group('the hub hold shows while it builds', () {
     double hubWidth(WidgetTester tester) => tester.getRect(_hubDisc).width;
+
+    testWidgets('nothing shows right as the finger lands', (tester) async {
+      await _pump(tester);
+      final double atRest = hubWidth(tester);
+      final TestGesture gesture = await tester.startGesture(
+        tester.getCenter(_hubDisc),
+      );
+      for (int i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      expect(hubWidth(tester), atRest);
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 300));
+    });
 
     testWidgets('a slight grow from the press, with no prompt any earlier', (
       tester,
@@ -1431,6 +1531,18 @@ void main() {
           await tester.pump(const Duration(milliseconds: 300));
         },
       );
+
+      testWidgets('a rest shows nothing for its first moment', (tester) async {
+        await _pump(tester);
+        await _openArranging(tester);
+        final double atRest = _tab(tester, 1).longestSide;
+        final TestGesture gesture = await tester.startGesture(_list(tester, 0));
+        await tester.pump(const Duration(milliseconds: 16));
+        await tester.pump(const Duration(milliseconds: 30));
+        expect((_tab(tester, 1).longestSide - atRest).abs(), lessThan(2));
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 300));
+      });
 
       testWidgets('a rest does not jump as the list is picked up', (
         tester,

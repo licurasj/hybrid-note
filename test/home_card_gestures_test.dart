@@ -672,6 +672,50 @@ void main() {
       await settle(tester);
     });
 
+    testWidgets('a hold and a rest lift only after their delays', (
+      tester,
+    ) async {
+      double width(String id) => tester
+          .getRect(
+            find.descendant(of: _card(id), matching: find.byType(HomeListCard)),
+          )
+          .width;
+      await _pumpApp(tester, pins: [_tasks, _grocery, _journal]);
+      HomeBlob.stillForTests = false;
+      addTearDown(() => HomeBlob.stillForTests = true);
+      final double atRest = width(_tasks);
+      TestGesture gesture = await tester.startGesture(
+        tester.getCenter(_card(_tasks)),
+      );
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(width(_tasks), atRest);
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(width(_tasks), greaterThan(atRest + 3));
+      await gesture.moveBy(const Offset(0, 300));
+      await tester.pump();
+      await gesture.up();
+      await tester.pump();
+      HomeBlob.stillForTests = true;
+      await settle(tester);
+
+      await arrange(tester, _tasks);
+      HomeBlob.stillForTests = false;
+      await tester.pump();
+      final double grocery = width(_grocery);
+      gesture = await tester.startGesture(tester.getCenter(_card(_grocery)));
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(const Duration(milliseconds: 30));
+      expect(width(_grocery), lessThan(grocery + 4));
+      await gesture.moveBy(const Offset(0, -40));
+      await tester.pump();
+      await gesture.up();
+      await tester.pump();
+      HomeBlob.stillForTests = true;
+      await tester.tap(find.byKey(const ValueKey('home-arrange-done')));
+      await settle(tester);
+    });
+
     testWidgets('the start of a slow swipe scrolls and picks up nothing', (
       tester,
     ) async {

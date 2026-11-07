@@ -1102,11 +1102,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         child: child,
         builder: (context, child) {
           final double lift = held
-              ? _lift.value
+              ? config.holdBuild(config.promptDelay * _lift.value)
               : selected
               ? 1
               : _restingId == listId
-              ? _rest.value
+              ? config.pickUpBuild(config.dialPickUpDelay * _rest.value)
               : 0;
           final double degrees = !_moves
               ? 0

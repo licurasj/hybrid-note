@@ -51,6 +51,9 @@ class LauncherConfig {
     this.dialPickUpDelay = const Duration(milliseconds: 200),
     this.dialRestGrow = 0.12,
     this.hubHoldGrow = 1.1,
+    this.dialEditHoldGrow = 14,
+    this.holdGrowDelay = const Duration(milliseconds: 250),
+    this.pickUpGrowDelay = const Duration(milliseconds: 60),
     this.dialSelectedLead = 24,
     this.dialRestMargin = 28,
     this.dialSelectedSpread = 1.0,
@@ -146,6 +149,26 @@ class LauncherConfig {
   // discs have grown when Move and Arrange come out.
   final double dialRestGrow;
   final double hubHoldGrow;
+  // How much longer a selected list has grown when Edit comes out.
+  final double dialEditHoldGrow;
+  // Nothing shows right as the finger lands (owner, 2026-11-06): how long before
+  // a hold towards prompts starts to show, and a pick-up rest, whose rest is too
+  // short for the same delay.
+  final Duration holdGrowDelay;
+  final Duration pickUpGrowDelay;
+
+  // How far a hold has built (0 to 1) after [elapsed] of resting.
+  double holdBuild(Duration elapsed) =>
+      _build(elapsed, holdGrowDelay, promptDelay);
+
+  // The same for a rest that picks up.
+  double pickUpBuild(Duration elapsed) =>
+      _build(elapsed, pickUpGrowDelay, dialPickUpDelay);
+
+  static double _build(Duration elapsed, Duration delay, Duration total) =>
+      ((elapsed - delay).inMicroseconds / (total - delay).inMicroseconds)
+          .clamp(0, 1)
+          .toDouble();
   // In a tight spot, how far the selected tab stands past the others.
   final double dialSelectedLead;
   // How far a list at rest keeps from the screen's edge.
