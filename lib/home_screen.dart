@@ -508,6 +508,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       return;
     }
     _buzz(false);
+    // Clear straight away (Q-119): ticked and cleared at once, with Undo.
+    if (!due.done &&
+        context.accountPreferences.tickedItems == TickedItems.clearAtOnce) {
+      ClearWithUndo.run(
+        store: context.read<ListStore>(),
+        definition: due.definition,
+        items: context.read<ListStore>().current.itemsOf(due.definition.id),
+        tick: due.item,
+        banners: context.read<AppBannerController?>(),
+        loc: AppLocalizations.of(context),
+      );
+      return;
+    }
     final ListChanges changes = ListRules.setCompleted(
       due.definition,
       due.item,

@@ -954,9 +954,9 @@
   "preferencesStartScreen": "Start screen",
   "preferencesStartLastList": "Last open list",
   "preferencesTicked": "Ticked items",
-  "preferencesTickedMove": "Move to Done",
+  "preferencesTickedMove": "Move to the bottom",
   "preferencesTickedStay": "Stay in place",
-  "preferencesTickedHide": "Hide",
+  "preferencesTickedHide": "Fold away at the bottom",
   "preferencesConfirmDelete": "Confirm before deleting",
   "preferencesShowAiBar": "Show the AI bar",
   "preferencesVibration": "Vibration",
@@ -1055,5 +1055,7 @@
   "preferencesTickedStayLine": "Ticked items stay where they are, crossed out.",
   "preferencesTickedHideLine": "Ticked items wait in a closed Done group at the bottom of each list. Tap it to see them.",
   "preferencesSuggestionsOffLine": "Home shows only the lists you pinned.",
-  "preferencesAiBarOnLine": "The AI bar sits beside the hub on every screen."
+  "preferencesAiBarOnLine": "The AI bar sits beside the hub on every screen.",
+  "preferencesTickedClear": "Clear straight away",
+  "preferencesTickedClearLine": "Ticking clears an item at once, with Undo. Repeats and Next time copies still happen."
 }

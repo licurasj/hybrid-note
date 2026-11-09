@@ -86,12 +86,26 @@ class ClearWithUndo {
     bool Function(ListItem item)? inScope,
     AppBannerController? banners,
     required AppLocalizations loc,
+    ListItem? tick,
   }) async {
+    // Clear straight away (Q-119): [tick] is ticked and cleared in one step,
+    // and Undo puts it back as it was before the tick.
+    final ListItem? ticked = tick == null
+        ? null
+        : ListRules.setCompleted(
+            definition,
+            tick,
+            true,
+            DateTime.now().toUtc(),
+          ).saved.firstOrNull;
     final ListChanges changes = ListRules.clearCompleted(
       definition,
-      items,
+      [
+        for (final ListItem item in items)
+          item.id == ticked?.id ? ticked! : item,
+      ],
       DateTime.now().toUtc(),
-      inScope: inScope,
+      inScope: ticked == null ? inScope : (item) => item.id == ticked.id,
     );
     if (changes.isEmpty) {
       return;

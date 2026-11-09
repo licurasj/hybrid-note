@@ -32,6 +32,9 @@ Future<(FirestoreListStore, AppBannerController)> _pump(
   List<ListItem> items, {
   List<ListDefinition>? lists,
 }) async {
+  tester.view.physicalSize = const Size(800, 2000);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
   final FirestoreListStore store = await widgetTestStore(tester, items: items, lists: lists);
   final AppBannerController banners = AppBannerController();
   addTearDown(banners.dispose);

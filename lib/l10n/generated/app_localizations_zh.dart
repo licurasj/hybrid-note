@@ -1350,4 +1350,11 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get preferencesAiBarOnLine =>
       'The AI bar sits beside the hub on every screen.';
+
+  @override
+  String get preferencesTickedClear => 'Clear straight away';
+
+  @override
+  String get preferencesTickedClearLine =>
+      'Ticking clears an item at once, with Undo. Repeats and Next time copies still happen.';
 }

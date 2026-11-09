@@ -1985,7 +1985,7 @@ abstract class AppLocalizations {
   /// No description provided for @preferencesTickedMove.
   ///
   /// In en, this message translates to:
-  /// **'Move to Done'**
+  /// **'Move to the bottom'**
   String get preferencesTickedMove;
 
   /// No description provided for @preferencesTickedStay.
@@ -1997,7 +1997,7 @@ abstract class AppLocalizations {
   /// No description provided for @preferencesTickedHide.
   ///
   /// In en, this message translates to:
-  /// **'Hide'**
+  /// **'Fold away at the bottom'**
   String get preferencesTickedHide;
 
   /// No description provided for @preferencesConfirmDelete.
@@ -2365,6 +2365,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The AI bar sits beside the hub on every screen.'**
   String get preferencesAiBarOnLine;
+
+  /// No description provided for @preferencesTickedClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear straight away'**
+  String get preferencesTickedClear;
+
+  /// No description provided for @preferencesTickedClearLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Ticking clears an item at once, with Undo. Repeats and Next time copies still happen.'**
+  String get preferencesTickedClearLine;
 }
 
 class _AppLocalizationsDelegate

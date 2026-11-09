@@ -346,7 +346,7 @@ void main() {
           isButton: true,
         ),
       );
-      expect(tester.getSemantics(current).label, startsWith('Move to Done'));
+      expect(tester.getSemantics(current).label, startsWith('Move to the bottom'));
       handle.dispose();
 
       await _tapKey(tester, 'choice-TickedItems.hide');

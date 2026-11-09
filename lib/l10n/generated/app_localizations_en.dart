@@ -1161,13 +1161,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get preferencesTicked => 'Ticked items';
 
   @override
-  String get preferencesTickedMove => 'Move to Done';
+  String get preferencesTickedMove => 'Move to the bottom';
 
   @override
   String get preferencesTickedStay => 'Stay in place';
 
   @override
-  String get preferencesTickedHide => 'Hide';
+  String get preferencesTickedHide => 'Fold away at the bottom';
 
   @override
   String get preferencesConfirmDelete => 'Confirm before deleting';
@@ -1379,4 +1379,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get preferencesAiBarOnLine =>
       'The AI bar sits beside the hub on every screen.';
+
+  @override
+  String get preferencesTickedClear => 'Clear straight away';
+
+  @override
+  String get preferencesTickedClearLine =>
+      'Ticking clears an item at once, with Undo. Repeats and Next time copies still happen.';
 }

@@ -67,7 +67,10 @@ enum StartScreen {
 enum TickedItems {
   moveToDone('moveToDone'),
   stayInPlace('stayInPlace'),
-  hide('hide');
+  hide('hide'),
+  // Ticking clears the item at once, with Undo (Q-119). A phone on an older
+  // build reads it as moveToDone.
+  clearAtOnce('clearAtOnce');
 
   const TickedItems(this.wire);
 

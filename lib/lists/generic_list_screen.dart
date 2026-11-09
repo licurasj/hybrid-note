@@ -707,17 +707,7 @@ class _GenericListScreenState extends State<GenericListScreen>
                 if (completion == null)
                   const SizedBox(width: _margin - _edge)
                 else ...[
-                  _check(
-                    done,
-                    (value) => _apply(
-                      ListRules.setCompleted(
-                        _definition,
-                        item,
-                        value,
-                        DateTime.now().toUtc(),
-                      ),
-                    ),
-                  ),
+                  _check(done, (value) => _setTick(item, value)),
                   const SizedBox(width: 2),
                 ],
                 Expanded(child: text),
@@ -888,13 +878,40 @@ class _GenericListScreenState extends State<GenericListScreen>
 
   // Open items in their groups, then ticked items in one Done group, unless
   // the user keeps them in place (Q-50 b).
+  // Where ticked items go (Q-109): the same in every layout.
+  TickedItems get _ticked => context.watchAccountPreferences.tickedItems;
+
+  // Every item the filter lets through, ticked ones included, for counts that
+  // must not depend on where ticked items are shown.
+  List<ListItem> _allVisible = const [];
+
+  // Ticking an item; with Clear straight away it is cleared at once, with
+  // Undo, through the same clear as Clear ticked (Q-119).
+  Future<void> _setTick(ListItem item, bool value) {
+    if (value &&
+        context.accountPreferences.tickedItems == TickedItems.clearAtOnce) {
+      return ClearWithUndo.run(
+        store: widget.store,
+        definition: _definition,
+        items: widget.items,
+        tick: item,
+        banners: context.read<AppBannerController?>(),
+        loc: AppLocalizations.of(context),
+      );
+    }
+    return _apply(
+      ListRules.setCompleted(_definition, item, value, DateTime.now().toUtc()),
+    );
+  }
+
+  // Move to the bottom: ticked items go to an open Done group under the
+  // layout's own groups, in every layout (Q-109).
   List<Widget> _withDone(
     ListLabels labels,
     List<ListItem> sorted,
     List<Widget> Function(List<ListItem> open) openPart,
   ) {
-    if (_completion == null ||
-        context.watchAccountPreferences.tickedItems != TickedItems.moveToDone) {
+    if (_completion == null || _ticked != TickedItems.moveToDone) {
       return openPart(sorted);
     }
     final List<ListItem> done =
@@ -960,12 +977,16 @@ class _GenericListScreenState extends State<GenericListScreen>
     for (final FieldOption option in sectionField.options) {
       final List<ListItem> members =
           sorted.where((item) => item[sectionField.key] == option.value).toList();
-      final int ticked =
-          members.where((item) => ListRules.isCompleted(_definition, item)).length;
+      // Counted over every item of the section, wherever ticked ones show.
+      final int ticked = _allVisible
+          .where((item) =>
+              item[sectionField.key] == option.value &&
+              ListRules.isCompleted(_definition, item))
+          .length;
       final bool movesFromHere = moveAll != null &&
           moveAll.stringParam('field') == sectionField.key &&
           moveAll.stringParam('from') == option.value &&
-          members.isNotEmpty;
+          _allVisible.any((item) => item[sectionField.key] == option.value);
       final FieldOption? target = movesFromHere
           ? sectionField.options
               .where((other) => other.value == moveAll.stringParam('to'))
@@ -1145,8 +1166,7 @@ class _GenericListScreenState extends State<GenericListScreen>
       return sorted;
     }
 
-    final bool doneLast =
-        context.watchAccountPreferences.tickedItems != TickedItems.stayInPlace;
+    final bool doneLast = _ticked != TickedItems.stayInPlace;
     final String? dateKey = _definition.view.bucketBy;
     DateTime? dateOf(ListItem item) {
       final Object? raw = dateKey == null ? null : item[dateKey];
@@ -1287,8 +1307,8 @@ class _GenericListScreenState extends State<GenericListScreen>
     }
 
     final List<ListItem> visible = _sorted(widget.items.where(_matchesFilter).toList());
-    final bool hideDone = _completion != null &&
-        context.watchAccountPreferences.tickedItems == TickedItems.hide;
+    _allVisible = visible;
+    final bool hideDone = _completion != null && _ticked == TickedItems.hide;
     final List<ListItem> shown = hideDone
         ? visible.where((item) => !ListRules.isCompleted(_definition, item)).toList()
         : visible;
@@ -1301,9 +1321,12 @@ class _GenericListScreenState extends State<GenericListScreen>
 
     final List<Widget> content = [
       ...switch (_definition.view.kind) {
-        ViewKind.grouped => _grouped(labels, shown),
-        ViewKind.sectioned => _sectioned(labels, shown),
-        ViewKind.timeline => _timeline(labels, shown),
+        ViewKind.grouped =>
+          _withDone(labels, shown, (open) => _grouped(labels, open)),
+        ViewKind.sectioned =>
+          _withDone(labels, shown, (open) => _sectioned(labels, open)),
+        ViewKind.timeline =>
+          _withDone(labels, shown, (open) => _timeline(labels, open)),
         ViewKind.checklist =>
           _withDone(labels, shown, (open) => _checklist(labels, open)),
         ViewKind.table || ViewKind.cards => _withDone(labels, shown, (open) => [

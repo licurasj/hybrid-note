@@ -330,6 +330,11 @@ List<SettingChoice<TickedItems>> tickedItemsChoices(AppLocalizations loc) => [
     loc.preferencesTickedHide,
     line: loc.preferencesTickedHideLine,
   ),
+  choice(
+    TickedItems.clearAtOnce,
+    loc.preferencesTickedClear,
+    line: loc.preferencesTickedClearLine,
+  ),
 ];
 
 // How often the AI checks with you (Q-43): a slider from asking to just doing
