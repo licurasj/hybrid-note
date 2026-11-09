@@ -236,4 +236,19 @@ void main() {
     );
     await gesture.up();
   });
+
+  test('a grow delay tuned to or past its total gives no NaN', () {
+    const LauncherConfig late = LauncherConfig(
+      pickUpGrowDelay: Duration(milliseconds: 200),
+      holdGrowDelay: Duration(milliseconds: 900),
+    );
+    for (final int ms in [0, 199, 200, 800, 1000]) {
+      final Duration at = Duration(milliseconds: ms);
+      expect(late.pickUpBuild(at).isNaN, isFalse);
+      expect(late.holdBuild(at).isNaN, isFalse);
+    }
+    expect(late.pickUpBuild(const Duration(milliseconds: 199)), 0);
+    expect(late.pickUpBuild(const Duration(milliseconds: 200)), 1);
+    expect(late.holdBuild(const Duration(milliseconds: 800)), 1);
+  });
 }

@@ -46,8 +46,19 @@ class FirestorePreferencesSync implements AccountPreferencesSync {
     }, timeout: timeout);
   }
 
+  // An entry change goes as arrayUnion or arrayRemove, so it adds to or takes
+  // from what the server has, not what this phone saw.
   @override
   Future<void> write(Map<String, Object?> changes) {
-    return _document.set(changes, SetOptions(merge: true));
+    return _document.set({
+      for (final MapEntry<String, Object?> change in changes.entries)
+        change.key: switch (change.value) {
+          PreferenceEntry(:final String id, added: true) =>
+            FieldValue.arrayUnion([id]),
+          PreferenceEntry(:final String id, added: false) =>
+            FieldValue.arrayRemove([id]),
+          final Object? value => value,
+        },
+    }, SetOptions(merge: true));
   }
 }

@@ -947,7 +947,7 @@
   "preferencesItems": "Items",
   "preferencesAi": "AI",
   "preferencesGeneral": "General",
-  "preferencesListOrder": "List order",
+  "preferencesListOrder": "Dial list order",
   "preferencesListOrderLastUsed": "Last used",
   "preferencesListOrderMine": "My order",
   "preferencesListOrderAz": "A to Z",
@@ -976,5 +976,30 @@
     }
   },
   "arrangeLists": "Arrange",
-  "preferenceNotSaved": "A setting could not be saved to your account. It stays as you set it on this phone."
+  "preferenceNotSaved": "A setting could not be saved to your account. It stays as you set it on this phone.",
+  "homeNothingOpen": "Nothing open",
+  "homePin": "Pin to home",
+  "homeUnpin": "Unpin from home",
+  "preferencesHomeContent": "Home shows",
+  "preferencesHomeContentBoth": "List cards and items due today",
+  "preferencesHomeContentCards": "List cards",
+  "preferencesHomeContentDue": "Items due today",
+  "preferencesHomeSuggestions": "Show suggestions",
+  "homeNothingDue": "Nothing due. The day is yours.",
+  "homeRearrange": "Rearrange",
+  "homeUnpinShort": "Unpin",
+  "homePinShort": "Pin",
+  "homeRemove": "Remove",
+  "homeNoSuggestions": "No suggestions",
+  "homeArrangeDone": "Done",
+  "homeRemovedBanner": "Removed from home",
+  "homeTick": "Tick",
+  "@homeTick": {
+    "description": "Screen reader label of the tick circle on a Today row on home."
+  },
+  "homeSuggestionsOffBanner": "Suggestions off",
+  "homeMoveEarlier": "Move earlier",
+  "homeMoveLater": "Move later",
+  "preferencesHomeListOrder": "Home list order",
+  "preferencesHomeListOrderSame": "Same as dial"
 }

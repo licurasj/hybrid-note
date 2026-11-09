@@ -14,6 +14,8 @@ class _FakeSync implements AccountPreferencesSync {
       StreamController<AccountPreferencesSnapshot>.broadcast();
   final List<Map<String, Object?>> seeds = [];
   final List<Map<String, Object?>> writes = [];
+  // Every write begun, also those held open.
+  final List<Map<String, Object?>> started = [];
   int watches = 0;
   Object? seedError;
   Object? writeError;
@@ -36,6 +38,7 @@ class _FakeSync implements AccountPreferencesSync {
 
   @override
   Future<void> write(Map<String, Object?> changes) async {
+    started.add(changes);
     final Completer<void>? held = heldWrite;
     if (held != null) {
       await held.future;
@@ -90,6 +93,12 @@ void main() {
       expect(preferences.vibration, isTrue);
       expect(preferences.timeFormat, TimeFormat.followLanguage);
       expect(preferences.weekStart, WeekStart.followLanguage);
+      expect(preferences.homeContent, HomeContent.both);
+      expect(preferences.homeSuggestions, isTrue);
+      expect(preferences.homePins, isEmpty);
+      expect(preferences.homeRemoved, isEmpty);
+      expect(preferences.homeOrder, isEmpty);
+      expect(preferences.homeListOrder, HomeListOrder.sameAsDial);
     });
 
     test('every value survives the round trip', () {
@@ -107,6 +116,12 @@ void main() {
         vibration: false,
         timeFormat: TimeFormat.h24,
         weekStart: WeekStart.sunday,
+        homeContent: HomeContent.dueToday,
+        homeSuggestions: false,
+        homePins: ['a'],
+        homeRemoved: ['b'],
+        homeOrder: ['a', 'c'],
+        homeListOrder: HomeListOrder.alphabetical,
       );
       final Object? stored = jsonDecode(jsonEncode(preferences.toJson()));
       expect(
@@ -131,6 +146,42 @@ void main() {
         'fromANewerBuild': {'x': 1},
       });
       expect(preferences, const AccountPreferences(myListOrder: ['a', 'b']));
+    });
+
+    test('home keys of the wrong type get the default (R10)', () {
+      for (final Object? bad in <Object?>[
+        'a,b',
+        7,
+        {'a': 1},
+        null,
+      ]) {
+        final AccountPreferences preferences = AccountPreferences.fromJson({
+          'homePins': bad,
+          'homeRemoved': bad,
+          'homeOrder': bad,
+          'homeListOrder': bad,
+          'homeArranged': bad,
+          'dialArranged': bad,
+          'homeSuggestions': bad,
+          'homeContent': bad,
+        });
+        expect(preferences, const AccountPreferences(), reason: '$bad');
+      }
+      final AccountPreferences mixed = AccountPreferences.fromJson(const {
+        'homePins': ['a', 7, null, 'b'],
+        'homeRemoved': [false, 'c'],
+        'homeOrder': [
+          ['x'],
+          'b',
+          'a',
+        ],
+        'homeArranged': 'true',
+        'dialArranged': true,
+      });
+      expect(mixed.homePins, ['a', 'b']);
+      expect(mixed.homeRemoved, ['c']);
+      expect(mixed.homeOrder, ['b', 'a']);
+      expect(mixed.homeListOrder, HomeListOrder.sameAsDial);
     });
 
     test('a list that is not a list gives no order', () {
@@ -592,6 +643,124 @@ void main() {
           isFalse,
         );
       });
+    });
+  });
+
+  group('pins and removals, one entry at a time (R2)', () {
+    const List<String> lists = ['x', 'y', 'z'];
+
+    test('each is written as its entry alone', () async {
+      final (AccountPreferencesCubit cubit, _FakeSync sync) = await _cubit();
+      await sync.send(const {});
+      await cubit.pinToHome('x', existing: lists);
+      await cubit.unpinFromHome('x');
+      await cubit.removeFromHome('y', existing: lists);
+      await cubit.undoRemoveFromHome('y');
+      await pumpEventQueue();
+      expect(sync.writes, [
+        {'homePins': const PreferenceEntry('x', added: true)},
+        {'homePins': const PreferenceEntry('x', added: false)},
+        {'homeRemoved': const PreferenceEntry('y', added: true)},
+        {'homeRemoved': const PreferenceEntry('y', added: false)},
+      ]);
+      final SharedPreferences stored = await SharedPreferences.getInstance();
+      expect(
+        stored.containsKey(AccountPreferencesCubit.pendingEntriesKey(_uid)),
+        isFalse,
+      );
+    });
+
+    test('a pin made offline keeps another phone\'s pin', () async {
+      final (AccountPreferencesCubit cubit, _FakeSync sync) = await _cubit();
+      await sync.send(const {
+        'homePins': ['z'],
+      });
+      // Offline: the write waits.
+      final Completer<void> answer = Completer<void>();
+      sync.heldWrite = answer;
+      await cubit.pinToHome('x', existing: lists);
+      // Meanwhile the other phone pinned y.
+      await sync.send(const {
+        'homePins': ['z', 'y'],
+      });
+      expect(cubit.state.homePins, ['z', 'y', 'x']);
+      answer.complete();
+      await pumpEventQueue();
+      // Back online, the server has added x to what it had.
+      await sync.send(const {
+        'homePins': ['z', 'y', 'x'],
+      });
+      expect(cubit.state.homePins, ['z', 'y', 'x']);
+    });
+
+    test('a removal made offline keeps another phone\'s removal', () async {
+      final (AccountPreferencesCubit cubit, _FakeSync sync) = await _cubit();
+      await sync.send(const {});
+      sync.heldWrite = Completer<void>();
+      await cubit.removeFromHome('x', existing: lists);
+      await sync.send(const {
+        'homeRemoved': ['y'],
+      });
+      expect(cubit.state.homeRemoved, ['y', 'x']);
+    });
+
+    test('an entry waiting survives a restart and is sent again', () async {
+      final (AccountPreferencesCubit cubit, _FakeSync sync) = await _cubit();
+      await sync.send(const {});
+      sync.heldWrite = Completer<void>();
+      await cubit.pinToHome('x', existing: lists);
+      await cubit.close();
+
+      final _FakeSync again = _FakeSync();
+      addTearDown(again.snapshots.close);
+      final Completer<void> answer = Completer<void>();
+      again.heldWrite = answer;
+      final AccountPreferencesCubit restarted = AccountPreferencesCubit(
+        await SharedPreferences.getInstance(),
+        _uid,
+        sync: again,
+      );
+      addTearDown(restarted.close);
+      await pumpEventQueue();
+      expect(restarted.state.homePins, ['x']);
+      expect(again.started, [
+        {'homePins': const PreferenceEntry('x', added: true)},
+      ]);
+      // Another phone's pin arrives before the server has this one.
+      await again.send(const {
+        'homePins': ['y'],
+      });
+      expect(restarted.state.homePins, ['y', 'x']);
+      answer.complete();
+      await pumpEventQueue();
+      final SharedPreferences stored = await SharedPreferences.getInstance();
+      expect(
+        stored.containsKey(AccountPreferencesCubit.pendingEntriesKey(_uid)),
+        isFalse,
+      );
+    });
+
+    test('made before the account was seen, they go on top of it', () async {
+      final (AccountPreferencesCubit cubit, _FakeSync sync) = await _cubit();
+      await cubit.pinToHome('x', existing: lists);
+      expect(sync.writes, isEmpty);
+      await sync.send(const {
+        'homePins': ['y'],
+      });
+      expect(cubit.state.homePins, ['y', 'x']);
+      expect(sync.writes, [
+        {'homePins': const PreferenceEntry('x', added: true)},
+      ]);
+    });
+
+    test('an id added again goes to the end, as arrayUnion would not', () {
+      expect(PreferenceEntry.apply(['a', 'b'], {'a': false, 'c': true}), [
+        'b',
+        'c',
+      ]);
+      expect(PreferenceEntry.apply(['a', 'b'], {'a': true}), ['a', 'b']);
+      expect(PreferenceEntry.apply('a,b', {'a': true}), ['a']);
+      expect(PreferenceEntry.apply([1, 'b'], {'c': true}), ['b', 'c']);
     });
   });
 

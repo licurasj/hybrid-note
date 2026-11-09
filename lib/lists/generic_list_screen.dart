@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../app/account_preferences.dart';
 import '../app/app_theme.dart';
 import '../app/date_preferences.dart';
 import '../app_colors.dart';
+import '../home_cards_view.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../launcher/launcher_hub_area.dart';
 import 'confirm_delete_sheet.dart';
@@ -1289,6 +1291,29 @@ class _GenericListScreenState extends State<GenericListScreen>
         elevation: 0,
         scrolledUnderElevation: 0,
         actions: [
+          // Pins follow the account, so there is none without one.
+          if (context.read<AccountPreferencesCubit?>()
+              case final AccountPreferencesCubit preferences)
+            HomePinButton(
+              key: const ValueKey('list-pin'),
+              pinned: context.watchAccountPreferences.homePins.contains(
+                _definition.id,
+              ),
+              onPressed: () {
+                if (preferences.state.homePins.contains(_definition.id)) {
+                  preferences.unpinFromHome(_definition.id);
+                } else {
+                  preferences.pinToHome(
+                    _definition.id,
+                    existing: [
+                      for (final ListDefinition list
+                          in widget.store.current.definitions)
+                        list.id,
+                    ],
+                  );
+                }
+              },
+            ),
           if (canClearAll)
             IconButton(
               tooltip: loc.clear,
@@ -1319,24 +1344,35 @@ class _GenericListScreenState extends State<GenericListScreen>
           : _reduceMotion
               ? FloatingActionButtonAnimator.noAnimation
               : const _SizeOnlyButtonAnimator(),
-      body: RefreshIndicator(
-        onRefresh: widget.store.refresh,
-        color: _look.color,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.only(bottom: 120),
-          children: [
-            _title(loc),
-            ..._filters(labels),
-            if (showEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(_margin, 32, _margin, 0),
-                child: Text(widget.texts.emptyText, style: _look.type.meta),
-              )
-            else
-              ...content,
-          ],
-        ),
+      // The title, description and count stay; the items scroll under them
+      // (Q-65).
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _title(loc),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: widget.store.refresh,
+              color: _look.color,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.only(bottom: 120),
+                children: [
+                  ..._filters(labels),
+                  if (showEmpty)
+                    Padding(
+                      padding:
+                          const EdgeInsets.fromLTRB(_margin, 32, _margin, 0),
+                      child:
+                          Text(widget.texts.emptyText, style: _look.type.meta),
+                    )
+                  else
+                    ...content,
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

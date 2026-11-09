@@ -1119,7 +1119,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get preferencesGeneral => '一般';
 
   @override
-  String get preferencesListOrder => 'リストの順序';
+  String get preferencesListOrder => 'ダイヤルの順序';
 
   @override
   String get preferencesListOrderLastUsed => '最近使った順';
@@ -1188,4 +1188,70 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get preferenceNotSaved => '設定をアカウントに保存できませんでした。この端末では選んだとおりのままです。';
+
+  @override
+  String get homeNothingOpen => '未完了の項目はありません';
+
+  @override
+  String get homePin => 'ホームにピン留め';
+
+  @override
+  String get homeUnpin => 'ホームのピン留めを解除';
+
+  @override
+  String get preferencesHomeContent => 'ホームの表示';
+
+  @override
+  String get preferencesHomeContentBoth => 'リストカードと今日が期限の項目';
+
+  @override
+  String get preferencesHomeContentCards => 'リストカード';
+
+  @override
+  String get preferencesHomeContentDue => '今日が期限の項目';
+
+  @override
+  String get preferencesHomeSuggestions => 'おすすめを表示';
+
+  @override
+  String get homeNothingDue => '予定なし。今日は自由です。';
+
+  @override
+  String get homeRearrange => '並べ替え';
+
+  @override
+  String get homeUnpinShort => 'ピン留め解除';
+
+  @override
+  String get homePinShort => 'ピン留め';
+
+  @override
+  String get homeRemove => '削除';
+
+  @override
+  String get homeNoSuggestions => 'おすすめなし';
+
+  @override
+  String get homeArrangeDone => '完了';
+
+  @override
+  String get homeRemovedBanner => 'ホームから削除しました';
+
+  @override
+  String get homeTick => '完了にする';
+
+  @override
+  String get homeSuggestionsOffBanner => 'おすすめをオフにしました';
+
+  @override
+  String get homeMoveEarlier => '前へ移動';
+
+  @override
+  String get homeMoveLater => '後ろへ移動';
+
+  @override
+  String get preferencesHomeListOrder => 'ホームの順序';
+
+  @override
+  String get preferencesHomeListOrderSame => 'ダイヤルと同じ';
 }

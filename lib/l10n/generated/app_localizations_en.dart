@@ -1140,7 +1140,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get preferencesGeneral => 'General';
 
   @override
-  String get preferencesListOrder => 'List order';
+  String get preferencesListOrder => 'Dial list order';
 
   @override
   String get preferencesListOrderLastUsed => 'Last used';
@@ -1210,4 +1210,70 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get preferenceNotSaved =>
       'A setting could not be saved to your account. It stays as you set it on this phone.';
+
+  @override
+  String get homeNothingOpen => 'Nothing open';
+
+  @override
+  String get homePin => 'Pin to home';
+
+  @override
+  String get homeUnpin => 'Unpin from home';
+
+  @override
+  String get preferencesHomeContent => 'Home shows';
+
+  @override
+  String get preferencesHomeContentBoth => 'List cards and items due today';
+
+  @override
+  String get preferencesHomeContentCards => 'List cards';
+
+  @override
+  String get preferencesHomeContentDue => 'Items due today';
+
+  @override
+  String get preferencesHomeSuggestions => 'Show suggestions';
+
+  @override
+  String get homeNothingDue => 'Nothing due. The day is yours.';
+
+  @override
+  String get homeRearrange => 'Rearrange';
+
+  @override
+  String get homeUnpinShort => 'Unpin';
+
+  @override
+  String get homePinShort => 'Pin';
+
+  @override
+  String get homeRemove => 'Remove';
+
+  @override
+  String get homeNoSuggestions => 'No suggestions';
+
+  @override
+  String get homeArrangeDone => 'Done';
+
+  @override
+  String get homeRemovedBanner => 'Removed from home';
+
+  @override
+  String get homeTick => 'Tick';
+
+  @override
+  String get homeSuggestionsOffBanner => 'Suggestions off';
+
+  @override
+  String get homeMoveEarlier => 'Move earlier';
+
+  @override
+  String get homeMoveLater => 'Move later';
+
+  @override
+  String get preferencesHomeListOrder => 'Home list order';
+
+  @override
+  String get preferencesHomeListOrderSame => 'Same as dial';
 }

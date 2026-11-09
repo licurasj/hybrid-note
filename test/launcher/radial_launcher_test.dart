@@ -67,6 +67,9 @@ Offset _tab(LauncherGeometry geometry, int index, [double offset = 0]) {
   return geometry.tabCenter(index, offset)!;
 }
 
+// The hold before a prompt, in milliseconds.
+final int _promptMs = const LauncherConfig().promptDelay.inMilliseconds;
+
 void main() {
   group('geometry', () {
     final LauncherGeometry geometry = _geometry(12);
@@ -287,7 +290,7 @@ void main() {
       final TestGesture gesture = await tester.startGesture(geometry.hubCenter);
       await tester.pump(const Duration(milliseconds: 50));
       await gesture.moveTo(_tab(geometry, 2));
-      await rest(tester, 1000);
+      await rest(tester, _promptMs - 200);
       expect(find.byKey(const ValueKey('launcher-edit-prompt')), findsNothing);
 
       await rest(tester, 400);
@@ -309,7 +312,7 @@ void main() {
       final TestGesture gesture = await tester.startGesture(geometry.hubCenter);
       await tester.pump(const Duration(milliseconds: 50));
       await gesture.moveTo(_tab(geometry, 2));
-      await rest(tester, 1300);
+      await rest(tester, _promptMs + 100);
       final double early = out();
       await rest(tester, 300);
       final double later = out();
@@ -473,7 +476,7 @@ void main() {
       final LauncherGeometry geometry = _geometry(4);
 
       final TestGesture gesture = await tester.startGesture(geometry.hubCenter);
-      await rest(tester, 1000);
+      await rest(tester, _promptMs - 200);
       expect(find.byKey(const ValueKey('launcher-move-prompt')), findsNothing);
       await rest(tester, 600);
       expect(find.byKey(const ValueKey('launcher-move-prompt')), findsOneWidget);

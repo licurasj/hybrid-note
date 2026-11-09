@@ -1943,7 +1943,7 @@ abstract class AppLocalizations {
   /// No description provided for @preferencesListOrder.
   ///
   /// In en, this message translates to:
-  /// **'List order'**
+  /// **'Dial list order'**
   String get preferencesListOrder;
 
   /// No description provided for @preferencesListOrderLastUsed.
@@ -2077,6 +2077,138 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A setting could not be saved to your account. It stays as you set it on this phone.'**
   String get preferenceNotSaved;
+
+  /// No description provided for @homeNothingOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing open'**
+  String get homeNothingOpen;
+
+  /// No description provided for @homePin.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin to home'**
+  String get homePin;
+
+  /// No description provided for @homeUnpin.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin from home'**
+  String get homeUnpin;
+
+  /// No description provided for @preferencesHomeContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Home shows'**
+  String get preferencesHomeContent;
+
+  /// No description provided for @preferencesHomeContentBoth.
+  ///
+  /// In en, this message translates to:
+  /// **'List cards and items due today'**
+  String get preferencesHomeContentBoth;
+
+  /// No description provided for @preferencesHomeContentCards.
+  ///
+  /// In en, this message translates to:
+  /// **'List cards'**
+  String get preferencesHomeContentCards;
+
+  /// No description provided for @preferencesHomeContentDue.
+  ///
+  /// In en, this message translates to:
+  /// **'Items due today'**
+  String get preferencesHomeContentDue;
+
+  /// No description provided for @preferencesHomeSuggestions.
+  ///
+  /// In en, this message translates to:
+  /// **'Show suggestions'**
+  String get preferencesHomeSuggestions;
+
+  /// No description provided for @homeNothingDue.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing due. The day is yours.'**
+  String get homeNothingDue;
+
+  /// No description provided for @homeRearrange.
+  ///
+  /// In en, this message translates to:
+  /// **'Rearrange'**
+  String get homeRearrange;
+
+  /// No description provided for @homeUnpinShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin'**
+  String get homeUnpinShort;
+
+  /// No description provided for @homePinShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin'**
+  String get homePinShort;
+
+  /// No description provided for @homeRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get homeRemove;
+
+  /// No description provided for @homeNoSuggestions.
+  ///
+  /// In en, this message translates to:
+  /// **'No suggestions'**
+  String get homeNoSuggestions;
+
+  /// No description provided for @homeArrangeDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get homeArrangeDone;
+
+  /// No description provided for @homeRemovedBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed from home'**
+  String get homeRemovedBanner;
+
+  /// Screen reader label of the tick circle on a Today row on home.
+  ///
+  /// In en, this message translates to:
+  /// **'Tick'**
+  String get homeTick;
+
+  /// No description provided for @homeSuggestionsOffBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggestions off'**
+  String get homeSuggestionsOffBanner;
+
+  /// No description provided for @homeMoveEarlier.
+  ///
+  /// In en, this message translates to:
+  /// **'Move earlier'**
+  String get homeMoveEarlier;
+
+  /// No description provided for @homeMoveLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Move later'**
+  String get homeMoveLater;
+
+  /// No description provided for @preferencesHomeListOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Home list order'**
+  String get preferencesHomeListOrder;
+
+  /// No description provided for @preferencesHomeListOrderSame.
+  ///
+  /// In en, this message translates to:
+  /// **'Same as dial'**
+  String get preferencesHomeListOrderSame;
 }
 
 class _AppLocalizationsDelegate

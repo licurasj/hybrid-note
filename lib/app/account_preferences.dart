@@ -7,6 +7,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'home_cards.dart';
+
 // How the home and launcher order the lists (Q-49).
 enum ListOrder {
   lastUsed('lastUsed'),
@@ -21,6 +23,29 @@ enum ListOrder {
     (order) => order.wire == wire,
     orElse: () => ListOrder.lastUsed,
   );
+}
+
+// The order of home's pinned cards (Q-108): the dial's, its own sort, or its
+// own dragged order.
+enum HomeListOrder {
+  sameAsDial('sameAsDial'),
+  lastUsed('lastUsed'),
+  myOrder('myOrder'),
+  alphabetical('az');
+
+  const HomeListOrder(this.wire);
+
+  final String wire;
+
+  // Null for a missing or unknown value.
+  static HomeListOrder? maybeOf(Object? wire) {
+    for (final HomeListOrder order in values) {
+      if (order.wire == wire) {
+        return order;
+      }
+    }
+    return null;
+  }
 }
 
 // What the app opens on (Q-50 a).
@@ -103,6 +128,25 @@ enum WeekStart {
   );
 }
 
+// What home shows under its header (Q-73).
+enum HomeContent {
+  both('both'),
+  cards('cards'),
+  dueToday('dueToday');
+
+  const HomeContent(this.wire);
+
+  final String wire;
+
+  bool get showsCards => this != dueToday;
+  bool get showsDue => this != cards;
+
+  static HomeContent of(Object? wire) => values.firstWhere(
+    (content) => content.wire == wire,
+    orElse: () => HomeContent.both,
+  );
+}
+
 // Choices that follow the account to every phone (Q-48 A). Choices that
 // belong to one phone are in AppSettings.
 @immutable
@@ -121,6 +165,12 @@ class AccountPreferences {
     this.vibration = true,
     this.timeFormat = TimeFormat.followLanguage,
     this.weekStart = WeekStart.followLanguage,
+    this.homeContent = HomeContent.both,
+    this.homeSuggestions = true,
+    this.homePins = const [],
+    this.homeRemoved = const [],
+    this.homeOrder = const [],
+    this.homeListOrder = HomeListOrder.sameAsDial,
   });
 
   static const String listOrderKey = 'listOrder';
@@ -136,6 +186,16 @@ class AccountPreferences {
   static const String vibrationKey = 'vibration';
   static const String timeFormatKey = 'timeFormat';
   static const String weekStartKey = 'weekStart';
+  static const String homeContentKey = 'homeContent';
+  static const String homeSuggestionsKey = 'homeSuggestions';
+  static const String homePinsKey = 'homePins';
+  static const String homeRemovedKey = 'homeRemoved';
+  static const String homeOrderKey = 'homeOrder';
+  static const String homeListOrderKey = 'homeListOrder';
+  // Before Q-108: which orders had been arranged by hand (Q-75). Read only to
+  // work out homeListOrder on an account that has none yet.
+  static const String homeArrangedKey = 'homeArranged';
+  static const String dialArrangedKey = 'dialArranged';
 
   final ListOrder listOrder;
   // List ids in the user's own order; a list that is not here goes after
@@ -156,6 +216,26 @@ class AccountPreferences {
   final bool vibration;
   final TimeFormat timeFormat;
   final WeekStart weekStart;
+  final HomeContent homeContent;
+  // Suggestions among the cards, when cards show (Q-73).
+  final bool homeSuggestions;
+  // Pinned list ids, with no limit (Q-70).
+  final List<String> homePins;
+  // Lists taken off home's suggestions for good; a pin brings one back (Q-79).
+  final List<String> homeRemoved;
+  // The pinned lists as dragged on home, used on My order; other ids here mean
+  // nothing (Q-75).
+  final List<String> homeOrder;
+  // Home list order (Q-108). The dial's is [listOrder].
+  final HomeListOrder homeListOrder;
+
+  // The order setting that sorts home's cards, or null on home's own My order.
+  ListOrder? get homeSortedBy => switch (homeListOrder) {
+    HomeListOrder.sameAsDial => listOrder,
+    HomeListOrder.lastUsed => ListOrder.lastUsed,
+    HomeListOrder.alphabetical => ListOrder.alphabetical,
+    HomeListOrder.myOrder => null,
+  };
 
   // A missing or malformed value gets its default, and a value of a newer
   // build is ignored, so a bad document never stops the app.
@@ -165,13 +245,24 @@ class AccountPreferences {
       return value is bool ? value : fallback;
     }
 
-    final Object? order = json[myListOrderKey];
+    List<String> ids(String key) {
+      final Object? value = json[key];
+      return value is List
+          ? List.unmodifiable(value.whereType<String>())
+          : const [];
+    }
+
     final Object? notice = json[aiNoticeSeenKey];
+    // An account from before Q-108: home had its own order when both had been
+    // arranged (Q-75's split), and followed the dial otherwise.
+    final HomeListOrder homeListOrder =
+        HomeListOrder.maybeOf(json[homeListOrderKey]) ??
+        (flag(homeArrangedKey, false) && flag(dialArrangedKey, false)
+            ? HomeListOrder.myOrder
+            : HomeListOrder.sameAsDial);
     return AccountPreferences(
       listOrder: ListOrder.of(json[listOrderKey]),
-      myListOrder: order is List
-          ? List.unmodifiable(order.whereType<String>())
-          : const [],
+      myListOrder: ids(myListOrderKey),
       startScreen: StartScreen.of(json[startScreenKey]),
       tickedItems: TickedItems.of(json[tickedItemsKey]),
       confirmDelete: flag(confirmDeleteKey, false),
@@ -183,6 +274,12 @@ class AccountPreferences {
       vibration: flag(vibrationKey, true),
       timeFormat: TimeFormat.of(json[timeFormatKey]),
       weekStart: WeekStart.of(json[weekStartKey]),
+      homeContent: HomeContent.of(json[homeContentKey]),
+      homeSuggestions: flag(homeSuggestionsKey, true),
+      homePins: ids(homePinsKey),
+      homeRemoved: ids(homeRemovedKey),
+      homeOrder: ids(homeOrderKey),
+      homeListOrder: homeListOrder,
     );
   }
 
@@ -200,6 +297,12 @@ class AccountPreferences {
     vibrationKey: vibration,
     timeFormatKey: timeFormat.wire,
     weekStartKey: weekStart.wire,
+    homeContentKey: homeContent.wire,
+    homeSuggestionsKey: homeSuggestions,
+    homePinsKey: homePins,
+    homeRemovedKey: homeRemoved,
+    homeOrderKey: homeOrder,
+    homeListOrderKey: homeListOrder.wire,
   };
 
   @override
@@ -217,7 +320,13 @@ class AccountPreferences {
       other.aiNoticeSeen == aiNoticeSeen &&
       other.vibration == vibration &&
       other.timeFormat == timeFormat &&
-      other.weekStart == weekStart;
+      other.weekStart == weekStart &&
+      other.homeContent == homeContent &&
+      other.homeSuggestions == homeSuggestions &&
+      listEquals(other.homePins, homePins) &&
+      listEquals(other.homeRemoved, homeRemoved) &&
+      listEquals(other.homeOrder, homeOrder) &&
+      other.homeListOrder == homeListOrder;
 
   @override
   int get hashCode => Object.hash(
@@ -234,6 +343,12 @@ class AccountPreferences {
     vibration,
     timeFormat,
     weekStart,
+    homeContent,
+    homeSuggestions,
+    Object.hashAll(homePins),
+    Object.hashAll(homeRemoved),
+    Object.hashAll(homeOrder),
+    homeListOrder,
   );
 }
 
@@ -256,6 +371,46 @@ typedef AccountPreferencesSnapshot = ({
   bool fromCache,
 });
 
+// A change to one entry of a list kept as a set (homePins, homeRemoved),
+// written as the entry alone (Firestore's arrayUnion or arrayRemove), so a pin
+// or removal made on one phone while another was offline is not lost when the
+// other's change arrives (T-22 unit 4, R2).
+class PreferenceEntry {
+  const PreferenceEntry(this.id, {required this.added});
+
+  final String id;
+  // Added if absent (arrayUnion), or taken out (arrayRemove).
+  final bool added;
+
+  // [ids] with these changes made, as the server makes them.
+  static List<String> apply(Object? ids, Map<String, bool> changes) {
+    final List<String> result = ids is List
+        ? [
+            for (final Object? id in ids)
+              if (id is String) id,
+          ]
+        : [];
+    changes.forEach((id, added) {
+      if (!added) {
+        result.removeWhere((each) => each == id);
+      } else if (!result.contains(id)) {
+        result.add(id);
+      }
+    });
+    return result;
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is PreferenceEntry && other.id == id && other.added == added;
+
+  @override
+  int get hashCode => Object.hash(id, added);
+
+  @override
+  String toString() => '${added ? '+' : '-'}$id';
+}
+
 // Where the account's preferences are kept (firestore_preferences.dart in
 // the app).
 abstract class AccountPreferencesSync {
@@ -265,7 +420,8 @@ abstract class AccountPreferencesSync {
   // the server cannot be reached.
   Future<void> seed(Map<String, Object?> values);
 
-  // Stores [changes] next to the other values. Completes when the server
+  // Stores [changes] next to the other values; a [PreferenceEntry] value
+  // adds or removes that one entry of the key's list. Completes when the server
   // has them, so offline it stays open while the change waits; fails when the
   // server refuses them.
   Future<void> write(Map<String, Object?> changes);
@@ -302,6 +458,7 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
     ],
   }) : _known = preferences.containsKey(mirrorKey(uid)),
        _pending = _readMap(preferences, pendingKey(uid)),
+       _pendingEntries = _readEntries(preferences, uid),
        super(_read(preferences, uid)) {
     _listen();
     if (_known) {
@@ -322,6 +479,8 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
 
   static String mirrorKey(String uid) => 'preferences.$uid';
   static String pendingKey(String uid) => 'preferences.$uid.pending';
+  static String pendingEntriesKey(String uid) =>
+      'preferences.$uid.pendingEntries';
 
   StreamSubscription<AccountPreferencesSnapshot>? _subscription;
   Timer? _relisten;
@@ -334,6 +493,9 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
   // Changes the server has not confirmed: made before that, on their way, or
   // refused.
   final Map<String, Object?> _pending;
+  // The same for entries of set-like lists: key, then id and whether added, in
+  // the order made.
+  final Map<String, Map<String, bool>> _pendingEntries;
   bool _seeding = false;
   final StreamController<void> _saveFailures =
       StreamController<void>.broadcast();
@@ -346,30 +508,68 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
   static Future<void> forget(SharedPreferences preferences, String uid) async {
     await preferences.remove(mirrorKey(uid));
     await preferences.remove(pendingKey(uid));
+    await preferences.remove(pendingEntriesKey(uid));
   }
 
+  // [values] with the entry changes made on top, as the server will have them.
+  static Map<String, Object?> _withEntries(
+    Map<String, Object?> values,
+    Map<String, Map<String, bool>> entries,
+  ) => {
+    ...values,
+    for (final MapEntry<String, Map<String, bool>> key in entries.entries)
+      key.key: PreferenceEntry.apply(values[key.key], key.value),
+  };
+
+  static Map<String, Map<String, bool>> _readEntries(
+    SharedPreferences preferences,
+    String uid,
+  ) => {
+    for (final MapEntry<String, Object?> key in _readMap(
+      preferences,
+      pendingEntriesKey(uid),
+    ).entries)
+      if (key.value case final Map<Object?, Object?> entries)
+        key.key: {
+          for (final MapEntry<Object?, Object?> entry in entries.entries)
+            if ((entry.key, entry.value) case (
+              final String id,
+              final bool added,
+            ))
+              id: added,
+        },
+  };
+
   static AccountPreferences _read(SharedPreferences preferences, String uid) {
+    final Map<String, Map<String, bool>> entries = _readEntries(
+      preferences,
+      uid,
+    );
     if (preferences.containsKey(mirrorKey(uid))) {
-      return AccountPreferences.fromJson({
-        ..._readMap(preferences, mirrorKey(uid)),
-        ..._readMap(preferences, pendingKey(uid)),
-      });
+      return AccountPreferences.fromJson(
+        _withEntries({
+          ..._readMap(preferences, mirrorKey(uid)),
+          ..._readMap(preferences, pendingKey(uid)),
+        }, entries),
+      );
     }
-    return AccountPreferences.fromJson({
-      AccountPreferences.aiAutoApplyKey: preferences.getBool(
-        legacyAutoApplyKey,
-      ),
-      AccountPreferences.aiAskLevelKey: preferences.getString(
-        legacyAskLevelKey,
-      ),
-      AccountPreferences.aiAutoApplyOfferedKey: preferences.getBool(
-        legacyAutoApplyOfferedKey,
-      ),
-      AccountPreferences.aiNoticeSeenKey: preferences.getString(
-        legacyNoticeSeenKey,
-      ),
-      ..._readMap(preferences, pendingKey(uid)),
-    });
+    return AccountPreferences.fromJson(
+      _withEntries({
+        AccountPreferences.aiAutoApplyKey: preferences.getBool(
+          legacyAutoApplyKey,
+        ),
+        AccountPreferences.aiAskLevelKey: preferences.getString(
+          legacyAskLevelKey,
+        ),
+        AccountPreferences.aiAutoApplyOfferedKey: preferences.getBool(
+          legacyAutoApplyOfferedKey,
+        ),
+        AccountPreferences.aiNoticeSeenKey: preferences.getString(
+          legacyNoticeSeenKey,
+        ),
+        ..._readMap(preferences, pendingKey(uid)),
+      }, entries),
+    );
   }
 
   static Map<String, Object?> _readMap(
@@ -431,7 +631,11 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
     final bool firstSeen = !_known;
     _known = true;
     if (!isClosed) {
-      emit(AccountPreferences.fromJson({...data, ..._pending}));
+      emit(
+        AccountPreferences.fromJson(
+          _withEntries({...data, ..._pending}, _pendingEntries),
+        ),
+      );
     }
     if (firstSeen || recovered) {
       _resend();
@@ -464,6 +668,11 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
     for (final MapEntry<String, Object?> change in _pending.entries) {
       _send({change.key: change.value});
     }
+    _pendingEntries.forEach((key, entries) {
+      entries.forEach((id, added) {
+        _send({key: PreferenceEntry(id, added: added)});
+      });
+    });
   }
 
   void _send(Map<String, Object?> changes) {
@@ -479,16 +688,30 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
 
   // Unless the person has chosen again since. Compared as JSON, since a value
   // can be a list.
-  bool _isPending(String key, Object? value) =>
-      _pending.containsKey(key) &&
-      jsonEncode(_pending[key]) == jsonEncode(value);
+  bool _isPending(String key, Object? value) {
+    if (value is PreferenceEntry) {
+      final Map<String, bool>? entries = _pendingEntries[key];
+      return entries != null && entries[value.id] == value.added;
+    }
+    return _pending.containsKey(key) &&
+        jsonEncode(_pending[key]) == jsonEncode(value);
+  }
 
   Future<void> _onConfirmed(Map<String, Object?> changes) async {
     if (isClosed) {
       return;
     }
     changes.forEach((key, value) {
-      if (_isPending(key, value)) {
+      if (!_isPending(key, value)) {
+        return;
+      }
+      if (value is PreferenceEntry) {
+        final Map<String, bool> entries = _pendingEntries[key]!
+          ..remove(value.id);
+        if (entries.isEmpty) {
+          _pendingEntries.remove(key);
+        }
+      } else {
         _pending.remove(key);
       }
     });
@@ -507,6 +730,14 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
       await preferences.remove(pendingKey(uid));
     } else {
       await preferences.setString(pendingKey(uid), jsonEncode(_pending));
+    }
+    if (_pendingEntries.isEmpty) {
+      await preferences.remove(pendingEntriesKey(uid));
+    } else {
+      await preferences.setString(
+        pendingEntriesKey(uid),
+        jsonEncode(_pendingEntries),
+      );
     }
   }
 
@@ -530,8 +761,62 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
     }
   }
 
+  // Adds or removes entries of a set-like list, each written on its own.
+  Future<void> _changeEntries(String key, List<PreferenceEntry> changes) async {
+    if (isClosed || changes.isEmpty) {
+      return;
+    }
+    final Map<String, bool> pending = _pendingEntries.putIfAbsent(
+      key,
+      () => {},
+    );
+    for (final PreferenceEntry change in changes) {
+      // Latest last, so an id added again goes to the end.
+      pending
+        ..remove(change.id)
+        ..[change.id] = change.added;
+    }
+    final Map<String, Object?> now = state.toJson();
+    emit(
+      AccountPreferences.fromJson({
+        ...now,
+        key: PreferenceEntry.apply(now[key], {
+          for (final PreferenceEntry change in changes) change.id: change.added,
+        }),
+      }),
+    );
+    final bool send = _known && sync != null;
+    if (send) {
+      for (final PreferenceEntry change in changes) {
+        _send({key: change});
+      }
+    }
+    await _savePending();
+    if (send) {
+      await _saveMirror();
+    }
+  }
+
+  // Ids in [ids] whose list is gone, to take out with a change.
+  static List<PreferenceEntry> _gone(
+    List<String> ids,
+    Iterable<String> existing,
+  ) {
+    final Set<String> lists = existing.toSet();
+    return [
+      for (final String id in ids)
+        if (!lists.contains(id)) PreferenceEntry(id, added: false),
+    ];
+  }
+
+  // Dial list order (Q-108; was List order).
   Future<void> setListOrder(ListOrder order) =>
       _change(AccountPreferences.listOrderKey, order.wire);
+
+  // Home list order (Q-108). My order shows home's last dragged order, any
+  // pinned list not in it after.
+  Future<void> setHomeListOrder(HomeListOrder order) =>
+      _change(AccountPreferences.homeListOrderKey, order.wire);
 
   Future<void> setMyListOrder(List<String> listIds) =>
       _change(AccountPreferences.myListOrderKey, listIds);
@@ -568,6 +853,82 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
 
   Future<void> setWeekStart(WeekStart start) =>
       _change(AccountPreferences.weekStartKey, start.wire);
+
+  Future<void> setHomeContent(HomeContent content) =>
+      _change(AccountPreferences.homeContentKey, content.wire);
+
+  Future<void> setHomeSuggestions(bool value) =>
+      _change(AccountPreferences.homeSuggestionsKey, value);
+
+  // A pin also undoes a removal (Q-79). It changes no setting: the new card
+  // takes its place in Home list order, last on My order (Q-108). [keepPlace]
+  // is for tapping an unfilled pin again, which puts the card back where it
+  // was (Q-65). [existing] is every list's id.
+  Future<void> pinToHome(
+    String listId, {
+    required Iterable<String> existing,
+    bool keepPlace = false,
+  }) async {
+    final AccountPreferences before = state;
+    await _changeEntries(AccountPreferences.homePinsKey, [
+      ..._gone(before.homePins, existing),
+      if (!before.homePins.contains(listId))
+        PreferenceEntry(listId, added: true),
+    ]);
+    if (before.homeRemoved.contains(listId)) {
+      await _changeEntries(AccountPreferences.homeRemovedKey, [
+        ..._gone(before.homeRemoved, existing),
+        PreferenceEntry(listId, added: false),
+      ]);
+    }
+    if (!keepPlace && before.homeOrder.contains(listId)) {
+      await _change(
+        AccountPreferences.homeOrderKey,
+        keepExistingIds(
+          before.homeOrder,
+          existing,
+        ).where((id) => id != listId).toList(),
+      );
+    }
+  }
+
+  // Its place in homeOrder stays until the next pin or drag, for [pinToHome]'s
+  // keepPlace.
+  Future<void> unpinFromHome(String listId) => _changeEntries(
+    AccountPreferences.homePinsKey,
+    [PreferenceEntry(listId, added: false)],
+  );
+
+  Future<void> removeFromHome(
+    String listId, {
+    required Iterable<String> existing,
+  }) => _changeEntries(AccountPreferences.homeRemovedKey, [
+    ..._gone(state.homeRemoved, existing),
+    if (!state.homeRemoved.contains(listId))
+      PreferenceEntry(listId, added: true),
+  ]);
+
+  Future<void> undoRemoveFromHome(String listId) => _changeEntries(
+    AccountPreferences.homeRemovedKey,
+    [PreferenceEntry(listId, added: false)],
+  );
+
+  // A drag on home (Q-108, choice A): [pinnedIds] is the new order of the
+  // pinned lists. Home list order becomes My order; the dial stays as it is.
+  Future<void> arrangedOnHome(List<String> pinnedIds) async {
+    await _change(AccountPreferences.homeOrderKey, pinnedIds);
+    await _change(
+      AccountPreferences.homeListOrderKey,
+      HomeListOrder.myOrder.wire,
+    );
+  }
+
+  // A drag on the dial (Q-49): Dial list order is My order from the first
+  // drag. Home follows it only on Same as dial.
+  Future<void> arrangedOnDial(List<String> listIds) async {
+    await _change(AccountPreferences.myListOrderKey, listIds);
+    await _change(AccountPreferences.listOrderKey, ListOrder.myOrder.wire);
+  }
 
   @override
   Future<void> close() async {

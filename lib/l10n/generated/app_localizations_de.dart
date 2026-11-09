@@ -1153,7 +1153,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get preferencesGeneral => 'Allgemein';
 
   @override
-  String get preferencesListOrder => 'Listenreihenfolge';
+  String get preferencesListOrder => 'Reihenfolge am Rad';
 
   @override
   String get preferencesListOrderLastUsed => 'Zuletzt verwendet';
@@ -1223,4 +1223,70 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get preferenceNotSaved =>
       'Eine Einstellung konnte nicht in deinem Konto gespeichert werden. Auf diesem Telefon bleibt sie, wie du sie gewählt hast.';
+
+  @override
+  String get homeNothingOpen => 'Nichts offen';
+
+  @override
+  String get homePin => 'Auf Startseite anheften';
+
+  @override
+  String get homeUnpin => 'Von Startseite lösen';
+
+  @override
+  String get preferencesHomeContent => 'Startseite zeigt';
+
+  @override
+  String get preferencesHomeContentBoth => 'Listenkarten und heute Fälliges';
+
+  @override
+  String get preferencesHomeContentCards => 'Listenkarten';
+
+  @override
+  String get preferencesHomeContentDue => 'Heute Fälliges';
+
+  @override
+  String get preferencesHomeSuggestions => 'Vorschläge anzeigen';
+
+  @override
+  String get homeNothingDue => 'Nichts fällig. Der Tag gehört dir.';
+
+  @override
+  String get homeRearrange => 'Neu anordnen';
+
+  @override
+  String get homeUnpinShort => 'Lösen';
+
+  @override
+  String get homePinShort => 'Anheften';
+
+  @override
+  String get homeRemove => 'Entfernen';
+
+  @override
+  String get homeNoSuggestions => 'Keine Vorschläge';
+
+  @override
+  String get homeArrangeDone => 'Fertig';
+
+  @override
+  String get homeRemovedBanner => 'Von der Startseite entfernt';
+
+  @override
+  String get homeTick => 'Abhaken';
+
+  @override
+  String get homeSuggestionsOffBanner => 'Vorschläge aus';
+
+  @override
+  String get homeMoveEarlier => 'Nach vorn';
+
+  @override
+  String get homeMoveLater => 'Nach hinten';
+
+  @override
+  String get preferencesHomeListOrder => 'Reihenfolge auf der Startseite';
+
+  @override
+  String get preferencesHomeListOrderSame => 'Wie am Rad';
 }

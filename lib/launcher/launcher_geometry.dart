@@ -31,7 +31,7 @@ class LauncherConfig {
     this.innerRadius = 24,
     this.tabLength = 150,
     this.visibleTabs = 4,
-    this.promptDelay = const Duration(milliseconds: 1200),
+    this.promptDelay = const Duration(milliseconds: 800),
     this.revealDuration = const Duration(milliseconds: 250),
     this.editGap = 4,
     this.editDepth = 36,
@@ -48,7 +48,12 @@ class LauncherConfig {
     this.dialStepDegrees = 12,
     this.dialArrangeSpread = 1.3,
     this.dialArrangeSwayDegrees = 1.2,
-    this.dialPickUpDelay = const Duration(milliseconds: 300),
+    this.dialPickUpDelay = const Duration(milliseconds: 200),
+    this.dialRestGrow = 0.12,
+    this.hubHoldGrow = 1.1,
+    this.dialEditHoldGrow = 14,
+    this.holdGrowDelay = const Duration(milliseconds: 650),
+    this.pickUpGrowDelay = const Duration(milliseconds: 150),
     this.dialSelectedLead = 24,
     this.dialRestMargin = 28,
     this.dialSelectedSpread = 1.0,
@@ -139,6 +144,42 @@ class LauncherConfig {
   // In the arrange state: how long a finger rests on a list to pick it up
   // (being tuned with the owner, Q-49).
   final Duration dialPickUpDelay;
+  // A hold shows while it builds (owner, 2026-11-06): how far a rested list has
+  // grown towards its full length when the rest ends, and how large the hub's
+  // discs have grown when Move and Arrange come out.
+  final double dialRestGrow;
+  final double hubHoldGrow;
+  // How much longer a selected list has grown when Edit comes out.
+  final double dialEditHoldGrow;
+  // Nothing shows right as the finger lands, and then it shows quickly (owner,
+  // 2026-11-06 and 2026-11-08): how long before a hold towards prompts starts
+  // to show, and a pick-up rest, whose rest is too short for the same delay.
+  // From there each grows to its end with an ease-out, as a quick swell.
+  final Duration holdGrowDelay;
+  final Duration pickUpGrowDelay;
+
+  // How far a hold has built (0 to 1) after [elapsed] of resting.
+  double holdBuild(Duration elapsed) =>
+      _build(elapsed, holdGrowDelay, promptDelay);
+
+  // The same for a rest that picks up.
+  double pickUpBuild(Duration elapsed) =>
+      _build(elapsed, pickUpGrowDelay, dialPickUpDelay);
+
+  static double _build(Duration elapsed, Duration delay, Duration total) {
+    // A delay tuned to or past its total: no growing, it is full at the total
+    // (and 0/0 would give NaN).
+    if (total <= delay) {
+      return elapsed >= total ? 1 : 0;
+    }
+    final double t =
+        ((elapsed - delay).inMicroseconds / (total - delay).inMicroseconds)
+            .clamp(0, 1)
+            .toDouble();
+    // Ease-out (quadratic): quick at first, settling at the end.
+    return 1 - (1 - t) * (1 - t);
+  }
+
   // In a tight spot, how far the selected tab stands past the others.
   final double dialSelectedLead;
   // How far a list at rest keeps from the screen's edge.
@@ -231,7 +272,11 @@ class LauncherGeometry {
     this.focus,
     this.focusAmount = 1,
     this.showHome = false,
-  }) : hubCenter = clampHub(config, size, hubPosition ?? defaultHub(config, size));
+  }) : hubCenter = clampHub(
+         config,
+         size,
+         hubPosition ?? defaultHub(config, size),
+       );
 
   final LauncherConfig config;
   final Size size;
@@ -289,17 +334,17 @@ class LauncherGeometry {
   (double, double) get homeSides => (startAngle, listStartAngle);
 
   Offset get homeCenter => pointAt(
-        (startAngle + listStartAngle) / 2,
-        config.innerRadius + config.tabLength / 2,
-      );
+    (startAngle + listStartAngle) / 2,
+    config.innerRadius + config.tabLength / 2,
+  );
 
   // The New list wedge's sides and the middle of it.
   (double, double) get addSides => (listEndAngle, endAngle);
 
   Offset get addCenter => pointAt(
-        (listEndAngle + endAngle) / 2,
-        config.innerRadius + config.tabLength / 2,
-      );
+    (listEndAngle + endAngle) / 2,
+    config.innerRadius + config.tabLength / 2,
+  );
 
   // Outer end of the selected tab, which is scaled up from its hub end.
   double get selectedOuterRadius =>
@@ -519,8 +564,9 @@ class LauncherGeometry {
           : LauncherTarget.none;
     }
 
-    final int slot =
-        _unwarp(position * slotCount).floor().clamp(0, slotCount - 1);
+    final int slot = _unwarp(
+      position * slotCount,
+    ).floor().clamp(0, slotCount - 1);
     final int noteIndex = (slot + scrollOffset).round();
     if (noteIndex < 0 || noteIndex >= noteCount) {
       return LauncherTarget.none;
@@ -546,7 +592,8 @@ class LauncherGeometry {
       return -config.maxScrollSpeed * math.min(1, 1 - position / zone);
     }
     if (position > 1 - zone) {
-      return config.maxScrollSpeed * math.min(1, (position - (1 - zone)) / zone);
+      return config.maxScrollSpeed *
+          math.min(1, (position - (1 - zone)) / zone);
     }
     return 0;
   }

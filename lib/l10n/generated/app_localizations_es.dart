@@ -1145,7 +1145,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get preferencesGeneral => 'General';
 
   @override
-  String get preferencesListOrder => 'Orden de las listas';
+  String get preferencesListOrder => 'Orden en el dial';
 
   @override
   String get preferencesListOrderLastUsed => 'Último uso';
@@ -1215,4 +1215,71 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get preferenceNotSaved =>
       'No se pudo guardar un ajuste en tu cuenta. En este teléfono sigue como lo dejaste.';
+
+  @override
+  String get homeNothingOpen => 'Nada pendiente';
+
+  @override
+  String get homePin => 'Fijar en el inicio';
+
+  @override
+  String get homeUnpin => 'Quitar del inicio';
+
+  @override
+  String get preferencesHomeContent => 'El inicio muestra';
+
+  @override
+  String get preferencesHomeContentBoth =>
+      'Tarjetas de listas y elementos de hoy';
+
+  @override
+  String get preferencesHomeContentCards => 'Tarjetas de listas';
+
+  @override
+  String get preferencesHomeContentDue => 'Elementos de hoy';
+
+  @override
+  String get preferencesHomeSuggestions => 'Mostrar sugerencias';
+
+  @override
+  String get homeNothingDue => 'Nada pendiente. El día es tuyo.';
+
+  @override
+  String get homeRearrange => 'Reordenar';
+
+  @override
+  String get homeUnpinShort => 'Desfijar';
+
+  @override
+  String get homePinShort => 'Fijar';
+
+  @override
+  String get homeRemove => 'Quitar';
+
+  @override
+  String get homeNoSuggestions => 'Sin sugerencias';
+
+  @override
+  String get homeArrangeDone => 'Listo';
+
+  @override
+  String get homeRemovedBanner => 'Quitada del inicio';
+
+  @override
+  String get homeTick => 'Marcar';
+
+  @override
+  String get homeSuggestionsOffBanner => 'Sugerencias desactivadas';
+
+  @override
+  String get homeMoveEarlier => 'Mover antes';
+
+  @override
+  String get homeMoveLater => 'Mover después';
+
+  @override
+  String get preferencesHomeListOrder => 'Orden en el inicio';
+
+  @override
+  String get preferencesHomeListOrderSame => 'Igual que el dial';
 }

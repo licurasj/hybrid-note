@@ -1114,7 +1114,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get preferencesGeneral => '通用';
 
   @override
-  String get preferencesListOrder => '列表顺序';
+  String get preferencesListOrder => '转盘列表顺序';
 
   @override
   String get preferencesListOrderLastUsed => '最近使用';
@@ -1183,4 +1183,70 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get preferenceNotSaved => '设置无法保存到你的账户。在这部手机上仍保持你的选择。';
+
+  @override
+  String get homeNothingOpen => '没有未完成的项目';
+
+  @override
+  String get homePin => '固定到首页';
+
+  @override
+  String get homeUnpin => '从首页取消固定';
+
+  @override
+  String get preferencesHomeContent => '首页显示';
+
+  @override
+  String get preferencesHomeContentBoth => '列表卡片和今日到期项目';
+
+  @override
+  String get preferencesHomeContentCards => '列表卡片';
+
+  @override
+  String get preferencesHomeContentDue => '今日到期项目';
+
+  @override
+  String get preferencesHomeSuggestions => '显示建议';
+
+  @override
+  String get homeNothingDue => '没有待办，今天属于你。';
+
+  @override
+  String get homeRearrange => '重新排列';
+
+  @override
+  String get homeUnpinShort => '取消固定';
+
+  @override
+  String get homePinShort => '固定';
+
+  @override
+  String get homeRemove => '移除';
+
+  @override
+  String get homeNoSuggestions => '不要建议';
+
+  @override
+  String get homeArrangeDone => '完成';
+
+  @override
+  String get homeRemovedBanner => '已从首页移除';
+
+  @override
+  String get homeTick => '标记完成';
+
+  @override
+  String get homeSuggestionsOffBanner => '建议已关闭';
+
+  @override
+  String get homeMoveEarlier => '前移';
+
+  @override
+  String get homeMoveLater => '后移';
+
+  @override
+  String get preferencesHomeListOrder => '首页列表顺序';
+
+  @override
+  String get preferencesHomeListOrderSame => '与转盘相同';
 }

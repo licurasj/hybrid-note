@@ -10,6 +10,8 @@ import {
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import {
+  arrayRemove,
+  arrayUnion,
   collection,
   deleteDoc,
   doc,
@@ -386,6 +388,12 @@ describe('account preferences (T-21, Q-48 A)', () => {
     vibration: true,
     timeFormat: 'followLanguage',
     weekStart: 'followLanguage',
+    homeContent: 'both',
+    homeSuggestions: true,
+    homePins: ['list-a'],
+    homeRemoved: ['list-b'],
+    homeOrder: ['list-a'],
+    homeListOrder: 'sameAsDial',
   };
 
   test('the owner creates, reads and changes one key', async () => {
@@ -419,18 +427,46 @@ describe('account preferences (T-21, Q-48 A)', () => {
     ['vibration', 'off'],
     ['timeFormat', 24],
     ['weekStart', 1],
+    ['homeContent', true],
+    ['homeSuggestions', 1],
+    ['homePins', 'list-a'],
+    ['homeRemoved', { a: 1 }],
+    ['homeOrder', 5],
+    ['homeListOrder', false],
+    ['homeArranged', 'no'],
+    ['dialArranged', 0],
   ]) {
     test(`a wrong type for ${key} is refused`, async () => {
       await assertFails(setDoc(doc(owner(), path()), { [key]: bad }));
     });
   }
 
-  test('myListOrder may hold 1000 lists, not more', async () => {
+  for (const key of ['myListOrder', 'homePins', 'homeRemoved', 'homeOrder']) {
+    test(`${key} may hold 1000 lists, not more`, async () => {
+      const ids = (count) => Array.from({ length: count }, (_, i) => `list-${i}`);
+      const ref = doc(owner(), path());
+      await assertSucceeds(setDoc(ref, { [key]: ids(1000) }));
+      await assertFails(setDoc(ref, { [key]: ids(1001) }));
+      await assertFails(setDoc(ref, { [key]: ids(1001) }, { merge: true }));
+    });
+  }
+
+  test('builds before Q-108 still save their order flags', async () => {
+    const ref = doc(owner(), path());
+    await assertSucceeds(setDoc(ref, values));
+    await assertSucceeds(
+      setDoc(ref, { homeArranged: true, dialArranged: true }, { merge: true }),
+    );
+  });
+
+  test('a pin or removal is written as one entry (R2), within 1000', async () => {
     const ids = (count) => Array.from({ length: count }, (_, i) => `list-${i}`);
     const ref = doc(owner(), path());
-    await assertSucceeds(setDoc(ref, { myListOrder: ids(1000) }));
-    await assertFails(setDoc(ref, { myListOrder: ids(1001) }));
-    await assertFails(setDoc(ref, { myListOrder: ids(1001) }, { merge: true }));
+    await assertSucceeds(setDoc(ref, values));
+    await assertSucceeds(setDoc(ref, { homePins: arrayUnion('list-b') }, { merge: true }));
+    await assertSucceeds(setDoc(ref, { homeRemoved: arrayRemove('list-b') }, { merge: true }));
+    await assertSucceeds(setDoc(ref, { homePins: ids(1000) }, { merge: true }));
+    await assertFails(setDoc(ref, { homePins: arrayUnion('one-more') }, { merge: true }));
   });
 
   test('the app does not delete it', async () => {

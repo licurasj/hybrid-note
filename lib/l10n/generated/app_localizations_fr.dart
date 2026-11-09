@@ -1153,7 +1153,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get preferencesGeneral => 'Général';
 
   @override
-  String get preferencesListOrder => 'Ordre des listes';
+  String get preferencesListOrder => 'Ordre du cadran';
 
   @override
   String get preferencesListOrderLastUsed => 'Dernière utilisation';
@@ -1223,4 +1223,71 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get preferenceNotSaved =>
       'Un réglage n’a pas pu être enregistré dans votre compte. Sur ce téléphone, il reste tel que vous l’avez choisi.';
+
+  @override
+  String get homeNothingOpen => 'Rien en cours';
+
+  @override
+  String get homePin => 'Épingler à l\'accueil';
+
+  @override
+  String get homeUnpin => 'Retirer de l\'accueil';
+
+  @override
+  String get preferencesHomeContent => 'L\'accueil affiche';
+
+  @override
+  String get preferencesHomeContentBoth =>
+      'Cartes de listes et éléments du jour';
+
+  @override
+  String get preferencesHomeContentCards => 'Cartes de listes';
+
+  @override
+  String get preferencesHomeContentDue => 'Éléments du jour';
+
+  @override
+  String get preferencesHomeSuggestions => 'Afficher les suggestions';
+
+  @override
+  String get homeNothingDue => 'Rien de prévu. La journée est à vous.';
+
+  @override
+  String get homeRearrange => 'Réorganiser';
+
+  @override
+  String get homeUnpinShort => 'Désépingler';
+
+  @override
+  String get homePinShort => 'Épingler';
+
+  @override
+  String get homeRemove => 'Retirer';
+
+  @override
+  String get homeNoSuggestions => 'Pas de suggestions';
+
+  @override
+  String get homeArrangeDone => 'Terminé';
+
+  @override
+  String get homeRemovedBanner => 'Retirée de l\'accueil';
+
+  @override
+  String get homeTick => 'Cocher';
+
+  @override
+  String get homeSuggestionsOffBanner => 'Suggestions désactivées';
+
+  @override
+  String get homeMoveEarlier => 'Déplacer avant';
+
+  @override
+  String get homeMoveLater => 'Déplacer après';
+
+  @override
+  String get preferencesHomeListOrder => 'Ordre de l\'accueil';
+
+  @override
+  String get preferencesHomeListOrderSame => 'Comme le cadran';
 }
