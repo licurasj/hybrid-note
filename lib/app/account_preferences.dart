@@ -830,12 +830,13 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
   Future<void> setHomeSuggestions(bool value) =>
       _change(AccountPreferences.homeSuggestionsKey, value);
 
-  // A pin also undoes a removal (Q-79). A newly pinned list joins the end of an
-  // arranged home; [keepPlace] is for tapping an unfilled pin again, which puts
-  // the card back where it was (Q-65). [existing] is every list's id.
+  // A pin also undoes a removal (Q-79). [keepPlace] is for tapping an unfilled
+  // pin again, which puts the card back where it was (Q-65). [existing] is
+  // every list's id, [dialOrder] the dial's order now.
   Future<void> pinToHome(
     String listId, {
     required Iterable<String> existing,
+    required List<String> dialOrder,
     bool keepPlace = false,
   }) async {
     final AccountPreferences before = state;
@@ -858,6 +859,28 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
           existing,
         ).where((id) => id != listId).toList(),
       );
+    }
+    // A new pin goes last for good (owner, 2026-11-09; review R6). While home
+    // follows the dial that counts as arranging home, as a drag does: with
+    // nothing arranged the dial follows as My order, after a dial arrange the
+    // two split. Only with nothing arranged and the order on Last used or A to
+    // Z does it take its sorted place, and nothing changes.
+    final bool sorted =
+        !before.dialArranged && before.listOrder != ListOrder.myOrder;
+    if (!keepPlace &&
+        !before.homeArranged &&
+        !sorted &&
+        !before.homePins.contains(listId)) {
+      final List<String> shown = homePinnedOrder(
+        pins: before.homePins,
+        dialOrder: dialOrder,
+        homeOrder: const [],
+        homeArranged: false,
+      );
+      await arrangedOnHome([
+        ...shown.where((id) => id != listId),
+        listId,
+      ], dialOrder: dialOrder);
     }
   }
 

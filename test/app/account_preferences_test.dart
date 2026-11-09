@@ -652,7 +652,7 @@ void main() {
     test('each is written as its entry alone', () async {
       final (AccountPreferencesCubit cubit, _FakeSync sync) = await _cubit();
       await sync.send(const {});
-      await cubit.pinToHome('x', existing: lists);
+      await cubit.pinToHome('x', existing: lists, dialOrder: lists);
       await cubit.unpinFromHome('x');
       await cubit.removeFromHome('y', existing: lists);
       await cubit.undoRemoveFromHome('y');
@@ -678,7 +678,7 @@ void main() {
       // Offline: the write waits.
       final Completer<void> answer = Completer<void>();
       sync.heldWrite = answer;
-      await cubit.pinToHome('x', existing: lists);
+      await cubit.pinToHome('x', existing: lists, dialOrder: lists);
       // Meanwhile the other phone pinned y.
       await sync.send(const {
         'homePins': ['z', 'y'],
@@ -708,7 +708,7 @@ void main() {
       final (AccountPreferencesCubit cubit, _FakeSync sync) = await _cubit();
       await sync.send(const {});
       sync.heldWrite = Completer<void>();
-      await cubit.pinToHome('x', existing: lists);
+      await cubit.pinToHome('x', existing: lists, dialOrder: lists);
       await cubit.close();
 
       final _FakeSync again = _FakeSync();
@@ -742,7 +742,7 @@ void main() {
 
     test('made before the account was seen, they go on top of it', () async {
       final (AccountPreferencesCubit cubit, _FakeSync sync) = await _cubit();
-      await cubit.pinToHome('x', existing: lists);
+      await cubit.pinToHome('x', existing: lists, dialOrder: lists);
       expect(sync.writes, isEmpty);
       await sync.send(const {
         'homePins': ['y'],

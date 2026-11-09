@@ -351,6 +351,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ? cubit.pinToHome(
               listId,
               existing: [for (final list in catalog.definitions) list.id],
+              dialOrder: _dialOrder(
+                catalog,
+                cubit.state,
+                ListLabels(AppLocalizations.of(context)),
+              ),
               keepPlace: true,
             )
           : cubit.unpinFromHome(listId),
@@ -374,13 +379,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         if (_unfilled.contains(listId)) {
           _tapPin(listId, catalog);
         } else {
-          // At once to the end of the pinned cards; the suggestions are worked
-          // out again at the next refresh (Q-76).
+          // At once to the end of the pinned cards (R6: there for good, but
+          // in its sorted place with nothing arranged on Last used or A to Z,
+          // from the next refresh); the suggestions are worked out again at
+          // the next refresh (Q-76).
           setState(() {
             _suggested = [..._suggested]..remove(listId);
             _pinned = [..._pinned!, listId];
           });
-          _own((cubit) => cubit.pinToHome(listId, existing: existing));
+          _own(
+            (cubit) => cubit.pinToHome(
+              listId,
+              existing: existing,
+              dialOrder: _dialOrder(catalog, cubit.state, ListLabels(loc)),
+            ),
+          );
         }
       case HomeCardAction.remove:
         setState(() => _suggested = [..._suggested]..remove(listId));

@@ -319,7 +319,11 @@ void main() {
           homeRemoved: ['gone', 'c'],
         ),
       );
-      await cubit.pinToHome('b', existing: ['a', 'b', 'c']);
+      await cubit.pinToHome(
+        'b',
+        existing: ['a', 'b', 'c'],
+        dialOrder: ['a', 'b', 'c'],
+      );
       expect(cubit.state.homePins, ['a', 'b']);
       await cubit.removeFromHome('a', existing: ['a', 'b', 'c']);
       expect(cubit.state.homeRemoved, ['c', 'a']);
@@ -508,11 +512,120 @@ void main() {
         final AccountPreferencesCubit cubit = await _cubit(pinned);
         await cubit.arrangedOnHome(['c', 'a', 'b'], dialOrder: lists);
         final List<String> dialBefore = dialOf(cubit, lists);
-        await cubit.pinToHome('x', existing: lists);
+        await cubit.pinToHome(
+          'x',
+          existing: lists,
+          dialOrder: dialOf(cubit, lists),
+        );
         expect(homeOf(cubit, lists), ['c', 'a', 'b', 'x']);
         expect(dialOf(cubit, lists), dialBefore);
       },
     );
+  });
+
+  // A new pin (owner, 2026-11-09; review R6): last for good, except with
+  // nothing arranged on Last used or A to Z, where it takes its sorted place.
+  group('a new pin and the order table', () {
+    const List<String> lists = ['a', 'x', 'b', 'y', 'c'];
+    const AccountPreferences pinned = AccountPreferences(
+      homePins: ['a', 'b', 'c'],
+    );
+
+    for (final ListOrder order in [
+      ListOrder.lastUsed,
+      ListOrder.alphabetical,
+    ]) {
+      test('nothing arranged, ${order.wire}: its sorted place', () async {
+        final AccountPreferencesCubit cubit = await _cubit(pinned);
+        await cubit.setListOrder(order);
+        final List<String> dialBefore = dialOf(cubit, lists);
+        await cubit.pinToHome(
+          'x',
+          existing: lists,
+          dialOrder: dialOf(cubit, lists),
+        );
+        expect(homeOf(cubit, lists), [
+          for (final String id in dialBefore)
+            if (['a', 'b', 'c', 'x'].contains(id)) id,
+        ]);
+        expect(cubit.state.homeArranged, isFalse);
+        expect(cubit.state.dialArranged, isFalse);
+        expect(cubit.state.listOrder, order);
+        expect(dialOf(cubit, lists), dialBefore);
+      });
+    }
+
+    test('nothing arranged, My order: last, and the dial follows', () async {
+      final AccountPreferencesCubit cubit = await _cubit(pinned);
+      await cubit.setListOrder(ListOrder.myOrder);
+      await cubit.pinToHome(
+        'x',
+        existing: lists,
+        dialOrder: dialOf(cubit, lists),
+      );
+      expect(homeOf(cubit, lists), ['a', 'b', 'c', 'x']);
+      expect(cubit.state.homeArranged, isTrue);
+      expect(cubit.state.listOrder, ListOrder.myOrder);
+      // The pinned lists take that order among the places they held.
+      expect(dialOf(cubit, lists), ['a', 'b', 'c', 'y', 'x']);
+      expect(cubit.state.homeHasOwnOrder, isFalse);
+    });
+
+    test('only the dial arranged: last, and the two split', () async {
+      final AccountPreferencesCubit cubit = await _cubit(pinned);
+      await cubit.arrangedOnDial(['c', 'y', 'b', 'x', 'a']);
+      await cubit.pinToHome(
+        'x',
+        existing: lists,
+        dialOrder: dialOf(cubit, lists),
+      );
+      expect(homeOf(cubit, lists), ['c', 'b', 'a', 'x']);
+      expect(dialOf(cubit, lists), ['c', 'y', 'b', 'x', 'a']);
+      expect(cubit.state.homeHasOwnOrder, isTrue);
+      // Match dial order puts it back in its dial place.
+      await cubit.matchDialOrder();
+      expect(homeOf(cubit, lists), ['c', 'b', 'x', 'a']);
+    });
+
+    test('only the dial arranged, then Last used: still last', () async {
+      final AccountPreferencesCubit cubit = await _cubit(pinned);
+      await cubit.arrangedOnDial(['c', 'y', 'b', 'x', 'a']);
+      await cubit.setListOrder(ListOrder.lastUsed);
+      await cubit.pinToHome(
+        'x',
+        existing: lists,
+        dialOrder: dialOf(cubit, lists),
+      );
+      expect(homeOf(cubit, lists).last, 'x');
+      expect(cubit.state.homeHasOwnOrder, isTrue);
+    });
+
+    test('home arranged: last, and the dial left alone', () async {
+      final AccountPreferencesCubit cubit = await _cubit(pinned);
+      await cubit.arrangedOnHome(['c', 'a', 'b'], dialOrder: lists);
+      final List<String> dialBefore = dialOf(cubit, lists);
+      await cubit.pinToHome(
+        'x',
+        existing: lists,
+        dialOrder: dialOf(cubit, lists),
+      );
+      expect(homeOf(cubit, lists), ['c', 'a', 'b', 'x']);
+      expect(dialOf(cubit, lists), dialBefore);
+    });
+
+    test('tapping an unfilled pin again arranges nothing', () async {
+      final AccountPreferencesCubit cubit = await _cubit(pinned);
+      await cubit.setListOrder(ListOrder.myOrder);
+      await cubit.unpinFromHome('b');
+      await cubit.pinToHome(
+        'b',
+        existing: lists,
+        dialOrder: dialOf(cubit, lists),
+        keepPlace: true,
+      );
+      expect(cubit.state.homeArranged, isFalse);
+      expect(homeOf(cubit, lists), ['a', 'b', 'c']);
+    });
   });
 
   group('pins and removals', () {
@@ -522,15 +635,27 @@ void main() {
       final AccountPreferencesCubit cubit = await _cubit(
         const AccountPreferences(homeRemoved: ['a', 'b']),
       );
-      await cubit.pinToHome('a', existing: lists);
+      await cubit.pinToHome(
+        'a',
+        existing: lists,
+        dialOrder: dialOf(cubit, lists),
+      );
       await cubit.unpinFromHome('a');
       expect(cubit.state.homeRemoved, ['b']);
     });
 
     test('pinning twice keeps one pin', () async {
       final AccountPreferencesCubit cubit = await _cubit();
-      await cubit.pinToHome('a', existing: lists);
-      await cubit.pinToHome('a', existing: lists);
+      await cubit.pinToHome(
+        'a',
+        existing: lists,
+        dialOrder: dialOf(cubit, lists),
+      );
+      await cubit.pinToHome(
+        'a',
+        existing: lists,
+        dialOrder: dialOf(cubit, lists),
+      );
       expect(cubit.state.homePins, ['a']);
     });
 
@@ -543,7 +668,12 @@ void main() {
         ),
       );
       await cubit.unpinFromHome('a');
-      await cubit.pinToHome('a', existing: lists, keepPlace: true);
+      await cubit.pinToHome(
+        'a',
+        existing: lists,
+        dialOrder: dialOf(cubit, lists),
+        keepPlace: true,
+      );
       expect(homeOf(cubit, lists), ['b', 'a', 'c']);
     });
 
@@ -556,7 +686,11 @@ void main() {
         ),
       );
       await cubit.unpinFromHome('a');
-      await cubit.pinToHome('a', existing: lists);
+      await cubit.pinToHome(
+        'a',
+        existing: lists,
+        dialOrder: dialOf(cubit, lists),
+      );
       expect(homeOf(cubit, lists), ['b', 'c', 'a']);
     });
 

@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../app/account_preferences.dart';
+import '../app/app_settings.dart';
+import '../app/list_order.dart';
 import '../app/app_theme.dart';
 import '../app/date_preferences.dart';
 import '../app_colors.dart';
@@ -271,13 +273,19 @@ class _GenericListScreenState extends State<GenericListScreen>
         for (final Object? entry in raw)
           if (entry is Map)
             entry['id'] == subId
-                ? {...Map<String, dynamic>.from(entry), 'done': done, 'updatedAt': now}
+                ? {
+                    ...Map<String, dynamic>.from(entry),
+                    'done': done,
+                    'updatedAt': now,
+                  }
                 : Map<String, dynamic>.from(entry),
     ];
     return _apply(
       ListChanges(
         saved: [
-          ListRules.withValues(item, {field.key: subItems}, DateTime.now().toUtc()),
+          ListRules.withValues(item, {
+            field.key: subItems,
+          }, DateTime.now().toUtc()),
         ],
       ),
     );
@@ -295,7 +303,10 @@ class _GenericListScreenState extends State<GenericListScreen>
             shrinkWrap: true,
             padding: const EdgeInsets.all(12),
             children: [
-              Text(loc.categories, style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                loc.categories,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               for (final FieldOption option in field.options)
                 ListTile(
                   title: Text(labels.option(option)),
@@ -329,7 +340,11 @@ class _GenericListScreenState extends State<GenericListScreen>
                         return;
                       }
                       Navigator.of(sheetContext).pop();
-                      await widget.store.addOption(_definition.id, field.key, name);
+                      await widget.store.addOption(
+                        _definition.id,
+                        field.key,
+                        name,
+                      );
                     },
                   ),
                 ],
@@ -367,8 +382,11 @@ class _GenericListScreenState extends State<GenericListScreen>
     if (_definition.view.kind == ViewKind.timeline) {
       final DateTime? date = _timelineDate(item);
       if (date != null) {
-        parts.add(DateFormat.MMMd(Localizations.localeOf(context).toLanguageTag())
-            .format(date.toLocal()));
+        parts.add(
+          DateFormat.MMMd(
+            Localizations.localeOf(context).toLanguageTag(),
+          ).format(date.toLocal()),
+        );
       }
     }
 
@@ -414,15 +432,19 @@ class _GenericListScreenState extends State<GenericListScreen>
           }
         case FieldType.date:
         case FieldType.dateTime:
-          final DateTime? date = value is String ? DateTime.tryParse(value) : null;
+          final DateTime? date = value is String
+              ? DateTime.tryParse(value)
+              : null;
           if (date == null) {
             break;
           }
           final String text = _formatDate(field.type, date);
           final FieldDefinition? recurrenceField = _recurrenceFor(field.key);
-          final Object? recurrence =
-              recurrenceField == null ? null : item[recurrenceField.key];
-          final RecurrenceFrequency frequency = enumFromWire(
+          final Object? recurrence = recurrenceField == null
+              ? null
+              : item[recurrenceField.key];
+          final RecurrenceFrequency frequency =
+              enumFromWire(
                 RecurrenceFrequency.values,
                 recurrence is Map ? recurrence['frequency'] : null,
               ) ??
@@ -433,11 +455,15 @@ class _GenericListScreenState extends State<GenericListScreen>
             final Object? days = (recurrence as Map)['customDays'];
             parts.add(loc.repeatsEveryDays(text, days is int ? days : 1));
           } else {
-            parts.add(loc.repeats(text, labels.recurrence(frequency).toLowerCase()));
+            parts.add(
+              loc.repeats(text, labels.recurrence(frequency).toLowerCase()),
+            );
           }
         case FieldType.checklist:
           if (value is List && value.isNotEmpty) {
-            final int done = value.where((entry) => entry is Map && entry['done'] == true).length;
+            final int done = value
+                .where((entry) => entry is Map && entry['done'] == true)
+                .length;
             parts.add(loc.subtaskProgress(done, value.length));
           }
         case FieldType.recurrence:
@@ -482,13 +508,20 @@ class _GenericListScreenState extends State<GenericListScreen>
       curve: AppMotion.curve,
       alignment: Alignment.topCenter,
       child: open
-          ? Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children)
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: children,
+            )
           : const SizedBox(width: double.infinity),
     );
   }
 
   // A round checkbox filled in the list colour.
-  Widget _check(bool value, ValueChanged<bool> onChanged, {double scale = 1.3}) {
+  Widget _check(
+    bool value,
+    ValueChanged<bool> onChanged, {
+    double scale = 1.3,
+  }) {
     final _Look look = _look;
     return Transform.scale(
       scale: scale,
@@ -543,7 +576,12 @@ class _GenericListScreenState extends State<GenericListScreen>
   }
 
   // A tappable section label that folds what is under it.
-  Widget _foldHeader(String text, bool open, VoidCallback onTap, {bool strong = false}) {
+  Widget _foldHeader(
+    String text,
+    bool open,
+    VoidCallback onTap, {
+    bool strong = false,
+  }) {
     final _Look look = _look;
     return Semantics(
       button: true,
@@ -599,14 +637,16 @@ class _GenericListScreenState extends State<GenericListScreen>
     final String summary = _summary(labels, item);
     final Object? primary =
         item[_definition.fields.firstWhere((field) => field.primary).key];
-    final FieldDefinition? sectionField = _definition.view.kind == ViewKind.sectioned
+    final FieldDefinition? sectionField =
+        _definition.view.kind == ViewKind.sectioned
         ? _definition.field(_definition.view.sectionBy ?? '')
         : null;
     final FieldDefinition? checklistField = _definition.fields
         .where((field) => field.type == FieldType.checklist)
         .firstOrNull;
-    final Object? subItems =
-        checklistField == null ? null : item[checklistField.key];
+    final Object? subItems = checklistField == null
+        ? null
+        : item[checklistField.key];
     final bool hasSubItems =
         checklistField != null && subItems is List && subItems.isNotEmpty;
     final String openKey = 'item-${item.id}';
@@ -650,8 +690,11 @@ class _GenericListScreenState extends State<GenericListScreen>
           if (sectionField != null)
             for (final FieldOption option in sectionField.options)
               if (item[sectionField.key] != option.value)
-                entry('move:${option.value}', Icons.drive_file_move_outline,
-                    labels.option(option)),
+                entry(
+                  'move:${option.value}',
+                  Icons.drive_file_move_outline,
+                  labels.option(option),
+                ),
           if (done && _behavior(BehaviorKind.clearCompleted) != null)
             entry('clear', Icons.cleaning_services_outlined, loc.clear),
           entry('delete', Icons.delete_outline, loc.delete),
@@ -734,8 +777,7 @@ class _GenericListScreenState extends State<GenericListScreen>
           if (hasSubItems)
             _collapsible(open, [
               for (final Object? entry in subItems)
-                if (entry is Map)
-                  _subItemRow(item, checklistField, entry),
+                if (entry is Map) _subItemRow(item, checklistField, entry),
             ]),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: _margin - _edge),
@@ -791,7 +833,9 @@ class _GenericListScreenState extends State<GenericListScreen>
           return true;
         }
         final Object? itemValue = item[field.key];
-        return itemValue is List ? itemValue.contains(value) : itemValue == value;
+        return itemValue is List
+            ? itemValue.contains(value)
+            : itemValue == value;
       }).length;
     }
 
@@ -844,7 +888,10 @@ class _GenericListScreenState extends State<GenericListScreen>
             filter('${labels.loc.listFilterAll} ${count(null)}', null),
             for (final FieldOption option in field.options) ...[
               const SizedBox(width: 18),
-              filter('${labels.option(option)} ${count(option.value)}', option.value),
+              filter(
+                '${labels.option(option)} ${count(option.value)}',
+                option.value,
+              ),
             ],
             if (field.type.hasUserOptions) ...[
               const SizedBox(width: 6),
@@ -877,11 +924,14 @@ class _GenericListScreenState extends State<GenericListScreen>
         context.watchAccountPreferences.tickedItems != TickedItems.moveToDone) {
       return openPart(sorted);
     }
-    final List<ListItem> done =
-        sorted.where((item) => ListRules.isCompleted(_definition, item)).toList();
+    final List<ListItem> done = sorted
+        .where((item) => ListRules.isCompleted(_definition, item))
+        .toList();
     return [
       ...openPart(
-        sorted.where((item) => !ListRules.isCompleted(_definition, item)).toList(),
+        sorted
+            .where((item) => !ListRules.isCompleted(_definition, item))
+            .toList(),
       ),
       if (done.isNotEmpty) ...[
         _header(labels.loc.listDoneGroup, count: done.length),
@@ -891,8 +941,9 @@ class _GenericListScreenState extends State<GenericListScreen>
   }
 
   List<Widget> _grouped(ListLabels labels, List<ListItem> sorted) {
-    final FieldDefinition? groupField =
-        _definition.field(_definition.view.groupBy ?? '');
+    final FieldDefinition? groupField = _definition.field(
+      _definition.view.groupBy ?? '',
+    );
     if (groupField == null) {
       return [for (final ListItem item in sorted) _itemRow(labels, item)];
     }
@@ -913,7 +964,10 @@ class _GenericListScreenState extends State<GenericListScreen>
     }
 
     for (final FieldOption option in groupField.options) {
-      addGroup(labels.option(option), (item) => item[groupField.key] == option.value);
+      addGroup(
+        labels.option(option),
+        (item) => item[groupField.key] == option.value,
+      );
     }
     for (final ListItem item in sorted) {
       final Object? value = item[groupField.key];
@@ -927,8 +981,9 @@ class _GenericListScreenState extends State<GenericListScreen>
   }
 
   List<Widget> _sectioned(ListLabels labels, List<ListItem> sorted) {
-    final FieldDefinition? sectionField =
-        _definition.field(_definition.view.sectionBy ?? '');
+    final FieldDefinition? sectionField = _definition.field(
+      _definition.view.sectionBy ?? '',
+    );
     if (sectionField == null) {
       return [for (final ListItem item in sorted) _itemRow(labels, item)];
     }
@@ -938,18 +993,21 @@ class _GenericListScreenState extends State<GenericListScreen>
     final List<Widget> children = [];
 
     for (final FieldOption option in sectionField.options) {
-      final List<ListItem> members =
-          sorted.where((item) => item[sectionField.key] == option.value).toList();
-      final int ticked =
-          members.where((item) => ListRules.isCompleted(_definition, item)).length;
-      final bool movesFromHere = moveAll != null &&
+      final List<ListItem> members = sorted
+          .where((item) => item[sectionField.key] == option.value)
+          .toList();
+      final int ticked = members
+          .where((item) => ListRules.isCompleted(_definition, item))
+          .length;
+      final bool movesFromHere =
+          moveAll != null &&
           moveAll.stringParam('field') == sectionField.key &&
           moveAll.stringParam('from') == option.value &&
           members.isNotEmpty;
       final FieldOption? target = movesFromHere
           ? sectionField.options
-              .where((other) => other.value == moveAll.stringParam('to'))
-              .firstOrNull
+                .where((other) => other.value == moveAll.stringParam('to'))
+                .firstOrNull
           : null;
 
       children.add(
@@ -1021,10 +1079,13 @@ class _GenericListScreenState extends State<GenericListScreen>
     for (final int year in yearKeys) {
       final String yearKey = 'year-$year';
       final bool yearOpen = _isOpen(yearKey, year == yearKeys.first);
-      children.add(_foldHeader('$year', yearOpen, () => _flip(yearKey), strong: true));
+      children.add(
+        _foldHeader('$year', yearOpen, () => _flip(yearKey), strong: true),
+      );
       children.add(
         _collapsible(yearOpen, [
-          for (final int month in years[year]!.keys.toList()..sort((a, b) => b - a))
+          for (final int month
+              in years[year]!.keys.toList()..sort((a, b) => b - a))
             if (!byMonth)
               ...years[year]![month]!.map((item) => _itemRow(labels, item))
             else ...[
@@ -1048,8 +1109,9 @@ class _GenericListScreenState extends State<GenericListScreen>
   }
 
   List<Widget> _checklist(ListLabels labels, List<ListItem> sorted) {
-    final FieldDefinition? bucketField =
-        _definition.field(_definition.view.bucketBy ?? '');
+    final FieldDefinition? bucketField = _definition.field(
+      _definition.view.bucketBy ?? '',
+    );
     if (bucketField == null) {
       return [for (final ListItem item in sorted) _itemRow(labels, item)];
     }
@@ -1059,18 +1121,25 @@ class _GenericListScreenState extends State<GenericListScreen>
         a.year == b.year && a.month == b.month && a.day == b.day;
     int bucket(ListItem item) {
       final Object? raw = item[bucketField.key];
-      final DateTime? date = raw is String ? DateTime.tryParse(raw)?.toLocal() : null;
+      final DateTime? date = raw is String
+          ? DateTime.tryParse(raw)?.toLocal()
+          : null;
       if (date == null || sameDay(date, now)) {
         return 0;
       }
       return sameDay(date, now.add(const Duration(days: 1))) ? 1 : 2;
     }
 
-    final List<String> names = [labels.loc.today, labels.loc.tomorrow, labels.loc.later];
+    final List<String> names = [
+      labels.loc.today,
+      labels.loc.tomorrow,
+      labels.loc.later,
+    ];
     final List<Widget> children = [];
     for (int index = 0; index < names.length; index++) {
-      final List<ListItem> members =
-          sorted.where((item) => bucket(item) == index).toList();
+      final List<ListItem> members = sorted
+          .where((item) => bucket(item) == index)
+          .toList();
       if (members.isEmpty) {
         continue;
       }
@@ -1145,7 +1214,9 @@ class _GenericListScreenState extends State<GenericListScreen>
     final String? description = ListLabels(loc).listDescription(_definition);
     final int done = _completion == null
         ? 0
-        : widget.items.where((item) => ListRules.isCompleted(_definition, item)).length;
+        : widget.items
+              .where((item) => ListRules.isCompleted(_definition, item))
+              .length;
     return Padding(
       padding: const EdgeInsets.only(left: 18, top: 6),
       child: Column(
@@ -1175,7 +1246,10 @@ class _GenericListScreenState extends State<GenericListScreen>
               ),
             ),
           Padding(
-            padding: EdgeInsets.only(left: 4, top: description == null ? 12 : 6),
+            padding: EdgeInsets.only(
+              left: 4,
+              top: description == null ? 12 : 6,
+            ),
             child: Text(
               _completion == null
                   ? loc.listItemCount(widget.items.length)
@@ -1246,17 +1320,25 @@ class _GenericListScreenState extends State<GenericListScreen>
     final ListLabels labels = ListLabels(loc);
     _look = _Look.of(context, _definition);
     final FieldDefinition? filterField = _filterField;
-    if (filterField != null && _filter != null && !filterField.hasOption(_filter)) {
+    if (filterField != null &&
+        _filter != null &&
+        !filterField.hasOption(_filter)) {
       _filter = null;
     }
 
-    final List<ListItem> visible = _sorted(widget.items.where(_matchesFilter).toList());
-    final bool hideDone = _completion != null &&
+    final List<ListItem> visible = _sorted(
+      widget.items.where(_matchesFilter).toList(),
+    );
+    final bool hideDone =
+        _completion != null &&
         context.watchAccountPreferences.tickedItems == TickedItems.hide;
     final List<ListItem> shown = hideDone
-        ? visible.where((item) => !ListRules.isCompleted(_definition, item)).toList()
+        ? visible
+              .where((item) => !ListRules.isCompleted(_definition, item))
+              .toList()
         : visible;
-    final bool canClearAll = _definition.view.kind == ViewKind.checklist &&
+    final bool canClearAll =
+        _definition.view.kind == ViewKind.checklist &&
         _behavior(BehaviorKind.clearCompleted) != null &&
         visible.any((item) => ListRules.isCompleted(_definition, item));
 
@@ -1265,16 +1347,23 @@ class _GenericListScreenState extends State<GenericListScreen>
         ViewKind.grouped => _grouped(labels, shown),
         ViewKind.sectioned => _sectioned(labels, shown),
         ViewKind.timeline => _timeline(labels, shown),
-        ViewKind.checklist =>
-          _withDone(labels, shown, (open) => _checklist(labels, open)),
-        ViewKind.table || ViewKind.cards => _withDone(labels, shown, (open) => [
-              for (final ListItem item in open) _itemRow(labels, item),
-            ]),
+        ViewKind.checklist => _withDone(
+          labels,
+          shown,
+          (open) => _checklist(labels, open),
+        ),
+        ViewKind.table || ViewKind.cards => _withDone(
+          labels,
+          shown,
+          (open) => [for (final ListItem item in open) _itemRow(labels, item)],
+        ),
       },
       if (hideDone)
         ..._hiddenDone(
           labels,
-          visible.where((item) => ListRules.isCompleted(_definition, item)).toList(),
+          visible
+              .where((item) => ListRules.isCompleted(_definition, item))
+              .toList(),
         ),
     ];
 
@@ -1303,11 +1392,26 @@ class _GenericListScreenState extends State<GenericListScreen>
                 if (preferences.state.homePins.contains(_definition.id)) {
                   preferences.unpinFromHome(_definition.id);
                 } else {
+                  final List<ListDefinition> lists =
+                      widget.store.current.definitions;
                   preferences.pinToHome(
                     _definition.id,
                     existing: [
-                      for (final ListDefinition list
-                          in widget.store.current.definitions)
+                      for (final ListDefinition list in lists) list.id,
+                    ],
+                    // The dial's order now, as the dial works it out (R6).
+                    dialOrder: [
+                      for (final ListDefinition list in orderLists(
+                        lists,
+                        order: preferences.state.listOrder,
+                        myOrder: preferences.state.myListOrder,
+                        recent:
+                            context.read<AppSettingsCubit?>()?.recentLists(
+                              preferences.uid,
+                            ) ??
+                            const [],
+                        nameOf: ListLabels(loc).listName,
+                      ))
                         list.id,
                     ],
                   );
@@ -1337,13 +1441,14 @@ class _GenericListScreenState extends State<GenericListScreen>
               scale: _addScale,
               child: IgnorePointer(ignoring: !_addShown, child: _addButton()),
             ),
-      floatingActionButtonLocation:
-          hubArea == null ? null : AboveHubButtonLocation(hubArea),
+      floatingActionButtonLocation: hubArea == null
+          ? null
+          : AboveHubButtonLocation(hubArea),
       floatingActionButtonAnimator: hubArea == null
           ? null
           : _reduceMotion
-              ? FloatingActionButtonAnimator.noAnimation
-              : const _SizeOnlyButtonAnimator(),
+          ? FloatingActionButtonAnimator.noAnimation
+          : const _SizeOnlyButtonAnimator(),
       // The title, description and count stay; the items scroll under them
       // (Q-65).
       body: Column(
@@ -1361,10 +1466,16 @@ class _GenericListScreenState extends State<GenericListScreen>
                   ..._filters(labels),
                   if (showEmpty)
                     Padding(
-                      padding:
-                          const EdgeInsets.fromLTRB(_margin, 32, _margin, 0),
-                      child:
-                          Text(widget.texts.emptyText, style: _look.type.meta),
+                      padding: const EdgeInsets.fromLTRB(
+                        _margin,
+                        32,
+                        _margin,
+                        0,
+                      ),
+                      child: Text(
+                        widget.texts.emptyText,
+                        style: _look.type.meta,
+                      ),
                     )
                   else
                     ...content,
@@ -1419,21 +1530,24 @@ class _SizeOnlyButtonAnimator extends FloatingActionButtonAnimator {
     required Offset begin,
     required Offset end,
     required double progress,
-  }) =>
-      progress < 0.5 ? begin : end;
+  }) => progress < 0.5 ? begin : end;
 
   @override
   Animation<double> getScaleAnimation({required Animation<double> parent}) {
     return parent.drive(
       TweenSequence<double>([
         TweenSequenceItem(
-          tween: Tween<double>(begin: 1, end: 0)
-              .chain(CurveTween(curve: Curves.easeIn)),
+          tween: Tween<double>(
+            begin: 1,
+            end: 0,
+          ).chain(CurveTween(curve: Curves.easeIn)),
           weight: 1,
         ),
         TweenSequenceItem(
-          tween: Tween<double>(begin: 0, end: 1)
-              .chain(CurveTween(curve: AppMotion.curve)),
+          tween: Tween<double>(
+            begin: 0,
+            end: 1,
+          ).chain(CurveTween(curve: AppMotion.curve)),
           weight: 1,
         ),
       ]),
