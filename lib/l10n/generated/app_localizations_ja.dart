@@ -340,7 +340,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get rules => 'ルール';
 
   @override
-  String get ruleClearCompleted => '完了した項目を消去';
+  String get ruleClearCompleted => 'チェック済みを消去';
 
   @override
   String get ruleRecurOnClear => '消去時に繰り返す';
@@ -1140,13 +1140,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get preferencesTicked => 'チェック済みの項目';
 
   @override
-  String get preferencesTickedMove => '完了へ移動';
+  String get preferencesTickedMove => '下に移動';
 
   @override
   String get preferencesTickedStay => 'その場に残す';
 
   @override
-  String get preferencesTickedHide => '隠す';
+  String get preferencesTickedHide => '下にたたむ';
 
   @override
   String get preferencesConfirmDelete => '削除前に確認';
@@ -1296,137 +1296,122 @@ class AppLocalizationsJa extends AppLocalizations {
   String get suggestOnHomeOff => '環境設定でおすすめがオフになっています。';
 
   @override
-  String get preferencesListsAndDial => 'Lists and dial';
+  String get preferencesListsAndDial => 'リストとダイヤル';
 
   @override
-  String get preferencesStartScreenLine => 'What opens when you start the app.';
+  String get preferencesStartScreenLine => 'アプリを開いたときに表示する画面です。';
 
   @override
-  String get preferencesSuggestionsLine =>
-      'Fills home up to 3 cards with lists you may want.';
+  String get preferencesSuggestionsLine => 'ホームを最大3枚まで、使いそうなリストで埋めます。';
 
   @override
-  String get preferencesOnlyWithCards => 'Only when home shows list cards.';
+  String get preferencesOnlyWithCards => 'ホームにリストカードを表示するときだけ。';
 
   @override
-  String get preferencesDialOrderLine => 'The order of lists on the dial.';
+  String get preferencesDialOrderLine => 'ダイヤル上のリストの順番です。';
 
   @override
-  String get preferencesHomeOrderSameLine =>
-      'Pinned cards follow the dial\'s order.';
+  String get preferencesHomeOrderSameLine => 'ピン留めしたカードはダイヤルの順番に従います。';
 
   @override
-  String get preferencesHomeOrderLastUsedLine =>
-      'Pinned cards in the order you last opened them.';
+  String get preferencesHomeOrderLastUsedLine => 'ピン留めしたカードを最後に開いた順に並べます。';
 
   @override
-  String get preferencesHomeOrderAzLine => 'Pinned cards by name.';
+  String get preferencesHomeOrderAzLine => 'ピン留めしたカードを名前順に並べます。';
 
   @override
-  String get preferencesHomeOrderMineLine => 'The order you arranged on home.';
+  String get preferencesHomeOrderMineLine => 'ホームで並べ替えた順番です。';
 
   @override
-  String get preferencesConfirmDeleteLine =>
-      'Asks before an item or a list is deleted.';
+  String get preferencesConfirmDeleteLine => '項目やリストを削除する前に確認します。';
 
   @override
-  String get preferencesAiBarOffLine =>
-      'The AI bar is hidden. Your lists stay as they are.';
+  String get preferencesAiBarOffLine => 'AIバーは非表示です。リストはそのままです。';
 
   @override
-  String get preferencesWeekStartLine => 'Used by the date pickers and the AI.';
+  String get preferencesWeekStartLine => '日付の選択とAIで使います。';
 
   @override
-  String get preferencesTickedMoveLine =>
-      'Ticked items go to an open Done group at the bottom of each list.';
+  String get preferencesTickedMoveLine => 'チェックした項目は各リストの下にある開いた「完了」グループに移ります。';
 
   @override
-  String get preferencesTickedStayLine =>
-      'Ticked items stay where they are, crossed out.';
+  String get preferencesTickedStayLine => 'チェックした項目は取り消し線付きでその場に残ります。';
 
   @override
   String get preferencesTickedHideLine =>
-      'Ticked items wait in a closed Done group at the bottom of each list. Tap it to see them.';
+      'チェックした項目は各リストの下にある閉じた「完了」グループに入ります。タップすると表示されます。';
 
   @override
-  String get preferencesSuggestionsOffLine =>
-      'Home shows only the lists you pinned.';
+  String get preferencesSuggestionsOffLine => 'ホームにはピン留めしたリストだけを表示します。';
 
   @override
-  String get preferencesAiBarOnLine =>
-      'The AI bar sits beside the hub on every screen.';
+  String get preferencesAiBarOnLine => 'AIバーはどの画面でもボタンの横に表示されます。';
 
   @override
-  String get preferencesTickedClear => 'Clear straight away';
+  String get preferencesTickedClear => 'すぐに消去';
 
   @override
   String get preferencesTickedClearLine =>
-      'Ticking clears an item at once, with Undo. Repeats and Next time copies still happen.';
+      'チェックするとすぐに消去され、元に戻せます。繰り返しや次回へのコピーはそのまま行われます。';
 
   @override
-  String get preferencesListsOwn => 'Lists can have their own';
+  String get preferencesListsOwn => 'リストごとに設定できる';
 
   @override
   String preferencesListsOwnCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count lists have their own choice.',
-      one: '1 list has its own choice.',
-      zero: 'A list can pick its own in Edit list.',
+      other: '$count 件のリストが独自の設定を使っています。',
     );
     return '$_temp0';
   }
 
   @override
-  String get preferencesListsOwnOff => 'Every list follows this setting.';
+  String get preferencesListsOwnOff => 'すべてのリストがこの設定に従います。';
 
   @override
-  String get editorIconAndColour => 'Icon and colour';
+  String get editorIconAndColour => 'アイコンと色';
 
   @override
-  String get editorHomeAndAi => 'Home and AI';
+  String get editorHomeAndAi => 'ホームとAI';
 
   @override
-  String get editorFollowPreferences => 'Follow Preferences';
+  String get editorFollowPreferences => '環境設定に従う';
 
   @override
-  String get editorNoTick => 'This list has no tick.';
+  String get editorNoTick => 'このリストにはチェックがありません。';
 
   @override
-  String get editorEveryListFollows =>
-      'Preferences makes every list follow this.';
+  String get editorEveryListFollows => '環境設定で、すべてのリストがこれに従います。';
 
   @override
-  String get editorTickField => 'Tick';
+  String get editorTickField => 'チェック';
 
   @override
-  String get suggestOnHomeLine => 'Lets home suggest this list.';
+  String get suggestOnHomeLine => 'ホームでこのリストをおすすめします。';
 
   @override
-  String get allowAiLine => 'Lets the AI see and change this list.';
+  String get allowAiLine => 'AIがこのリストを見て変更できます。';
 
   @override
-  String get ruleClearCompletedLine =>
-      'Adds a × on ticked items and a Clear ticked button.';
+  String get ruleClearCompletedLine => 'チェックした項目に × を付け、「チェック済みを消去」ボタンを追加します。';
 
   @override
-  String get viewChecklistLine => 'Items with a tick, open ones first.';
+  String get viewChecklistLine => 'チェック付きの項目、未完了が先。';
 
   @override
-  String get viewSectionedLine =>
-      'Items in sections you name, with buttons to move them.';
+  String get viewSectionedLine => '名前を付けたセクションに分け、移動ボタン付き。';
 
   @override
-  String get viewTimelineLine => 'Items by date, newest first.';
+  String get viewTimelineLine => '日付順、新しいものが先。';
 
   @override
-  String get viewGroupedLine => 'Items grouped by a choice or a category.';
+  String get viewGroupedLine => '選択肢やカテゴリでグループ化。';
 
   @override
-  String get viewTableLine => 'Items one per row, newest first.';
+  String get viewTableLine => '1行に1項目、新しいものが先。';
 
   @override
-  String get viewCardsLine =>
-      'Items one per row with their details, newest first.';
+  String get viewCardsLine => '1行に1項目と詳細、新しいものが先。';
 }

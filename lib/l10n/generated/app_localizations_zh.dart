@@ -340,7 +340,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get rules => '规则';
 
   @override
-  String get ruleClearCompleted => '清除已完成项';
+  String get ruleClearCompleted => '清除已勾选';
 
   @override
   String get ruleRecurOnClear => '清除时重复';
@@ -1135,13 +1135,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get preferencesTicked => '已勾选的条目';
 
   @override
-  String get preferencesTickedMove => '移到已完成';
+  String get preferencesTickedMove => '移到底部';
 
   @override
   String get preferencesTickedStay => '留在原位';
 
   @override
-  String get preferencesTickedHide => '隐藏';
+  String get preferencesTickedHide => '折叠在底部';
 
   @override
   String get preferencesConfirmDelete => '删除前确认';
@@ -1291,137 +1291,120 @@ class AppLocalizationsZh extends AppLocalizations {
   String get suggestOnHomeOff => '偏好设置中已关闭建议。';
 
   @override
-  String get preferencesListsAndDial => 'Lists and dial';
+  String get preferencesListsAndDial => '列表和转盘';
 
   @override
-  String get preferencesStartScreenLine => 'What opens when you start the app.';
+  String get preferencesStartScreenLine => '打开应用时显示的内容。';
 
   @override
-  String get preferencesSuggestionsLine =>
-      'Fills home up to 3 cards with lists you may want.';
+  String get preferencesSuggestionsLine => '用你可能需要的列表把首页补满到 3 张卡片。';
 
   @override
-  String get preferencesOnlyWithCards => 'Only when home shows list cards.';
+  String get preferencesOnlyWithCards => '仅当首页显示列表卡片时。';
 
   @override
-  String get preferencesDialOrderLine => 'The order of lists on the dial.';
+  String get preferencesDialOrderLine => '转盘上列表的顺序。';
 
   @override
-  String get preferencesHomeOrderSameLine =>
-      'Pinned cards follow the dial\'s order.';
+  String get preferencesHomeOrderSameLine => '固定的卡片跟随转盘的顺序。';
 
   @override
-  String get preferencesHomeOrderLastUsedLine =>
-      'Pinned cards in the order you last opened them.';
+  String get preferencesHomeOrderLastUsedLine => '固定的卡片按你最近打开的顺序排列。';
 
   @override
-  String get preferencesHomeOrderAzLine => 'Pinned cards by name.';
+  String get preferencesHomeOrderAzLine => '固定的卡片按名称排列。';
 
   @override
-  String get preferencesHomeOrderMineLine => 'The order you arranged on home.';
+  String get preferencesHomeOrderMineLine => '你在首页排好的顺序。';
 
   @override
-  String get preferencesConfirmDeleteLine =>
-      'Asks before an item or a list is deleted.';
+  String get preferencesConfirmDeleteLine => '删除条目或列表前先询问。';
 
   @override
-  String get preferencesAiBarOffLine =>
-      'The AI bar is hidden. Your lists stay as they are.';
+  String get preferencesAiBarOffLine => 'AI 栏已隐藏。你的列表保持不变。';
 
   @override
-  String get preferencesWeekStartLine => 'Used by the date pickers and the AI.';
+  String get preferencesWeekStartLine => '用于日期选择和 AI。';
 
   @override
-  String get preferencesTickedMoveLine =>
-      'Ticked items go to an open Done group at the bottom of each list.';
+  String get preferencesTickedMoveLine => '已勾选的条目进入每个列表底部展开的“已完成”组。';
 
   @override
-  String get preferencesTickedStayLine =>
-      'Ticked items stay where they are, crossed out.';
+  String get preferencesTickedStayLine => '已勾选的条目留在原处，并划掉。';
 
   @override
-  String get preferencesTickedHideLine =>
-      'Ticked items wait in a closed Done group at the bottom of each list. Tap it to see them.';
+  String get preferencesTickedHideLine => '已勾选的条目收在每个列表底部折叠的“已完成”组里。点一下即可查看。';
 
   @override
-  String get preferencesSuggestionsOffLine =>
-      'Home shows only the lists you pinned.';
+  String get preferencesSuggestionsOffLine => '首页只显示你固定的列表。';
 
   @override
-  String get preferencesAiBarOnLine =>
-      'The AI bar sits beside the hub on every screen.';
+  String get preferencesAiBarOnLine => 'AI 栏在每个屏幕上都位于按钮旁边。';
 
   @override
-  String get preferencesTickedClear => 'Clear straight away';
+  String get preferencesTickedClear => '立即清除';
 
   @override
-  String get preferencesTickedClearLine =>
-      'Ticking clears an item at once, with Undo. Repeats and Next time copies still happen.';
+  String get preferencesTickedClearLine => '勾选后立即清除条目，可撤销。重复和“下次”副本照常生成。';
 
   @override
-  String get preferencesListsOwn => 'Lists can have their own';
+  String get preferencesListsOwn => '列表可以有自己的设置';
 
   @override
   String preferencesListsOwnCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count lists have their own choice.',
-      one: '1 list has its own choice.',
-      zero: 'A list can pick its own in Edit list.',
+      other: '有 $count 个列表使用自己的设置。',
     );
     return '$_temp0';
   }
 
   @override
-  String get preferencesListsOwnOff => 'Every list follows this setting.';
+  String get preferencesListsOwnOff => '所有列表都遵循此设置。';
 
   @override
-  String get editorIconAndColour => 'Icon and colour';
+  String get editorIconAndColour => '图标和颜色';
 
   @override
-  String get editorHomeAndAi => 'Home and AI';
+  String get editorHomeAndAi => '首页和 AI';
 
   @override
-  String get editorFollowPreferences => 'Follow Preferences';
+  String get editorFollowPreferences => '遵循偏好设置';
 
   @override
-  String get editorNoTick => 'This list has no tick.';
+  String get editorNoTick => '此列表没有勾选。';
 
   @override
-  String get editorEveryListFollows =>
-      'Preferences makes every list follow this.';
+  String get editorEveryListFollows => '偏好设置让所有列表都遵循此项。';
 
   @override
-  String get editorTickField => 'Tick';
+  String get editorTickField => '勾选';
 
   @override
-  String get suggestOnHomeLine => 'Lets home suggest this list.';
+  String get suggestOnHomeLine => '允许首页建议此列表。';
 
   @override
-  String get allowAiLine => 'Lets the AI see and change this list.';
+  String get allowAiLine => '允许 AI 查看和修改此列表。';
 
   @override
-  String get ruleClearCompletedLine =>
-      'Adds a × on ticked items and a Clear ticked button.';
+  String get ruleClearCompletedLine => '为已勾选的条目加上 ×，并添加“清除已勾选”按钮。';
 
   @override
-  String get viewChecklistLine => 'Items with a tick, open ones first.';
+  String get viewChecklistLine => '可勾选的条目，未完成的在前。';
 
   @override
-  String get viewSectionedLine =>
-      'Items in sections you name, with buttons to move them.';
+  String get viewSectionedLine => '按命名的分区排列，带移动按钮。';
 
   @override
-  String get viewTimelineLine => 'Items by date, newest first.';
+  String get viewTimelineLine => '按日期排列，最新的在前。';
 
   @override
-  String get viewGroupedLine => 'Items grouped by a choice or a category.';
+  String get viewGroupedLine => '按选项或类别分组。';
 
   @override
-  String get viewTableLine => 'Items one per row, newest first.';
+  String get viewTableLine => '每行一个条目，最新的在前。';
 
   @override
-  String get viewCardsLine =>
-      'Items one per row with their details, newest first.';
+  String get viewCardsLine => '每行一个条目及其详情，最新的在前。';
 }
