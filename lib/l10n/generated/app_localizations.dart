@@ -2263,6 +2263,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Suggestions are off in Preferences.'**
   String get suggestOnHomeOff;
+
+  /// No description provided for @preferencesListsAndDial.
+  ///
+  /// In en, this message translates to:
+  /// **'Lists and dial'**
+  String get preferencesListsAndDial;
+
+  /// No description provided for @preferencesStartScreenLine.
+  ///
+  /// In en, this message translates to:
+  /// **'What opens when you start the app.'**
+  String get preferencesStartScreenLine;
+
+  /// No description provided for @preferencesSuggestionsLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Fills home up to 3 cards with lists you may want.'**
+  String get preferencesSuggestionsLine;
+
+  /// No description provided for @preferencesOnlyWithCards.
+  ///
+  /// In en, this message translates to:
+  /// **'Only when home shows list cards.'**
+  String get preferencesOnlyWithCards;
+
+  /// No description provided for @preferencesDialOrderLine.
+  ///
+  /// In en, this message translates to:
+  /// **'The order of lists on the dial.'**
+  String get preferencesDialOrderLine;
+
+  /// No description provided for @preferencesHomeOrderSameLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned cards follow the dial\'s order.'**
+  String get preferencesHomeOrderSameLine;
+
+  /// No description provided for @preferencesHomeOrderLastUsedLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned cards in the order you last opened them.'**
+  String get preferencesHomeOrderLastUsedLine;
+
+  /// No description provided for @preferencesHomeOrderAzLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned cards by name.'**
+  String get preferencesHomeOrderAzLine;
+
+  /// No description provided for @preferencesHomeOrderMineLine.
+  ///
+  /// In en, this message translates to:
+  /// **'The order you arranged on home.'**
+  String get preferencesHomeOrderMineLine;
+
+  /// No description provided for @preferencesConfirmDeleteLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Asks before an item or a list is deleted.'**
+  String get preferencesConfirmDeleteLine;
+
+  /// No description provided for @preferencesAiBarOffLine.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI bar is hidden. Your lists stay as they are.'**
+  String get preferencesAiBarOffLine;
+
+  /// No description provided for @preferencesWeekStartLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Used by the date pickers and the AI.'**
+  String get preferencesWeekStartLine;
+
+  /// No description provided for @preferencesTickedMoveLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Ticked items go to an open Done group at the bottom of each list.'**
+  String get preferencesTickedMoveLine;
+
+  /// No description provided for @preferencesTickedStayLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Ticked items stay where they are, crossed out.'**
+  String get preferencesTickedStayLine;
+
+  /// No description provided for @preferencesTickedHideLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Ticked items wait in a closed Done group at the bottom of each list. Tap it to see them.'**
+  String get preferencesTickedHideLine;
+
+  /// No description provided for @preferencesSuggestionsOffLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Home shows only the lists you pinned.'**
+  String get preferencesSuggestionsOffLine;
+
+  /// No description provided for @preferencesAiBarOnLine.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI bar sits beside the hub on every screen.'**
+  String get preferencesAiBarOnLine;
 }
 
 class _AppLocalizationsDelegate

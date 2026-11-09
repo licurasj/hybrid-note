@@ -1205,11 +1205,12 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('settings-preferences')));
     await settle(tester);
     expect(find.byKey(const ValueKey('preferences-match-dial')), findsNothing);
-    await tester.tap(find.byKey(const ValueKey('preferences-home-list-order')));
-    await settle(tester);
-    await tester.tap(
-      find.byKey(const ValueKey('choice-HomeListOrder.sameAsDial')),
+    final Finder same = find.byKey(
+      const ValueKey('choice-HomeListOrder.sameAsDial'),
     );
+    await tester.ensureVisible(same);
+    await settle(tester);
+    await tester.tap(same);
     await settle(tester);
     expect(cubit.state.homeListOrder, HomeListOrder.sameAsDial);
     expect(cubit.state.myListOrder, [_grocery, _tasks]);

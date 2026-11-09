@@ -229,19 +229,22 @@ void main() {
       await _openPreferences(tester);
 
       final List<String> order = [
-        'LISTS',
+        'HOME',
+        'Start screen',
+        'Home shows',
+        'Show suggestions',
+        'LISTS AND DIAL',
         'Dial list order',
         'Home list order',
-        'Start screen',
         'ITEMS',
         'Ticked items',
         'Confirm before deleting',
         'AI',
         'Show the AI bar',
         'GENERAL',
-        'Vibration',
         'Time format',
         'Week starts on',
+        'Vibration',
       ];
       double last = -1;
       for (final String text in order) {
@@ -269,14 +272,14 @@ void main() {
       await _openPreferences(tester);
       final AccountPreferencesCubit cubit = _account(tester);
 
+      // On the page, one tap (T-24, Q-112): no pop-up.
       Future<void> choose(String row, String choice) async {
-        await _tapKey(tester, row);
         await _tapKey(tester, choice);
+        expect(find.byType(BottomSheet), findsNothing);
       }
 
       await choose('preferences-list-order', 'choice-ListOrder.myOrder');
       expect(cubit.state.listOrder, ListOrder.myOrder);
-      expect(find.text('My order'), findsOneWidget);
       await choose('preferences-list-order', 'choice-ListOrder.alphabetical');
       expect(cubit.state.listOrder, ListOrder.alphabetical);
       // Home list order, right under the dial's (Q-108).
@@ -290,7 +293,10 @@ void main() {
         'choice-HomeListOrder.sameAsDial',
       );
       expect(cubit.state.homeListOrder, HomeListOrder.sameAsDial);
-      expect(find.text('Same as dial'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('choice-line-HomeListOrder.sameAsDial')),
+        findsOneWidget,
+      );
       expect(cubit.state.listOrder, ListOrder.alphabetical);
       await choose(
         'preferences-start-screen',
@@ -310,31 +316,102 @@ void main() {
       expect(cubit.state.weekStart, WeekStart.sunday);
     });
 
-    testWidgets(
-      'a choice sheet marks the current one; dismissing changes nothing',
-      (WidgetTester tester) async {
-        await _pumpApp(tester);
-        await _openPreferences(tester);
-        await _tapKey(tester, 'preferences-week-start');
+    testWidgets('the picked choice is marked, as one of a group, with its line', (
+      WidgetTester tester,
+    ) async {
+      await _pumpApp(tester);
+      await _openPreferences(tester);
+      final Finder current = find.byKey(
+        const ValueKey('choice-TickedItems.moveToDone'),
+      );
+      await tester.ensureVisible(current);
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: current,
+          matching: find.byIcon(Icons.radio_button_checked),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('choice-line-TickedItems.moveToDone')),
+        findsOneWidget,
+      );
+      final SemanticsHandle handle = tester.ensureSemantics();
+      expect(
+        tester.getSemantics(current),
+        isSemantics(
+          isSelected: true,
+          isInMutuallyExclusiveGroup: true,
+          isButton: true,
+        ),
+      );
+      expect(tester.getSemantics(current).label, startsWith('Move to Done'));
+      handle.dispose();
 
-        expect(find.byIcon(Icons.radio_button_checked), findsOneWidget);
-        final Finder current = find.byKey(
-          const ValueKey('choice-WeekStart.followLanguage'),
-        );
-        expect(
-          find.descendant(
-            of: current,
-            matching: find.byIcon(Icons.radio_button_checked),
-          ),
-          findsOneWidget,
-        );
+      await _tapKey(tester, 'choice-TickedItems.hide');
+      expect(
+        find.byKey(const ValueKey('choice-line-TickedItems.moveToDone')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('choice-line-TickedItems.hide')),
+        findsOneWidget,
+      );
+    });
 
-        await tester.tapAt(const Offset(180, 20));
-        await tester.pumpAndSettle();
-        expect(_account(tester).state.weekStart, WeekStart.followLanguage);
-        expect(find.byType(PreferencesScreen), findsOneWidget);
-      },
-    );
+    testWidgets('rows stay put when Home shows changes: they grey with a line', (
+      WidgetTester tester,
+    ) async {
+      await _pumpApp(tester);
+      await _openPreferences(tester);
+      final AccountPreferencesCubit cubit = _account(tester);
+      final Finder below = find.byKey(const ValueKey('preferences-list-order'));
+      await tester.ensureVisible(below);
+      await tester.pumpAndSettle();
+      final double before = tester.getTopLeft(below).dy;
+      expect(find.text('Only when home shows list cards.'), findsNothing);
+
+      await cubit.setHomeContent(HomeContent.dueToday);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('preferences-home-suggestions')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('preferences-home-list-order')),
+        findsOneWidget,
+      );
+      expect(find.text('Only when home shows list cards.'), findsNWidgets(2));
+      // The suggestions row's line is as tall as the one it replaced.
+      expect(tester.getTopLeft(below).dy, before);
+      // Greyed rows do nothing.
+      await tester.tap(
+        find.byKey(const ValueKey('preferences-home-suggestions')),
+        warnIfMissed: false,
+      );
+      await tester.pumpAndSettle();
+      expect(cubit.state.homeSuggestions, isTrue);
+    });
+
+    testWidgets('lines follow the choice: the AI bar line shows only when off', (
+      WidgetTester tester,
+    ) async {
+      await _pumpApp(tester);
+      await _openPreferences(tester);
+      expect(find.text('What opens when you start the app.'), findsOneWidget);
+      expect(find.text('The order of lists on the dial.'), findsOneWidget);
+      expect(
+        find.text('The AI bar is hidden. Your lists stay as they are.'),
+        findsNothing,
+      );
+      await _tapKey(tester, 'preferences-show-ai-bar');
+      expect(
+        find.text('The AI bar is hidden. Your lists stay as they are.'),
+        findsOneWidget,
+      );
+    });
 
     testWidgets('each switch flips from the row and from the switch', (
       WidgetTester tester,
@@ -369,14 +446,19 @@ void main() {
       await cubit.setTimeFormat(TimeFormat.h12);
       await _openPreferences(tester);
 
-      expect(find.text('A to Z'), findsOneWidget);
-      expect(find.text('12-hour'), findsOneWidget);
+      bool picked(String key) => isSemantics(
+        isSelected: true,
+      ).matches(tester.getSemantics(find.byKey(ValueKey(key))), {});
+      final SemanticsHandle handle = tester.ensureSemantics();
+      expect(picked('choice-ListOrder.alphabetical'), isTrue);
+      expect(picked('choice-TimeFormat.h12'), isTrue);
 
       // Another phone changes one while the page is open.
       await cubit.setListOrder(ListOrder.lastUsed);
       await tester.pumpAndSettle();
-      expect(find.text('Last used'), findsOneWidget);
-      expect(find.text('A to Z'), findsNothing);
+      expect(picked('choice-ListOrder.lastUsed'), isTrue);
+      expect(picked('choice-ListOrder.alphabetical'), isFalse);
+      handle.dispose();
     });
 
     testWidgets('in every language, at the smallest width, nothing overflows', (

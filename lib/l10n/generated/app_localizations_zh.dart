@@ -1289,4 +1289,65 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get suggestOnHomeOff => '偏好设置中已关闭建议。';
+
+  @override
+  String get preferencesListsAndDial => 'Lists and dial';
+
+  @override
+  String get preferencesStartScreenLine => 'What opens when you start the app.';
+
+  @override
+  String get preferencesSuggestionsLine =>
+      'Fills home up to 3 cards with lists you may want.';
+
+  @override
+  String get preferencesOnlyWithCards => 'Only when home shows list cards.';
+
+  @override
+  String get preferencesDialOrderLine => 'The order of lists on the dial.';
+
+  @override
+  String get preferencesHomeOrderSameLine =>
+      'Pinned cards follow the dial\'s order.';
+
+  @override
+  String get preferencesHomeOrderLastUsedLine =>
+      'Pinned cards in the order you last opened them.';
+
+  @override
+  String get preferencesHomeOrderAzLine => 'Pinned cards by name.';
+
+  @override
+  String get preferencesHomeOrderMineLine => 'The order you arranged on home.';
+
+  @override
+  String get preferencesConfirmDeleteLine =>
+      'Asks before an item or a list is deleted.';
+
+  @override
+  String get preferencesAiBarOffLine =>
+      'The AI bar is hidden. Your lists stay as they are.';
+
+  @override
+  String get preferencesWeekStartLine => 'Used by the date pickers and the AI.';
+
+  @override
+  String get preferencesTickedMoveLine =>
+      'Ticked items go to an open Done group at the bottom of each list.';
+
+  @override
+  String get preferencesTickedStayLine =>
+      'Ticked items stay where they are, crossed out.';
+
+  @override
+  String get preferencesTickedHideLine =>
+      'Ticked items wait in a closed Done group at the bottom of each list. Tap it to see them.';
+
+  @override
+  String get preferencesSuggestionsOffLine =>
+      'Home shows only the lists you pinned.';
+
+  @override
+  String get preferencesAiBarOnLine =>
+      'The AI bar sits beside the hub on every screen.';
 }

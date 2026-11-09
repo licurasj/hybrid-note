@@ -1038,5 +1038,22 @@
   "homeHide": "Take off home",
   "homeHiddenBanner": "Hidden from home",
   "suggestOnHome": "Suggest on home",
-  "suggestOnHomeOff": "Suggestions are off in Preferences."
+  "suggestOnHomeOff": "Suggestions are off in Preferences.",
+  "preferencesListsAndDial": "Lists and dial",
+  "preferencesStartScreenLine": "What opens when you start the app.",
+  "preferencesSuggestionsLine": "Fills home up to 3 cards with lists you may want.",
+  "preferencesOnlyWithCards": "Only when home shows list cards.",
+  "preferencesDialOrderLine": "The order of lists on the dial.",
+  "preferencesHomeOrderSameLine": "Pinned cards follow the dial's order.",
+  "preferencesHomeOrderLastUsedLine": "Pinned cards in the order you last opened them.",
+  "preferencesHomeOrderAzLine": "Pinned cards by name.",
+  "preferencesHomeOrderMineLine": "The order you arranged on home.",
+  "preferencesConfirmDeleteLine": "Asks before an item or a list is deleted.",
+  "preferencesAiBarOffLine": "The AI bar is hidden. Your lists stay as they are.",
+  "preferencesWeekStartLine": "Used by the date pickers and the AI.",
+  "preferencesTickedMoveLine": "Ticked items go to an open Done group at the bottom of each list.",
+  "preferencesTickedStayLine": "Ticked items stay where they are, crossed out.",
+  "preferencesTickedHideLine": "Ticked items wait in a closed Done group at the bottom of each list. Tap it to see them.",
+  "preferencesSuggestionsOffLine": "Home shows only the lists you pinned.",
+  "preferencesAiBarOnLine": "The AI bar sits beside the hub on every screen."
 }

@@ -7,6 +7,7 @@ import '../lists/generic_item_dialog.dart';
 import '../lists/list_editor_style.dart';
 import 'account_preferences.dart';
 import 'app_theme.dart';
+import 'settings_controls.dart';
 
 // Opens [title]'s choices as a slide-up sheet with [selected] marked, and gives
 // back the one tapped (null when the sheet is dismissed).
@@ -144,6 +145,7 @@ class PreferencesScreen extends StatelessWidget {
         .state;
     final AccountPreferencesCubit cubit = context
         .read<AccountPreferencesCubit>();
+    final bool cards = preferences.homeContent.showsCards;
 
     return Scaffold(
       appBar: AppBar(),
@@ -160,158 +162,148 @@ class PreferencesScreen extends StatelessWidget {
             Text(loc.preferences, style: look.type.screenTitle),
             const SizedBox(height: 4),
             Text(loc.preferencesHint, style: look.type.meta),
-            look.sectionLabel(loc.preferencesLists),
-            _ChoiceRow<ListOrder>(
+            // T-24 (Q-111): grouped by where in the app a setting acts. Every
+            // row is always there; one that does not apply now is greyed with
+            // a line saying why (Q-113), so nothing below it moves.
+            look.sectionLabel(loc.home),
+            SettingButtonsRow<StartScreen>(
+              key: const ValueKey('preferences-start-screen'),
+              label: loc.preferencesStartScreen,
+              selected: preferences.startScreen,
+              line: loc.preferencesStartScreenLine,
+              choices: [
+                choice(StartScreen.home, loc.home),
+                choice(StartScreen.lastOpenList, loc.preferencesStartLastList),
+              ],
+              onChanged: cubit.setStartScreen,
+            ),
+            SettingOptionList<HomeContent>(
+              key: const ValueKey('preferences-home-content'),
+              label: loc.preferencesHomeContent,
+              selected: preferences.homeContent,
+              choices: [
+                choice(HomeContent.both, loc.preferencesHomeContentBoth),
+                choice(HomeContent.cards, loc.preferencesHomeContentCards),
+                choice(HomeContent.dueToday, loc.preferencesHomeContentDue),
+              ],
+              onChanged: cubit.setHomeContent,
+            ),
+            // It means nothing without cards, and keeps its value meanwhile.
+            SettingSwitchRow(
+              key: const ValueKey('preferences-home-suggestions'),
+              label: loc.preferencesHomeSuggestions,
+              value: preferences.homeSuggestions,
+              line: !cards
+                  ? loc.preferencesOnlyWithCards
+                  : preferences.homeSuggestions
+                  ? loc.preferencesSuggestionsLine
+                  : loc.preferencesSuggestionsOffLine,
+              onChanged: cards ? cubit.setHomeSuggestions : null,
+            ),
+            look.sectionLabel(loc.preferencesListsAndDial),
+            SettingButtonsRow<ListOrder>(
               key: const ValueKey('preferences-list-order'),
               label: loc.preferencesListOrder,
               selected: preferences.listOrder,
+              line: loc.preferencesDialOrderLine,
               choices: [
-                (
-                  value: ListOrder.lastUsed,
-                  label: loc.preferencesListOrderLastUsed,
-                ),
-                (value: ListOrder.myOrder, label: loc.preferencesListOrderMine),
-                (
-                  value: ListOrder.alphabetical,
-                  label: loc.preferencesListOrderAz,
-                ),
+                choice(ListOrder.lastUsed, loc.preferencesListOrderLastUsed),
+                choice(ListOrder.alphabetical, loc.preferencesListOrderAz),
+                choice(ListOrder.myOrder, loc.preferencesListOrderMine),
               ],
               onChanged: cubit.setListOrder,
             ),
             // Right under the dial's: the two can be the same or separate
             // (Q-108). A drag on home makes it My order. It means nothing
             // without cards, and keeps its value meanwhile.
-            if (preferences.homeContent.showsCards)
-              _ChoiceRow<HomeListOrder>(
-                key: const ValueKey('preferences-home-list-order'),
-                label: loc.preferencesHomeListOrder,
-                selected: preferences.homeListOrder,
-                choices: [
-                  (
-                    value: HomeListOrder.sameAsDial,
-                    label: loc.preferencesHomeListOrderSame,
-                  ),
-                  (
-                    value: HomeListOrder.lastUsed,
-                    label: loc.preferencesListOrderLastUsed,
-                  ),
-                  (
-                    value: HomeListOrder.myOrder,
-                    label: loc.preferencesListOrderMine,
-                  ),
-                  (
-                    value: HomeListOrder.alphabetical,
-                    label: loc.preferencesListOrderAz,
-                  ),
-                ],
-                onChanged: cubit.setHomeListOrder,
-              ),
-            _ChoiceRow<StartScreen>(
-              key: const ValueKey('preferences-start-screen'),
-              label: loc.preferencesStartScreen,
-              selected: preferences.startScreen,
+            SettingOptionList<HomeListOrder>(
+              key: const ValueKey('preferences-home-list-order'),
+              label: loc.preferencesHomeListOrder,
+              selected: preferences.homeListOrder,
+              enabled: cards,
+              line: cards ? null : loc.preferencesOnlyWithCards,
               choices: [
-                (value: StartScreen.home, label: loc.home),
-                (
-                  value: StartScreen.lastOpenList,
-                  label: loc.preferencesStartLastList,
+                choice(
+                  HomeListOrder.sameAsDial,
+                  loc.preferencesHomeListOrderSame,
+                  line: loc.preferencesHomeOrderSameLine,
+                ),
+                choice(
+                  HomeListOrder.lastUsed,
+                  loc.preferencesListOrderLastUsed,
+                  line: loc.preferencesHomeOrderLastUsedLine,
+                ),
+                choice(
+                  HomeListOrder.alphabetical,
+                  loc.preferencesListOrderAz,
+                  line: loc.preferencesHomeOrderAzLine,
+                ),
+                choice(
+                  HomeListOrder.myOrder,
+                  loc.preferencesListOrderMine,
+                  line: loc.preferencesHomeOrderMineLine,
                 ),
               ],
-              onChanged: cubit.setStartScreen,
+              onChanged: cubit.setHomeListOrder,
             ),
-            _ChoiceRow<HomeContent>(
-              key: const ValueKey('preferences-home-content'),
-              label: loc.preferencesHomeContent,
-              selected: preferences.homeContent,
-              choices: [
-                (
-                  value: HomeContent.both,
-                  label: loc.preferencesHomeContentBoth,
-                ),
-                (
-                  value: HomeContent.cards,
-                  label: loc.preferencesHomeContentCards,
-                ),
-                (
-                  value: HomeContent.dueToday,
-                  label: loc.preferencesHomeContentDue,
-                ),
-              ],
-              onChanged: cubit.setHomeContent,
-            ),
-            // It means nothing without cards, and keeps its value meanwhile.
-            if (preferences.homeContent.showsCards)
-              _SwitchRow(
-                key: const ValueKey('preferences-home-suggestions'),
-                label: loc.preferencesHomeSuggestions,
-                value: preferences.homeSuggestions,
-                onChanged: cubit.setHomeSuggestions,
-              ),
             look.sectionLabel(loc.preferencesItems),
-            _ChoiceRow<TickedItems>(
+            SettingOptionList<TickedItems>(
               key: const ValueKey('preferences-ticked-items'),
               label: loc.preferencesTicked,
               selected: preferences.tickedItems,
-              choices: [
-                (
-                  value: TickedItems.moveToDone,
-                  label: loc.preferencesTickedMove,
-                ),
-                (
-                  value: TickedItems.stayInPlace,
-                  label: loc.preferencesTickedStay,
-                ),
-                (value: TickedItems.hide, label: loc.preferencesTickedHide),
-              ],
+              choices: tickedItemsChoices(loc),
               onChanged: cubit.setTickedItems,
             ),
-            _SwitchRow(
+            SettingSwitchRow(
               key: const ValueKey('preferences-confirm-delete'),
               label: loc.preferencesConfirmDelete,
               value: preferences.confirmDelete,
+              line: loc.preferencesConfirmDeleteLine,
               onChanged: cubit.setConfirmDelete,
             ),
             look.sectionLabel(loc.preferencesAi),
-            _SwitchRow(
+            SettingSwitchRow(
               key: const ValueKey('preferences-show-ai-bar'),
               label: loc.preferencesShowAiBar,
               value: preferences.showAiBar,
+              // A line either way, so nothing below moves when it flips.
+              line: preferences.showAiBar
+                  ? loc.preferencesAiBarOnLine
+                  : loc.preferencesAiBarOffLine,
               onChanged: cubit.setShowAiBar,
             ),
             look.sectionLabel(loc.preferencesGeneral),
-            _SwitchRow(
-              key: const ValueKey('preferences-vibration'),
-              label: loc.preferencesVibration,
-              value: preferences.vibration,
-              onChanged: cubit.setVibration,
-            ),
-            _ChoiceRow<TimeFormat>(
+            SettingButtonsRow<TimeFormat>(
               key: const ValueKey('preferences-time-format'),
               label: loc.preferencesTimeFormat,
               selected: preferences.timeFormat,
               choices: [
-                (
-                  value: TimeFormat.followLanguage,
-                  label: loc.preferencesFollowLanguage,
+                choice(
+                  TimeFormat.followLanguage,
+                  loc.preferencesFollowLanguage,
                 ),
-                (value: TimeFormat.h12, label: loc.preferencesTime12),
-                (value: TimeFormat.h24, label: loc.preferencesTime24),
+                choice(TimeFormat.h12, loc.preferencesTime12),
+                choice(TimeFormat.h24, loc.preferencesTime24),
               ],
               onChanged: cubit.setTimeFormat,
             ),
-            _ChoiceRow<WeekStart>(
+            SettingButtonsRow<WeekStart>(
               key: const ValueKey('preferences-week-start'),
               label: loc.preferencesWeekStart,
               selected: preferences.weekStart,
+              line: loc.preferencesWeekStartLine,
               choices: [
-                (
-                  value: WeekStart.followLanguage,
-                  label: loc.preferencesFollowLanguage,
-                ),
-                (value: WeekStart.monday, label: loc.preferencesMonday),
-                (value: WeekStart.sunday, label: loc.preferencesSunday),
+                choice(WeekStart.followLanguage, loc.preferencesFollowLanguage),
+                choice(WeekStart.monday, loc.preferencesMonday),
+                choice(WeekStart.sunday, loc.preferencesSunday),
               ],
               onChanged: cubit.setWeekStart,
+            ),
+            SettingSwitchRow(
+              key: const ValueKey('preferences-vibration'),
+              label: loc.preferencesVibration,
+              value: preferences.vibration,
+              onChanged: cubit.setVibration,
             ),
           ],
         ),
@@ -320,115 +312,25 @@ class PreferencesScreen extends StatelessWidget {
   }
 }
 
-// A label and the current choice over a hairline; a tap opens the choices.
-class _ChoiceRow<T> extends StatelessWidget {
-  const _ChoiceRow({
-    super.key,
-    required this.label,
-    required this.selected,
-    required this.choices,
-    required this.onChanged,
-  });
-
-  final String label;
-  final T selected;
-  final List<({T value, String label})> choices;
-  final ValueChanged<T> onChanged;
-
-  Future<void> _choose(BuildContext context) async {
-    final T? chosen = await showChoiceSheet<T>(
-      context,
-      title: label,
-      selected: selected,
-      choices: choices,
-    );
-    if (chosen != null) {
-      onChanged(chosen);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final EditorLook look = EditorLook.of(context);
-    final String current = choices
-        .firstWhere((choice) => choice.value == selected)
-        .label;
-    return look.hairline(
-      child: InkWell(
-        onTap: () => _choose(context),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 56),
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Row(
-            children: [
-              Expanded(child: Text(label, style: look.type.row)),
-              const SizedBox(width: 12),
-              // At the right edge; a long value wraps past half the width.
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.sizeOf(context).width / 2,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        current,
-                        style: look.type.meta.copyWith(fontSize: 15),
-                      ),
-                    ),
-                    Icon(Icons.chevron_right, color: look.neutrals.muted),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// A label and a switch over a hairline; a tap anywhere on the row flips it.
-class _SwitchRow extends StatelessWidget {
-  const _SwitchRow({
-    super.key,
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String label;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final EditorLook look = EditorLook.of(context);
-    return look.hairline(
-      child: MergeSemantics(
-        child: InkWell(
-          onTap: () => onChanged(!value),
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 56),
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Row(
-              children: [
-                Expanded(child: Text(label, style: look.type.row)),
-                const SizedBox(width: 12),
-                Switch(
-                  value: value,
-                  activeTrackColor: AppColors.appBlue,
-                  onChanged: onChanged,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+// The Ticked items choices with what each does (Q-109), for Preferences and
+// the list editor.
+List<SettingChoice<TickedItems>> tickedItemsChoices(AppLocalizations loc) => [
+  choice(
+    TickedItems.moveToDone,
+    loc.preferencesTickedMove,
+    line: loc.preferencesTickedMoveLine,
+  ),
+  choice(
+    TickedItems.stayInPlace,
+    loc.preferencesTickedStay,
+    line: loc.preferencesTickedStayLine,
+  ),
+  choice(
+    TickedItems.hide,
+    loc.preferencesTickedHide,
+    line: loc.preferencesTickedHideLine,
+  ),
+];
 
 // How often the AI checks with you (Q-43): a slider from asking to just doing
 // it, with what the stop means under it.
