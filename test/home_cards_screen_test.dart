@@ -308,13 +308,38 @@ void main() {
     ];
     const ValueKey<String> dueRow = ValueKey('home-due-due-one');
 
-    testWidgets('both with none due: the line, above the cards', (
-      tester,
-    ) async {
+    testWidgets('both with none due: the line under the date, fixed, above '
+        'the cards', (tester) async {
       await _pumpApp(tester);
+      final Finder line = find.byKey(const ValueKey('home-nothing-due'));
+      final Rect date = tester.getRect(find.byKey(const ValueKey('home-date')));
+      final Rect lineRect = tester.getRect(line);
+      expect(lineRect.top - date.bottom, homeNothingDueGap);
+      expect(lineRect.left, date.left);
       expect(
-        tester.getTopLeft(find.byKey(const ValueKey('home-nothing-due'))).dy,
+        lineRect.bottom,
         lessThan(tester.getTopLeft(find.byType(HomeListCard).first).dy),
+      );
+      // In the fixed header, not the scroll: a scroll leaves it in place.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('home-scroll')),
+          matching: line,
+        ),
+        findsNothing,
+      );
+      final double cardTop = tester
+          .getTopLeft(find.byType(HomeListCard).first)
+          .dy;
+      await tester.drag(
+        find.byKey(const ValueKey('home-scroll')),
+        const Offset(0, -120),
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(tester.getRect(line), lineRect);
+      expect(
+        tester.getTopLeft(find.byType(HomeListCard).first).dy,
+        lessThan(cardTop),
       );
     });
 

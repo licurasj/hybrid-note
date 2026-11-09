@@ -1443,6 +1443,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             );
             _workOutCards(catalog, preferences, labels, now);
             final List<String> pinned = _pinned!;
+            final bool nothingDue =
+                preferences.homeContent.showsDue &&
+                due.isEmpty &&
+                catalog.definitions.isNotEmpty;
+            // The fixed header, with the nothing-due line when it shows.
+            final double listTop =
+                headerHeight +
+                (nothingDue ? homeNothingDueGap + scaler.scale(15) * 1.5 : 0);
             return Listener(
               onPointerDown: _pointerDown,
               onPointerMove: _pointerMove,
@@ -1454,14 +1462,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     child: RefreshIndicator(
                       onRefresh: _pullDown,
                       color: AppColors.appBlue,
-                      edgeOffset: headerHeight,
+                      edgeOffset: listTop,
                       child: ListView(
                         key: const ValueKey('home-scroll'),
                         controller: _scroll,
                         physics: const AlwaysScrollableScrollPhysics(),
                         padding: EdgeInsets.fromLTRB(
                           AppShapes.sideMargin,
-                          headerHeight,
+                          listTop,
                           AppShapes.sideMargin,
                           // Room so the hub, and while arranging Done, do not
                           // cover the last card.
@@ -1480,18 +1488,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             const SizedBox(height: homeDueGap),
                             for (final HomeDueItem item in due)
                               _dim(row(item, catalog)),
-                          ],
-                          if (preferences.homeContent.showsDue &&
-                              due.isEmpty &&
-                              catalog.definitions.isNotEmpty) ...[
-                            const SizedBox(height: homeDueGap),
-                            _dim(
-                              Text(
-                                loc.homeNothingDue,
-                                key: const ValueKey('home-nothing-due'),
-                                style: type.meta.copyWith(fontSize: 15),
-                              ),
-                            ),
                           ],
                           if (preferences.homeContent.showsCards &&
                               (pinned.isNotEmpty || _suggested.isNotEmpty)) ...[
@@ -1583,6 +1579,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               key: const ValueKey('home-date'),
                               style: type.meta.copyWith(fontSize: 15),
                             ),
+                            // Nothing due: said once, fixed under the date, not
+                            // in the scroll (owner, 2026-11-09).
+                            if (nothingDue) ...[
+                              const SizedBox(height: homeNothingDueGap),
+                              Text(
+                                loc.homeNothingDue,
+                                key: const ValueKey('home-nothing-due'),
+                                style: type.meta.copyWith(fontSize: 15),
+                              ),
+                            ],
                           ],
                         ),
                       ),

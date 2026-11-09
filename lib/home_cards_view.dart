@@ -303,6 +303,8 @@ const double homeDueBlobSize = 28;
 // Today rows, and to the cards.
 const double homeDueGap = 16;
 const double homeCardsGap = 16;
+// The nothing-due line sits in the fixed header, this far under the date.
+const double homeNothingDueGap = 4;
 
 // A hold's prompt (interaction law rules 2-3), like the hub's Move and Arrange:
 // dark, filling with blue and growing as the finger comes [near]. The fill stays
