@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -175,7 +177,7 @@ void main() {
                 for (int i = 0; i < rects.length; i++) {
                   final Rect rect = rects[i];
                   expect(rect.width, widths[i]);
-                  expect(rect.top, rects.first.top);
+                  expect(rect.height, moreOrLessEquals(homePromptHeight));
                   expect(rect.top, greaterThanOrEqualTo(32));
                   expect(
                     rect.bottom,
@@ -214,10 +216,42 @@ void main() {
       for (double x = 0; x <= 393; x += 30) {
         for (double y = 120; y <= 852; y += 30) {
           for (final Rect rect in row(Offset(x, y))) {
-            expect(rect.bottom, lessThan(y - 40), reason: 'finger $x,$y');
+            // Above the finger, and at least 40 from it at the nearest point.
+            expect(rect.bottom, lessThan(y), reason: 'finger $x,$y');
+            final Offset nearest = Offset(
+              x.clamp(rect.left, rect.right),
+              y.clamp(rect.top, rect.bottom),
+            );
+            expect(
+              (nearest - Offset(x, y)).distance,
+              greaterThan(40),
+              reason: 'finger $x,$y',
+            );
           }
         }
       }
+    });
+
+    test('on a slight curve around the finger, above and below', () {
+      final List<Rect> above = row(const Offset(196, 400));
+      final double top = above.map((r) => r.top).reduce(math.min);
+      for (final Rect rect in above) {
+        // Nearer the finger's height the further to the side, by no more than
+        // the curve.
+        final double side = (rect.center.dx - 196).abs();
+        expect(
+          rect.top - top,
+          moreOrLessEquals(
+            homePromptCurve *
+                math.pow(math.min(side / homePromptCurveReach, 1), 2),
+            epsilon: 1,
+          ),
+        );
+      }
+      expect(above.last.top, greaterThan(top + 4));
+      final List<Rect> below = row(const Offset(196, 60));
+      final double bottom = below.map((r) => r.bottom).reduce(math.max);
+      expect(below.last.bottom, lessThan(bottom - 4));
     });
 
     test('centred on the finger, and kept on screen at the edges', () {
@@ -251,7 +285,9 @@ void main() {
       );
       final List<Rect> short = near(hub, const [60, 60]);
       expect(short.last.right, lessThan(hub.left));
-      expect(short.first.center.dy, moreOrLessEquals(632));
+      // The finger's height less the rise, and the curve towards it.
+      expect(short.first.center.dy, greaterThan(632));
+      expect(short.first.center.dy, lessThan(632 + homePromptCurve));
       final List<Rect> long = near(hub, const [80, 80, 80, 90]);
       expect(long.first.bottom, lessThan(hub.top));
     });
@@ -353,13 +389,87 @@ void main() {
           tester.getRect(_prompt(action)),
       ];
       expect(rects, hasLength(4));
+      final double top = rects.map((r) => r.top).reduce(math.min);
       for (int i = 0; i < rects.length; i++) {
-        expect(rects[i].top, rects.first.top);
+        // A slight curve: the sides a little nearer the finger's height.
+        expect(rects[i].top - top, lessThanOrEqualTo(homePromptCurve + 0.01));
         expect(rects[i].bottom, lessThan(finger.dy));
         if (i > 0) {
           expect(rects[i].left, greaterThan(rects[i - 1].right));
         }
       }
+      await gesture.up();
+      await settle(tester);
+    });
+
+    testWidgets('they slide out from under the finger', (tester) async {
+      await _pumpApp(tester);
+      final Offset finger = tester.getCenter(_card(_tasks));
+      // Movement on, by hand, as the sway never settles.
+      HomeBlob.stillForTests = false;
+      addTearDown(() => HomeBlob.stillForTests = true);
+      final TestGesture gesture = await _hold(tester, _tasks);
+      await tester.pump(const Duration(milliseconds: 16));
+      final List<HomeCardAction> actions = _shownPrompts();
+      final List<Offset> early = [
+        for (final HomeCardAction action in actions)
+          tester.getCenter(_prompt(action)),
+      ];
+      await tester.pump(const Duration(milliseconds: 300));
+      for (int i = 0; i < actions.length; i++) {
+        final Offset out = tester.getCenter(_prompt(actions[i]));
+        expect(
+          (early[i] - finger).distance,
+          lessThan((out - finger).distance * 0.25),
+          reason: '${actions[i]}',
+        );
+      }
+      await gesture.up();
+      await tester.pump();
+      HomeBlob.stillForTests = true;
+      await settle(tester);
+    });
+
+    testWidgets('a filled prompt stays clear of its neighbours', (
+      tester,
+    ) async {
+      await _pumpApp(tester);
+      final TestGesture gesture = await _hold(tester, _tasks);
+      await tester.pump(const Duration(milliseconds: 300));
+      final List<HomeCardAction> actions = _shownPrompts()
+        ..sort(
+          (a, b) => tester
+              .getRect(_prompt(a))
+              .left
+              .compareTo(tester.getRect(_prompt(b)).left),
+        );
+      final Rect before = tester.getRect(_prompt(actions[1]));
+      for (final HomeCardAction action in actions.sublist(1, 3)) {
+        await gesture.moveTo(tester.getCenter(_prompt(action)));
+        await tester.pump();
+        final List<Rect> rects = [
+          for (final HomeCardAction each in actions)
+            tester.getRect(_prompt(each)),
+        ];
+        for (int i = 1; i < rects.length; i++) {
+          expect(
+            rects[i].left - rects[i - 1].right,
+            greaterThanOrEqualTo(2),
+            reason: 'on $action',
+          );
+        }
+      }
+      // It did grow while filled.
+      await gesture.moveTo(tester.getCenter(_prompt(actions[1])));
+      await tester.pump();
+      expect(
+        tester.getRect(_prompt(actions[1])).height,
+        greaterThan(before.height + 3),
+      );
+      await gesture.moveTo(
+        tester.getCenter(_card(_tasks)) + const Offset(0, 200),
+      );
+      await tester.pump();
       await gesture.up();
       await settle(tester);
     });

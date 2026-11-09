@@ -31,7 +31,7 @@ class LauncherConfig {
     this.innerRadius = 24,
     this.tabLength = 150,
     this.visibleTabs = 4,
-    this.promptDelay = const Duration(milliseconds: 1200),
+    this.promptDelay = const Duration(milliseconds: 800),
     this.revealDuration = const Duration(milliseconds: 250),
     this.editGap = 4,
     this.editDepth = 36,
@@ -52,8 +52,8 @@ class LauncherConfig {
     this.dialRestGrow = 0.12,
     this.hubHoldGrow = 1.1,
     this.dialEditHoldGrow = 14,
-    this.holdGrowDelay = const Duration(milliseconds: 250),
-    this.pickUpGrowDelay = const Duration(milliseconds: 60),
+    this.holdGrowDelay = const Duration(milliseconds: 500),
+    this.pickUpGrowDelay = const Duration(milliseconds: 100),
     this.dialSelectedLead = 24,
     this.dialRestMargin = 28,
     this.dialSelectedSpread = 1.0,
@@ -151,9 +151,10 @@ class LauncherConfig {
   final double hubHoldGrow;
   // How much longer a selected list has grown when Edit comes out.
   final double dialEditHoldGrow;
-  // Nothing shows right as the finger lands (owner, 2026-11-06): how long before
-  // a hold towards prompts starts to show, and a pick-up rest, whose rest is too
-  // short for the same delay.
+  // Nothing shows right as the finger lands, and then it shows quickly (owner,
+  // 2026-11-06 and 2026-11-08): how long before a hold towards prompts starts
+  // to show, and a pick-up rest, whose rest is too short for the same delay.
+  // From there each grows to its end with an ease-out, as a quick swell.
   final Duration holdGrowDelay;
   final Duration pickUpGrowDelay;
 
@@ -165,10 +166,15 @@ class LauncherConfig {
   double pickUpBuild(Duration elapsed) =>
       _build(elapsed, pickUpGrowDelay, dialPickUpDelay);
 
-  static double _build(Duration elapsed, Duration delay, Duration total) =>
-      ((elapsed - delay).inMicroseconds / (total - delay).inMicroseconds)
-          .clamp(0, 1)
-          .toDouble();
+  static double _build(Duration elapsed, Duration delay, Duration total) {
+    final double t =
+        ((elapsed - delay).inMicroseconds / (total - delay).inMicroseconds)
+            .clamp(0, 1)
+            .toDouble();
+    // Ease-out (quadratic): quick at first, settling at the end.
+    return 1 - (1 - t) * (1 - t);
+  }
+
   // In a tight spot, how far the selected tab stands past the others.
   final double dialSelectedLead;
   // How far a list at rest keeps from the screen's edge.

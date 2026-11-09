@@ -856,7 +856,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     ListDefinition definition, {
     required bool suggested,
     required bool lifted,
-    bool markOnly = false,
   }) {
     final AppLocalizations loc = AppLocalizations.of(context);
     final String listId = definition.id;
@@ -865,7 +864,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       openItems: homeTopItems(definition, catalog.itemsOf(listId)),
       pinned: suggested ? null : !_unfilled.contains(listId),
       lifted: lifted,
-      markOnly: markOnly,
       onPin: suggested || _arranging ? null : () => _tapPin(listId, catalog),
       menu: _arranging
           ? const []
@@ -1128,7 +1126,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   // The card in the hand, above everything. While holding, the prompts above it,
-  // with its mark above them until they have slid out from behind it.
+  // sliding out from under the finger (owner, 2026-11-08).
   List<Widget> _overlay(ListCatalog catalog, ListLabels labels) {
     final String? listId = _dragId ?? (_prompts.isNotEmpty ? _heldId : null);
     final ListDefinition? definition = listId == null
@@ -1139,10 +1137,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
     final bool suggested = _suggested.contains(listId);
     final double top = _dragId != null ? _finger.dy - _dragGrab : _heldRect.top;
-    final Offset discCentre = _heldRect.topLeft + const Offset(69, 81);
     final List<String> filled = _filledPins;
 
-    Widget copy({bool markOnly = false}) {
+    Widget copy() {
       final Widget card = IgnorePointer(
         child: Padding(
           padding: const EdgeInsets.only(top: 10),
@@ -1155,7 +1152,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               definition,
               suggested: suggested,
               lifted: true,
-              markOnly: markOnly,
             ),
           ),
         ),
@@ -1164,14 +1160,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         left: _heldRect.left,
         top: top,
         width: _heldRect.width,
-        child: markOnly
-            ? AnimatedBuilder(
-                animation: _reveal,
-                child: ExcludeSemantics(child: card),
-                builder: (context, child) =>
-                    Offstage(offstage: _reveal.value >= 1, child: child),
-              )
-            : card,
+        child: card,
       );
     }
 
@@ -1186,7 +1175,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               key: ValueKey('home-prompt-${_prompts[i].name}'),
               label: _promptLabels[i],
               centre: Offset.lerp(
-                discCentre,
+                _holdStart,
                 _promptRects[i].center,
                 _reveal.value,
               )!,
@@ -1199,7 +1188,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   .clamp(0.0, 1.0),
             ),
           ),
-      if (_prompts.isNotEmpty) copy(markOnly: true),
     ];
   }
 

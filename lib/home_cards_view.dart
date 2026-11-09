@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
 import 'app/app_theme.dart';
+import 'app/home_cards.dart' show homePromptGap;
 import 'app_colors.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'lists/list_definition.dart';
@@ -33,7 +34,6 @@ class HomeListCard extends StatelessWidget {
     required this.openItems,
     required this.pinned,
     this.lifted = false,
-    this.markOnly = false,
     this.onPin,
     this.menu = const [],
   });
@@ -46,9 +46,6 @@ class HomeListCard extends StatelessWidget {
   final bool? pinned;
   // Held or selected: the disc gets the one soft shadow.
   final bool lifted;
-  // Only the blob and disc show, with the card's layout: what a held card's
-  // prompts slide out from behind.
-  final bool markOnly;
   final VoidCallback? onPin;
   // The three dots' choices; none hides them.
   final List<HomeCardMenuEntry> menu;
@@ -168,83 +165,80 @@ class HomeListCard extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           Expanded(
-            child: Opacity(
-              opacity: markOnly ? 0 : 1,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    height: 48,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Flexible(
-                                child: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  alignment: AlignmentDirectional.centerStart,
-                                  child: Text(
-                                    labels.listName(definition),
-                                    maxLines: 1,
-                                    style: type.screenTitle.copyWith(
-                                      fontSize: 24,
-                                      height: 1.05,
-                                    ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  height: 48,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Flexible(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: AlignmentDirectional.centerStart,
+                                child: Text(
+                                  labels.listName(definition),
+                                  maxLines: 1,
+                                  style: type.screenTitle.copyWith(
+                                    fontSize: 24,
+                                    height: 1.05,
                                   ),
                                 ),
                               ),
-                              if (pinned case final bool isPinned)
-                                HomePinButton(
-                                  key: ValueKey('home-pin-${definition.id}'),
-                                  pinned: isPinned,
-                                  size: 18,
-                                  onPressed: onPin,
-                                ),
-                            ],
-                          ),
-                        ),
-                        if (menu.isNotEmpty)
-                          PopupMenuButton<HomeCardMenuEntry>(
-                            key: ValueKey('home-dots-${definition.id}'),
-                            icon: Icon(
-                              Icons.more_horiz,
-                              size: 20,
-                              color: neutrals.muted,
                             ),
-                            onSelected: (entry) => entry.onSelected(),
-                            itemBuilder: (context) => [
-                              for (final HomeCardMenuEntry entry in menu)
-                                PopupMenuItem(
-                                  key: ValueKey('home-menu-${entry.key}'),
-                                  value: entry,
-                                  child: ListTile(
-                                    leading: Icon(entry.icon),
-                                    title: Text(entry.label),
-                                    contentPadding: EdgeInsets.zero,
-                                  ),
-                                ),
-                            ],
-                          ),
-                      ],
-                    ),
-                  ),
-                  if (openItems.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 18),
-                      child: Text(
-                        labels.loc.homeNothingOpen,
-                        style: type.row.copyWith(
-                          color: neutrals.muted,
-                          fontSize: 13,
+                            if (pinned case final bool isPinned)
+                              HomePinButton(
+                                key: ValueKey('home-pin-${definition.id}'),
+                                pinned: isPinned,
+                                size: 18,
+                                onPressed: onPin,
+                              ),
+                          ],
                         ),
                       ),
-                    )
-                  else
-                    for (final ListItem item in openItems.take(topItems))
-                      itemRow(item),
-                ],
-              ),
+                      if (menu.isNotEmpty)
+                        PopupMenuButton<HomeCardMenuEntry>(
+                          key: ValueKey('home-dots-${definition.id}'),
+                          icon: Icon(
+                            Icons.more_horiz,
+                            size: 20,
+                            color: neutrals.muted,
+                          ),
+                          onSelected: (entry) => entry.onSelected(),
+                          itemBuilder: (context) => [
+                            for (final HomeCardMenuEntry entry in menu)
+                              PopupMenuItem(
+                                key: ValueKey('home-menu-${entry.key}'),
+                                value: entry,
+                                child: ListTile(
+                                  leading: Icon(entry.icon),
+                                  title: Text(entry.label),
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+                if (openItems.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 18),
+                    child: Text(
+                      labels.loc.homeNothingOpen,
+                      style: type.row.copyWith(
+                        color: neutrals.muted,
+                        fontSize: 13,
+                      ),
+                    ),
+                  )
+                else
+                  for (final ListItem item in openItems.take(topItems))
+                    itemRow(item),
+              ],
             ),
           ),
         ],
@@ -295,7 +289,8 @@ homePromptMeasure(
 }
 
 // A hold's prompt (interaction law rules 2-3), like the hub's Move and Arrange:
-// dark, filling with blue and growing as the finger comes [near].
+// dark, filling with blue and growing as the finger comes [near]. The fill stays
+// inside the light outline, and the growth inside the gap to its neighbours.
 class HomePrompt extends StatelessWidget {
   const HomePrompt({
     super.key,
@@ -334,34 +329,50 @@ class HomePrompt extends StatelessWidget {
       AppColors.appBlue,
       near,
     )!;
+    // Wider by at most what keeps it clear of a neighbour that grows too.
+    final double wider = near * math.min(width * 0.12, homePromptGap - 2);
+    final double taller = near * height * 0.12;
     return Positioned(
-      left: centre.dx - width / 2,
-      top: centre.dy - height / 2,
-      width: width,
-      height: height,
+      left: centre.dx - (width + wider) / 2,
+      top: centre.dy - (height + taller) / 2,
+      width: width + wider,
+      height: height + taller,
       child: IgnorePointer(
         child: Transform.scale(
-          scale: (0.6 + 0.4 * reveal) * (1 + 0.12 * near),
+          scale: 0.6 + 0.4 * reveal,
+          // The outline is a ring of its own under the fill, so no blue shows
+          // past it at the rounded ends.
           child: Container(
             margin: const EdgeInsets.symmetric(vertical: 2),
-            padding: EdgeInsets.symmetric(horizontal: padding),
+            padding: const EdgeInsets.all(1.5),
             decoration: BoxDecoration(
-              color: fill,
+              color: neutrals.ground,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: neutrals.ground, width: 1.5),
             ),
-            child: Center(
-              // Whatever the text size asks for, the label stays inside.
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  label,
-                  softWrap: false,
-                  textAlign: TextAlign.start,
-                  style: labelStyle.copyWith(
-                    fontSize: labelStyle.fontSize! * textScale,
-                    height: 1.15,
-                    color: AppColors.onColor(fill),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: fill,
+                borderRadius: BorderRadius.circular(18.5),
+              ),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: padding - 1.5),
+                child: Center(
+                  // Whatever the text size asks for, the label stays inside.
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Transform.scale(
+                      scale: 1 + 0.06 * near,
+                      child: Text(
+                        label,
+                        softWrap: false,
+                        textAlign: TextAlign.start,
+                        style: labelStyle.copyWith(
+                          fontSize: labelStyle.fontSize! * textScale,
+                          height: 1.15,
+                          color: AppColors.onColor(fill),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),

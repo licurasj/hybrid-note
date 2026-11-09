@@ -175,7 +175,11 @@ void main() {
         await _pump(tester);
         final TestGesture gesture = await onList(tester);
         final double selected = length(tester);
-        await rest(tester, 56);
+        // onList has rested about 0.2 s; stop about 0.1 s before Edit.
+        await rest(
+          tester,
+          (_config.promptDelay.inMilliseconds - 208 - 100) ~/ 16,
+        );
         final double building = length(tester);
         expect(building, greaterThan(selected + 3));
         expect(find.byKey(const ValueKey('dial-edit')), findsNothing);
@@ -233,6 +237,74 @@ void main() {
     });
   });
 
+  group('prompts arriving buzz, as on a home card', () {
+    List<String> recordBuzzes(WidgetTester tester) {
+      final List<String> buzzes = [];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'HapticFeedback.vibrate') {
+            buzzes.add(call.arguments as String);
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      return buzzes;
+    }
+
+    for (final bool haptics in [true, false]) {
+      testWidgets(
+        'Move and Arrange on the hub, vibration ${haptics ? 'on' : 'off'}',
+        (tester) async {
+          final List<String> buzzes = recordBuzzes(tester);
+          await _pump(tester, haptics: haptics);
+          final TestGesture gesture = await tester.startGesture(_hub(tester));
+          // Nothing until the prompts are there.
+          for (int i = 0; i < 200 && _move.evaluate().isEmpty; i++) {
+            expect(buzzes, isEmpty);
+            await tester.pump(const Duration(milliseconds: 10));
+          }
+          expect(_move, findsOneWidget);
+          expect(
+            buzzes,
+            haptics ? ['HapticFeedbackType.mediumImpact'] : isEmpty,
+          );
+          await gesture.up();
+          await tester.pump(const Duration(milliseconds: 300));
+        },
+      );
+    }
+
+    testWidgets('Edit on a list', (tester) async {
+      final List<String> buzzes = recordBuzzes(tester);
+      await _pump(tester);
+      final TestGesture gesture = await tester.startGesture(_hub(tester));
+      await tester.pump(const Duration(milliseconds: 16));
+      await gesture.moveTo(_list(tester, 0));
+      for (int i = 0; i < 13; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      buzzes.clear();
+      for (
+        int i = 0;
+        i < 200 && find.byKey(const ValueKey('dial-edit')).evaluate().isEmpty;
+        i++
+      ) {
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+      expect(find.byKey(const ValueKey('dial-edit')), findsOneWidget);
+      expect(buzzes, ['HapticFeedbackType.mediumImpact']);
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 300));
+    });
+  });
+
   group('the hub hold shows while it builds', () {
     double hubWidth(WidgetTester tester) => tester.getRect(_hubDisc).width;
 
@@ -258,12 +330,17 @@ void main() {
       final TestGesture gesture = await tester.startGesture(
         tester.getCenter(_hubDisc),
       );
-      for (int i = 0; i < 50; i++) {
+      // Until about 0.1 s before the prompts.
+      for (
+        int i = 0;
+        i < (_config.promptDelay.inMilliseconds - 100) ~/ 20;
+        i++
+      ) {
         await tester.pump(const Duration(milliseconds: 20));
       }
-      final double oneSecond = hubWidth(tester);
-      expect(oneSecond, greaterThan(atRest + 2));
-      expect(oneSecond, lessThan(atRest * _config.hubHoldGrow + 0.01));
+      final double building = hubWidth(tester);
+      expect(building, greaterThan(atRest + 2));
+      expect(building, lessThan(atRest * _config.hubHoldGrow + 0.01));
       expect(find.text('Move'), findsNothing);
       await gesture.up();
       await tester.pump(const Duration(milliseconds: 300));

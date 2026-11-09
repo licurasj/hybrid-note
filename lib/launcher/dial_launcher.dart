@@ -1033,6 +1033,10 @@ class _DialLauncherState extends State<DialLauncher>
     } else {
       return false;
     }
+    // The prompts' arrival buzzes, as on a home card.
+    if (widget.haptics) {
+      HapticFeedback.mediumImpact();
+    }
     _promptAnchor = pointer;
     _promptAt = _now;
     _promptOut = false;

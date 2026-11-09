@@ -114,11 +114,16 @@ List<HomeCardAction> homeCardActions({
 };
 
 // The prompts stand in one row above the finger, side by side, so that a hand
-// coming from below covers none of them whichever hand it is (owner, 2026-11-06).
+// coming from below covers none of them whichever hand it is (owner, 2026-11-06),
+// on a slight curve around the finger (owner, 2026-11-08).
 const double homePromptGap = 6;
 const double homePromptMargin = 12;
 // From the finger to the middle of the row.
 const double homePromptRise = 68;
+// The curve: a prompt this far to the side of the finger (or further) stands
+// [homePromptCurve] nearer the finger's height than one right above it.
+const double homePromptCurve = 14;
+const double homePromptCurveReach = 150;
 // The AI bar and the bottom of the screen.
 const double homePromptBottomRoom = 110;
 const double homePromptHeight = 40;
@@ -190,8 +195,9 @@ HomePromptFit homePromptFit({
   return fit(text, _promptTightPadding, wrapped, math.min(scale, 1));
 }
 
-// The row's places: centred on the finger, above it, kept on screen and off
-// [avoid] (the hub). Only with no room above does it go below the finger.
+// The row's places: centred on the finger, above it on a slight curve around
+// it, kept on screen and off [avoid] (the hub). Only with no room above does it
+// go below the finger, curving the other way.
 List<Rect> homePromptRow({
   required Offset finger,
   required List<double> widths,
@@ -212,34 +218,55 @@ List<Rect> homePromptRow({
   );
   double left = (finger.dx - rowWidth / 2).clamp(leftmost, rightmost);
   double y = finger.dy - homePromptRise;
+  // Above the finger the sides curve down towards it; below, up.
+  bool above = true;
   if (y - half < top) {
     y = finger.dy + homePromptRise;
+    above = false;
   }
-  y = y.clamp(top + half, math.max(top + half, bottom - half));
-  if (avoid != null) {
-    Rect row() => Rect.fromLTWH(left, y - half, rowWidth, height);
-    if (row().overlaps(avoid)) {
-      // Beside the hub if it fits there, which keeps the row near the finger.
-      final double beforeHub = avoid.left - 8 - rowWidth;
-      final double afterHub = avoid.right + 8;
-      if (beforeHub >= leftmost && beforeHub <= rightmost) {
-        left = beforeHub;
-      } else if (afterHub >= leftmost && afterHub <= rightmost) {
-        left = afterHub;
-      } else if (avoid.top - 8 - height >= top) {
-        y = avoid.top - 8 - half;
+  // [y] is the middle of a prompt right above (or below) the finger; the sides
+  // lie up to [homePromptCurve] towards it.
+  final double lowest = above ? bottom - half - homePromptCurve : bottom - half;
+  final double highest = above ? top + half : top + half + homePromptCurve;
+  y = y.clamp(highest, math.max(highest, lowest));
+  List<Rect> place() {
+    final List<Rect> rects = [];
+    double x = left;
+    for (final double width in widths) {
+      final double side =
+          ((x + width / 2 - finger.dx).abs() / homePromptCurveReach).clamp(
+            0.0,
+            1.0,
+          );
+      final double toward = homePromptCurve * side * side;
+      final double middle = above ? y + toward : y - toward;
+      rects.add(Rect.fromLTWH(x, middle - half, width, height));
+      x += width + homePromptGap;
+    }
+    return rects;
+  }
+
+  bool blocked(Rect hub) => place().any((rect) => rect.overlaps(hub));
+  if (avoid != null && blocked(avoid)) {
+    // Beside the hub if it fits there, which keeps the row near the finger.
+    final double beforeHub = avoid.left - 8 - rowWidth;
+    final double afterHub = avoid.right + 8;
+    if (beforeHub >= leftmost && beforeHub <= rightmost) {
+      left = beforeHub;
+    } else if (afterHub >= leftmost && afterHub <= rightmost) {
+      left = afterHub;
+    } else {
+      final List<Rect> rects = place();
+      final double rowBottom = rects.map((r) => r.bottom).reduce(math.max);
+      final double rowTop = rects.map((r) => r.top).reduce(math.min);
+      if (rowTop - (rowBottom - avoid.top + 8) >= top) {
+        y -= rowBottom - avoid.top + 8;
       } else {
-        y = math.max(y, avoid.bottom + 8 + half);
+        y += math.max(avoid.bottom + 8 - rowTop, 0);
       }
     }
   }
-  final List<Rect> rects = [];
-  double x = left;
-  for (final double width in widths) {
-    rects.add(Rect.fromLTWH(x, y - half, width, height));
-    x += width + homePromptGap;
-  }
-  return rects;
+  return place();
 }
 
 // How far the finger has come from [start] to the prompt: 1 once it is on it.
