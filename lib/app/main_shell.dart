@@ -461,32 +461,41 @@ class _MainShellState extends State<MainShell> {
         center: origin + hubArea.hubCenter(size),
         radius: hubArea.hubReach,
       );
-      Rect? bar;
+      // Where the bar is, or would be while it is hidden.
       final AiBarController? ai = _ai;
+      final PromptBarGeometry geometry = PromptBarGeometry.of(
+        size,
+        hub: LauncherHubArea(hubPosition: savedHub, child: const SizedBox()),
+        bottomInset: MediaQuery.paddingOf(context).bottom,
+        panelOpen: ai?.isOpen ?? false,
+        focused: ai?.focused ?? false,
+        fieldHeight: ai?.fieldHeight.value,
+        panelHeight: ai?.panelHeight.value ?? 0,
+      );
+      final double laneLeft = origin.dx + geometry.left;
+      final double laneRight = origin.dx + size.width - geometry.right;
+      Rect? bar;
       final RenderBox? column =
           _barKey.currentContext?.findRenderObject() as RenderBox?;
       if (ai != null &&
           column != null &&
           column.hasSize &&
           !_barHidden(_top.route.value, catalog)) {
-        final PromptBarGeometry geometry = PromptBarGeometry.of(
-          size,
-          hub: LauncherHubArea(hubPosition: savedHub, child: const SizedBox()),
-          bottomInset: MediaQuery.paddingOf(context).bottom,
-          panelOpen: ai.isOpen,
-          focused: ai.focused,
-          fieldHeight: ai.fieldHeight.value,
-          panelHeight: ai.panelHeight.value,
-        );
         final double bottom = origin.dy + size.height - geometry.bottom;
         bar = Rect.fromLTRB(
-          origin.dx + geometry.left,
+          laneLeft,
           bottom - column.size.height,
-          origin.dx + size.width - geometry.right,
+          laneRight,
           bottom,
         );
       }
-      context.read<AppBannerController>().room = BannerRoom(bar: bar, hub: hub);
+      context.read<AppBannerController>().room = BannerRoom(
+        bar: bar,
+        hub: hub,
+        laneLeft: laneLeft,
+        laneRight: laneRight,
+        wide: laneRight - laneLeft >= PromptBarGeometry.maxWidth - 0.5,
+      );
     });
   }
 

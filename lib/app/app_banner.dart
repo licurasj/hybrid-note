@@ -90,28 +90,46 @@ class AppBannerController {
 }
 
 // Where the AI bar and the hub are on the screen, in global coordinates, so
-// the banner can sit above the bar and off the hub. [bar] is null while the
-// bar is hidden.
+// the banner can sit above the bar, as wide as it, and off the hub. [bar] is
+// null while the bar is hidden; [laneLeft] and [laneRight] are the bar's edges
+// all the same, where it would be. [wide] when the bar is at its widest (a
+// wide screen), where the banner stays as wide as its words for now.
 @immutable
 class BannerRoom {
-  const BannerRoom({this.bar, this.hub});
+  const BannerRoom({
+    this.bar,
+    this.hub,
+    this.laneLeft,
+    this.laneRight,
+    this.wide = false,
+  });
 
   final Rect? bar;
   final Rect? hub;
+  final double? laneLeft;
+  final double? laneRight;
+  final bool wide;
 
   @override
   bool operator ==(Object other) =>
-      other is BannerRoom && other.bar == bar && other.hub == hub;
+      other is BannerRoom &&
+      other.bar == bar &&
+      other.hub == hub &&
+      other.laneLeft == laneLeft &&
+      other.laneRight == laneRight &&
+      other.wide == wide;
 
   @override
-  int get hashCode => Object.hash(bar, hub);
+  int get hashCode => Object.hash(bar, hub, laneLeft, laneRight, wide);
 }
 
-// Where the banner goes: its left edge, its widest and its bottom edge from
-// the bottom of the screen. [screen] is the whole screen, [keyboard] the
-// keyboard's height and [inset] the system's bottom padding.
+// Where the banner goes: its left edge, its width (its widest when [fill] is
+// false), and its bottom edge from the bottom of the screen. [screen] is the
+// whole screen, [keyboard] the keyboard's height and [inset] the system's
+// bottom padding. On a phone it is exactly as wide as the AI bar, lined up
+// with it (owner, 2026-11-09).
 @visibleForTesting
-({double left, double maxWidth, double bottom}) bannerPlace({
+({double left, double width, double bottom, bool fill}) bannerPlace({
   required Size screen,
   required double keyboard,
   required double inset,
@@ -119,18 +137,21 @@ class BannerRoom {
 }) {
   const double gap = AppBannerHost.gap;
   final double floor = screen.height - keyboard;
-  double left = AppShapes.sideMargin;
+  final double left = room?.bar?.left ?? room?.laneLeft ?? AppShapes.sideMargin;
+  double right =
+      room?.bar?.right ??
+      room?.laneRight ??
+      screen.width - AppShapes.sideMargin;
+  final bool fill = !(room?.wide ?? false);
+  if (!fill) {
+    right = math.min(right, left + AppBannerHost.maxWidth);
+  }
   // The y of the banner's bottom edge.
   double bottomY = floor - math.max(inset, 0) - AppBannerHost.restGap;
   final Rect? bar = room?.bar;
   if (bar != null) {
-    left = bar.left;
     bottomY = bar.top - gap;
   }
-  double right = math.min(
-    left + AppBannerHost.maxWidth,
-    screen.width - AppShapes.sideMargin,
-  );
   final Rect? hub = room?.hub;
   if (hub != null) {
     final Rect banner = Rect.fromLTRB(
@@ -140,13 +161,11 @@ class BannerRoom {
       bottomY,
     ).inflate(gap);
     if (banner.overlaps(hub)) {
-      // Beside the hub when that leaves room enough, else above it.
+      // From the same left edge, it ends before a hub on its right when that
+      // leaves room enough; otherwise it goes above the hub.
       final bool hubRight = hub.center.dx >= (left + right) / 2;
-      final double besideLeft = hubRight ? left : hub.right + gap;
-      final double besideRight = hubRight ? hub.left - gap : right;
-      if (besideRight - besideLeft >= AppBannerHost.narrowest) {
-        left = besideLeft;
-        right = besideRight;
+      if (hubRight && hub.left - gap - left >= AppBannerHost.narrowest) {
+        right = hub.left - gap;
       } else {
         bottomY = hub.top - gap;
       }
@@ -154,8 +173,9 @@ class BannerRoom {
   }
   return (
     left: left,
-    maxWidth: math.max(0, right - left),
+    width: math.max(0, right - left),
     bottom: screen.height - bottomY,
+    fill: fill,
   );
 }
 
@@ -175,7 +195,7 @@ class AppBannerHost extends StatelessWidget {
   static const double gap = 8;
   // Above the bottom inset when there is no bar, as the bar's own margin.
   static const double restGap = 12;
-  // As wide as its words, up to this.
+  // On a wide screen, as wide as its words, up to this.
   static const double maxWidth = 340;
   // Narrower than this beside the hub, it goes above it instead.
   static const double narrowest = 220;
@@ -208,9 +228,14 @@ class AppBannerHost extends StatelessWidget {
               bottom: controller.showing ? place.bottom : -(tallest + 24),
               child: controller.text == null
                   ? const SizedBox.shrink()
+                  : place.fill
+                  ? SizedBox(
+                      width: place.width,
+                      child: _Banner(controller: controller, fill: true),
+                    )
                   : ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: place.maxWidth),
-                      child: _Banner(controller: controller),
+                      constraints: BoxConstraints(maxWidth: place.width),
+                      child: _Banner(controller: controller, fill: false),
                     ),
             );
           },
@@ -221,9 +246,11 @@ class AppBannerHost extends StatelessWidget {
 }
 
 class _Banner extends StatelessWidget {
-  const _Banner({required this.controller});
+  const _Banner({required this.controller, required this.fill});
 
   final AppBannerController controller;
+  // As wide as it is given, or as its words.
+  final bool fill;
 
   @override
   Widget build(BuildContext context) {
@@ -232,41 +259,42 @@ class _Banner extends StatelessWidget {
     final AppTypography type = AppTypography.of(context);
     final String? action = controller.actionLabel;
 
-    return IntrinsicWidth(
-      child: Semantics(
-        liveRegion: true,
-        child: Container(
-          key: const ValueKey('app-banner'),
-          constraints: const BoxConstraints(minHeight: 52),
-          padding: const EdgeInsets.fromLTRB(18, 4, 8, 4),
-          decoration: BoxDecoration(
-            color: n.ground,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: n.line),
-            boxShadow: AppShadows.floating(brightness),
-          ),
-          child: Material(
-            type: MaterialType.transparency,
-            child: Row(
-              children: [
-                Flexible(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    child: Text(controller.text!, style: type.row),
-                  ),
+    final Widget banner = Semantics(
+      liveRegion: true,
+      child: Container(
+        key: const ValueKey('app-banner'),
+        constraints: const BoxConstraints(minHeight: 52),
+        padding: const EdgeInsets.fromLTRB(18, 4, 8, 4),
+        decoration: BoxDecoration(
+          color: n.ground,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: n.line),
+          boxShadow: AppShadows.floating(brightness),
+        ),
+        child: Material(
+          type: MaterialType.transparency,
+          child: Row(
+            children: [
+              Flexible(
+                // Filling, Undo goes to the far end.
+                fit: fill ? FlexFit.tight : FlexFit.loose,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Text(controller.text!, style: type.row),
                 ),
-                const SizedBox(width: 4),
-                if (action != null)
-                  TextButton(
-                    key: const ValueKey('app-banner-action'),
-                    onPressed: controller.showing ? controller.act : null,
-                    child: Text(action),
-                  ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 4),
+              if (action != null)
+                TextButton(
+                  key: const ValueKey('app-banner-action'),
+                  onPressed: controller.showing ? controller.act : null,
+                  child: Text(action),
+                ),
+            ],
           ),
         ),
       ),
     );
+    return fill ? banner : IntrinsicWidth(child: banner);
   }
 }
