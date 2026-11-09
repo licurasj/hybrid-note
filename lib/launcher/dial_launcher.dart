@@ -808,8 +808,18 @@ class _DialLauncherState extends State<DialLauncher>
     return nearest;
   }
 
+  // How far from the hub's centre Move and Arrange reach.
+  double _promptsReach(LauncherGeometry g) =>
+      math.max(
+        (g.movePromptCenter - g.hubCenter).distance,
+        (g.arrangePromptCenter - g.hubCenter).distance,
+      ) +
+      _promptHit;
+
+  static const double _promptHit = 26;
+
   double _towards(Offset finger, Offset from, Offset target) {
-    const double hit = 26;
+    const double hit = _promptHit;
     final double remaining = (finger - target).distance;
     if (remaining <= hit) {
       return 1;
@@ -1121,6 +1131,20 @@ class _DialLauncherState extends State<DialLauncher>
           _config.moveTolerance) {
         _restAnchor = finger;
         _restStart = _now;
+      }
+
+      // Out on the lists, past Move and Arrange without taking either: the
+      // prompts go and the dial works again in the same hold (owner,
+      // 2026-11-09: once they were out, no list could be reached).
+      if (_moveShown &&
+          !onHub &&
+          radius > _promptsReach(g) &&
+          _onDial(g, angle, radius)) {
+        _moveShown = false;
+        _progress = 0;
+        _promptSelected = false;
+        _arrangeProgress = 0;
+        _arrangeSelected = false;
       }
 
       if (_moveShown) {

@@ -351,6 +351,38 @@ void main() {
     expect(_hub(tester).dy, lessThan(hub.dy - 100));
   });
 
+  testWidgets('with Move out, sliding on to a list still opens it', (
+    WidgetTester tester,
+  ) async {
+    // Owner, 2026-11-09: once the hub's prompts were out, no list could be
+    // reached in that hold. Past them, out on the lists, the dial works again.
+    final List<String> log = await _pump(tester);
+    final Offset hub = _hub(tester);
+    final TestGesture gesture = await tester.startGesture(hub);
+    await _holdUntilMoveShows(tester);
+    await tester.pump(const Duration(milliseconds: 300));
+    await _moveTo(tester, gesture, hub, _at(tester, _diagonal(tester), 160));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byKey(const ValueKey('launcher-move-prompt')), findsNothing);
+    await gesture.up();
+    await tester.pump();
+    expect(log, ['open n0']);
+  });
+
+  testWidgets('with Move out, letting go short of the lists does nothing', (
+    WidgetTester tester,
+  ) async {
+    final List<String> log = await _pump(tester);
+    final Offset hub = _hub(tester);
+    final TestGesture gesture = await tester.startGesture(hub);
+    await _holdUntilMoveShows(tester);
+    await _moveTo(tester, gesture, hub, _at(tester, _diagonal(tester), 60));
+    expect(find.byKey(const ValueKey('launcher-move-prompt')), findsOneWidget);
+    await gesture.up();
+    await tester.pump();
+    expect(log, isEmpty);
+  });
+
   testWidgets('Move slides out from behind the hub, under it', (
     WidgetTester tester,
   ) async {
