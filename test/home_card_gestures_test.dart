@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' show GestureSettings;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
@@ -53,13 +54,14 @@ Finder _card(String listId) => find.byKey(ValueKey('home-card-$listId'));
 Finder _prompt(HomeCardAction action) =>
     find.byKey(ValueKey('home-prompt-${action.name}'));
 
-Future<void> _pumpApp(
+Future<ScriptedPreferencesSync> _pumpApp(
   WidgetTester tester, {
   List<String> pins = const [],
   List<ListItem>? items,
   Map<String, Object?> preferences = const {},
+  Size size = const Size(500, 1600),
 }) async {
-  tester.view.physicalSize = const Size(500, 1600);
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   SharedPreferences.setMockInitialValues(const {});
@@ -78,6 +80,7 @@ Future<void> _pumpApp(
   await settle(tester);
   sync.send({AccountPreferences.homePinsKey: pins, ...preferences});
   await settle(tester);
+  return sync;
 }
 
 AccountPreferences _preferences(WidgetTester tester) => tester
@@ -674,6 +677,108 @@ void main() {
       expect(find.byType(HomeListCard), findsNothing);
       await tester.pageBack();
       await settle(tester);
+    });
+  });
+
+  // Found in T-22 unit 5 on two AVDs: after a choice made on a card, an order
+  // changed on another phone did not show until the next refresh.
+  group('news from another phone after a change here', () {
+    double top(WidgetTester tester, String id) =>
+        tester.getTopLeft(_card(id)).dy;
+
+    Future<void> dialAToZ(
+      WidgetTester tester,
+      ScriptedPreferencesSync sync,
+      List<String> pins,
+    ) async {
+      sync.send({
+        AccountPreferences.homePinsKey: pins,
+        AccountPreferences.listOrderKey: ListOrder.alphabetical.wire,
+      });
+      await settle(tester);
+    }
+
+    // The dial on My order with Watch/Read first, from the other phone.
+    Future<void> watchFirst(
+      WidgetTester tester,
+      ScriptedPreferencesSync sync,
+      List<String> pins,
+    ) async {
+      sync.send({
+        AccountPreferences.homePinsKey: pins,
+        AccountPreferences.listOrderKey: ListOrder.myOrder.wire,
+        AccountPreferences.myListOrderKey: [_watch, _journal, _tasks, _grocery],
+      });
+      await settle(tester);
+    }
+
+    testWidgets('with nothing done here, it shows at once', (tester) async {
+      final ScriptedPreferencesSync sync = await _pumpApp(
+        tester,
+        pins: [_watch, _tasks],
+      );
+      expect(top(tester, _tasks), lessThan(top(tester, _watch)));
+      await watchFirst(tester, sync, [_watch, _tasks]);
+      expect(top(tester, _watch), lessThan(top(tester, _tasks)));
+    });
+
+    for (final bool reduced in [false, true]) {
+      testWidgets('after a swipe that starts on a card, it shows at once'
+          '${reduced ? ', with reduced motion' : ''}', (tester) async {
+        if (reduced) {
+          tester.platformDispatcher.accessibilityFeaturesTestValue =
+              const FakeAccessibilityFeatures(disableAnimations: true);
+          addTearDown(
+            tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+          );
+        }
+        // A phone's own touch slop, smaller than the test default: the scroll
+        // takes the finger before a hold that keeps the default would let go.
+        tester.view.gestureSettings = const GestureSettings(
+          physicalTouchSlop: 8,
+        );
+        final ScriptedPreferencesSync sync = await _pumpApp(
+          tester,
+          pins: [_watch, _tasks],
+        );
+        final TestGesture swipe = await tester.startGesture(
+          tester.getCenter(_card(_tasks)),
+        );
+        for (int i = 0; i < 20; i++) {
+          await swipe.moveBy(const Offset(0, -15));
+          await tester.pump(const Duration(milliseconds: 8));
+        }
+        await swipe.up();
+        await settle(tester);
+        // No pull-down after it: that refreshes, which would hide it.
+        await watchFirst(tester, sync, [_watch, _tasks]);
+        expect(top(tester, _watch), lessThan(top(tester, _tasks)));
+      });
+    }
+
+    testWidgets('after Pin from the dots, it shows at once', (tester) async {
+      final ScriptedPreferencesSync sync = await _pumpApp(
+        tester,
+        pins: [_watch, _tasks],
+      );
+      await tester.tap(find.byKey(ValueKey('home-dots-$_journal')));
+      await settle(tester);
+      await tester.tap(find.text('Pin'));
+      await settle(tester);
+      await dialAToZ(tester, sync, [_watch, _tasks, _journal]);
+      expect(top(tester, _journal), lessThan(top(tester, _tasks)));
+      expect(top(tester, _tasks), lessThan(top(tester, _watch)));
+    });
+
+    testWidgets('after Pin from the hold, it shows at once', (tester) async {
+      final ScriptedPreferencesSync sync = await _pumpApp(
+        tester,
+        pins: [_watch, _tasks],
+      );
+      await _choose(tester, _journal, HomeCardAction.pin);
+      await dialAToZ(tester, sync, [_watch, _tasks, _journal]);
+      expect(top(tester, _journal), lessThan(top(tester, _tasks)));
+      expect(top(tester, _tasks), lessThan(top(tester, _watch)));
     });
   });
 

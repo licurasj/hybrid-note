@@ -964,9 +964,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _pointerUp(PointerUpEvent event) {
+    _pointerGone();
     if (_outsideTapFrom != null) {
       _outsideTapFrom = null;
       _endArranging();
+    }
+  }
+
+  void _pointerCancel(PointerCancelEvent event) => _pointerGone();
+
+  // A hold that never reached its prompts, or a rest that never picked a card
+  // up, ends with the finger, even when its recognizer lost to another one
+  // without being told (T-22 unit 5). Held or dragged ones end through their
+  // own recognizer.
+  void _pointerGone() {
+    if (!_arranging && _heldId != null && _prompts.isEmpty) {
+      _holdCancelled();
+    }
+    final String? resting = _restingId;
+    if (resting != null && _dragId == null) {
+      _restCancelled(resting);
     }
   }
 
@@ -1097,9 +1114,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final bool inHand =
         _dragId == listId || (_heldId == listId && _prompts.isNotEmpty);
     final Map<Type, GestureRecognizerFactory> gestures = {};
+    // The phone's own touch slop, as a GestureDetector would use: with the
+    // default one the list's scroll took the finger first, and the hold was
+    // never told (T-22 unit 5).
+    final DeviceGestureSettings? touch = MediaQuery.maybeGestureSettingsOf(
+      context,
+    );
 
     void holdHandlers(LongPressGestureRecognizer recognizer) {
       recognizer
+        ..gestureSettings = touch
         ..onLongPressDown = ((_) => _holdDown(listId))
         ..onLongPressCancel = _holdCancelled
         ..onLongPressStart = ((details) => _holdReached(
@@ -1116,6 +1140,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     void dragHandlers(LongPressGestureRecognizer recognizer) {
       recognizer
+        ..gestureSettings = touch
         ..onLongPressDown = ((_) => _restDown(listId))
         ..onLongPressCancel = (() => _restCancelled(listId))
         ..onLongPressStart = ((details) =>
@@ -1129,8 +1154,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       gestures[TapGestureRecognizer] =
           GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
             TapGestureRecognizer.new,
-            (recognizer) =>
-                recognizer.onTap = () => widget.onOpenList?.call(listId),
+            (recognizer) => recognizer
+              ..gestureSettings = touch
+              ..onTap = () => widget.onOpenList?.call(listId),
           );
       gestures[_HoldRecognizer] =
           GestureRecognizerFactoryWithHandlers<_HoldRecognizer>(
@@ -1511,6 +1537,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               onPointerDown: _pointerDown,
               onPointerMove: _pointerMove,
               onPointerUp: _pointerUp,
+              onPointerCancel: _pointerCancel,
               child: Stack(
                 key: _stack,
                 children: [
