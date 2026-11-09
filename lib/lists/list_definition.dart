@@ -364,6 +364,25 @@ class ListDefinition {
     return null;
   }
 
+  // Settings this list has its own choice of, instead of following
+  // Preferences (Q-117, Q-118). Absent means it follows Preferences, so an old
+  // list document needs no change. Kept with the list's other unknown keys and
+  // changed through setListInfo.
+  static const String ownTickedItemsKey = 'tickedItems';
+  static const String ownConfirmDeleteKey = 'confirmDelete';
+
+  // The wire value of its own Ticked items choice, or null to follow.
+  String? get ownTickedItems {
+    final Object? value = extra[ownTickedItemsKey];
+    return value is String ? value : null;
+  }
+
+  // Its own Confirm before deleting, or null to follow.
+  bool? get ownConfirmDelete {
+    final Object? value = extra[ownConfirmDeleteKey];
+    return value is bool ? value : null;
+  }
+
   FieldDefinition? fieldWithRole(FieldRole role) {
     for (final FieldDefinition field in fields) {
       if (field.role == role) {

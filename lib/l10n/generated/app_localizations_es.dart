@@ -1393,4 +1393,22 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get preferencesTickedClearLine =>
       'Ticking clears an item at once, with Undo. Repeats and Next time copies still happen.';
+
+  @override
+  String get preferencesListsOwn => 'Lists can have their own';
+
+  @override
+  String preferencesListsOwnCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count lists have their own choice.',
+      one: '1 list has its own choice.',
+      zero: 'A list can pick its own in Edit list.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get preferencesListsOwnOff => 'Every list follows this setting.';
 }

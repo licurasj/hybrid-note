@@ -2377,6 +2377,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Ticking clears an item at once, with Undo. Repeats and Next time copies still happen.'**
   String get preferencesTickedClearLine;
+
+  /// No description provided for @preferencesListsOwn.
+  ///
+  /// In en, this message translates to:
+  /// **'Lists can have their own'**
+  String get preferencesListsOwn;
+
+  /// No description provided for @preferencesListsOwnCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{A list can pick its own in Edit list.} =1{1 list has its own choice.} other{{count} lists have their own choice.}}'**
+  String preferencesListsOwnCount(int count);
+
+  /// No description provided for @preferencesListsOwnOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Every list follows this setting.'**
+  String get preferencesListsOwnOff;
 }
 
 class _AppLocalizationsDelegate

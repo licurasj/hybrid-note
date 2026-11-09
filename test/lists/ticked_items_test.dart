@@ -168,4 +168,22 @@ void main() {
     );
     expect(find.text('Clear Ticked (1 ticked)'), findsOneWidget);
   });
+
+  testWidgets("a list's own choice wins over Preferences (Q-117)", (tester) async {
+    final Map<String, dynamic> json = _list(_views[ViewKind.table]!).toJson()
+      ..['tickedItems'] = 'hide';
+    final (_, AccountPreferencesCubit preferences) = await _pump(
+      tester,
+      ListDefinition.fromJson(json),
+      TickedItems.moveToDone,
+      [_item('open', 'Open one'), _item('ticked', 'Ticked one', done: true)],
+    );
+    expect(find.text('Ticked one'), findsNothing);
+    expect(find.text('DONE · 1'), findsOneWidget);
+
+    // Lists can have their own off: it follows Preferences again.
+    await preferences.setListsOwnTickedItems(false);
+    await tester.pumpAndSettle();
+    expect(find.text('Ticked one'), findsOneWidget);
+  });
 }

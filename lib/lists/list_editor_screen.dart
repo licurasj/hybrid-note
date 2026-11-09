@@ -1112,7 +1112,11 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
                       final String name = ListLabels(
                         loc,
                       ).listName(widget.definition);
-                      if (await confirmDelete(context, name)) {
+                      if (await confirmDelete(
+                        context,
+                        name,
+                        list: widget.definition,
+                      )) {
                         navigator.pop(const ListEditorOutcome.deleted());
                       }
                     },

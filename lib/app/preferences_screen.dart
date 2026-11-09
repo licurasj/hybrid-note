@@ -4,7 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../app_colors.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../lists/generic_item_dialog.dart';
+import '../lists/list_definition.dart';
 import '../lists/list_editor_style.dart';
+import '../lists/list_store.dart';
 import 'account_preferences.dart';
 import 'app_theme.dart';
 import 'settings_controls.dart';
@@ -146,6 +148,9 @@ class PreferencesScreen extends StatelessWidget {
     final AccountPreferencesCubit cubit = context
         .read<AccountPreferencesCubit>();
     final bool cards = preferences.homeContent.showsCards;
+    // For the lines saying how many lists have their own choice.
+    final List<ListDefinition> lists =
+        context.read<ListStore?>()?.current.definitions ?? const [];
 
     return Scaffold(
       appBar: AppBar(),
@@ -254,12 +259,38 @@ class PreferencesScreen extends StatelessWidget {
               choices: tickedItemsChoices(loc),
               onChanged: cubit.setTickedItems,
             ),
+            // Lasting, on by default (Q-117): off, every list follows the
+            // choice above and keeps its own for when it is on again.
+            SettingSwitchRow(
+              key: const ValueKey('preferences-lists-own-ticked'),
+              label: loc.preferencesListsOwn,
+              value: preferences.listsOwnTickedItems,
+              line: preferences.listsOwnTickedItems
+                  ? loc.preferencesListsOwnCount(
+                      lists.where((list) => list.ownTickedItems != null).length,
+                    )
+                  : loc.preferencesListsOwnOff,
+              onChanged: cubit.setListsOwnTickedItems,
+            ),
             SettingSwitchRow(
               key: const ValueKey('preferences-confirm-delete'),
               label: loc.preferencesConfirmDelete,
               value: preferences.confirmDelete,
               line: loc.preferencesConfirmDeleteLine,
               onChanged: cubit.setConfirmDelete,
+            ),
+            SettingSwitchRow(
+              key: const ValueKey('preferences-lists-own-confirm'),
+              label: loc.preferencesListsOwn,
+              value: preferences.listsOwnConfirmDelete,
+              line: preferences.listsOwnConfirmDelete
+                  ? loc.preferencesListsOwnCount(
+                      lists
+                          .where((list) => list.ownConfirmDelete != null)
+                          .length,
+                    )
+                  : loc.preferencesListsOwnOff,
+              onChanged: cubit.setListsOwnConfirmDelete,
             ),
             look.sectionLabel(loc.preferencesAi),
             SettingSwitchRow(

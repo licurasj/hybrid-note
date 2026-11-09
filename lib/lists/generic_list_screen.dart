@@ -871,7 +871,7 @@ class _GenericListScreenState extends State<GenericListScreen>
   }
 
   Future<void> _deleteItem(ListItem item, String name) async {
-    if (await confirmDelete(context, name) && mounted) {
+    if (await confirmDelete(context, name, list: _definition) && mounted) {
       await _apply(ListChanges(deletedIds: [item.id]));
     }
   }
@@ -879,7 +879,8 @@ class _GenericListScreenState extends State<GenericListScreen>
   // Open items in their groups, then ticked items in one Done group, unless
   // the user keeps them in place (Q-50 b).
   // Where ticked items go (Q-109): the same in every layout.
-  TickedItems get _ticked => context.watchAccountPreferences.tickedItems;
+  TickedItems get _ticked =>
+      context.watchAccountPreferences.tickedItemsFor(_definition);
 
   // Every item the filter lets through, ticked ones included, for counts that
   // must not depend on where ticked items are shown.
@@ -889,7 +890,8 @@ class _GenericListScreenState extends State<GenericListScreen>
   // Undo, through the same clear as Clear ticked (Q-119).
   Future<void> _setTick(ListItem item, bool value) {
     if (value &&
-        context.accountPreferences.tickedItems == TickedItems.clearAtOnce) {
+        context.accountPreferences.tickedItemsFor(_definition) ==
+            TickedItems.clearAtOnce) {
       return ClearWithUndo.run(
         store: widget.store,
         definition: _definition,

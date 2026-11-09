@@ -1057,5 +1057,15 @@
   "preferencesSuggestionsOffLine": "Home shows only the lists you pinned.",
   "preferencesAiBarOnLine": "The AI bar sits beside the hub on every screen.",
   "preferencesTickedClear": "Clear straight away",
-  "preferencesTickedClearLine": "Ticking clears an item at once, with Undo. Repeats and Next time copies still happen."
+  "preferencesTickedClearLine": "Ticking clears an item at once, with Undo. Repeats and Next time copies still happen.",
+  "preferencesListsOwn": "Lists can have their own",
+  "preferencesListsOwnCount": "{count, plural, =0{A list can pick its own in Edit list.} =1{1 list has its own choice.} other{{count} lists have their own choice.}}",
+  "@preferencesListsOwnCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "preferencesListsOwnOff": "Every list follows this setting."
 }
