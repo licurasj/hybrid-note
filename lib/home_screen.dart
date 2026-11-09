@@ -31,7 +31,6 @@ import 'lists/generic_item_dialog.dart';
 import 'lists/list_catalog.dart';
 import 'lists/list_catalog_builder.dart';
 import 'lists/list_definition.dart';
-import 'lists/list_icons.dart';
 import 'lists/list_item.dart';
 import 'lists/list_labels.dart';
 import 'lists/list_rules.dart';
@@ -1210,9 +1209,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final double headerHeight =
         top + 8 + 40 + 20 + 76 + 10 + scaler.scale(15) * 1.5 + 8;
 
-    // Like the items on a card (HomeListCard): the title in the text colour with
-    // its date beside it, and no lines between. The dot and the list's name say
-    // which list it is, as these rows cross lists.
+    // Each row stands in the cards' columns: a small copy of the card's mark
+    // (the list's icon on the black circle, ringed in the list's colour) under
+    // the cards' circles, the title where their names start, and the time or
+    // date and the list's name small and muted below it (owner, 2026-11-08).
     Widget row(HomeDueItem due) {
       final ListDefinition definition = due.definition;
       final Object? title =
@@ -1236,35 +1236,40 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           }
         },
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 36),
+          constraints: const BoxConstraints(minHeight: homeDueRowHeight),
           child: Row(
             children: [
-              _EclipseDot(
-                color: listColor(definition.color, brightness: brightness),
-                ring: neutrals.text,
+              const SizedBox(width: homeDueMarkCentre - homeDueMarkSize / 2),
+              HomeMiniMark(definition: definition),
+              const SizedBox(
+                width:
+                    homeDueTextStart - homeDueMarkCentre - homeDueMarkSize / 2,
               ),
-              const SizedBox(width: 12),
-              Flexible(
-                child: Text(
-                  title is String ? title : '',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: type.row.copyWith(color: neutrals.text, fontSize: 13),
-                ),
-              ),
-              const SizedBox(width: 8),
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.sizeOf(context).width * 0.4,
-                ),
-                child: Text(
-                  [
-                    if (when.isNotEmpty) when,
-                    labels.listName(definition),
-                  ].join(' · '),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: type.meta,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title is String ? title : '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: type.row.copyWith(
+                        color: neutrals.text,
+                        fontSize: 15,
+                        height: 1.25,
+                      ),
+                    ),
+                    Text(
+                      [
+                        if (when.isNotEmpty) when,
+                        labels.listName(definition),
+                      ].join(' · '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: type.meta,
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -1316,22 +1321,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               padding: EdgeInsets.only(top: 28),
                               child: StarterNote(),
                             ),
+                          // The header's count says these are today's, so no
+                          // label above them (owner, 2026-11-08).
                           if (preferences.homeContent.showsDue &&
                               due.isNotEmpty) ...[
-                            const SizedBox(height: 40),
-                            _dim(
-                              Text(
-                                loc.today.toUpperCase(),
-                                style: type.sectionLabel,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: homeDueGap),
                             for (final HomeDueItem item in due) _dim(row(item)),
                           ],
                           if (preferences.homeContent.showsDue &&
                               due.isEmpty &&
                               catalog.definitions.isNotEmpty) ...[
-                            const SizedBox(height: 40),
+                            const SizedBox(height: homeDueGap),
                             _dim(
                               Text(
                                 loc.homeNothingDue,
@@ -1342,7 +1342,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           ],
                           if (preferences.homeContent.showsCards &&
                               (pinned.isNotEmpty || _suggested.isNotEmpty)) ...[
-                            const SizedBox(height: 40),
+                            const SizedBox(height: homeCardsGap),
                             for (int i = 0; i < pinned.length; i++)
                               _card(
                                 catalog,
@@ -1457,50 +1457,6 @@ class _RestRecognizer extends LongPressGestureRecognizer {
 
 class _ReadyRecognizer extends LongPressGestureRecognizer {
   _ReadyRecognizer() : super(duration: Duration.zero);
-}
-
-// A list-colour dot with a ring in the text colour overlapping it, shifted up
-// and right: the eclipse at its smallest.
-class _EclipseDot extends StatelessWidget {
-  const _EclipseDot({required this.color, required this.ring});
-
-  final Color color;
-  final Color ring;
-
-  @override
-  Widget build(BuildContext context) {
-    const double size = 14;
-    return SizedBox(
-      width: 22,
-      height: 20,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned(
-            left: 0,
-            top: 4,
-            width: size,
-            height: size,
-            child: DecoratedBox(
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            ),
-          ),
-          Positioned(
-            left: 5,
-            top: 1,
-            width: size,
-            height: size,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: ring, width: 1.5),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // The settings sheet: theme and language (this phone), the two AI choices, the

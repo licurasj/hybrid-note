@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:hybrid_note/backend/firestore_list_store.dart';
+import 'package:hybrid_note/home_cards_view.dart';
 import 'package:hybrid_note/home_screen.dart';
 import 'package:hybrid_note/lists/builtin_templates.dart';
 import 'package:hybrid_note/lists/list_catalog.dart';
@@ -33,10 +34,19 @@ ListItem _task(String id, String title, DateTime? at, {bool done = false}) {
 }
 
 final List<ListItem> _items = [
-  _task('t-tomorrow', 'Tomorrow thing', _today.add(const Duration(days: 1, hours: 9))),
+  _task(
+    't-tomorrow',
+    'Tomorrow thing',
+    _today.add(const Duration(days: 1, hours: 9)),
+  ),
   _task('t-today', 'Submit milestone', _today.add(const Duration(hours: 17))),
   _task('t-late', 'Return books', _today.subtract(const Duration(days: 2))),
-  _task('t-done', 'Done already', _today.add(const Duration(hours: 8)), done: true),
+  _task(
+    't-done',
+    'Done already',
+    _today.add(const Duration(hours: 8)),
+    done: true,
+  ),
   _task('t-none', 'No date', null),
 ];
 
@@ -62,90 +72,114 @@ void main() {
       definitions: BuiltinTemplates.all(),
       items: _items,
     );
-    final List<HomeDueItem> due = homeDueItems(catalog, _today.add(const Duration(hours: 12)));
+    final List<HomeDueItem> due = homeDueItems(
+      catalog,
+      _today.add(const Duration(hours: 12)),
+    );
     expect(due.map((d) => d.item.id), ['t-late', 't-today']);
     expect(due.every((d) => d.hasTime), isTrue);
   });
 
-  testWidgets('weekday, date with the count, and the due rows with their dots', (
-    tester,
-  ) async {
-    await _pumpApp(tester);
+  testWidgets(
+    'weekday, date with the count, and the due rows with their dots',
+    (tester) async {
+      await _pumpApp(tester);
 
-    expect(find.text(DateFormat.EEEE('en').format(_now)), findsOneWidget);
-    expect(
-      find.text('${DateFormat.MMMMd('en').format(_now)} · 2 things today'),
-      findsOneWidget,
-    );
-    expect(find.text('TODAY'), findsOneWidget);
-    // In the Today rows; the Tasks card below may show them too (Q-65).
-    Finder inRow(String id, String text) => find.descendant(
-      of: find.byKey(ValueKey('home-due-$id')),
-      matching: find.text(text),
-    );
-    expect(inRow('t-today', 'Submit milestone'), findsOneWidget);
-    expect(inRow('t-late', 'Return books'), findsOneWidget);
-    expect(find.byKey(const ValueKey('home-due-t-tomorrow')), findsNothing);
-    expect(find.byKey(const ValueKey('home-due-t-done')), findsNothing);
-    // Overdue first, with its date; today's with its time.
-    expect(
-      tester.getTopLeft(inRow('t-late', 'Return books')).dy,
-      lessThan(tester.getTopLeft(inRow('t-today', 'Submit milestone')).dy),
-    );
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('home-due-t-late')),
-        matching: find.textContaining(
-          DateFormat.MMMd('en').format(_today.subtract(const Duration(days: 2))),
-        ),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
+      expect(find.text(DateFormat.EEEE('en').format(_now)), findsOneWidget);
+      expect(
+        find.text('${DateFormat.MMMMd('en').format(_now)} · 2 things today'),
+        findsOneWidget,
+      );
+      // The header's count says it, so no label above the rows.
+      expect(find.text('TODAY'), findsNothing);
+      // In the Today rows; the Tasks card below may show them too (Q-65).
+      Finder inRow(String id, String text) => find.descendant(
+        of: find.byKey(ValueKey('home-due-$id')),
+        matching: find.text(text),
+      );
+      // In the cards' columns: the mini mark under their circles, the title
+      // where their names start.
+      final double cardLeft = tester
+          .getTopLeft(find.byType(HomeListCard).first)
+          .dx;
+      final Finder mark = find.descendant(
         of: find.byKey(const ValueKey('home-due-t-today')),
-        matching: find.textContaining(
-          DateFormat.jm('en').format(_today.add(const Duration(hours: 17))),
+        matching: find.byType(HomeMiniMark),
+      );
+      expect(tester.getCenter(mark).dx - cardLeft, homeDueMarkCentre);
+      expect(
+        tester.getTopLeft(inRow('t-today', 'Submit milestone')).dx - cardLeft,
+        homeDueTextStart,
+      );
+      expect(inRow('t-today', 'Submit milestone'), findsOneWidget);
+      expect(inRow('t-late', 'Return books'), findsOneWidget);
+      expect(find.byKey(const ValueKey('home-due-t-tomorrow')), findsNothing);
+      expect(find.byKey(const ValueKey('home-due-t-done')), findsNothing);
+      // Overdue first, with its date; today's with its time.
+      expect(
+        tester.getTopLeft(inRow('t-late', 'Return books')).dy,
+        lessThan(tester.getTopLeft(inRow('t-today', 'Submit milestone')).dy),
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('home-due-t-late')),
+          matching: find.textContaining(
+            DateFormat.MMMd(
+              'en',
+            ).format(_today.subtract(const Duration(days: 2))),
+          ),
         ),
-      ),
-      findsOneWidget,
-    );
-    expect(find.byType(Card), findsNothing);
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('home-due-t-today')),
+          matching: find.textContaining(
+            DateFormat.jm('en').format(_today.add(const Duration(hours: 17))),
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(find.byType(Card), findsNothing);
 
-    // A row opens its list.
-    await tester.tap(find.byKey(const ValueKey('home-due-t-today')));
-    await settle(tester);
-    expect(find.byKey(const ValueKey('item-t-today')), findsOneWidget);
-  });
+      // A row opens its list.
+      await tester.tap(find.byKey(const ValueKey('home-due-t-today')));
+      await settle(tester);
+      expect(find.byKey(const ValueKey('item-t-today')), findsOneWidget);
+    },
+  );
 
-  testWidgets('the blue settings button opens a sheet: language, dark mode, account', (
-    tester,
-  ) async {
-    await _pumpApp(tester);
-    final IconButton button = tester.widget(find.byKey(const ValueKey('settings')));
-    expect(
-      button.style!.backgroundColor!.resolve(const {}),
-      const Color(0xFF70D9FF),
-    );
+  testWidgets(
+    'the blue settings button opens a sheet: language, dark mode, account',
+    (tester) async {
+      await _pumpApp(tester);
+      final IconButton button = tester.widget(
+        find.byKey(const ValueKey('settings')),
+      );
+      expect(
+        button.style!.backgroundColor!.resolve(const {}),
+        const Color(0xFF70D9FF),
+      );
 
-    await tester.tap(find.byKey(const ValueKey('settings')));
-    await tester.pump(const Duration(milliseconds: 50));
-    expect(find.byType(FadeTransition), findsNothing);
-    await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('settings')));
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.byType(FadeTransition), findsNothing);
+      await tester.pumpAndSettle();
 
-    expect(find.text('Settings'), findsWidgets);
-    expect(find.byKey(const ValueKey('settings-language')), findsOneWidget);
-    expect(find.text('owner@example.com'), findsOneWidget);
-    expect(find.byKey(const ValueKey('sign-out')), findsOneWidget);
+      expect(find.text('Settings'), findsWidgets);
+      expect(find.byKey(const ValueKey('settings-language')), findsOneWidget);
+      expect(find.text('owner@example.com'), findsOneWidget);
+      expect(find.byKey(const ValueKey('sign-out')), findsOneWidget);
 
-    MaterialApp app() => tester.widget(find.byType(MaterialApp));
-    expect(app().themeMode, ThemeMode.system);
-    await tester.tap(find.byKey(const ValueKey('settings-theme')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('choice-ThemeMode.dark')));
-    await settle(tester);
-    expect(app().themeMode, ThemeMode.dark);
-  });
+      MaterialApp app() => tester.widget(find.byType(MaterialApp));
+      expect(app().themeMode, ThemeMode.system);
+      await tester.tap(find.byKey(const ValueKey('settings-theme')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('choice-ThemeMode.dark')));
+      await settle(tester);
+      expect(app().themeMode, ThemeMode.dark);
+    },
+  );
 
   group('the language list', () {
     Future<void> openLanguages(WidgetTester tester, Size size) async {
@@ -154,7 +188,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('settings')));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.byKey(const ValueKey('settings-language')));
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('settings-language')),
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('settings-language')));
       await tester.pumpAndSettle();
@@ -179,35 +215,36 @@ void main() {
       expect(find.text('Use device language'), findsOneWidget);
     });
 
-    testWidgets('on a small screen has a bar, and the last language can be reached', (
-      tester,
-    ) async {
-      await openLanguages(tester, const Size(320, 640));
+    testWidgets(
+      'on a small screen has a bar, and the last language can be reached',
+      (tester) async {
+        await openLanguages(tester, const Size(320, 640));
 
-      expect(position(tester).maxScrollExtent, greaterThan(0));
-      final Scrollbar bar = tester.widget(
-        find.descendant(
-          of: find.byType(AlertDialog),
-          matching: find.byType(Scrollbar),
-        ),
-      );
-      expect(bar.thumbVisibility, isTrue);
+        expect(position(tester).maxScrollExtent, greaterThan(0));
+        final Scrollbar bar = tester.widget(
+          find.descendant(
+            of: find.byType(AlertDialog),
+            matching: find.byType(Scrollbar),
+          ),
+        );
+        expect(bar.thumbVisibility, isTrue);
 
-      await tester.scrollUntilVisible(
-        find.text('Deutsch'),
-        100,
-        scrollable: find.descendant(
-          of: find.byType(AlertDialog),
-          matching: find.byType(Scrollable),
-        ),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Deutsch'));
-      await settle(tester);
+        await tester.scrollUntilVisible(
+          find.text('Deutsch'),
+          100,
+          scrollable: find.descendant(
+            of: find.byType(AlertDialog),
+            matching: find.byType(Scrollable),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Deutsch'));
+        await settle(tester);
 
-      expect(find.byType(AlertDialog), findsNothing);
-      MaterialApp app() => tester.widget(find.byType(MaterialApp));
-      expect(app().locale, const Locale('de'));
-    });
+        expect(find.byType(AlertDialog), findsNothing);
+        MaterialApp app() => tester.widget(find.byType(MaterialApp));
+        expect(app().locale, const Locale('de'));
+      },
+    );
   });
 }
