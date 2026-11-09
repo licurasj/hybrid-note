@@ -57,6 +57,7 @@ Future<void> _pumpApp(
   WidgetTester tester, {
   List<String> pins = const [],
   List<ListItem>? items,
+  Map<String, Object?> preferences = const {},
 }) async {
   tester.view.physicalSize = const Size(500, 1600);
   tester.view.devicePixelRatio = 1;
@@ -75,7 +76,7 @@ Future<void> _pumpApp(
     ),
   );
   await settle(tester);
-  sync.send({AccountPreferences.homePinsKey: pins});
+  sync.send({AccountPreferences.homePinsKey: pins, ...preferences});
   await settle(tester);
 }
 
@@ -628,6 +629,31 @@ void main() {
       expect(_card(_grocery), findsOneWidget);
       expect(_card(_tasks), findsOneWidget);
     });
+
+    // Owner, 2026-11-09: on A to Z a new pin did not take its sorted place.
+    for (final bool dialArranged in [false, true]) {
+      testWidgets('on A to Z a pin takes its sorted place at once'
+          '${dialArranged ? ', also after a dial arrange' : ''}', (
+        tester,
+      ) async {
+        await _pumpApp(
+          tester,
+          pins: [_watch, _tasks],
+          preferences: {
+            AccountPreferences.listOrderKey: ListOrder.alphabetical.wire,
+            AccountPreferences.dialArrangedKey: dialArranged,
+          },
+        );
+        double top(String id) => tester.getTopLeft(_card(id)).dy;
+        expect(top(_tasks), lessThan(top(_watch)));
+        await _choose(tester, _grocery, HomeCardAction.pin);
+        // Grocery, Tasks, Watch/Read: A to Z, before any refresh.
+        expect(top(_grocery), lessThan(top(_tasks)));
+        expect(top(_tasks), lessThan(top(_watch)));
+        expect(_preferences(tester).homeArranged, isFalse);
+        expect(_preferences(tester).listOrder, ListOrder.alphabetical);
+      });
+    }
 
     testWidgets('Edit opens the list editor', (tester) async {
       await _pumpApp(tester, pins: [_tasks]);

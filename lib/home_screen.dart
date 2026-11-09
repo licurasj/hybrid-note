@@ -379,13 +379,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         if (_unfilled.contains(listId)) {
           _tapPin(listId, catalog);
         } else {
-          // At once to the end of the pinned cards (R6: there for good, but
-          // in its sorted place with nothing arranged on Last used or A to Z,
-          // from the next refresh); the suggestions are worked out again at
-          // the next refresh (Q-76).
+          // At once to its place among the pinned cards: its sorted place
+          // while home follows a dial on Last used or A to Z, else the end
+          // (R6). The suggestions are worked out again at the next refresh
+          // (Q-76).
+          final AccountPreferences now = context.accountPreferences;
+          final List<String> dial = _dialOrder(catalog, now, ListLabels(loc));
           setState(() {
             _suggested = [..._suggested]..remove(listId);
-            _pinned = [..._pinned!, listId];
+            _pinned = now.newPinSorted
+                ? _sortedIn(_pinned!, listId, dial)
+                : [..._pinned!, listId];
           });
           _own(
             (cubit) => cubit.pinToHome(
@@ -420,6 +424,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           },
         );
     }
+  }
+
+  // [pinned] with [listId] put before the first card that comes after it on
+  // the dial; cards with no place on the dial keep theirs.
+  static List<String> _sortedIn(
+    List<String> pinned,
+    String listId,
+    List<String> dial,
+  ) {
+    final int at = dial.indexOf(listId);
+    final int before = pinned.indexWhere((id) => dial.indexOf(id) > at);
+    return [...pinned]..insert(before < 0 ? pinned.length : before, listId);
   }
 
   ListEditAction? _edit;

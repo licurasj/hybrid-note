@@ -208,6 +208,11 @@ class AccountPreferences {
   // Home and the dial have split, and Match dial order can rejoin them (Q-75).
   bool get homeHasOwnOrder => homeArranged && dialArranged;
 
+  // A new pin takes its sorted place, not the end, while home follows a dial
+  // on Last used or A to Z, whatever was arranged before (owner, 2026-11-09;
+  // R6). dialArranged stays true after a dial arrange, so it is not asked.
+  bool get newPinSorted => !homeArranged && listOrder != ListOrder.myOrder;
+
   // A missing or malformed value gets its default, and a value of a newer
   // build is ignored, so a bad document never stops the app.
   factory AccountPreferences.fromJson(Map<String, Object?> json) {
@@ -863,13 +868,11 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
     // A new pin goes last for good (owner, 2026-11-09; review R6). While home
     // follows the dial that counts as arranging home, as a drag does: with
     // nothing arranged the dial follows as My order, after a dial arrange the
-    // two split. Only with nothing arranged and the order on Last used or A to
-    // Z does it take its sorted place, and nothing changes.
-    final bool sorted =
-        !before.dialArranged && before.listOrder != ListOrder.myOrder;
+    // two split. On Last used or A to Z it takes its sorted place instead, and
+    // nothing changes ([AccountPreferences.newPinSorted]).
     if (!keepPlace &&
         !before.homeArranged &&
-        !sorted &&
+        !before.newPinSorted &&
         !before.homePins.contains(listId)) {
       final List<String> shown = homePinnedOrder(
         pins: before.homePins,
