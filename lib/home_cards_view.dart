@@ -288,50 +288,15 @@ homePromptMeasure(
   return (oneLine: oneLine, broken: broken, brokenLabels: brokenLabels);
 }
 
-// The Today rows on home stand in the cards' columns (HomeListCard): the mark
-// under the cards' circles, the text where their names start.
-const double homeDueMarkSize = 28;
-const double homeDueMarkCentre = 14 + 25 + 30;
-const double homeDueTextStart = 14 + 88 + 6;
-const double homeDueRowHeight = 48;
+// The Today rows on home start at the left edge of the cards' blobs: the
+// blob's box is 14 in from a card's left, and its shape reaches from 2 past
+// that to 5 short of it, mostly about 1 inside (HomeListCard, _BlobPainter).
+const double homeDueLeft = 15;
+const double homeDueRowHeight = 36;
 // Spacing on home, from the header's date line (which has 8 below it): to the
 // Today rows, and to the cards.
 const double homeDueGap = 16;
 const double homeCardsGap = 16;
-
-// A card's mark, small: the list's icon on the black circle, ringed in the
-// list's colour.
-class HomeMiniMark extends StatelessWidget {
-  const HomeMiniMark({super.key, required this.definition});
-
-  final ListDefinition definition;
-
-  @override
-  Widget build(BuildContext context) {
-    final Brightness brightness = Theme.of(context).brightness;
-    final AppNeutrals neutrals = AppColors.neutrals(brightness);
-    return SizedBox(
-      width: homeDueMarkSize,
-      height: homeDueMarkSize,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: neutrals.text,
-          border: Border.all(
-            color: listColor(definition.color, brightness: brightness),
-            width: 3,
-            strokeAlign: BorderSide.strokeAlignOutside,
-          ),
-        ),
-        child: Icon(
-          listIcon(definition.icon),
-          size: 14,
-          color: neutrals.ground,
-        ),
-      ),
-    );
-  }
-}
 
 // A hold's prompt (interaction law rules 2-3), like the hub's Move and Arrange:
 // dark, filling with blue and growing as the finger comes [near]. The fill stays

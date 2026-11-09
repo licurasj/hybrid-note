@@ -97,20 +97,23 @@ void main() {
         of: find.byKey(ValueKey('home-due-$id')),
         matching: find.text(text),
       );
-      // In the cards' columns: the mini mark under their circles, the title
-      // where their names start.
+      // One line, starting at the left edge of the cards' blobs, with the
+      // list's icon and name after the time.
       final double cardLeft = tester
           .getTopLeft(find.byType(HomeListCard).first)
           .dx;
-      final Finder mark = find.descendant(
+      final Rect title = tester.getRect(inRow('t-today', 'Submit milestone'));
+      expect(title.left - cardLeft, homeDueLeft);
+      final Finder icon = find.descendant(
         of: find.byKey(const ValueKey('home-due-t-today')),
-        matching: find.byType(HomeMiniMark),
+        matching: find.byType(Icon),
       );
-      expect(tester.getCenter(mark).dx - cardLeft, homeDueMarkCentre);
+      expect(icon, findsOneWidget);
       expect(
-        tester.getTopLeft(inRow('t-today', 'Submit milestone')).dx - cardLeft,
-        homeDueTextStart,
+        tester.getCenter(icon).dy,
+        moreOrLessEquals(title.center.dy, epsilon: 2),
       );
+      expect(tester.getRect(icon).left, greaterThan(title.right));
       expect(inRow('t-today', 'Submit milestone'), findsOneWidget);
       expect(inRow('t-late', 'Return books'), findsOneWidget);
       expect(find.byKey(const ValueKey('home-due-t-tomorrow')), findsNothing);

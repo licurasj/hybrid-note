@@ -31,6 +31,7 @@ import 'lists/generic_item_dialog.dart';
 import 'lists/list_catalog.dart';
 import 'lists/list_catalog_builder.dart';
 import 'lists/list_definition.dart';
+import 'lists/list_icons.dart';
 import 'lists/list_item.dart';
 import 'lists/list_labels.dart';
 import 'lists/list_rules.dart';
@@ -1209,10 +1210,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final double headerHeight =
         top + 8 + 40 + 20 + 76 + 10 + scaler.scale(15) * 1.5 + 8;
 
-    // Each row stands in the cards' columns: a small copy of the card's mark
-    // (the list's icon on the black circle, ringed in the list's colour) under
-    // the cards' circles, the title where their names start, and the time or
-    // date and the list's name small and muted below it (owner, 2026-11-08).
+    // One line of text, starting at the left edge of the cards' blobs: the
+    // title, then the time or date, small and muted, and the list's icon and
+    // name in the list's colour (owner, 2026-11-08). The title gives way first.
     Widget row(HomeDueItem due) {
       final ListDefinition definition = due.definition;
       final Object? title =
@@ -1228,6 +1228,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           : due.hasTime
           ? timeFormat(locale, preferences.timeFormat).format(due.due)
           : '';
+      final Color color = listColor(definition.color, brightness: brightness);
       return InkWell(
         key: ValueKey('home-due-${due.item.id}'),
         onTap: () {
@@ -1239,37 +1240,33 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           constraints: const BoxConstraints(minHeight: homeDueRowHeight),
           child: Row(
             children: [
-              const SizedBox(width: homeDueMarkCentre - homeDueMarkSize / 2),
-              HomeMiniMark(definition: definition),
-              const SizedBox(
-                width:
-                    homeDueTextStart - homeDueMarkCentre - homeDueMarkSize / 2,
+              const SizedBox(width: homeDueLeft),
+              Flexible(
+                child: Text(
+                  title is String ? title : '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: type.row.copyWith(color: neutrals.text, fontSize: 15),
+                ),
               ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      title is String ? title : '',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: type.row.copyWith(
-                        color: neutrals.text,
-                        fontSize: 15,
-                        height: 1.25,
-                      ),
-                    ),
-                    Text(
-                      [
-                        if (when.isNotEmpty) when,
-                        labels.listName(definition),
-                      ].join(' · '),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: type.meta,
-                    ),
-                  ],
+              const SizedBox(width: 8),
+              if (when.isNotEmpty)
+                Text('$when · ', maxLines: 1, style: type.meta),
+              Icon(
+                listIcon(definition.icon),
+                size: type.meta.fontSize,
+                color: color,
+              ),
+              const SizedBox(width: 3),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.sizeOf(context).width * 0.3,
+                ),
+                child: Text(
+                  labels.listName(definition),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: type.meta.copyWith(color: color),
                 ),
               ),
             ],
