@@ -270,6 +270,30 @@ class AppTheme {
       horizontal: 20,
       vertical: 12,
     );
+    // The time and date pickers' dialog, tiles and buttons.
+    // In dark its shadow does not show, so a hairline gives it its edge.
+    final RoundedRectangleBorder dialogShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppShapes.sheetRadius),
+      side: brightness == Brightness.dark
+          ? BorderSide(color: n.line)
+          : BorderSide.none,
+    );
+    final RoundedRectangleBorder tileShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppShapes.fieldRadius),
+    );
+    final ButtonStyle pickerCancel = TextButton.styleFrom(
+      foregroundColor: n.text,
+      textStyle: buttonText,
+      padding: buttonPadding,
+      shape: AppShapes.pill,
+    );
+    final ButtonStyle pickerConfirm = TextButton.styleFrom(
+      backgroundColor: n.text,
+      foregroundColor: n.ground,
+      textStyle: buttonText,
+      padding: buttonPadding,
+      shape: AppShapes.pill,
+    );
     final OutlineInputBorder fieldBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(AppShapes.fieldRadius),
       borderSide: BorderSide(color: n.line),
@@ -433,6 +457,99 @@ class AppTheme {
         ),
         titleTextStyle: serif(28),
         contentTextStyle: sans(15),
+      ),
+      // Material's time and date pickers in the app's look (Q-122 A, owner,
+      // 2026-11-09: "I like the android one"). The hour and the minute stay
+      // where Material puts them; as two tiles of one shape and colour with
+      // the colon between, in the serif, they read as one pair.
+      timePickerTheme: TimePickerThemeData(
+        backgroundColor: n.ground,
+        elevation: 8,
+        shape: dialogShape,
+        helpTextStyle: sans(13, weight: FontWeight.w500, color: n.muted),
+        hourMinuteShape: tileShape,
+        hourMinuteColor: WidgetStateColor.resolveWith(
+          (states) =>
+              states.contains(WidgetState.selected) ? n.text : n.surface,
+        ),
+        hourMinuteTextColor: WidgetStateColor.resolveWith(
+          (states) =>
+              states.contains(WidgetState.selected) ? n.ground : n.text,
+        ),
+        hourMinuteTextStyle: serif(52, height: 1),
+        timeSelectorSeparatorColor: WidgetStatePropertyAll(n.text),
+        timeSelectorSeparatorTextStyle: WidgetStatePropertyAll(
+          serif(52, height: 1),
+        ),
+        dayPeriodShape: tileShape,
+        dayPeriodBorderSide: BorderSide(color: n.line),
+        dayPeriodColor: WidgetStateColor.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? n.text
+              : Colors.transparent,
+        ),
+        dayPeriodTextColor: WidgetStateColor.resolveWith(
+          (states) =>
+              states.contains(WidgetState.selected) ? n.ground : n.muted,
+        ),
+        dayPeriodTextStyle: sans(15, weight: FontWeight.w500),
+        dialBackgroundColor: n.surface,
+        dialHandColor: n.text,
+        dialTextColor: WidgetStateColor.resolveWith(
+          (states) =>
+              states.contains(WidgetState.selected) ? n.ground : n.text,
+        ),
+        dialTextStyle: sans(16, weight: FontWeight.w500),
+        entryModeIconColor: n.muted,
+        cancelButtonStyle: pickerCancel,
+        confirmButtonStyle: pickerConfirm,
+      ),
+      datePickerTheme: DatePickerThemeData(
+        backgroundColor: n.ground,
+        surfaceTintColor: Colors.transparent,
+        elevation: 8,
+        shape: dialogShape,
+        headerForegroundColor: n.text,
+        headerHeadlineStyle: serif(32),
+        headerHelpStyle: sans(13, weight: FontWeight.w500, color: n.muted),
+        weekdayStyle: sans(13, weight: FontWeight.w500, color: n.muted),
+        dayStyle: sans(15),
+        dayForegroundColor: WidgetStateColor.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? n.ground
+              : states.contains(WidgetState.disabled)
+              ? n.muted
+              : n.text,
+        ),
+        dayBackgroundColor: WidgetStateColor.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? n.text
+              : Colors.transparent,
+        ),
+        todayForegroundColor: WidgetStateColor.resolveWith(
+          (states) =>
+              states.contains(WidgetState.selected) ? n.ground : n.text,
+        ),
+        todayBackgroundColor: WidgetStateColor.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? n.text
+              : Colors.transparent,
+        ),
+        todayBorder: BorderSide(color: n.text),
+        yearStyle: sans(15),
+        yearForegroundColor: WidgetStateColor.resolveWith(
+          (states) =>
+              states.contains(WidgetState.selected) ? n.ground : n.text,
+        ),
+        yearBackgroundColor: WidgetStateColor.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? n.text
+              : Colors.transparent,
+        ),
+        dividerColor: n.line,
+        subHeaderForegroundColor: n.muted,
+        cancelButtonStyle: pickerCancel,
+        confirmButtonStyle: pickerConfirm,
       ),
       popupMenuTheme: PopupMenuThemeData(
         color: n.ground,
