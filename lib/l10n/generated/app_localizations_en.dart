@@ -1287,4 +1287,23 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String noTickLine(String field) {
+    return 'Without the $field field, items can no longer be ticked.';
+  }
+
+  @override
+  String noTickView(String view) {
+    return 'The checklist shows as $view.';
+  }
+
+  @override
+  String noTickRules(String rules) {
+    return 'These rules go: $rules.';
+  }
+
+  @override
+  String get noTickCopies =>
+      'Copying to Next time can only be added back by the AI.';
 }

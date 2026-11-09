@@ -1264,4 +1264,22 @@ class AppLocalizationsJa extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String noTickLine(String field) {
+    return '「$field」フィールドがないと、項目にチェックを付けられなくなります。';
+  }
+
+  @override
+  String noTickView(String view) {
+    return 'チェックリストは$viewで表示されます。';
+  }
+
+  @override
+  String noTickRules(String rules) {
+    return '次のルールがなくなります: $rules。';
+  }
+
+  @override
+  String get noTickCopies => '「次回へコピー」は AI でのみ追加し直せます。';
 }

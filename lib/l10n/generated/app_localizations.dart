@@ -2215,6 +2215,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{Cleared} other{{count} cleared}}'**
   String clearedBanner(int count);
+
+  /// No description provided for @noTickLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Without the {field} field, items can no longer be ticked.'**
+  String noTickLine(String field);
+
+  /// No description provided for @noTickView.
+  ///
+  /// In en, this message translates to:
+  /// **'The checklist shows as {view}.'**
+  String noTickView(String view);
+
+  /// No description provided for @noTickRules.
+  ///
+  /// In en, this message translates to:
+  /// **'These rules go: {rules}.'**
+  String noTickRules(String rules);
+
+  /// No description provided for @noTickCopies.
+  ///
+  /// In en, this message translates to:
+  /// **'Copying to Next time can only be added back by the AI.'**
+  String get noTickCopies;
 }
 
 class _AppLocalizationsDelegate

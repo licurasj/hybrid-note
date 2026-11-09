@@ -393,5 +393,9 @@
   "homeMoveLater": "後ろへ移動",
   "preferencesHomeListOrder": "ホームの順序",
   "preferencesHomeListOrderSame": "ダイヤルと同じ",
-  "clearedBanner": "{count, plural, other{{count} 件消去しました}}"
+  "clearedBanner": "{count, plural, other{{count} 件消去しました}}",
+  "noTickLine": "「{field}」フィールドがないと、項目にチェックを付けられなくなります。",
+  "noTickView": "チェックリストは{view}で表示されます。",
+  "noTickRules": "次のルールがなくなります: {rules}。",
+  "noTickCopies": "「次回へコピー」は AI でのみ追加し直せます。"
 }

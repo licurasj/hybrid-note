@@ -1300,4 +1300,23 @@ class AppLocalizationsDe extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String noTickLine(String field) {
+    return 'Ohne das Feld „$field“ lassen sich Einträge nicht mehr abhaken.';
+  }
+
+  @override
+  String noTickView(String view) {
+    return 'Die Checkliste wird als $view angezeigt.';
+  }
+
+  @override
+  String noTickRules(String rules) {
+    return 'Diese Regeln entfallen: $rules.';
+  }
+
+  @override
+  String get noTickCopies =>
+      'Das Kopieren für das nächste Mal kann nur die KI wieder hinzufügen.';
 }

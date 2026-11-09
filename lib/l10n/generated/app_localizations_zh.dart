@@ -1259,4 +1259,22 @@ class AppLocalizationsZh extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String noTickLine(String field) {
+    return '没有“$field”字段，项目将无法再勾选。';
+  }
+
+  @override
+  String noTickView(String view) {
+    return '清单将以$view显示。';
+  }
+
+  @override
+  String noTickRules(String rules) {
+    return '这些规则将被移除：$rules。';
+  }
+
+  @override
+  String get noTickCopies => '“复制到下次”只能由 AI 重新添加。';
 }

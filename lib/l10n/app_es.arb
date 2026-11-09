@@ -393,5 +393,9 @@
   "homeMoveLater": "Mover después",
   "preferencesHomeListOrder": "Orden en el inicio",
   "preferencesHomeListOrderSame": "Igual que el dial",
-  "clearedBanner": "{count, plural, =1{Borrado} other{{count} borrados}}"
+  "clearedBanner": "{count, plural, =1{Borrado} other{{count} borrados}}",
+  "noTickLine": "Sin el campo {field}, los elementos ya no se pueden marcar.",
+  "noTickView": "La lista de tareas se muestra como {view}.",
+  "noTickRules": "Se quitan estas reglas: {rules}.",
+  "noTickCopies": "Copiar a la próxima vez solo puede volver a añadirlo la IA."
 }

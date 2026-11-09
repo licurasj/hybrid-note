@@ -215,14 +215,17 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
       return;
     }
 
-    // The first checkbox becomes the "done" box that clearing works with.
+    // The first checkbox becomes the "done" box that clearing works with,
+    // with the Clear ticked rule. On a list that had a tick it takes the old
+    // tick's key, so the ticks still kept on its items come back (Q-103).
     final bool completion =
         type == FieldType.checkbox &&
         _draft.fieldWithRole(FieldRole.completion) == null;
+    final String? oldTick = completion ? _oldTickKey() : null;
     _push(
       ListPatchOp(PatchOpKind.addField, {
         'field': FieldDefinition(
-          key: _newKey(label),
+          key: oldTick ?? _newKey(label),
           type: type,
           label: label,
           role: completion ? FieldRole.completion : null,
@@ -231,6 +234,87 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
               : const [],
         ).toJson(),
       }),
+    );
+    if (completion &&
+        !_draft.behaviors.any((rule) => rule.kind == BehaviorKind.clearCompleted)) {
+      _push(
+        ListEditorRules.addOp(
+          const BehaviorDefinition(kind: BehaviorKind.clearCompleted),
+        ),
+      );
+    }
+  }
+
+  // The key of the tick this list had, when its items still hold ticks under
+  // it and no field uses it now: the one removed in this edit, or the
+  // built-in lists' "done".
+  String? _oldTickKey() {
+    final String? removed =
+        widget.definition.fieldWithRole(FieldRole.completion)?.key;
+    for (final String key in [?removed, 'done']) {
+      if (_draft.field(key) == null &&
+          (key == removed || widget.items.any((item) => item[key] is bool))) {
+        return key;
+      }
+    }
+    return null;
+  }
+
+  // Removing the tick (the Done field) just works (Q-103): the rules that act
+  // on ticked items go with it and a checklist becomes a table, so the list
+  // saves with no errors. The ticks stay on the items, out of sight.
+  void _removeField(FieldDefinition field) {
+    _push(ListPatchOp(PatchOpKind.removeField, {'key': field.key}));
+    if (field.role != FieldRole.completion) {
+      return;
+    }
+    for (final BehaviorKind kind in {
+      for (final BehaviorDefinition rule in _draft.behaviors)
+        if (rule.kind != BehaviorKind.moveAll) rule.kind,
+    }) {
+      _push(ListEditorRules.removeOp(kind));
+    }
+    if (_draft.view.kind == ViewKind.checklist) {
+      final String? chips = _draft.view.filterChipsBy;
+      _push(ListPatchOp(PatchOpKind.setView, {
+        'view': {'kind': ViewKind.table.wire, 'filterChipsBy': ?chips},
+      }));
+    }
+  }
+
+  // What removing the tick changed, said before saving (Q-103).
+  Widget? _noTickLine(EditorLook look, ListLabels labels) {
+    final ListDefinition before = widget.definition;
+    final FieldDefinition? tick = before.fieldWithRole(FieldRole.completion);
+    if (tick == null || _draft.fieldWithRole(FieldRole.completion) != null) {
+      return null;
+    }
+    final AppLocalizations loc = labels.loc;
+    final List<String> rules = [
+      for (final BehaviorKind kind in {
+        for (final BehaviorDefinition rule in before.behaviors)
+          if (rule.kind != BehaviorKind.moveAll) rule.kind,
+      })
+        if (!_draft.behaviors.any((rule) => rule.kind == kind))
+          labels.behavior(kind),
+    ];
+    final bool copies =
+        before.behaviors.any((rule) => rule.kind == BehaviorKind.copyOnClear) &&
+        !_draft.behaviors.any((rule) => rule.kind == BehaviorKind.copyOnClear);
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Text(
+        [
+          loc.noTickLine(labels.field(tick)),
+          if (before.view.kind == ViewKind.checklist &&
+              _draft.view.kind != ViewKind.checklist)
+            loc.noTickView(labels.viewKind(_draft.view.kind)),
+          if (rules.isNotEmpty) loc.noTickRules(rules.join(', ')),
+          if (copies) loc.noTickCopies,
+        ].join(' '),
+        key: const ValueKey('no-tick-line'),
+        style: look.type.meta,
+      ),
     );
   }
 
@@ -575,13 +659,7 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
                   tooltip: loc.delete,
                   color: look.neutrals.muted,
                   icon: const Icon(Icons.delete_outline, size: 20),
-                  onPressed: field.primary
-                      ? null
-                      : () => _push(
-                          ListPatchOp(PatchOpKind.removeField, {
-                            'key': field.key,
-                          }),
-                        ),
+                  onPressed: field.primary ? null : () => _removeField(field),
                 ),
               ],
             ),
@@ -914,6 +992,7 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
               text: loc.addField,
               onPressed: () => _addField(labels),
             ),
+            ?_noTickLine(look, labels),
             _layoutSection(look, labels),
             ListEditorRules(
               definition: draft,

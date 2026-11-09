@@ -1009,5 +1009,30 @@
         "type": "int"
       }
     }
-  }
+  },
+  "noTickLine": "Without the {field} field, items can no longer be ticked.",
+  "@noTickLine": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "noTickView": "The checklist shows as {view}.",
+  "@noTickView": {
+    "placeholders": {
+      "view": {
+        "type": "String"
+      }
+    }
+  },
+  "noTickRules": "These rules go: {rules}.",
+  "@noTickRules": {
+    "placeholders": {
+      "rules": {
+        "type": "String"
+      }
+    }
+  },
+  "noTickCopies": "Copying to Next time can only be added back by the AI."
 }

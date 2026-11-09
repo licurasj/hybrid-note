@@ -122,7 +122,11 @@ class ListEditorRules extends StatelessWidget {
             contentPadding: EdgeInsets.zero,
             title: Text(loc.ruleClearCompleted, style: look.label),
             value: _has(BehaviorKind.clearCompleted),
-            onChanged: (on) => onOp(
+            // It needs a tick: without a Done field it cannot be turned on.
+            onChanged: definition.fieldWithRole(FieldRole.completion) == null &&
+                    !_has(BehaviorKind.clearCompleted)
+                ? null
+                : (on) => onOp(
               on
                   ? addOp(const BehaviorDefinition(kind: BehaviorKind.clearCompleted))
                   : removeOp(BehaviorKind.clearCompleted),

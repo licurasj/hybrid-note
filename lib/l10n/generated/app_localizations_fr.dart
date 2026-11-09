@@ -1301,4 +1301,23 @@ class AppLocalizationsFr extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String noTickLine(String field) {
+    return 'Sans le champ $field, les éléments ne peuvent plus être cochés.';
+  }
+
+  @override
+  String noTickView(String view) {
+    return 'La liste de contrôle s’affiche en $view.';
+  }
+
+  @override
+  String noTickRules(String rules) {
+    return 'Ces règles sont retirées : $rules.';
+  }
+
+  @override
+  String get noTickCopies =>
+      'Seule l’IA peut rajouter la copie pour la prochaine fois.';
 }

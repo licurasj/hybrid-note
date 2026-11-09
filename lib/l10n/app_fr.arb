@@ -393,5 +393,9 @@
   "homeMoveLater": "Déplacer après",
   "preferencesHomeListOrder": "Ordre de l'accueil",
   "preferencesHomeListOrderSame": "Comme le cadran",
-  "clearedBanner": "{count, plural, =1{Effacé} other{{count} effacés}}"
+  "clearedBanner": "{count, plural, =1{Effacé} other{{count} effacés}}",
+  "noTickLine": "Sans le champ {field}, les éléments ne peuvent plus être cochés.",
+  "noTickView": "La liste de contrôle s’affiche en {view}.",
+  "noTickRules": "Ces règles sont retirées : {rules}.",
+  "noTickCopies": "Seule l’IA peut rajouter la copie pour la prochaine fois."
 }

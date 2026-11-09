@@ -393,5 +393,9 @@
   "homeMoveLater": "后移",
   "preferencesHomeListOrder": "首页列表顺序",
   "preferencesHomeListOrderSame": "与转盘相同",
-  "clearedBanner": "{count, plural, other{已清除 {count} 项}}"
+  "clearedBanner": "{count, plural, other{已清除 {count} 项}}",
+  "noTickLine": "没有“{field}”字段，项目将无法再勾选。",
+  "noTickView": "清单将以{view}显示。",
+  "noTickRules": "这些规则将被移除：{rules}。",
+  "noTickCopies": "“复制到下次”只能由 AI 重新添加。"
 }

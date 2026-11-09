@@ -393,5 +393,9 @@
   "homeMoveLater": "Nach hinten",
   "preferencesHomeListOrder": "Reihenfolge auf der Startseite",
   "preferencesHomeListOrderSame": "Wie am Rad",
-  "clearedBanner": "{count, plural, =1{Entfernt} other{{count} entfernt}}"
+  "clearedBanner": "{count, plural, =1{Entfernt} other{{count} entfernt}}",
+  "noTickLine": "Ohne das Feld „{field}“ lassen sich Einträge nicht mehr abhaken.",
+  "noTickView": "Die Checkliste wird als {view} angezeigt.",
+  "noTickRules": "Diese Regeln entfallen: {rules}.",
+  "noTickCopies": "Das Kopieren für das nächste Mal kann nur die KI wieder hinzufügen."
 }

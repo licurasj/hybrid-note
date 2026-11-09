@@ -1293,4 +1293,23 @@ class AppLocalizationsEs extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String noTickLine(String field) {
+    return 'Sin el campo $field, los elementos ya no se pueden marcar.';
+  }
+
+  @override
+  String noTickView(String view) {
+    return 'La lista de tareas se muestra como $view.';
+  }
+
+  @override
+  String noTickRules(String rules) {
+    return 'Se quitan estas reglas: $rules.';
+  }
+
+  @override
+  String get noTickCopies =>
+      'Copiar a la próxima vez solo puede volver a añadirlo la IA.';
 }
