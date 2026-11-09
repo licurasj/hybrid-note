@@ -1238,6 +1238,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get homeRemovedBanner => 'ホームから削除しました';
 
   @override
+  String get homeTickedBanner => '完了しました';
+
+  @override
+  String get homeTick => '完了にする';
+
+  @override
   String get homeSuggestionsOffBanner => 'おすすめをオフにしました';
 
   @override

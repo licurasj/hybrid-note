@@ -387,6 +387,8 @@
   "homeNoSuggestions": "Keine Vorschläge",
   "homeArrangeDone": "Fertig",
   "homeRemovedBanner": "Von der Startseite entfernt",
+  "homeTickedBanner": "Abgehakt",
+  "homeTick": "Abhaken",
   "homeSuggestionsOffBanner": "Vorschläge aus",
   "homeMoveEarlier": "Nach vorn",
   "homeMoveLater": "Nach hinten",

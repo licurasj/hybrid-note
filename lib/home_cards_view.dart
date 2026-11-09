@@ -292,7 +292,13 @@ homePromptMeasure(
 // blob's box is 14 in from a card's left, and its shape reaches from 2 past
 // that to 5 short of it, mostly about 1 inside (HomeListCard, _BlobPainter).
 const double homeDueLeft = 15;
-const double homeDueRowHeight = 36;
+// Tall enough for the tick circle's touch target.
+const double homeDueRowHeight = 48;
+// The tick circle at the start of a row (its left edge on [homeDueLeft]), its
+// touch target, and how long a ticked row stays before it slides away.
+const double homeTickSize = 20;
+const double homeTickTarget = 48;
+const Duration homeTickShown = Duration(milliseconds: 1000);
 // The small blob before each row's title, and the room after it.
 const double homeDueBlobSize = 18;
 const double homeDueBlobGap = 10;

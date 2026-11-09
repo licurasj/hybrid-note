@@ -993,6 +993,14 @@
   "homeNoSuggestions": "No suggestions",
   "homeArrangeDone": "Done",
   "homeRemovedBanner": "Removed from home",
+  "homeTickedBanner": "Ticked off",
+  "@homeTickedBanner": {
+    "description": "Banner after ticking an item in a Today row on home; it has an Undo."
+  },
+  "homeTick": "Tick",
+  "@homeTick": {
+    "description": "Screen reader label of the tick circle on a Today row on home."
+  },
   "homeSuggestionsOffBanner": "Suggestions off",
   "homeMoveEarlier": "Move earlier",
   "homeMoveLater": "Move later",

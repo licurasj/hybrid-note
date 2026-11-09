@@ -107,7 +107,15 @@ void main() {
         matching: find.byType(HomeSmallBlob),
       );
       final Rect blobRect = tester.getRect(blob);
-      expect(blobRect.left - cardLeft, homeDueLeft);
+      // The tick circle first, its left edge on the cards' blob edge, with a
+      // 48 touch target; then the blob.
+      final Finder tick = find.byKey(const ValueKey('home-tick-t-today'));
+      expect(tester.getSize(tick), const Size.square(homeTickTarget));
+      expect(
+        tester.getCenter(tick).dx - homeTickSize / 2 - cardLeft,
+        homeDueLeft,
+      );
+      expect(blobRect.left, tester.getRect(tick).right);
       expect(blobRect.width, homeDueBlobSize);
       final Rect title = tester.getRect(inRow('t-today', 'Submit milestone'));
       expect(title.left, blobRect.right + homeDueBlobGap);
@@ -158,6 +166,84 @@ void main() {
       expect(find.byKey(const ValueKey('item-t-today')), findsOneWidget);
     },
   );
+
+  group('ticking a Today row', () {
+    // What the store holds now, read outside the test's fake clock.
+    Future<bool?> done(
+      WidgetTester tester,
+      FirestoreListStore store,
+      String id,
+    ) async {
+      final ListCatalog catalog = (await tester.runAsync(
+        () => store.watch().first,
+      ))!;
+      for (final ListItem item in catalog.itemsOf(BuiltinTemplates.tasksId)) {
+        if (item.id == id) {
+          return item['done'] == true;
+        }
+      }
+      return null;
+    }
+
+    testWidgets('shows the tick a moment, then slides away and saves it', (
+      tester,
+    ) async {
+      final FirestoreListStore store = await _pumpApp(tester);
+      final Finder row = find.byKey(const ValueKey('home-due-t-today'));
+      await tester.tap(find.byKey(const ValueKey('home-tick-t-today')));
+      await tester.pump();
+      // Ticked and crossed out, still there, not yet saved.
+      final Text title = tester.widget<Text>(
+        find.descendant(of: row, matching: find.text('Submit milestone')),
+      );
+      expect(title.style?.decoration, TextDecoration.lineThrough);
+      expect(
+        find.descendant(of: row, matching: find.byIcon(Icons.check)),
+        findsOneWidget,
+      );
+      expect(await done(tester, store, 't-today'), isFalse);
+      expect(find.text('Ticked off'), findsOneWidget);
+      await tester.pump(homeTickShown);
+      await tester.pump(const Duration(milliseconds: 400));
+      await settle(tester);
+      expect(row, findsNothing);
+      expect(await done(tester, store, 't-today'), isTrue);
+      // The other row stays, and the list page was not opened.
+      expect(find.byKey(const ValueKey('home-due-t-late')), findsOneWidget);
+      expect(find.byKey(const ValueKey('item-t-today')), findsNothing);
+    });
+
+    testWidgets('Undo unticks it, before or after it is saved', (tester) async {
+      final FirestoreListStore store = await _pumpApp(tester);
+      // Before: the row comes back as it was.
+      await tester.tap(find.byKey(const ValueKey('home-tick-t-today')));
+      await tester.pump();
+      // The banner slides up first.
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(find.byKey(const ValueKey('app-banner-action')));
+      await tester.pump(homeTickShown);
+      await settle(tester);
+      expect(find.byKey(const ValueKey('home-due-t-today')), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('home-due-t-today')),
+          matching: find.byIcon(Icons.check),
+        ),
+        findsNothing,
+      );
+      expect(await done(tester, store, 't-today'), isFalse);
+      // After: saved, then open again.
+      await tester.tap(find.byKey(const ValueKey('home-tick-t-today')));
+      await tester.pump(homeTickShown);
+      await tester.pump(const Duration(milliseconds: 400));
+      await settle(tester);
+      expect(await done(tester, store, 't-today'), isTrue);
+      await tester.tap(find.byKey(const ValueKey('app-banner-action')));
+      await settle(tester);
+      expect(await done(tester, store, 't-today'), isFalse);
+      expect(find.byKey(const ValueKey('home-due-t-today')), findsOneWidget);
+    });
+  });
 
   testWidgets('the rows\' blobs move on one clock, repainting only', (
     tester,

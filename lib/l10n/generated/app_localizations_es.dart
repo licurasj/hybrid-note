@@ -1266,6 +1266,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get homeRemovedBanner => 'Quitada del inicio';
 
   @override
+  String get homeTickedBanner => 'Marcado';
+
+  @override
+  String get homeTick => 'Marcar';
+
+  @override
   String get homeSuggestionsOffBanner => 'Sugerencias desactivadas';
 
   @override

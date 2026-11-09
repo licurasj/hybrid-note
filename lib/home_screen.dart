@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -52,6 +53,18 @@ class HomeDueItem {
   final DateTime due;
   // Date-and-time fields show their time; date fields only their day.
   final bool hasTime;
+}
+
+// A Today row's tick on its way: shown ticked for a moment, then sliding away,
+// then saved, as only open items show (owner, 2026-11-08).
+class _Ticking {
+  _Ticking(this.due, this.store);
+
+  final HomeDueItem due;
+  final ListStore store;
+  bool leaving = false;
+  bool saved = false;
+  Timer? timer;
 }
 
 // What is due today or overdue across every list, earliest first: open items
@@ -155,6 +168,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // One clock for every Today row's small blob: each tick repaints them only.
   final ValueNotifier<int> _blobTick = ValueNotifier(0);
   late final Ticker _blobClock;
+  final Map<String, _Ticking> _ticking = {};
   late final AnimationController _lift;
   late final AnimationController _reveal;
   // A rest on a pinned card while arranging lifts it until it is picked up.
@@ -222,6 +236,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    // A tick still on screen is saved all the same.
+    for (final _Ticking ticking in _ticking.values) {
+      _saveTick(ticking);
+    }
     widget.returned?.removeListener(_refresh);
     widget.pressedElsewhere?.removeListener(_endArranging);
     _clock.dispose();
@@ -439,6 +457,74 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _scrollAtEdge(seconds);
     }
     _syncClock();
+  }
+
+  // Ticks an item as its list page does (ListRules.setCompleted): ticked at
+  // once on screen, saved once the row has slid away, with an Undo.
+  void _tickDue(HomeDueItem due) {
+    final String id = due.item.id;
+    if (_arranging || _ticking.containsKey(id)) {
+      return;
+    }
+    final AppLocalizations loc = AppLocalizations.of(context);
+    final _Ticking ticking = _Ticking(due, context.read<ListStore>());
+    _buzz(false);
+    setState(() => _ticking[id] = ticking);
+    ticking.timer = Timer(homeTickShown, () {
+      if (!mounted) {
+        _saveTick(ticking);
+        return;
+      }
+      setState(() => ticking.leaving = true);
+      ticking.timer = Timer(
+        _moves ? AppMotion.standard : Duration.zero,
+        () => _saveTick(ticking),
+      );
+    });
+    context.read<AppBannerController>().show(
+      loc.homeTickedBanner,
+      actionLabel: loc.undo,
+      onAction: () => _untick(ticking),
+    );
+  }
+
+  void _saveTick(_Ticking ticking) {
+    ticking.timer?.cancel();
+    if (ticking.saved) {
+      return;
+    }
+    ticking.saved = true;
+    final ListChanges changes = ListRules.setCompleted(
+      ticking.due.definition,
+      ticking.due.item,
+      true,
+      DateTime.now().toUtc(),
+    );
+    if (!changes.isEmpty) {
+      ticking.store.apply(changes);
+    }
+  }
+
+  void _untick(_Ticking ticking) {
+    ticking.timer?.cancel();
+    if (ticking.saved) {
+      final ListChanges changes = ListRules.setCompleted(
+        ticking.due.definition,
+        ticking.due.item,
+        false,
+        DateTime.now().toUtc(),
+      );
+      if (!changes.isEmpty) {
+        ticking.store.apply(changes);
+      }
+    }
+    if (mounted) {
+      setState(() {
+        if (identical(_ticking[ticking.due.item.id], ticking)) {
+          _ticking.remove(ticking.due.item.id);
+        }
+      });
+    }
   }
 
   // The Today rows' blobs move only while there are rows to show.
@@ -1244,48 +1330,109 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           : due.hasTime
           ? timeFormat(locale, preferences.timeFormat).format(due.due)
           : '';
-      return InkWell(
+      final _Ticking? ticking = _ticking[due.item.id];
+      final bool ticked = ticking != null;
+      final bool leaving = ticking?.leaving ?? false;
+      final Duration slide = _moves ? AppMotion.standard : Duration.zero;
+      final Widget tick = Semantics(
+        button: true,
+        checked: ticked,
+        label: loc.homeTick,
+        child: GestureDetector(
+          key: ValueKey('home-tick-${due.item.id}'),
+          behavior: HitTestBehavior.opaque,
+          onTap: ticked ? null : () => _tickDue(due),
+          child: SizedBox.square(
+            dimension: homeTickTarget,
+            child: Center(
+              child: Container(
+                width: homeTickSize,
+                height: homeTickSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: ticked ? neutrals.text : neutrals.ground,
+                  border: Border.all(color: neutrals.text, width: 1.75),
+                ),
+                child: ticked
+                    ? Icon(Icons.check, size: 14, color: neutrals.ground)
+                    : null,
+              ),
+            ),
+          ),
+        ),
+      );
+      // Ticked: it slides out to the side as its height closes.
+      return ClipRect(
         key: ValueKey('home-due-${due.item.id}'),
-        onTap: () {
-          if (!_arranging) {
-            widget.onOpenList?.call(definition.id);
-          }
-        },
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: homeDueRowHeight),
-          child: Row(
-            children: [
-              const SizedBox(width: homeDueLeft),
-              HomeSmallBlob(
-                color: listColor(definition.color, brightness: brightness),
-                seed: homeBlobSeed(definition.id),
-                clock: _moves ? _blobTick : null,
-              ),
-              const SizedBox(width: homeDueBlobGap),
-              Flexible(
-                child: Text(
-                  title is String ? title : '',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: type.row.copyWith(color: neutrals.text, fontSize: 15),
+        child: AnimatedAlign(
+          duration: slide,
+          curve: AppMotion.curve,
+          alignment: AlignmentDirectional.topStart,
+          heightFactor: leaving ? 0 : 1,
+          child: AnimatedSlide(
+            duration: slide,
+            curve: AppMotion.curve,
+            offset: leaving ? const Offset(-1, 0) : Offset.zero,
+            child: InkWell(
+              onTap: () {
+                if (!_arranging) {
+                  widget.onOpenList?.call(definition.id);
+                }
+              },
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: homeDueRowHeight),
+                child: Row(
+                  children: [
+                    // The circle's left edge on the cards' blob edge, its touch
+                    // target 48 around it.
+                    const SizedBox(
+                      width:
+                          homeDueLeft + homeTickSize / 2 - homeTickTarget / 2,
+                    ),
+                    tick,
+                    HomeSmallBlob(
+                      color: listColor(
+                        definition.color,
+                        brightness: brightness,
+                      ),
+                      seed: homeBlobSeed(definition.id),
+                      clock: _moves ? _blobTick : null,
+                    ),
+                    const SizedBox(width: homeDueBlobGap),
+                    Flexible(
+                      child: Text(
+                        title is String ? title : '',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: type.row.copyWith(
+                          color: neutrals.text,
+                          fontSize: 15,
+                          decoration: ticked
+                              ? TextDecoration.lineThrough
+                              : null,
+                          decorationColor: neutrals.text,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.sizeOf(context).width * 0.4,
+                      ),
+                      child: Text(
+                        [
+                          if (when.isNotEmpty) when,
+                          labels.listName(definition),
+                        ].join(' · '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: type.meta,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 8),
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.sizeOf(context).width * 0.4,
-                ),
-                child: Text(
-                  [
-                    if (when.isNotEmpty) when,
-                    labels.listName(definition),
-                  ].join(' · '),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: type.meta,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       );
@@ -1302,6 +1449,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         body: ListCatalogBuilder(
           builder: (context, catalog) {
             final List<HomeDueItem> due = homeDueItems(catalog, now);
+            // A saved tick is done with once its item has left the rows.
+            _ticking.removeWhere(
+              (id, ticking) =>
+                  ticking.saved && !due.any((each) => each.item.id == id),
+            );
             _syncBlobClock(
               _moves && preferences.homeContent.showsDue && due.isNotEmpty,
             );
