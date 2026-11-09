@@ -528,6 +528,26 @@ void main() {
       expect(_card(_tasks), findsOneWidget);
     });
 
+    testWidgets('a hold the system cancels ends as a release on none', (
+      tester,
+    ) async {
+      await _pumpApp(tester, pins: [_tasks, _grocery]);
+      final TestGesture gesture = await _hold(tester, _tasks);
+      await gesture.moveTo(tester.getCenter(_prompt(HomeCardAction.unpin)));
+      await tester.pump();
+      expect(_shownPrompts(), isNotEmpty);
+      await gesture.cancel();
+      await settle(tester);
+      expect(_shownPrompts(), isEmpty);
+      expect(_preferences(tester).homePins, [_tasks, _grocery]);
+      // Nothing is stuck: the next hold offers its prompts again.
+      final TestGesture again = await _hold(tester, _grocery);
+      expect(_shownPrompts(), isNotEmpty);
+      await again.up();
+      await settle(tester);
+      expect(_shownPrompts(), isEmpty);
+    });
+
     testWidgets('moving back away unselects a prompt (rule 3)', (tester) async {
       await _pumpApp(tester, pins: [_tasks, _grocery]);
       final Offset start = tester.getCenter(_card(_tasks));
@@ -592,6 +612,21 @@ void main() {
       await settle(tester);
       expect(_preferences(tester).homeSuggestions, isTrue);
       expect(_card(_grocery), findsOneWidget);
+    });
+
+    testWidgets('No suggestions leaves the other cards as they are (R5)', (
+      tester,
+    ) async {
+      await _pumpApp(tester, pins: [_tasks, _grocery]);
+      // Grocery keeps its card with an unfilled pin until the next refresh.
+      await _choose(tester, _grocery, HomeCardAction.unpin);
+      expect(_card(_grocery), findsOneWidget);
+      await _choose(tester, _journal, HomeCardAction.noSuggestions);
+      expect(_preferences(tester).homeSuggestions, isFalse);
+      expect(_card(_journal), findsNothing);
+      expect(_card(_watch), findsNothing);
+      expect(_card(_grocery), findsOneWidget);
+      expect(_card(_tasks), findsOneWidget);
     });
 
     testWidgets('Edit opens the list editor', (tester) async {
@@ -714,6 +749,41 @@ void main() {
       await rest.up();
       await settle(tester);
       expect(_preferences(tester).homeOrder.first, isNot(_grocery));
+      expect(_preferences(tester).homeArranged, isTrue);
+    });
+
+    testWidgets('a drag the system cancels puts the cards back', (
+      tester,
+    ) async {
+      const List<String> pins = [_tasks, _grocery, _journal];
+      await _pumpApp(tester, pins: pins);
+      final List<String> before = onScreen(tester, pins);
+      await arrange(tester, before.first);
+      final TestGesture gesture = await tester.startGesture(
+        tester.getCenter(_card(before.first)),
+      );
+      await tester.pump(const Duration(milliseconds: 1));
+      for (int i = 0; i < 3; i++) {
+        await gesture.moveBy(const Offset(0, 100));
+        await tester.pump();
+      }
+      expect(onScreen(tester, pins), isNot(before));
+      await gesture.cancel();
+      await settle(tester);
+      expect(onScreen(tester, pins), before);
+      expect(_preferences(tester).homeArranged, isFalse);
+      expect(isArranging(), isTrue);
+      // Nothing is stuck: the card still drags, and that drop saves.
+      final TestGesture again = await tester.startGesture(
+        tester.getCenter(_card(before.first)),
+      );
+      await tester.pump(const Duration(milliseconds: 1));
+      for (int i = 0; i < 4; i++) {
+        await again.moveBy(const Offset(0, 100));
+        await tester.pump();
+      }
+      await again.up();
+      await settle(tester);
       expect(_preferences(tester).homeArranged, isTrue);
     });
 

@@ -188,6 +188,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool _arranging = false;
   String? _selectedId;
   String? _dragId;
+  // The pinned order when the drag began, to go back to if it is cancelled.
+  List<String>? _dragStartOrder;
   double _dragGrab = 0;
   bool _dragMoved = false;
   // Picked up as the selected card, with no rest, which its recognizer keeps.
@@ -392,13 +394,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           },
         );
       case HomeCardAction.noSuggestions:
-        final AccountPreferencesCubit cubit = context
-            .read<AccountPreferencesCubit>();
-        cubit.setHomeSuggestions(false);
+        // Like Remove: the suggestions go by hand and the rest stays as it is
+        // until the next refresh (Q-65, Q-74); Undo brings them back with one.
+        setState(() => _suggested = const []);
+        _own((cubit) => cubit.setHomeSuggestions(false));
         banners.show(
           loc.homeSuggestionsOffBanner,
           actionLabel: loc.undo,
-          onAction: () => cubit.setHomeSuggestions(true),
+          onAction: () {
+            context.read<AccountPreferencesCubit>().setHomeSuggestions(true);
+            _refresh();
+          },
         );
     }
   }
@@ -538,12 +544,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _syncClock();
   }
 
+  // Before the prompts, the finger moved off. After them, the system took the
+  // touch (a cancel, not an end): it ends as a release on none, doing nothing.
   void _holdCancelled() {
-    if (_arranging || _prompts.isNotEmpty) {
+    if (_arranging) {
       return;
     }
     _lift.value = 0;
-    setState(() => _heldId = null);
+    _reveal.value = 0;
+    setState(() {
+      _heldId = null;
+      _prompts = const [];
+      _promptLabels = const [];
+      _promptRects = const [];
+      _promptSelected = null;
+    });
     _syncClock();
   }
 
@@ -704,8 +719,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
-  // A finger that moves off lets it ease back.
+  // A finger that moves off lets it ease back. A drag the system takes (a
+  // cancel, not a drop) puts the cards back as they were and saves nothing.
   void _restCancelled(String listId) {
+    if (_dragId == listId) {
+      final List<String>? pinned = _pinned;
+      setState(() {
+        if (pinned != null && _dragStartOrder != null) {
+          pinned
+            ..clear()
+            ..addAll(_dragStartOrder!);
+        }
+        _dragStartOrder = null;
+        _dragId = null;
+        _slides.clear();
+      });
+      _syncClock();
+      return;
+    }
     if (_restingId == listId) {
       _rest.animateBack(0, duration: AppMotion.quick);
     }
@@ -731,6 +762,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _holdStart = finger;
       _heldRect = rect;
       _dragGrab = finger.dy - rect.top;
+      _dragStartOrder = List.of(_pinned ?? const <String>[]);
       _slides.remove(listId);
     });
     _syncClock();

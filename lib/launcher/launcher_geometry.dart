@@ -167,6 +167,11 @@ class LauncherConfig {
       _build(elapsed, pickUpGrowDelay, dialPickUpDelay);
 
   static double _build(Duration elapsed, Duration delay, Duration total) {
+    // A delay tuned to or past its total: no growing, it is full at the total
+    // (and 0/0 would give NaN).
+    if (total <= delay) {
+      return elapsed >= total ? 1 : 0;
+    }
     final double t =
         ((elapsed - delay).inMicroseconds / (total - delay).inMicroseconds)
             .clamp(0, 1)

@@ -10,6 +10,7 @@ import 'package:hybrid_note/lists/builtin_templates.dart';
 import 'package:hybrid_note/lists/list_catalog.dart';
 import 'package:hybrid_note/lists/list_definition.dart';
 import 'package:hybrid_note/lists/list_item.dart';
+import 'package:hybrid_note/lists/list_vocabulary.dart';
 
 import 'support/fake_auth.dart';
 import 'support/firestore_store.dart';
@@ -51,12 +52,20 @@ final List<ListItem> _items = [
   _task('t-none', 'No date', null),
 ];
 
-Future<FirestoreListStore> _pumpApp(WidgetTester tester) async {
+Future<FirestoreListStore> _pumpApp(
+  WidgetTester tester, {
+  List<ListItem>? items,
+  List<ListDefinition>? lists,
+}) async {
   tester.view.physicalSize = const Size(800, 1600);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   SharedPreferences.setMockInitialValues(const {});
-  final FirestoreListStore store = await widgetTestStore(tester, items: _items);
+  final FirestoreListStore store = await widgetTestStore(
+    tester,
+    items: items ?? _items,
+    lists: lists,
+  );
   await tester.pumpWidget(
     await testApp(
       auth: FakeAuthService(user: testUser),
@@ -272,6 +281,112 @@ void main() {
       await settle(tester);
       expect(find.byKey(const ValueKey('home-due-t-done')), findsNothing);
       expect(find.byKey(const ValueKey('home-due-t-today')), findsOneWidget);
+    });
+
+    // What a list holds now, read outside the test's fake clock.
+    Future<List<ListItem>> itemsOf(
+      WidgetTester tester,
+      FirestoreListStore store,
+      String listId,
+    ) async =>
+        (await tester.runAsync(() => store.watch().first))!.itemsOf(listId);
+
+    testWidgets('× clears only its own item, and a repeat comes again (R4)', (
+      tester,
+    ) async {
+      final ListItem repeating = ListItem(
+        id: 't-repeat',
+        listId: BuiltinTemplates.tasksId,
+        values: {
+          'title': 'Water the plants',
+          'done': true,
+          'reminderAt': _today.add(const Duration(hours: 9)).toIso8601String(),
+          'repeat': {'frequency': 'daily'},
+        },
+        createdAt: _today,
+        updatedAt: _today,
+      );
+      final FirestoreListStore store = await _pumpApp(
+        tester,
+        items: [..._items, repeating],
+      );
+      expect(find.byKey(const ValueKey('home-clear-t-done')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('home-clear-t-repeat')));
+      await settle(tester);
+      final List<ListItem> tasks = await itemsOf(
+        tester,
+        store,
+        BuiltinTemplates.tasksId,
+      );
+      await settle(tester);
+      // The other ticked item stays, ticked, on home with its ×.
+      expect(tasks.where((item) => item.id == 't-repeat'), isEmpty);
+      expect(tasks.singleWhere((item) => item.id == 't-done')['done'], isTrue);
+      expect(find.byKey(const ValueKey('home-due-t-done')), findsOneWidget);
+      expect(find.byKey(const ValueKey('home-clear-t-done')), findsOneWidget);
+      expect(find.byKey(const ValueKey('home-due-t-repeat')), findsNothing);
+      // The next one is saved, open, on a later day.
+      final ListItem next = tasks.singleWhere(
+        (item) => item.id.startsWith('repeat-t-repeat-'),
+      );
+      expect(next['done'], isFalse);
+      expect(next['title'], 'Water the plants');
+      expect(
+        DateTime.parse(next['reminderAt']! as String).isAfter(_today),
+        isTrue,
+      );
+    });
+
+    testWidgets('× on a list that copies on clear makes its copy (R4)', (
+      tester,
+    ) async {
+      // The built-in Grocery has no date, so it never shows on home; a
+      // Grocery-like list with one does.
+      final ListDefinition grocery = BuiltinTemplates.grocery();
+      final ListDefinition dated = grocery.copyWith(
+        id: 'grocery-dated',
+        fields: [
+          ...grocery.fields,
+          const FieldDefinition(
+            key: 'reminderAt',
+            type: FieldType.dateTime,
+            labelKey: 'date',
+            role: FieldRole.reminder,
+          ),
+        ],
+      );
+      ListItem milk(String id, {required bool done}) => ListItem(
+        id: id,
+        listId: dated.id,
+        values: {
+          'title': 'Milk $id',
+          'done': done,
+          'section': 'current',
+          'autoAddToNext': true,
+          'reminderAt': _today.add(const Duration(hours: 9)).toIso8601String(),
+        },
+        createdAt: _today,
+        updatedAt: _today,
+      );
+      final FirestoreListStore store = await _pumpApp(
+        tester,
+        items: [milk('m1', done: true), milk('m2', done: true)],
+        lists: [...starterLists(), dated],
+      );
+      await tester.tap(find.byKey(const ValueKey('home-clear-m1')));
+      await settle(tester);
+      final List<ListItem> items = await itemsOf(tester, store, dated.id);
+      await settle(tester);
+      expect(items.where((item) => item.id == 'm1'), isEmpty);
+      expect(items.singleWhere((item) => item.id == 'm2')['done'], isTrue);
+      expect(find.byKey(const ValueKey('home-due-m2')), findsOneWidget);
+      final ListItem copy = items.singleWhere(
+        (item) => item['title'] == 'Milk m1',
+      );
+      expect(copy['section'], 'nextTime');
+      expect(copy['done'], isFalse);
+      // m2's copy is not made: only m1 was cleared.
+      expect(items.where((item) => item['title'] == 'Milk m2'), hasLength(1));
     });
   });
 
