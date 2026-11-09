@@ -22,6 +22,7 @@ class AppBannerController {
   VoidCallback? _onAction;
   bool _showing = false;
   int _serial = 0;
+  bool _disposed = false;
   Timer? _timer;
   final ValueNotifier<int> _changes = ValueNotifier(0);
   final ValueNotifier<BannerRoom?> _room = ValueNotifier(null);
@@ -70,10 +71,14 @@ class AppBannerController {
 
   // The banner has slid away: nothing of it stays on the page.
   void _gone() {
-    if (!_showing && _text != null) {
-      _text = null;
-      _changes.value++;
-    }
+    // With reduced motion the slide ends inside the build that started it,
+    // so the change waits for the build to finish.
+    scheduleMicrotask(() {
+      if (!_disposed && !_showing && _text != null) {
+        _text = null;
+        _changes.value++;
+      }
+    });
   }
 
   void act() {
@@ -83,6 +88,7 @@ class AppBannerController {
   }
 
   void dispose() {
+    _disposed = true;
     _timer?.cancel();
     _changes.dispose();
     _room.dispose();
@@ -217,30 +223,58 @@ class AppBannerHost extends StatelessWidget {
               inset: media.padding.bottom,
               room: controller.room,
             );
-            return AnimatedPositioned(
-              duration: media.disableAnimations
-                  ? Duration.zero
-                  : AppMotion.standard,
-              curve: AppMotion.curve,
-              onEnd: controller._gone,
-              left: place.left,
-              // Far enough down to be off the screen when it has gone.
-              bottom: controller.showing ? place.bottom : -(tallest + 24),
-              child: controller.text == null
-                  ? const SizedBox.shrink()
-                  : place.fill
-                  ? SizedBox(
-                      width: place.width,
-                      child: _Banner(controller: controller, fill: true),
-                    )
-                  : ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: place.width),
-                      child: _Banner(controller: controller, fill: false),
-                    ),
+            // It comes out from behind the AI bar and goes back behind it
+            // (owner, 2026-11-09): drawn only above the bar's top edge (or,
+            // without the bar, above the bottom edge), it slides up from
+            // there, so it never passes in front of the bar. With reduced
+            // motion it is just there, and just gone.
+            final double edge =
+                controller.room?.bar?.top ??
+                media.size.height - media.viewInsets.bottom;
+            return Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              height: math.max(0, edge),
+              child: ClipRect(
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [_slide(media, place, edge)],
+                ),
+              ),
             );
           },
         ),
       ],
+    );
+  }
+
+  Widget _slide(
+    MediaQueryData media,
+    ({double left, double width, double bottom, bool fill}) place,
+    double edge,
+  ) {
+    return AnimatedPositioned(
+      duration: media.disableAnimations ? Duration.zero : AppMotion.standard,
+      curve: AppMotion.curve,
+      onEnd: controller._gone,
+      left: place.left,
+      // Measured from the edge it hides behind; when gone, all of it
+      // is below that edge.
+      bottom: controller.showing
+          ? place.bottom - (media.size.height - edge)
+          : -(tallest + 24),
+      child: controller.text == null
+          ? const SizedBox.shrink()
+          : place.fill
+          ? SizedBox(
+              width: place.width,
+              child: _Banner(controller: controller, fill: true),
+            )
+          : ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: place.width),
+              child: _Banner(controller: controller, fill: false),
+            ),
     );
   }
 }

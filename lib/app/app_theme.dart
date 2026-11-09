@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show PlatformDispatcher;
 
 import 'package:flutter/material.dart';
@@ -165,6 +166,45 @@ class AppTheme {
   // minute, AM or PM, the dial's hand and the picked day are filled with it,
   // in white or dark digits, whichever reads on it; the others are grey.
   // Null, no list: the text colour.
+  // As [withPickerAccent], for a picker opened from [context]: where the
+  // phone's text size makes AM or PM (in this language) wider than its
+  // circle, they get an oval as wide as their button instead, so the letters
+  // stay on it (the circle is as tall as the button, 40 dp).
+  static ThemeData pickerTheme(BuildContext context, Color? accent) {
+    final ThemeData theme = withPickerAccent(Theme.of(context), accent);
+    final MaterialLocalizations? loc = Localizations.of<MaterialLocalizations>(
+      context,
+      MaterialLocalizations,
+    );
+    final TextStyle? style = theme.timePickerTheme.dayPeriodTextStyle;
+    if (loc == null || style == null) {
+      return theme;
+    }
+    double widest = 0;
+    for (final String label in [
+      loc.anteMeridiemAbbreviation,
+      loc.postMeridiemAbbreviation,
+    ]) {
+      final TextPainter painter = TextPainter(
+        text: TextSpan(text: label, style: style),
+        textDirection: TextDirection.ltr,
+        textScaler: MediaQuery.textScalerOf(context),
+      )..layout();
+      widest = math.max(widest, painter.width);
+      painter.dispose();
+    }
+    // Room inside a 40 dp circle, with a little margin.
+    const double inCircle = 34;
+    if (widest <= inCircle) {
+      return theme;
+    }
+    return theme.copyWith(
+      timePickerTheme: theme.timePickerTheme.copyWith(
+        dayPeriodShape: const OvalBorder(),
+      ),
+    );
+  }
+
   static ThemeData withPickerAccent(ThemeData theme, Color? accent) {
     final AppNeutrals n = AppColors.neutrals(theme.brightness);
     final Color fill = accent ?? n.text;
@@ -520,19 +560,19 @@ class AppTheme {
         elevation: 8,
         shape: dialogShape,
         helpTextStyle: sans(13, weight: FontWeight.w500, color: n.muted),
-        // The picked one of the hour and the minute on a gentle oval filling
-        // Material's box; the other bare, grey digits only (owner,
-        // 2026-11-09: no outline on it).
-        hourMinuteShape: const OvalBorder(),
+        // The picked one of the hour and the minute on a circle, centred in
+        // Material's box and as tall as it (owner, 2026-11-09: "circle
+        // instead of oval"); the other bare, grey digits only.
+        hourMinuteShape: const CircleBorder(),
         hourMinuteTextStyle: serif(52, height: 1),
         timeSelectorSeparatorColor: WidgetStatePropertyAll(n.muted),
         timeSelectorSeparatorTextStyle: WidgetStatePropertyAll(
           serif(52, height: 1),
         ),
-        // A plain strip with no outline; the picked one on an oval.
-        dayPeriodShape: const OvalBorder(),
+        // A plain strip with no outline; the picked one on a circle.
+        dayPeriodShape: const CircleBorder(),
         dayPeriodBorderSide: BorderSide.none,
-        dayPeriodTextStyle: sans(15, weight: FontWeight.w500),
+        dayPeriodTextStyle: sans(14, weight: FontWeight.w600),
         dialBackgroundColor: n.surface,
         dialTextStyle: sans(16, weight: FontWeight.w500),
         entryModeIconColor: n.muted,

@@ -9,6 +9,7 @@ import 'package:hybrid_note/app_colors.dart';
 Future<void> _open(
   WidgetTester tester, {
   required Brightness brightness,
+  double textScale = 1,
   bool h24 = false,
   bool date = false,
   Size size = const Size(320, 640),
@@ -38,10 +39,17 @@ Future<void> _open(
                       initialTime: const TimeOfDay(hour: 3, minute: 29),
                       // As the app's timePickerIn gives it.
                       builder: (context, child) => MediaQuery(
-                        data: MediaQuery.of(
-                          context,
-                        ).copyWith(alwaysUse24HourFormat: h24),
-                        child: child!,
+                        data: MediaQuery.of(context).copyWith(
+                          alwaysUse24HourFormat: h24,
+                          textScaler: TextScaler.linear(textScale),
+                        ),
+                        // As the item editor opens it, here with no list.
+                        child: Builder(
+                          builder: (context) => Theme(
+                            data: AppTheme.pickerTheme(context, null),
+                            child: child!,
+                          ),
+                        ),
                       ),
                     ),
               child: const Text('open'),
@@ -122,9 +130,15 @@ void main() {
       );
       expect(theme.timeSelectorSeparatorColor!.resolve({}), n.muted);
       expect(theme.dayPeriodBorderSide, BorderSide.none);
-      expect(theme.hourMinuteShape, isA<OvalBorder>());
-      // No outline on the one not picked.
-      expect((theme.hourMinuteShape! as OvalBorder).side, BorderSide.none);
+      // Circles, not ovals, and no outline on the one not picked.
+      for (final ShapeBorder? shape in [
+        theme.hourMinuteShape,
+        theme.dayPeriodShape,
+      ]) {
+        expect(shape, isA<CircleBorder>());
+        expect((shape! as CircleBorder).eccentricity, 0);
+        expect((shape as CircleBorder).side, BorderSide.none);
+      }
       expect(find.text('3'), findsWidgets);
       expect(find.text('29'), findsOneWidget);
     });
@@ -137,6 +151,37 @@ void main() {
         expect(find.text('03'), findsOneWidget);
       },
     );
+
+    for (final double scale in [1.0, 1.3, 2.0]) {
+      testWidgets('time picker, ${brightness.name}, text x$scale: AM and PM '
+          'stay on their circle, or an oval when too wide', (tester) async {
+        await _open(tester, brightness: brightness, textScale: scale);
+        expect(tester.takeException(), isNull);
+        final ShapeBorder shape = Theme.of(
+          tester.element(find.text('AM')),
+        ).timePickerTheme.dayPeriodShape!;
+        for (final String period in ['AM', 'PM']) {
+          final Rect text = tester.getRect(find.text(period));
+          final Rect button = tester.getRect(
+            find
+                .ancestor(of: find.text(period), matching: find.byType(InkWell))
+                .first,
+          );
+          // A circle is as wide as the button is tall; an oval fills it.
+          final double room = (shape as CircleBorder).eccentricity == 0
+              ? button.shortestSide
+              : button.width;
+          expect(
+            text.width,
+            lessThanOrEqualTo(room),
+            reason: '$period x$scale',
+          );
+        }
+        if (scale == 1.0) {
+          expect((shape as CircleBorder).eccentricity, 0);
+        }
+      });
+    }
 
     testWidgets('date picker, ${brightness.name}: the picked day filled', (
       tester,

@@ -379,8 +379,8 @@ class _GenericItemDialogState extends State<GenericItemDialog>
   Widget _inListColour(BuildContext context, Widget child) {
     final ThemeData theme = Theme.of(context);
     return Theme(
-      data: AppTheme.withPickerAccent(
-        theme,
+      data: AppTheme.pickerTheme(
+        context,
         listColor(widget.definition.color, brightness: theme.brightness),
       ),
       child: child,

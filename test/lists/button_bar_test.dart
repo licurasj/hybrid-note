@@ -26,10 +26,10 @@ ListItem _item(ListDefinition list, String id, Map<String, dynamic> values) {
 }
 
 ListItem _milk({required bool done}) => _item(_grocery, 'milk', {
-      'title': 'Milk',
-      'done': done,
-      'section': 'nextTime',
-    });
+  'title': 'Milk',
+  'done': done,
+  'section': 'nextTime',
+});
 
 ListItem _task({required bool done}) =>
     _item(_tasks, 'call', {'title': 'Call Sam', 'done': done});
@@ -75,39 +75,80 @@ Widget _screen(
 }
 
 final Finder _move = find.byKey(const ValueKey('move-all-button-nextTime'));
-final Finder _clear = find.byKey(const ValueKey('clear-ticked-button-nextTime'));
+final Finder _clear = find.byKey(
+  const ValueKey('clear-ticked-button-nextTime'),
+);
 final Finder _clearSlot = find.byKey(const ValueKey('clear-ticked-nextTime'));
 
 void main() {
-  testWidgets('Next time: ticking leaves Move in place; Clear ticked grows in on its right', (
-    tester,
-  ) async {
-    await tester.pumpWidget(_screen(_grocery, [_milk(done: false)]));
+  testWidgets(
+    'Next time: ticking leaves Move in place; Clear ticked grows in on its right',
+    (tester) async {
+      await tester.pumpWidget(_screen(_grocery, [_milk(done: false)]));
+      await tester.pumpAndSettle();
+
+      expect(_move, findsOneWidget);
+      expect(_clear, findsNothing);
+      final Rect moveBefore = tester.getRect(_move);
+
+      await tester.pumpWidget(_screen(_grocery, [_milk(done: true)]));
+      await tester.pump(const Duration(milliseconds: 60));
+
+      // Halfway: Clear ticked is growing, and Move has not moved.
+      expect(tester.getRect(_move), moveBefore);
+      final double growing = tester.getSize(_clearSlot).width;
+      expect(growing, greaterThan(0));
+      expect(growing, lessThan(tester.getSize(_clear).width));
+
+      await tester.pumpAndSettle();
+      expect(tester.getRect(_move), moveBefore);
+      expect(tester.getRect(_clear).left, greaterThan(moveBefore.right));
+      expect(find.text('Clear Ticked (1 ticked)'), findsOneWidget);
+
+      // It goes the same way, and Move still stays.
+      await tester.pumpWidget(_screen(_grocery, [_milk(done: false)]));
+      await tester.pumpAndSettle();
+      expect(tester.getRect(_move), moveBefore);
+      expect(_clear, findsNothing);
+    },
+  );
+
+  testWidgets('Current run (no Move): Clear ticked grows in on the label line, '
+      'and nothing below moves (Q-120 C)', (tester) async {
+    ListItem zucchini({required bool done}) => _item(_grocery, 'z-zucchini', {
+      'title': 'Zucchini',
+      'done': done,
+      'section': 'current',
+    });
+    final ListItem apples = _item(_grocery, 'a-apples', {
+      'title': 'Apples',
+      'done': false,
+      'section': 'current',
+    });
+    final Finder clear = find.byKey(
+      const ValueKey('clear-ticked-button-current'),
+    );
+    final Finder label = find.textContaining('CURRENT GROCERY RUN');
+    await tester.pumpWidget(_screen(_grocery, [apples, zucchini(done: false)]));
     await tester.pumpAndSettle();
+    expect(clear, findsNothing);
+    final double applesBefore = tester.getTopLeft(find.text('Apples')).dy;
 
-    expect(_move, findsOneWidget);
-    expect(_clear, findsNothing);
-    final Rect moveBefore = tester.getRect(_move);
-
-    await tester.pumpWidget(_screen(_grocery, [_milk(done: true)]));
+    await tester.pumpWidget(_screen(_grocery, [apples, zucchini(done: true)]));
     await tester.pump(const Duration(milliseconds: 60));
-
-    // Halfway: Clear ticked is growing, and Move has not moved.
-    expect(tester.getRect(_move), moveBefore);
-    final double growing = tester.getSize(_clearSlot).width;
-    expect(growing, greaterThan(0));
-    expect(growing, lessThan(tester.getSize(_clear).width));
-
+    expect(tester.getTopLeft(find.text('Apples')).dy, applesBefore);
     await tester.pumpAndSettle();
-    expect(tester.getRect(_move), moveBefore);
-    expect(tester.getRect(_clear).left, greaterThan(moveBefore.right));
-    expect(find.text('Clear Ticked (1 ticked)'), findsOneWidget);
-
-    // It goes the same way, and Move still stays.
-    await tester.pumpWidget(_screen(_grocery, [_milk(done: false)]));
-    await tester.pumpAndSettle();
-    expect(tester.getRect(_move), moveBefore);
-    expect(_clear, findsNothing);
+    expect(clear, findsOneWidget);
+    expect(tester.getTopLeft(find.text('Apples')).dy, applesBefore);
+    // On the label's line, at its right.
+    expect(
+      (tester.getCenter(clear).dy - tester.getCenter(label).dy).abs(),
+      lessThan(4),
+    );
+    expect(
+      tester.getRect(clear).left,
+      greaterThan(tester.getRect(label).right),
+    );
   });
 
   testWidgets('reduced motion: Clear ticked appears at once', (tester) async {
@@ -126,25 +167,26 @@ void main() {
     expect(tester.getRect(_move), moveBefore);
   });
 
-  testWidgets('top bar: the clear button grows in left of Edit list, which stays', (
-    tester,
-  ) async {
-    final Finder edit = find.byKey(const ValueKey('edit-list'));
-    final Finder clear = find.byKey(const ValueKey('list-clear'));
+  testWidgets(
+    'top bar: the clear button grows in left of Edit list, which stays',
+    (tester) async {
+      final Finder edit = find.byKey(const ValueKey('edit-list'));
+      final Finder clear = find.byKey(const ValueKey('list-clear'));
 
-    await tester.pumpWidget(_screen(_tasks, [_task(done: false)]));
-    await tester.pumpAndSettle();
-    final Rect editBefore = tester.getRect(edit);
-    expect(tester.getSize(clear).width, 0);
+      await tester.pumpWidget(_screen(_tasks, [_task(done: false)]));
+      await tester.pumpAndSettle();
+      final Rect editBefore = tester.getRect(edit);
+      expect(tester.getSize(clear).width, 0);
 
-    await tester.pumpWidget(_screen(_tasks, [_task(done: true)]));
-    await tester.pump(const Duration(milliseconds: 60));
-    expect(tester.getRect(edit), editBefore);
-    expect(tester.getSize(clear).width, greaterThan(0));
+      await tester.pumpWidget(_screen(_tasks, [_task(done: true)]));
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(tester.getRect(edit), editBefore);
+      expect(tester.getSize(clear).width, greaterThan(0));
 
-    await tester.pumpAndSettle();
-    expect(tester.getRect(edit), editBefore);
-    expect(tester.getRect(clear).right, lessThanOrEqualTo(editBefore.left));
-    expect(find.byTooltip('Clear Ticked'), findsOneWidget);
-  });
+      await tester.pumpAndSettle();
+      expect(tester.getRect(edit), editBefore);
+      expect(tester.getRect(clear).right, lessThanOrEqualTo(editBefore.left));
+      expect(find.byTooltip('Clear Ticked'), findsOneWidget);
+    },
+  );
 }

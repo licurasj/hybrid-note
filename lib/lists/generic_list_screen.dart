@@ -519,23 +519,44 @@ class _GenericListScreenState extends State<GenericListScreen>
   }
 
   // An uppercase section label with its count, and any actions (clear ticked,
-  // move all) as a bar under it.
-  Widget _header(String text, {int? count, List<Widget> actions = const []}) {
+  // move all) as a bar under it. [trailing] sits on the label's own line at its
+  // right, in a line always as tall as a button, so it comes and goes without
+  // moving anything (Q-120 C).
+  Widget _header(
+    String text, {
+    int? count,
+    List<Widget> actions = const [],
+    Widget? trailing,
+  }) {
     final _Look look = _look;
+    final Widget label = Semantics(
+      header: true,
+      child: Text(
+        count == null ? text.toUpperCase() : '${text.toUpperCase()} · $count',
+        style: look.type.sectionLabel,
+        // Beside a button, one line, so the line keeps its height.
+        maxLines: trailing == null ? null : 1,
+        overflow: trailing == null ? null : TextOverflow.ellipsis,
+      ),
+    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(_margin, 22, _margin, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Semantics(
-            header: true,
-            child: Text(
-              count == null
-                  ? text.toUpperCase()
-                  : '${text.toUpperCase()} · $count',
-              style: look.type.sectionLabel,
+          if (trailing == null)
+            label
+          else
+            SizedBox(
+              height: 36,
+              child: Row(
+                children: [
+                  Expanded(child: label),
+                  const SizedBox(width: 8),
+                  trailing,
+                ],
+              ),
             ),
-          ),
           // Each action brings its own top gap (see _barGap), so a bar whose
           // buttons are all hidden takes no room.
           if (actions.isNotEmpty) Wrap(spacing: 8, children: actions),
@@ -989,6 +1010,20 @@ class _GenericListScreenState extends State<GenericListScreen>
           moveAll.stringParam('field') == sectionField.key &&
           moveAll.stringParam('from') == option.value &&
           _allVisible.any((item) => item[sectionField.key] == option.value);
+      // The section has a Move button (shown or not).
+      final bool hasMove = moveAll != null &&
+          moveAll.stringParam('field') == sectionField.key &&
+          moveAll.stringParam('from') == option.value;
+      final Widget clearButton = TextButton(
+        key: ValueKey('clear-ticked-button-${option.value}'),
+        style: _barButtonStyle,
+        onPressed: () => _clearCompleted(
+          (item) => item[sectionField.key] == option.value,
+        ),
+        child: Text(
+          '${labels.loc.clearTicked} (${labels.loc.tickedCount(ticked)})',
+        ),
+      );
       final FieldOption? target = movesFromHere
           ? sectionField.options
               .where((other) => other.value == moveAll.stringParam('to'))
@@ -1002,11 +1037,19 @@ class _GenericListScreenState extends State<GenericListScreen>
           // Rule 7 (Q-105): Move keeps the first spot and Clear ticked grows
           // in on its right, so a tick never moves Move. Clear ticked is
           // shown only while Move is (it needs items), so Move growing in
-          // never pushes it either.
+          // never pushes it either. In a section with no Move, Clear ticked
+          // grows in on the label's line instead, so no row opens (Q-120 C).
+          trailing: canClear && !hasMove
+              ? GrowIn(
+                  key: ValueKey('clear-ticked-${option.value}'),
+                  shown: ticked > 0,
+                  vertical: false,
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: clearButton,
+                )
+              : null,
           actions: [
-            if (moveAll != null &&
-                moveAll.stringParam('field') == sectionField.key &&
-                moveAll.stringParam('from') == option.value)
+            if (hasMove)
               GrowIn(
                 key: ValueKey('move-all-${option.value}'),
                 shown: target != null,
@@ -1025,20 +1068,11 @@ class _GenericListScreenState extends State<GenericListScreen>
                   ),
                 )),
               ),
-            if (canClear)
+            if (canClear && hasMove)
               GrowIn(
                 key: ValueKey('clear-ticked-${option.value}'),
                 shown: ticked > 0,
-                child: _barGap(TextButton(
-                  key: ValueKey('clear-ticked-button-${option.value}'),
-                  style: _barButtonStyle,
-                  onPressed: () => _clearCompleted(
-                    (item) => item[sectionField.key] == option.value,
-                  ),
-                  child: Text(
-                    '${labels.loc.clearTicked} (${labels.loc.tickedCount(ticked)})',
-                  ),
-                )),
+                child: _barGap(clearButton),
               ),
           ],
         ),
