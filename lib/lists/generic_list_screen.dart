@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../app/account_preferences.dart';
 import '../app/app_theme.dart';
 import '../app/date_preferences.dart';
+import '../app/grow_in.dart';
 import '../app_colors.dart';
 import '../home_cards_view.dart';
 import '../l10n/generated/app_localizations.dart';
@@ -532,11 +533,9 @@ class _GenericListScreenState extends State<GenericListScreen>
               style: look.type.sectionLabel,
             ),
           ),
-          if (actions.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Wrap(spacing: 8, children: actions),
-            ),
+          // Each action brings its own top gap (see _barGap), so a bar whose
+          // buttons are all hidden takes no room.
+          if (actions.isNotEmpty) Wrap(spacing: 8, children: actions),
         ],
       ),
     );
@@ -578,6 +577,11 @@ class _GenericListScreenState extends State<GenericListScreen>
       ),
     );
   }
+
+  // The gap between a section label and its button bar, inside each button
+  // so it grows and goes with it.
+  Widget _barGap(Widget button) =>
+      Padding(padding: const EdgeInsets.only(top: 4), child: button);
 
   ButtonStyle get _barButtonStyle {
     final _Look look = _look;
@@ -956,30 +960,46 @@ class _GenericListScreenState extends State<GenericListScreen>
         _header(
           labels.option(option),
           count: members.length,
+          // Rule 7 (Q-105): Move keeps the first spot and Clear ticked grows
+          // in on its right, so a tick never moves Move. Clear ticked is
+          // shown only while Move is (it needs items), so Move growing in
+          // never pushes it either.
           actions: [
-            if (canClear && ticked > 0)
-              TextButton(
-                style: _barButtonStyle,
-                onPressed: () => _clearCompleted(
-                  (item) => item[sectionField.key] == option.value,
-                ),
-                child: Text(
-                  '${labels.loc.clearTicked} (${labels.loc.tickedCount(ticked)})',
-                ),
-              ),
-            if (target != null)
-              TextButton.icon(
-                style: _barButtonStyle,
-                icon: const Icon(Icons.arrow_upward, size: 16),
-                label: Text(labels.option(target)),
-                onPressed: () => _apply(
-                  ListRules.moveAll(
-                    _definition,
-                    widget.items,
-                    moveAll!,
-                    DateTime.now().toUtc(),
+            if (moveAll != null &&
+                moveAll.stringParam('field') == sectionField.key &&
+                moveAll.stringParam('from') == option.value)
+              GrowIn(
+                key: ValueKey('move-all-${option.value}'),
+                shown: target != null,
+                child: _barGap(TextButton.icon(
+                  key: ValueKey('move-all-button-${option.value}'),
+                  style: _barButtonStyle,
+                  icon: const Icon(Icons.arrow_upward, size: 16),
+                  label: Text(target == null ? '' : labels.option(target)),
+                  onPressed: () => _apply(
+                    ListRules.moveAll(
+                      _definition,
+                      widget.items,
+                      moveAll,
+                      DateTime.now().toUtc(),
+                    ),
                   ),
-                ),
+                )),
+              ),
+            if (canClear)
+              GrowIn(
+                key: ValueKey('clear-ticked-${option.value}'),
+                shown: ticked > 0,
+                child: _barGap(TextButton(
+                  key: ValueKey('clear-ticked-button-${option.value}'),
+                  style: _barButtonStyle,
+                  onPressed: () => _clearCompleted(
+                    (item) => item[sectionField.key] == option.value,
+                  ),
+                  child: Text(
+                    '${labels.loc.clearTicked} (${labels.loc.tickedCount(ticked)})',
+                  ),
+                )),
               ),
           ],
         ),
@@ -1256,8 +1276,11 @@ class _GenericListScreenState extends State<GenericListScreen>
     final List<ListItem> shown = hideDone
         ? visible.where((item) => !ListRules.isCompleted(_definition, item)).toList()
         : visible;
-    final bool canClearAll = _definition.view.kind == ViewKind.checklist &&
-        _behavior(BehaviorKind.clearCompleted) != null &&
+    // The top bar's clear button belongs to checklist lists that clear; it
+    // shows while any visible item is ticked.
+    final bool hasClearAll = _definition.view.kind == ViewKind.checklist &&
+        _behavior(BehaviorKind.clearCompleted) != null;
+    final bool canClearAll = hasClearAll &&
         visible.any((item) => ListRules.isCompleted(_definition, item));
 
     final List<Widget> content = [
@@ -1291,6 +1314,20 @@ class _GenericListScreenState extends State<GenericListScreen>
         elevation: 0,
         scrolledUnderElevation: 0,
         actions: [
+          // Rule 7 (Q-105): the clear button grows in at the left end of the
+          // right-aligned buttons, so the pin and Edit list never move.
+          if (hasClearAll)
+            GrowIn(
+              key: const ValueKey('list-clear'),
+              shown: canClearAll,
+              alignment: AlignmentDirectional.centerEnd,
+              vertical: false,
+              child: IconButton(
+                tooltip: loc.clear,
+                icon: const Icon(Icons.cleaning_services_outlined),
+                onPressed: () => _clearCompleted(_matchesFilter),
+              ),
+            ),
           // Pins follow the account, so there is none without one.
           if (context.read<AccountPreferencesCubit?>()
               case final AccountPreferencesCubit preferences)
@@ -1313,12 +1350,6 @@ class _GenericListScreenState extends State<GenericListScreen>
                   );
                 }
               },
-            ),
-          if (canClearAll)
-            IconButton(
-              tooltip: loc.clear,
-              icon: const Icon(Icons.cleaning_services_outlined),
-              onPressed: () => _clearCompleted(_matchesFilter),
             ),
           if (editAction != null)
             IconButton(
