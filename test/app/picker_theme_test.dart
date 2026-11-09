@@ -123,6 +123,8 @@ void main() {
       expect(theme.timeSelectorSeparatorColor!.resolve({}), n.muted);
       expect(theme.dayPeriodBorderSide, BorderSide.none);
       expect(theme.hourMinuteShape, isA<OvalBorder>());
+      // No outline on the one not picked.
+      expect((theme.hourMinuteShape! as OvalBorder).side, BorderSide.none);
       expect(find.text('3'), findsWidgets);
       expect(find.text('29'), findsOneWidget);
     });

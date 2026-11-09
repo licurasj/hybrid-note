@@ -520,9 +520,10 @@ class AppTheme {
         elevation: 8,
         shape: dialogShape,
         helpTextStyle: sans(13, weight: FontWeight.w500, color: n.muted),
-        // Each of the hour and the minute on a gentle oval filling
-        // Material's box: the picked one filled, the other a hairline.
-        hourMinuteShape: OvalBorder(side: BorderSide(color: n.line)),
+        // The picked one of the hour and the minute on a gentle oval filling
+        // Material's box; the other bare, grey digits only (owner,
+        // 2026-11-09: no outline on it).
+        hourMinuteShape: const OvalBorder(),
         hourMinuteTextStyle: serif(52, height: 1),
         timeSelectorSeparatorColor: WidgetStatePropertyAll(n.muted),
         timeSelectorSeparatorTextStyle: WidgetStatePropertyAll(
