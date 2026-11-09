@@ -375,6 +375,18 @@ class _GenericItemDialogState extends State<GenericItemDialog>
     Navigator.of(context).pop(result);
   }
 
+  // The pickers in this list's colour (Q-122 A).
+  Widget _inListColour(BuildContext context, Widget child) {
+    final ThemeData theme = Theme.of(context);
+    return Theme(
+      data: AppTheme.withPickerAccent(
+        theme,
+        listColor(widget.definition.color, brightness: theme.brightness),
+      ),
+      child: child,
+    );
+  }
+
   Future<void> _pickDate(FieldDefinition field) async {
     final Object? raw = _values[field.key];
     final DateTime current =
@@ -387,8 +399,10 @@ class _GenericItemDialogState extends State<GenericItemDialog>
       initialDate: current,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
-      builder: (context, child) =>
-          datePickerIn(preferences.weekStart, context, child),
+      builder: (context, child) => _inListColour(
+        context,
+        datePickerIn(preferences.weekStart, context, child),
+      ),
     );
     if (day == null || !mounted) {
       return;
@@ -399,8 +413,10 @@ class _GenericItemDialogState extends State<GenericItemDialog>
       final TimeOfDay? picked = await showTimePicker(
         context: context,
         initialTime: time,
-        builder: (context, child) =>
-            timePickerIn(preferences.timeFormat, context, child),
+        builder: (context, child) => _inListColour(
+          context,
+          timePickerIn(preferences.timeFormat, context, child),
+        ),
       );
       if (picked == null || !mounted) {
         return;

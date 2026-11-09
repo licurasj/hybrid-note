@@ -160,12 +160,69 @@ class SlidePageTransitionsBuilder extends PageTransitionsBuilder {
 class AppTheme {
   const AppTheme._();
 
+  // [theme] with the time and date pickers in [accent], the colour of the list
+  // whose item is edited (owner, 2026-11-09, Q-122 A): the picked hour or
+  // minute, AM or PM, the dial's hand and the picked day are filled with it,
+  // in white or dark digits, whichever reads on it; the others are grey.
+  // Null, no list: the text colour.
+  static ThemeData withPickerAccent(ThemeData theme, Color? accent) {
+    final AppNeutrals n = AppColors.neutrals(theme.brightness);
+    final Color fill = accent ?? n.text;
+    final Color onFill = accent == null ? n.ground : AppColors.onColor(fill);
+    Color picked(Set<WidgetState> states, Color yes, Color no) =>
+        states.contains(WidgetState.selected) ? yes : no;
+    return theme.copyWith(
+      timePickerTheme: theme.timePickerTheme.copyWith(
+        hourMinuteColor: WidgetStateColor.resolveWith(
+          (states) => picked(states, fill, Colors.transparent),
+        ),
+        hourMinuteTextColor: WidgetStateColor.resolveWith(
+          (states) => picked(states, onFill, n.muted),
+        ),
+        dayPeriodColor: WidgetStateColor.resolveWith(
+          (states) => picked(states, fill, Colors.transparent),
+        ),
+        dayPeriodTextColor: WidgetStateColor.resolveWith(
+          (states) => picked(states, onFill, n.muted),
+        ),
+        dialHandColor: fill,
+        dialTextColor: WidgetStateColor.resolveWith(
+          (states) => picked(states, onFill, n.text),
+        ),
+      ),
+      datePickerTheme: theme.datePickerTheme.copyWith(
+        dayForegroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? onFill
+              : states.contains(WidgetState.disabled)
+              ? n.muted
+              : n.text,
+        ),
+        dayBackgroundColor: WidgetStateProperty.resolveWith(
+          (states) => picked(states, fill, Colors.transparent),
+        ),
+        todayForegroundColor: WidgetStateProperty.resolveWith(
+          (states) => picked(states, onFill, n.text),
+        ),
+        todayBackgroundColor: WidgetStateProperty.resolveWith(
+          (states) => picked(states, fill, Colors.transparent),
+        ),
+        yearForegroundColor: WidgetStateProperty.resolveWith(
+          (states) => picked(states, onFill, n.text),
+        ),
+        yearBackgroundColor: WidgetStateProperty.resolveWith(
+          (states) => picked(states, fill, Colors.transparent),
+        ),
+      ),
+    );
+  }
+
   // languageCode is the app's chosen language; null follows the device.
   static ThemeData light({String? languageCode}) =>
-      _build(Brightness.light, languageCode);
+      withPickerAccent(_build(Brightness.light, languageCode), null);
 
   static ThemeData dark({String? languageCode}) =>
-      _build(Brightness.dark, languageCode);
+      withPickerAccent(_build(Brightness.dark, languageCode), null);
 
   static bool _uprightTitles(String? languageCode) {
     final String code =
@@ -277,9 +334,6 @@ class AppTheme {
       side: brightness == Brightness.dark
           ? BorderSide(color: n.line)
           : BorderSide.none,
-    );
-    final RoundedRectangleBorder tileShape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(AppShapes.fieldRadius),
     );
     final ButtonStyle pickerCancel = TextButton.styleFrom(
       foregroundColor: n.text,
@@ -459,46 +513,26 @@ class AppTheme {
         contentTextStyle: sans(15),
       ),
       // Material's time and date pickers in the app's look (Q-122 A, owner,
-      // 2026-11-09: "I like the android one"). The hour and the minute stay
-      // where Material puts them; as two tiles of one shape and colour with
-      // the colon between, in the serif, they read as one pair.
+      // 2026-11-09: "I like the android one"); the colours that follow the
+      // list come from withPickerAccent, here the text colour for no list.
       timePickerTheme: TimePickerThemeData(
         backgroundColor: n.ground,
         elevation: 8,
         shape: dialogShape,
         helpTextStyle: sans(13, weight: FontWeight.w500, color: n.muted),
-        hourMinuteShape: tileShape,
-        hourMinuteColor: WidgetStateColor.resolveWith(
-          (states) =>
-              states.contains(WidgetState.selected) ? n.text : n.surface,
-        ),
-        hourMinuteTextColor: WidgetStateColor.resolveWith(
-          (states) =>
-              states.contains(WidgetState.selected) ? n.ground : n.text,
-        ),
+        // Each of the hour and the minute on a gentle oval filling
+        // Material's box: the picked one filled, the other a hairline.
+        hourMinuteShape: OvalBorder(side: BorderSide(color: n.line)),
         hourMinuteTextStyle: serif(52, height: 1),
-        timeSelectorSeparatorColor: WidgetStatePropertyAll(n.text),
+        timeSelectorSeparatorColor: WidgetStatePropertyAll(n.muted),
         timeSelectorSeparatorTextStyle: WidgetStatePropertyAll(
           serif(52, height: 1),
         ),
-        dayPeriodShape: tileShape,
-        dayPeriodBorderSide: BorderSide(color: n.line),
-        dayPeriodColor: WidgetStateColor.resolveWith(
-          (states) => states.contains(WidgetState.selected)
-              ? n.text
-              : Colors.transparent,
-        ),
-        dayPeriodTextColor: WidgetStateColor.resolveWith(
-          (states) =>
-              states.contains(WidgetState.selected) ? n.ground : n.muted,
-        ),
+        // A plain strip with no outline; the picked one on an oval.
+        dayPeriodShape: const OvalBorder(),
+        dayPeriodBorderSide: BorderSide.none,
         dayPeriodTextStyle: sans(15, weight: FontWeight.w500),
         dialBackgroundColor: n.surface,
-        dialHandColor: n.text,
-        dialTextColor: WidgetStateColor.resolveWith(
-          (states) =>
-              states.contains(WidgetState.selected) ? n.ground : n.text,
-        ),
         dialTextStyle: sans(16, weight: FontWeight.w500),
         entryModeIconColor: n.muted,
         cancelButtonStyle: pickerCancel,
@@ -514,38 +548,8 @@ class AppTheme {
         headerHelpStyle: sans(13, weight: FontWeight.w500, color: n.muted),
         weekdayStyle: sans(13, weight: FontWeight.w500, color: n.muted),
         dayStyle: sans(15),
-        dayForegroundColor: WidgetStateColor.resolveWith(
-          (states) => states.contains(WidgetState.selected)
-              ? n.ground
-              : states.contains(WidgetState.disabled)
-              ? n.muted
-              : n.text,
-        ),
-        dayBackgroundColor: WidgetStateColor.resolveWith(
-          (states) => states.contains(WidgetState.selected)
-              ? n.text
-              : Colors.transparent,
-        ),
-        todayForegroundColor: WidgetStateColor.resolveWith(
-          (states) =>
-              states.contains(WidgetState.selected) ? n.ground : n.text,
-        ),
-        todayBackgroundColor: WidgetStateColor.resolveWith(
-          (states) => states.contains(WidgetState.selected)
-              ? n.text
-              : Colors.transparent,
-        ),
         todayBorder: BorderSide(color: n.text),
         yearStyle: sans(15),
-        yearForegroundColor: WidgetStateColor.resolveWith(
-          (states) =>
-              states.contains(WidgetState.selected) ? n.ground : n.text,
-        ),
-        yearBackgroundColor: WidgetStateColor.resolveWith(
-          (states) => states.contains(WidgetState.selected)
-              ? n.text
-              : Colors.transparent,
-        ),
         dividerColor: n.line,
         subHeaderForegroundColor: n.muted,
         cancelButtonStyle: pickerCancel,

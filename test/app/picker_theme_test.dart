@@ -56,6 +56,42 @@ Future<void> _open(
 }
 
 void main() {
+  test('in the list colour, digits that read on it', () {
+    // A pale colour (yellow) takes dark digits; a deep one white.
+    const Color yellow = Color(0xFFF2B705);
+    const Color violet = Color(0xFF6B3DFF);
+    for (final (Color colour, Color digits) in [
+      (yellow, AppColors.onColor(yellow)),
+      (violet, AppColors.onColor(violet)),
+    ]) {
+      final ThemeData theme = AppTheme.withPickerAccent(
+        AppTheme.light(languageCode: 'en'),
+        colour,
+      );
+      final TimePickerThemeData time = theme.timePickerTheme;
+      expect(
+        WidgetStateProperty.resolveAs(time.hourMinuteColor!, {
+          WidgetState.selected,
+        }),
+        colour,
+      );
+      expect(
+        WidgetStateProperty.resolveAs(time.hourMinuteTextColor!, {
+          WidgetState.selected,
+        }),
+        digits,
+      );
+      expect(time.dialHandColor, colour);
+      expect(
+        theme.datePickerTheme.dayBackgroundColor!.resolve({
+          WidgetState.selected,
+        }),
+        colour,
+      );
+    }
+    expect(AppColors.onColor(yellow), isNot(AppColors.onColor(violet)));
+  });
+
   for (final Brightness brightness in Brightness.values) {
     final AppNeutrals n = AppColors.neutrals(brightness);
 
@@ -72,7 +108,21 @@ void main() {
         WidgetStateProperty.resolveAs(tile, {WidgetState.selected}),
         n.text,
       );
-      expect(WidgetStateProperty.resolveAs(tile, <WidgetState>{}), n.surface);
+      expect(
+        WidgetStateProperty.resolveAs(tile, <WidgetState>{}),
+        Colors.transparent,
+      );
+      // The other one's digits grey; the colon grey; AM and PM unframed.
+      expect(
+        WidgetStateProperty.resolveAs(
+          theme.hourMinuteTextColor!,
+          <WidgetState>{},
+        ),
+        n.muted,
+      );
+      expect(theme.timeSelectorSeparatorColor!.resolve({}), n.muted);
+      expect(theme.dayPeriodBorderSide, BorderSide.none);
+      expect(theme.hourMinuteShape, isA<OvalBorder>());
       expect(find.text('3'), findsWidgets);
       expect(find.text('29'), findsOneWidget);
     });
