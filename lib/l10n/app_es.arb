@@ -397,5 +397,9 @@
   "noTickLine": "Sin el campo {field}, los elementos ya no se pueden marcar.",
   "noTickView": "La lista de tareas se muestra como {view}.",
   "noTickRules": "Se quitan estas reglas: {rules}.",
-  "noTickCopies": "Copiar a la próxima vez solo puede volver a añadirlo la IA."
+  "noTickCopies": "Copiar a la próxima vez solo puede volver a añadirlo la IA.",
+  "homeHide": "Quitar del inicio",
+  "homeHiddenBanner": "Oculto en el inicio",
+  "suggestOnHome": "Sugerir en el inicio",
+  "suggestOnHomeOff": "Las sugerencias están desactivadas en Preferencias."
 }

@@ -15,6 +15,7 @@ import 'app/app_banner.dart';
 import 'app/app_settings.dart';
 import 'app/app_theme.dart';
 import 'app/date_preferences.dart';
+import 'app/grow_in.dart';
 import 'app/home_cards.dart';
 import 'app/hybrid_note_app.dart';
 import 'app/list_order.dart';
@@ -26,6 +27,7 @@ import 'l10n/generated/app_localizations.dart';
 import 'launcher/arrange_sway.dart';
 import 'launcher/launcher_geometry.dart';
 import 'launcher/launcher_hub_area.dart';
+import 'lists/clear_with_undo.dart';
 import 'lists/generic_list_screen.dart' show ListEditAction;
 import 'lists/generic_item_dialog.dart';
 import 'lists/list_catalog.dart';
@@ -60,6 +62,10 @@ class HomeDueItem {
   bool get clearable => definition.behaviors.any(
     (behavior) => behavior.kind == BehaviorKind.clearCompleted,
   );
+
+  // Its list has a tick. A row of a list without one has no tick circle, and
+  // its × takes the item off home instead (Q-104, Q-107).
+  bool get tickable => definition.fieldWithRole(FieldRole.completion) != null;
 }
 
 // What is due today or overdue across every list, earliest first: items whose
@@ -78,6 +84,10 @@ List<HomeDueItem> homeDueItems(ListCatalog catalog, DateTime now) {
       continue;
     }
     for (final ListItem item in catalog.itemsOf(definition.id)) {
+      // Taken off home by hand (Q-107).
+      if (ListRules.isHiddenFromHome(item)) {
+        continue;
+      }
       final Object? raw = item[field.key];
       final DateTime? date = raw is String
           ? DateTime.tryParse(raw)?.toLocal()
@@ -511,19 +521,47 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   // Clears one ticked item as the list page's Clear on that item does, so a
   // Grocery item is kept for next time and a repeating task comes again.
+  // It shows "Cleared · Undo" through the list page's own clear (Q-101).
   void _clearDue(HomeDueItem due, ListCatalog catalog) {
     if (_arranging) {
       return;
     }
-    final ListChanges changes = ListRules.clearCompleted(
-      due.definition,
-      catalog.itemsOf(due.definition.id),
-      DateTime.now().toUtc(),
+    ClearWithUndo.run(
+      store: context.read<ListStore>(),
+      definition: due.definition,
+      items: catalog.itemsOf(due.definition.id),
       inScope: (other) => other.id == due.item.id,
+      banners: context.read<AppBannerController?>(),
+      loc: AppLocalizations.of(context),
     );
-    if (!changes.isEmpty) {
-      context.read<ListStore>().apply(changes);
+  }
+
+  // Takes an item that cannot be ticked off home for good, with Undo; the
+  // item stays as it is in its list (Q-107, A).
+  void _hideDue(HomeDueItem due) {
+    if (_arranging) {
+      return;
     }
+    final ListStore store = context.read<ListStore>();
+    final AppLocalizations loc = AppLocalizations.of(context);
+    store.apply(
+      ListRules.setHiddenFromHome(due.item, true, DateTime.now().toUtc()),
+    );
+    context.read<AppBannerController?>()?.show(
+      loc.homeHiddenBanner,
+      actionLabel: loc.undo,
+      onAction: () {
+        final ListItem? now = store.current
+            .itemsOf(due.definition.id)
+            .where((item) => item.id == due.item.id)
+            .firstOrNull;
+        if (now != null && ListRules.isHiddenFromHome(now)) {
+          store.apply(
+            ListRules.setHiddenFromHome(now, false, DateTime.now().toUtc()),
+          );
+        }
+      },
+    );
   }
 
   // The Today rows' blobs move only while there are rows to show.
@@ -1399,41 +1437,46 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 clock: _moves ? _blobTick : null,
               ),
             ),
-            Positioned(
-              left: 0,
-              top: 0,
-              child: Semantics(
-                button: true,
-                checked: ticked,
-                label: loc.homeTick,
-                child: GestureDetector(
-                  key: ValueKey('home-tick-${due.item.id}'),
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => _tickDue(due),
-                  child: SizedBox.square(
-                    dimension: homeTickTarget,
-                    child: Center(
-                      child: Container(
-                        width: homeTickSize,
-                        height: homeTickSize,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: ticked ? neutrals.text : neutrals.ground,
-                          border: Border.all(color: neutrals.text, width: 1.75),
+            // A list with no tick has no circle (Q-104).
+            if (due.tickable)
+              Positioned(
+                left: 0,
+                top: 0,
+                child: Semantics(
+                  button: true,
+                  checked: ticked,
+                  label: loc.homeTick,
+                  child: GestureDetector(
+                    key: ValueKey('home-tick-${due.item.id}'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => _tickDue(due),
+                    child: SizedBox.square(
+                      dimension: homeTickTarget,
+                      child: Center(
+                        child: Container(
+                          width: homeTickSize,
+                          height: homeTickSize,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: ticked ? neutrals.text : neutrals.ground,
+                            border: Border.all(
+                              color: neutrals.text,
+                              width: 1.75,
+                            ),
+                          ),
+                          child: ticked
+                              ? Icon(
+                                  Icons.check,
+                                  size: 14,
+                                  color: neutrals.ground,
+                                )
+                              : null,
                         ),
-                        child: ticked
-                            ? Icon(
-                                Icons.check,
-                                size: 14,
-                                color: neutrals.ground,
-                              )
-                            : null,
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
           ],
         ),
       );
@@ -1493,16 +1536,37 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ],
                 ),
               ),
-              // A ticked row clears from here, where its list can clear.
-              if (ticked && due.clearable)
-                IconButton(
-                  key: ValueKey('home-clear-${due.item.id}'),
-                  tooltip: loc.clearTicked,
-                  onPressed: () => _clearDue(due, catalog),
-                  icon: Icon(Icons.close, size: 18, color: neutrals.muted),
-                )
-              else
-                const SizedBox(width: 48),
+              // A ticked row clears from here, where its list can clear: the
+              // × grows in its own spot when the row is ticked (rule 7). A
+              // row that cannot be ticked has a × that takes it off home.
+              SizedBox(
+                width: 48,
+                child: !due.tickable
+                    ? IconButton(
+                        key: ValueKey('home-hide-${due.item.id}'),
+                        tooltip: loc.homeHide,
+                        onPressed: () => _hideDue(due),
+                        icon: Icon(
+                          Icons.close,
+                          size: 18,
+                          color: neutrals.muted,
+                        ),
+                      )
+                    : GrowIn(
+                        shown: ticked && due.clearable,
+                        alignment: Alignment.center,
+                        child: IconButton(
+                          key: ValueKey('home-clear-${due.item.id}'),
+                          tooltip: loc.clearTicked,
+                          onPressed: () => _clearDue(due, catalog),
+                          icon: Icon(
+                            Icons.close,
+                            size: 18,
+                            color: neutrals.muted,
+                          ),
+                        ),
+                      ),
+              ),
             ],
           ),
         ),

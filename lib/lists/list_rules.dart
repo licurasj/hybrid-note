@@ -25,6 +25,33 @@ class ListRules {
     return definition.fieldWithRole(FieldRole.completion);
   }
 
+  // An item taken off home's Today rows by hand (Q-107): kept on the item, so
+  // it syncs; the item is otherwise unchanged in its list. Keys starting with
+  // "_" are never field keys.
+  static const String homeHiddenKey = '_homeHidden';
+
+  static bool isHiddenFromHome(ListItem item) => item[homeHiddenKey] == true;
+
+  static ListChanges setHiddenFromHome(ListItem item, bool hidden, DateTime now) {
+    final Map<String, dynamic> values = {...item.values};
+    if (hidden) {
+      values[homeHiddenKey] = true;
+    } else {
+      values.remove(homeHiddenKey);
+    }
+    return ListChanges(
+      saved: [
+        ListItem(
+          id: item.id,
+          listId: item.listId,
+          values: values,
+          createdAt: item.createdAt,
+          updatedAt: now,
+        ),
+      ],
+    );
+  }
+
   static bool isCompleted(ListDefinition definition, ListItem item) {
     final FieldDefinition? completion = _completion(definition);
     return completion != null && item[completion.key] == true;

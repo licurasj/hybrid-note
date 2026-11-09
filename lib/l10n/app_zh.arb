@@ -397,5 +397,9 @@
   "noTickLine": "没有“{field}”字段，项目将无法再勾选。",
   "noTickView": "清单将以{view}显示。",
   "noTickRules": "这些规则将被移除：{rules}。",
-  "noTickCopies": "“复制到下次”只能由 AI 重新添加。"
+  "noTickCopies": "“复制到下次”只能由 AI 重新添加。",
+  "homeHide": "从首页移除",
+  "homeHiddenBanner": "已从首页隐藏",
+  "suggestOnHome": "在首页显示为建议",
+  "suggestOnHomeOff": "偏好设置中已关闭建议。"
 }

@@ -1306,4 +1306,16 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get noTickCopies =>
       'Copying to Next time can only be added back by the AI.';
+
+  @override
+  String get homeHide => 'Take off home';
+
+  @override
+  String get homeHiddenBanner => 'Hidden from home';
+
+  @override
+  String get suggestOnHome => 'Suggest on home';
+
+  @override
+  String get suggestOnHomeOff => 'Suggestions are off in Preferences.';
 }

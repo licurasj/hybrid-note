@@ -1034,5 +1034,9 @@
       }
     }
   },
-  "noTickCopies": "Copying to Next time can only be added back by the AI."
+  "noTickCopies": "Copying to Next time can only be added back by the AI.",
+  "homeHide": "Take off home",
+  "homeHiddenBanner": "Hidden from home",
+  "suggestOnHome": "Suggest on home",
+  "suggestOnHomeOff": "Suggestions are off in Preferences."
 }

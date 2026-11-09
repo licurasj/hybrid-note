@@ -1320,4 +1320,17 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get noTickCopies =>
       'Seule l’IA peut rajouter la copie pour la prochaine fois.';
+
+  @override
+  String get homeHide => 'Retirer de l\'accueil';
+
+  @override
+  String get homeHiddenBanner => 'Masqué de l\'accueil';
+
+  @override
+  String get suggestOnHome => 'Suggérer sur l\'accueil';
+
+  @override
+  String get suggestOnHomeOff =>
+      'Les suggestions sont désactivées dans les préférences.';
 }

@@ -1277,4 +1277,16 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get noTickCopies => '“复制到下次”只能由 AI 重新添加。';
+
+  @override
+  String get homeHide => '从首页移除';
+
+  @override
+  String get homeHiddenBanner => '已从首页隐藏';
+
+  @override
+  String get suggestOnHome => '在首页显示为建议';
+
+  @override
+  String get suggestOnHomeOff => '偏好设置中已关闭建议。';
 }

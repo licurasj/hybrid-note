@@ -30,7 +30,10 @@ class ClearUndo {
     final Set<String> deleted = changes.deletedIds.toSet();
     return ClearUndo(
       listId: listId,
-      cleared: [for (final ListItem item in items) if (deleted.contains(item.id)) item],
+      cleared: [
+        for (final ListItem item in items)
+          if (deleted.contains(item.id)) item,
+      ],
       created: changes.saved,
     );
   }
@@ -45,7 +48,9 @@ class ClearUndo {
   // no cleared item is back and every made item is there, unchanged. Like AI
   // Undo (Q-52), anything else means someone has changed it since.
   bool isCurrent(Iterable<ListItem> stored) {
-    final Map<String, ListItem> byId = {for (final ListItem item in stored) item.id: item};
+    final Map<String, ListItem> byId = {
+      for (final ListItem item in stored) item.id: item,
+    };
     if (cleared.any((item) => byId.containsKey(item.id))) {
       return false;
     }
@@ -58,9 +63,9 @@ class ClearUndo {
   // Puts the cleared items back with their ids and values, and removes what
   // the clear made.
   ListChanges reverse() => ListChanges(
-        saved: cleared,
-        deletedIds: [for (final ListItem item in created) item.id],
-      );
+    saved: cleared,
+    deletedIds: [for (final ListItem item in created) item.id],
+  );
 }
 
 // Clears ticked items with "Cleared · Undo" (Q-101). The list page's × and

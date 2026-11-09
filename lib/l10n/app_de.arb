@@ -397,5 +397,9 @@
   "noTickLine": "Ohne das Feld „{field}“ lassen sich Einträge nicht mehr abhaken.",
   "noTickView": "Die Checkliste wird als {view} angezeigt.",
   "noTickRules": "Diese Regeln entfallen: {rules}.",
-  "noTickCopies": "Das Kopieren für das nächste Mal kann nur die KI wieder hinzufügen."
+  "noTickCopies": "Das Kopieren für das nächste Mal kann nur die KI wieder hinzufügen.",
+  "homeHide": "Von der Startseite nehmen",
+  "homeHiddenBanner": "Von der Startseite ausgeblendet",
+  "suggestOnHome": "Auf der Startseite vorschlagen",
+  "suggestOnHomeOff": "Vorschläge sind in den Präferenzen aus."
 }

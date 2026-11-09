@@ -318,6 +318,10 @@ class _MainShellState extends State<MainShell> {
       await _deleteList(listId);
       return;
     }
+    // Only "Suggest on home" changed, which the editor saved itself.
+    if (outcome.ops.isEmpty) {
+      return;
+    }
 
     // The store re-applies the ops to its current items, in case they changed
     // meanwhile, and saves only a valid result. The editor has closed, so a

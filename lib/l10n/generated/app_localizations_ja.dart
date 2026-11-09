@@ -1282,4 +1282,16 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get noTickCopies => '「次回へコピー」は AI でのみ追加し直せます。';
+
+  @override
+  String get homeHide => 'ホームから外す';
+
+  @override
+  String get homeHiddenBanner => 'ホームに表示しません';
+
+  @override
+  String get suggestOnHome => 'ホームでおすすめする';
+
+  @override
+  String get suggestOnHomeOff => '環境設定でおすすめがオフになっています。';
 }

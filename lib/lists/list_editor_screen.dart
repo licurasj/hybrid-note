@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
 
+import '../app/account_preferences.dart';
 import '../app/app_theme.dart';
 import '../app_colors.dart';
 import '../l10n/generated/app_localizations.dart';
@@ -13,6 +15,7 @@ import 'list_icons.dart';
 import 'list_item.dart';
 import 'list_labels.dart';
 import 'list_patch.dart';
+import 'list_store.dart';
 import 'list_vocabulary.dart';
 
 // What the editor hands back. `deleted` asks the caller to delete the list
@@ -822,7 +825,60 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
     );
   }
 
-  bool get _canSave => _result.isValid && (_ops.isNotEmpty || widget.isNew);
+  bool get _canSave =>
+      _result.isValid && (_ops.isNotEmpty || widget.isNew || _suggestChanged);
+
+  // "Suggest on home" (Q-106): the same synced value as Remove on a suggested
+  // home card (homeRemoved), so the two always agree. Changed here, it is
+  // saved with the list. Null until the switch is touched.
+  bool? _suggest;
+
+  bool get _suggestsNow =>
+      !context.accountPreferences.homeRemoved.contains(widget.definition.id);
+
+  bool get _suggestChanged => _suggest != null && _suggest != _suggestsNow;
+
+  void _saveSuggest() {
+    final AccountPreferencesCubit? preferences =
+        context.read<AccountPreferencesCubit?>();
+    if (preferences == null || !_suggestChanged) {
+      return;
+    }
+    final String id = widget.definition.id;
+    if (_suggest!) {
+      preferences.undoRemoveFromHome(id);
+    } else {
+      preferences.removeFromHome(
+        id,
+        existing: [
+          id,
+          for (final ListDefinition list
+              in context.read<ListStore?>()?.current.definitions ?? const [])
+            list.id,
+        ],
+      );
+    }
+  }
+
+  // Off while Show suggestions is off in Preferences, which no list
+  // overrides (Q-118), with a line saying so.
+  Widget _suggestRow(EditorLook look, AppLocalizations loc) {
+    final bool suggestionsOn = context.watchAccountPreferences.homeSuggestions;
+    return look.hairline(
+      child: SwitchListTile(
+        key: const ValueKey('suggest-on-home'),
+        contentPadding: EdgeInsets.zero,
+        title: Text(loc.suggestOnHome, style: look.label),
+        subtitle: suggestionsOn
+            ? null
+            : Text(loc.suggestOnHomeOff, style: look.type.meta),
+        value: _suggest ?? _suggestsNow,
+        onChanged: suggestionsOn
+            ? (on) => setState(() => _suggest = on)
+            : null,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -846,9 +902,12 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
             tooltip: loc.save,
             icon: const Icon(Icons.check, size: 26),
             onPressed: _canSave
-                ? () => Navigator.of(
-                    context,
-                  ).pop(ListEditorOutcome.saved(List.of(_ops), _result))
+                ? () {
+                    _saveSuggest();
+                    Navigator.of(
+                      context,
+                    ).pop(ListEditorOutcome.saved(List.of(_ops), _result));
+                  }
                 : null,
           ),
           const SizedBox(width: 8),
@@ -999,6 +1058,7 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
               labels: labels,
               onOp: _push,
               extraRows: [
+                _suggestRow(look, loc),
                 look.hairline(
                   child: SwitchListTile(
                     key: const ValueKey('allow-ai'),

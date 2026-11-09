@@ -2239,6 +2239,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copying to Next time can only be added back by the AI.'**
   String get noTickCopies;
+
+  /// No description provided for @homeHide.
+  ///
+  /// In en, this message translates to:
+  /// **'Take off home'**
+  String get homeHide;
+
+  /// No description provided for @homeHiddenBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden from home'**
+  String get homeHiddenBanner;
+
+  /// No description provided for @suggestOnHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggest on home'**
+  String get suggestOnHome;
+
+  /// No description provided for @suggestOnHomeOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggestions are off in Preferences.'**
+  String get suggestOnHomeOff;
 }
 
 class _AppLocalizationsDelegate

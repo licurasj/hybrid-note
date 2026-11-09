@@ -397,5 +397,9 @@
   "noTickLine": "Sans le champ {field}, les éléments ne peuvent plus être cochés.",
   "noTickView": "La liste de contrôle s’affiche en {view}.",
   "noTickRules": "Ces règles sont retirées : {rules}.",
-  "noTickCopies": "Seule l’IA peut rajouter la copie pour la prochaine fois."
+  "noTickCopies": "Seule l’IA peut rajouter la copie pour la prochaine fois.",
+  "homeHide": "Retirer de l'accueil",
+  "homeHiddenBanner": "Masqué de l'accueil",
+  "suggestOnHome": "Suggérer sur l'accueil",
+  "suggestOnHomeOff": "Les suggestions sont désactivées dans les préférences."
 }

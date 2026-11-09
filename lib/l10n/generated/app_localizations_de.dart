@@ -1319,4 +1319,16 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get noTickCopies =>
       'Das Kopieren für das nächste Mal kann nur die KI wieder hinzufügen.';
+
+  @override
+  String get homeHide => 'Von der Startseite nehmen';
+
+  @override
+  String get homeHiddenBanner => 'Von der Startseite ausgeblendet';
+
+  @override
+  String get suggestOnHome => 'Auf der Startseite vorschlagen';
+
+  @override
+  String get suggestOnHomeOff => 'Vorschläge sind in den Präferenzen aus.';
 }

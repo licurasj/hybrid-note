@@ -1312,4 +1312,17 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get noTickCopies =>
       'Copiar a la próxima vez solo puede volver a añadirlo la IA.';
+
+  @override
+  String get homeHide => 'Quitar del inicio';
+
+  @override
+  String get homeHiddenBanner => 'Oculto en el inicio';
+
+  @override
+  String get suggestOnHome => 'Sugerir en el inicio';
+
+  @override
+  String get suggestOnHomeOff =>
+      'Las sugerencias están desactivadas en Preferencias.';
 }
