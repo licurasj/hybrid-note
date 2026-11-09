@@ -330,10 +330,10 @@ void main() {
       final TestGesture gesture = await tester.startGesture(
         tester.getCenter(_hubDisc),
       );
-      // Until about 0.1 s before the prompts.
+      // Until just before the prompts.
       for (
         int i = 0;
-        i < (_config.promptDelay.inMilliseconds - 100) ~/ 20;
+        i < (_config.promptDelay.inMilliseconds - 40) ~/ 20;
         i++
       ) {
         await tester.pump(const Duration(milliseconds: 20));
@@ -354,7 +354,12 @@ void main() {
       final double atRest = hubWidth(tester);
       final Offset hub = tester.getCenter(_hubDisc);
       final TestGesture gesture = await tester.startGesture(hub);
-      for (int i = 0; i < 30; i++) {
+      // Until just before the prompts.
+      for (
+        int i = 0;
+        i < (_config.promptDelay.inMilliseconds - 40) ~/ 20;
+        i++
+      ) {
         await tester.pump(const Duration(milliseconds: 20));
       }
       final double built = hubWidth(tester);
@@ -1597,8 +1602,9 @@ void main() {
           final TestGesture gesture = await tester.startGesture(
             _list(tester, 0),
           );
+          // Until just before the pick-up.
           await tester.pump(const Duration(milliseconds: 20));
-          await tester.pump(_config.dialPickUpDelay * 0.6);
+          await tester.pump(_config.dialPickUpDelay * 0.85);
           final double building = _tab(tester, 1).longestSide;
           expect(building, greaterThan(atRest + 1));
           await gesture.moveBy(Offset(0, _config.moveTolerance + 8));

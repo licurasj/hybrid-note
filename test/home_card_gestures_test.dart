@@ -767,8 +767,9 @@ void main() {
       final TestGesture gesture = await tester.startGesture(
         tester.getCenter(_card(_grocery)),
       );
+      // Until just before the pick-up.
       await tester.pump(const Duration(milliseconds: 20));
-      await tester.pump(const Duration(milliseconds: 130));
+      await tester.pump(const Duration(milliseconds: 170));
       expect(width(), greaterThan(atRest + 8));
       await gesture.moveBy(const Offset(0, -40));
       await tester.pump();

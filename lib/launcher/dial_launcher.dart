@@ -2255,10 +2255,12 @@ class _DialLauncherState extends State<DialLauncher>
       width: 2.5,
       strokeAlign: BorderSide.strokeAlignOutside,
     );
+    final double hold = _hubHold(g);
     return AnimatedScale(
-      // Smooths the way back when the rest ends; while building it follows closely.
-      scale: 1 + (_config.hubHoldGrow - 1) * _hubHold(g),
-      duration: _reduceMotion ? Duration.zero : AppMotion.quick,
+      // Smooths the way back when the rest ends; while building it follows
+      // the build exactly, as smoothing would hold the quick swell back.
+      scale: 1 + (_config.hubHoldGrow - 1) * hold,
+      duration: _reduceMotion || hold > 0 ? Duration.zero : AppMotion.quick,
       curve: Curves.linear,
       child: SizedBox(
       width: size,
