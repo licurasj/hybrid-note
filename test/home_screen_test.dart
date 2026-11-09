@@ -97,23 +97,30 @@ void main() {
         of: find.byKey(ValueKey('home-due-$id')),
         matching: find.text(text),
       );
-      // One line, starting at the left edge of the cards' blobs, with the
-      // list's icon and name after the time.
+      // One line, starting at the left edge of the cards' blobs: a small blob,
+      // then the title on its line.
       final double cardLeft = tester
           .getTopLeft(find.byType(HomeListCard).first)
           .dx;
-      final Rect title = tester.getRect(inRow('t-today', 'Submit milestone'));
-      expect(title.left - cardLeft, homeDueLeft);
-      final Finder icon = find.descendant(
+      final Finder blob = find.descendant(
         of: find.byKey(const ValueKey('home-due-t-today')),
-        matching: find.byType(Icon),
+        matching: find.byType(HomeSmallBlob),
       );
-      expect(icon, findsOneWidget);
+      final Rect blobRect = tester.getRect(blob);
+      expect(blobRect.left - cardLeft, homeDueLeft);
+      expect(blobRect.width, homeDueBlobSize);
+      final Rect title = tester.getRect(inRow('t-today', 'Submit milestone'));
+      expect(title.left, blobRect.right + homeDueBlobGap);
+      expect(blobRect.center.dy, moreOrLessEquals(title.center.dy, epsilon: 2));
       expect(
-        tester.getCenter(icon).dy,
-        moreOrLessEquals(title.center.dy, epsilon: 2),
+        find.descendant(
+          of: find.byKey(const ValueKey('home-due-t-today')),
+          matching: find.byType(Icon),
+        ),
+        findsNothing,
       );
-      expect(tester.getRect(icon).left, greaterThan(title.right));
+      // Still in tests, as with reduced motion: no clock.
+      expect(tester.widget<HomeSmallBlob>(blob).clock, isNull);
       expect(inRow('t-today', 'Submit milestone'), findsOneWidget);
       expect(inRow('t-late', 'Return books'), findsOneWidget);
       expect(find.byKey(const ValueKey('home-due-t-tomorrow')), findsNothing);
@@ -151,6 +158,34 @@ void main() {
       expect(find.byKey(const ValueKey('item-t-today')), findsOneWidget);
     },
   );
+
+  testWidgets('the rows\' blobs move on one clock, repainting only', (
+    tester,
+  ) async {
+    await _pumpApp(tester);
+    // Movement on, by hand, as the blobs never settle, and home built again.
+    HomeBlob.stillForTests = false;
+    addTearDown(() => HomeBlob.stillForTests = true);
+    tester.element(find.byType(HomeScreen)).markNeedsBuild();
+    await tester.pump();
+    final List<HomeSmallBlob> blobs = tester
+        .widgetList<HomeSmallBlob>(find.byType(HomeSmallBlob))
+        .toList();
+    expect(blobs, hasLength(2));
+    final Listenable? clock = blobs.first.clock;
+    expect(clock, isNotNull);
+    expect(blobs.every((blob) => identical(blob.clock, clock)), isTrue);
+    // Ticks repaint the blobs without rebuilding the row.
+    final Element row = tester.element(
+      find.byKey(const ValueKey('home-due-t-today')),
+    );
+    final Widget before = row.widget;
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(identical(row.widget, before), isTrue);
+    await tester.pumpWidget(Container());
+    HomeBlob.stillForTests = true;
+  });
 
   testWidgets(
     'the blue settings button opens a sheet: language, dark mode, account',

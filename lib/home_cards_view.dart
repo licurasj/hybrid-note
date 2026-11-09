@@ -293,6 +293,9 @@ homePromptMeasure(
 // that to 5 short of it, mostly about 1 inside (HomeListCard, _BlobPainter).
 const double homeDueLeft = 15;
 const double homeDueRowHeight = 36;
+// The small blob before each row's title, and the room after it.
+const double homeDueBlobSize = 18;
+const double homeDueBlobGap = 10;
 // Spacing on home, from the header's date line (which has 8 below it): to the
 // Today rows, and to the cards.
 const double homeDueGap = 16;
@@ -509,15 +512,55 @@ class _HomeBlobState extends State<HomeBlob>
   }
 }
 
-class _BlobPainter extends CustomPainter {
-  _BlobPainter(this.phase, this.color, this.seed);
+// A small copy of a list's card blob, moving in step with it, for a Today row.
+// Many of them share one [clock]: each tick repaints them, and nothing is
+// rebuilt. With no clock (reduced motion) it stands still.
+class HomeSmallBlob extends StatelessWidget {
+  const HomeSmallBlob({
+    super.key,
+    required this.color,
+    required this.seed,
+    this.clock,
+  });
 
-  final double phase;
+  final Color color;
+  final int seed;
+  final Listenable? clock;
+
+  @override
+  Widget build(BuildContext context) => RepaintBoundary(
+    child: CustomPaint(
+      size: const Size.square(homeDueBlobSize),
+      painter: _BlobPainter.inStep(color, seed, clock),
+    ),
+  );
+}
+
+// Where a list's blob is in its loop now: the same moment as its card's.
+double _blobPhase(int seed) {
+  final int loop = (7 + seed % 7) * 1000;
+  return (DateTime.now().millisecondsSinceEpoch + seed * 137) %
+      loop /
+      loop *
+      2 *
+      math.pi;
+}
+
+class _BlobPainter extends CustomPainter {
+  _BlobPainter(double this.phase, this.color, this.seed);
+
+  // Works out its phase when it paints, on each tick of [clock].
+  _BlobPainter.inStep(this.color, this.seed, Listenable? clock)
+    : phase = null,
+      super(repaint: clock);
+
+  final double? phase;
   final Color color;
   final int seed;
 
   @override
   void paint(Canvas canvas, Size size) {
+    final double phase = this.phase ?? _blobPhase(seed);
     final Offset centre = size.center(Offset.zero);
     final int f1 = 7 + seed % 5;
     final int f2 = 10 + (seed ~/ 5) % 6;

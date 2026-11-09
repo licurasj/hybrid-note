@@ -152,6 +152,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final ValueNotifier<Duration> _time = ValueNotifier(Duration.zero);
   late final Ticker _clock;
   Duration _lastTick = Duration.zero;
+  // One clock for every Today row's small blob: each tick repaints them only.
+  final ValueNotifier<int> _blobTick = ValueNotifier(0);
+  late final Ticker _blobClock;
   late final AnimationController _lift;
   late final AnimationController _reveal;
   // A rest on a pinned card while arranging lifts it until it is picked up.
@@ -187,6 +190,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _clock = createTicker(_tick);
+    _blobClock = createTicker((_) => _blobTick.value++);
     _lift = AnimationController(
       vsync: this,
       duration: const LauncherConfig().promptDelay,
@@ -221,6 +225,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     widget.returned?.removeListener(_refresh);
     widget.pressedElsewhere?.removeListener(_endArranging);
     _clock.dispose();
+    _blobClock.dispose();
+    _blobTick.dispose();
     _lift.dispose();
     _reveal.dispose();
     _rest.dispose();
@@ -433,6 +439,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _scrollAtEdge(seconds);
     }
     _syncClock();
+  }
+
+  // The Today rows' blobs move only while there are rows to show.
+  void _syncBlobClock(bool wanted) {
+    if (wanted && !_blobClock.isActive) {
+      _blobClock.start();
+    } else if (!wanted && _blobClock.isActive) {
+      _blobClock.stop();
+    }
   }
 
   void _syncClock() {
@@ -1210,9 +1225,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final double headerHeight =
         top + 8 + 40 + 20 + 76 + 10 + scaler.scale(15) * 1.5 + 8;
 
-    // One line of text, starting at the left edge of the cards' blobs: the
-    // title, then the time or date, small and muted, and the list's icon and
-    // name in the list's colour (owner, 2026-11-08). The title gives way first.
+    // One line, starting at the left edge of the cards' blobs: a small blob in
+    // the list's colour, moving in step with its card's, then the title in the
+    // text colour and the time or date and list's name small and muted (owner,
+    // 2026-11-08). The title gives way first.
     Widget row(HomeDueItem due) {
       final ListDefinition definition = due.definition;
       final Object? title =
@@ -1228,7 +1244,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           : due.hasTime
           ? timeFormat(locale, preferences.timeFormat).format(due.due)
           : '';
-      final Color color = listColor(definition.color, brightness: brightness);
       return InkWell(
         key: ValueKey('home-due-${due.item.id}'),
         onTap: () {
@@ -1241,6 +1256,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: Row(
             children: [
               const SizedBox(width: homeDueLeft),
+              HomeSmallBlob(
+                color: listColor(definition.color, brightness: brightness),
+                seed: homeBlobSeed(definition.id),
+                clock: _moves ? _blobTick : null,
+              ),
+              const SizedBox(width: homeDueBlobGap),
               Flexible(
                 child: Text(
                   title is String ? title : '',
@@ -1250,23 +1271,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
               ),
               const SizedBox(width: 8),
-              if (when.isNotEmpty)
-                Text('$when · ', maxLines: 1, style: type.meta),
-              Icon(
-                listIcon(definition.icon),
-                size: type.meta.fontSize,
-                color: color,
-              ),
-              const SizedBox(width: 3),
               ConstrainedBox(
                 constraints: BoxConstraints(
-                  maxWidth: MediaQuery.sizeOf(context).width * 0.3,
+                  maxWidth: MediaQuery.sizeOf(context).width * 0.4,
                 ),
                 child: Text(
-                  labels.listName(definition),
+                  [
+                    if (when.isNotEmpty) when,
+                    labels.listName(definition),
+                  ].join(' · '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: type.meta.copyWith(color: color),
+                  style: type.meta,
                 ),
               ),
             ],
@@ -1286,6 +1302,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         body: ListCatalogBuilder(
           builder: (context, catalog) {
             final List<HomeDueItem> due = homeDueItems(catalog, now);
+            _syncBlobClock(
+              _moves && preferences.homeContent.showsDue && due.isNotEmpty,
+            );
             _workOutCards(catalog, preferences, labels, now);
             final List<String> pinned = _pinned!;
             return Listener(
