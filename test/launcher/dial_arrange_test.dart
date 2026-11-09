@@ -237,7 +237,8 @@ void main() {
     });
   });
 
-  group('prompts arriving buzz, as on a home card', () {
+  group('prompts buzz: Edit on arriving, the hub ones once the finger heads '
+      'for one', () {
     List<String> recordBuzzes(WidgetTester tester) {
       final List<String> buzzes = [];
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -265,12 +266,18 @@ void main() {
           final List<String> buzzes = recordBuzzes(tester);
           await _pump(tester, haptics: haptics);
           final TestGesture gesture = await tester.startGesture(_hub(tester));
-          // Nothing until the prompts are there.
+          // They come silent (Q-121 D): a resting finger feels nothing.
           for (int i = 0; i < 200 && _move.evaluate().isEmpty; i++) {
-            expect(buzzes, isEmpty);
             await tester.pump(const Duration(milliseconds: 10));
           }
           expect(_move, findsOneWidget);
+          await tester.pump(const Duration(milliseconds: 300));
+          expect(buzzes, isEmpty);
+          // Heading for Arrange buzzes, once.
+          final Offset hub = _hub(tester);
+          final Offset target = tester.getCenter(_arrange);
+          await _steps(tester, gesture, hub, Offset.lerp(hub, target, 0.5)!);
+          await _steps(tester, gesture, Offset.lerp(hub, target, 0.5)!, hub);
           expect(
             buzzes,
             haptics ? ['HapticFeedbackType.mediumImpact'] : isEmpty,
@@ -333,7 +340,7 @@ void main() {
       // Until just before the prompts.
       for (
         int i = 0;
-        i < (_config.promptDelay.inMilliseconds - 40) ~/ 20;
+        i < (_config.hubPromptDelay.inMilliseconds - 40) ~/ 20;
         i++
       ) {
         await tester.pump(const Duration(milliseconds: 20));
@@ -357,7 +364,7 @@ void main() {
       // Until just before the prompts.
       for (
         int i = 0;
-        i < (_config.promptDelay.inMilliseconds - 40) ~/ 20;
+        i < (_config.hubPromptDelay.inMilliseconds - 40) ~/ 20;
         i++
       ) {
         await tester.pump(const Duration(milliseconds: 20));
@@ -369,9 +376,11 @@ void main() {
       }
       expect(hubWidth(tester), lessThan(built));
       await gesture.moveTo(hub);
-      for (int i = 0; i < 40; i++) {
+      // Past the hub's later swell, short of its prompts (Q-121 A).
+      for (int i = 0; i < 56; i++) {
         await tester.pump(const Duration(milliseconds: 20));
       }
+      expect(find.text('Move'), findsNothing);
       expect(hubWidth(tester), greaterThan(atRest + 1));
       await gesture.up();
       await tester.pump(const Duration(milliseconds: 300));
@@ -425,9 +434,8 @@ void main() {
       await again.up();
     });
 
-    testWidgets('it starts dark and fills towards the finger, and lets go', (
-      tester,
-    ) async {
+    testWidgets('it starts faint, darkens and fills towards the finger, and '
+        'lets go', (tester) async {
       await _pump(tester);
       final Offset hub = _hub(tester);
       final TestGesture gesture = await _holdForPrompts(tester);
@@ -435,7 +443,8 @@ void main() {
           (tester.widget<Container>(_arrangePill).decoration! as BoxDecoration)
               .color!;
       final Color dark = AppColors.neutrals(Brightness.light).promptDark;
-      expect(fill(), dark);
+      // Faint while the finger rests (Q-121 D).
+      expect(fill(), AppColors.neutrals(Brightness.light).line);
 
       final Offset target = tester.getCenter(_arrange);
       await _steps(tester, gesture, hub, Offset.lerp(hub, target, 0.5)!);
@@ -792,7 +801,7 @@ void main() {
       final TestGesture gesture = await outAndBack(tester);
       expect(_arrange, findsNothing);
       await tester.pump(
-        _config.promptDelay - const Duration(milliseconds: 200),
+        _config.hubPromptDelay - const Duration(milliseconds: 200),
       );
       expect(_arrange, findsNothing);
       await tester.pump(const Duration(milliseconds: 300));
@@ -810,7 +819,7 @@ void main() {
       final _Harness h = await _pump(tester);
       final TestGesture gesture = await outAndBack(tester);
       await tester.pump(
-        _config.promptDelay + const Duration(milliseconds: 400),
+        _config.hubPromptDelay + const Duration(milliseconds: 400),
       );
       expect(_arrange, findsOneWidget);
 

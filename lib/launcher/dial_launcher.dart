@@ -169,6 +169,9 @@ class _DialLauncherState extends State<DialLauncher>
   // Edit or Move prompt.
   bool _editShown = false;
   bool _moveShown = false;
+  // Whether the finger has headed for Move or Arrange since they came, which
+  // buzzes once and shows them in full (Q-121 D).
+  bool _hubWoken = false;
   Offset _promptAnchor = Offset.zero;
   Duration _promptAt = Duration.zero;
   bool _promptOut = false;
@@ -808,6 +811,18 @@ class _DialLauncherState extends State<DialLauncher>
     return nearest;
   }
 
+  // The finger heads for Move or Arrange: they show in full and buzz, once.
+  void _wakeHub() {
+    if (_hubWoken ||
+        math.max(_progress, _arrangeProgress) < _config.hubPromptWakeAt) {
+      return;
+    }
+    _hubWoken = true;
+    if (widget.haptics) {
+      HapticFeedback.mediumImpact();
+    }
+  }
+
   // How far from the hub's centre Move and Arrange reach.
   double _promptsReach(LauncherGeometry g) =>
       math.max(
@@ -1039,12 +1054,18 @@ class _DialLauncherState extends State<DialLauncher>
     } else if (selected == null &&
         (!_leftHub || radius <= _config.hubRadius) &&
         (widget.onHubMoved != null || _canArrange)) {
+      // A longer rest on the hub (Q-121 A); they come faint and silent, and
+      // buzz once the finger heads for one (Q-121 D).
+      if (_now - _restStart < _config.hubPromptDelay) {
+        return false;
+      }
       _moveShown = true;
+      _hubWoken = false;
     } else {
       return false;
     }
-    // The prompts' arrival buzzes, as on a home card.
-    if (widget.haptics) {
+    // Edit's arrival buzzes, as on a home card.
+    if (_editShown && widget.haptics) {
       HapticFeedback.mediumImpact();
     }
     _promptAnchor = pointer;
@@ -1161,10 +1182,12 @@ class _DialLauncherState extends State<DialLauncher>
           }
         }
         if (widget.onHubMoved == null) {
+          _wakeHub();
           return;
         }
         final Offset target = g.movePromptCenter;
         _progress = _towards(finger, _promptAnchor, target);
+        _wakeHub();
         _promptSelected = _promptSelected
             ? _progress >= _config.promptUnselectAt
             : _progress >= _config.promptSelectAt;
@@ -2165,8 +2188,13 @@ class _DialLauncherState extends State<DialLauncher>
     // Fully filled by the time it is reached.
     final double near =
         (progress / _config.promptSelectAt).clamp(0, 1).toDouble();
-    final Color fill =
-        Color.lerp(neutrals.promptDark, AppColors.appBlue, near)!;
+    // Faint until the finger heads for one of them (Q-121 D), then dark, then
+    // blue as it nears: colour that follows the finger, nothing fades.
+    final double woken = _hubWoken
+        ? 1
+        : (progress / _config.hubPromptWakeAt).clamp(0, 1).toDouble();
+    final Color base = Color.lerp(neutrals.line, neutrals.promptDark, woken)!;
+    final Color fill = Color.lerp(base, AppColors.appBlue, near)!;
     // A prompt slides out from behind the hub, painted under it, and grows as
     // the finger comes closer.
     final double reveal = _reveal();
@@ -2267,7 +2295,7 @@ class _DialLauncherState extends State<DialLauncher>
     if (_leftHub && _polar(g, pointer).$2 > _config.hubRadius) {
       return 0;
     }
-    return _config.holdBuild(_now - _restStart);
+    return _config.hubHoldBuild(_now - _restStart);
   }
 
   Widget _hub(LauncherGeometry g) {

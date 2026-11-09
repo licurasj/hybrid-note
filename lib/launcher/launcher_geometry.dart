@@ -32,6 +32,8 @@ class LauncherConfig {
     this.tabLength = 150,
     this.visibleTabs = 4,
     this.promptDelay = const Duration(milliseconds: 800),
+    this.hubPromptDelay = const Duration(milliseconds: 1200),
+    this.hubPromptWakeAt = 0.15,
     this.revealDuration = const Duration(milliseconds: 250),
     this.editGap = 4,
     this.editDepth = 36,
@@ -53,6 +55,7 @@ class LauncherConfig {
     this.hubHoldGrow = 1.1,
     this.dialEditHoldGrow = 14,
     this.holdGrowDelay = const Duration(milliseconds: 650),
+    this.hubHoldGrowDelay = const Duration(milliseconds: 1050),
     this.pickUpGrowDelay = const Duration(milliseconds: 150),
     this.dialSelectedLead = 24,
     this.dialRestMargin = 28,
@@ -104,6 +107,12 @@ class LauncherConfig {
   // How long a finger must rest (on a tab, or on the hub) before the Edit or
   // Move prompt appears (interaction law, coordination/docs/INTERACTIONS.md).
   final Duration promptDelay;
+  // On the hub, Move and Arrange come after a longer rest, so a finger
+  // resting there while its owner thinks does not bring them (Q-121 A).
+  final Duration hubPromptDelay;
+  // They come faint and buzz only once the finger heads for one: this much
+  // of the way to it (Q-121 D).
+  final double hubPromptWakeAt;
   // How long a prompt takes to slide out from under its element.
   final Duration revealDuration;
   // The Edit prompt is a further piece of its tab's wedge: this far past the
@@ -156,11 +165,17 @@ class LauncherConfig {
   // to show, and a pick-up rest, whose rest is too short for the same delay.
   // From there each grows to its end with an ease-out, as a quick swell.
   final Duration holdGrowDelay;
+  // The hub's own, as its prompts come later (Q-121 A).
+  final Duration hubHoldGrowDelay;
   final Duration pickUpGrowDelay;
 
   // How far a hold has built (0 to 1) after [elapsed] of resting.
   double holdBuild(Duration elapsed) =>
       _build(elapsed, holdGrowDelay, promptDelay);
+
+  // The same for a rest on the hub towards Move and Arrange.
+  double hubHoldBuild(Duration elapsed) =>
+      _build(elapsed, hubHoldGrowDelay, hubPromptDelay);
 
   // The same for a rest that picks up.
   double pickUpBuild(Duration elapsed) =>

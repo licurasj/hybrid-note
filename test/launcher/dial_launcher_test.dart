@@ -91,6 +91,7 @@ final Finder _movePill = find.descendant(
 
 // The app's theme in these tests is light.
 final Color _dark = AppColors.neutrals(Brightness.light).promptDark;
+final Color _faint = AppColors.neutrals(Brightness.light).line;
 
 Color _moveColor(WidgetTester tester) {
   final Container pill = tester.widget<Container>(_movePill);
@@ -396,7 +397,8 @@ void main() {
     expect((start.center - hub).distance, lessThan(1));
     expect(start.width, lessThan(64));
     expect(start.height, lessThan(64));
-    expect(_moveColor(tester), _dark);
+    // Faint while the finger rests (Q-121 D).
+    expect(_moveColor(tester), _faint);
 
     // It is painted before the hub, so the hub stays on top while it slides.
     final List<Element> stacked = [];
@@ -426,7 +428,7 @@ void main() {
     expect((middle - hub).distance, lessThan((end.center - hub).distance));
     expect(end.width, greaterThan(start.width));
     // Nothing has filled it: the finger has not moved.
-    expect(_moveColor(tester), _dark);
+    expect(_moveColor(tester), _faint);
     await gesture.up();
   });
 
