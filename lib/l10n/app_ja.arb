@@ -438,5 +438,7 @@
   "viewTimelineLine": "日付順、新しいものが先。",
   "viewGroupedLine": "選択肢やカテゴリでグループ化。",
   "viewTableLine": "1行に1項目、新しいものが先。",
-  "viewCardsLine": "1行に1項目と詳細、新しいものが先。"
+  "viewCardsLine": "1行に1項目と詳細、新しいものが先。",
+  "preferencesHomeOrderFollowing": "ダイヤルの順番に従っています。",
+  "preferencesHomeOrderOwnLine": "ホームは独自の順番です。"
 }

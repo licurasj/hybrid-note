@@ -8,6 +8,7 @@ import '../lists/list_definition.dart';
 import '../lists/list_editor_style.dart';
 import '../lists/list_store.dart';
 import 'account_preferences.dart';
+import 'list_order.dart';
 import 'app_theme.dart';
 import 'settings_controls.dart';
 
@@ -148,6 +149,10 @@ class PreferencesScreen extends StatelessWidget {
     final AccountPreferencesCubit cubit = context
         .read<AccountPreferencesCubit>();
     final bool cards = preferences.homeContent.showsCards;
+    final bool sameAsDial =
+        preferences.homeListOrder == HomeListOrder.sameAsDial;
+    // A choice's own line only while home has its own order to pick.
+    final bool homeLines = cards && !sameAsDial;
     // For the lines saying how many lists have their own choice.
     final List<ListDefinition> lists =
         context.read<ListStore?>()?.current.definitions ?? const [];
@@ -170,7 +175,7 @@ class PreferencesScreen extends StatelessWidget {
             // T-24 (Q-111): grouped by where in the app a setting acts. Every
             // row is always there; one that does not apply now is greyed with
             // a line saying why (Q-113), so nothing below it moves.
-            look.sectionLabel(loc.home),
+            look.section(loc.home),
             SettingButtonsRow<StartScreen>(
               key: const ValueKey('preferences-start-screen'),
               label: loc.preferencesStartScreen,
@@ -205,7 +210,7 @@ class PreferencesScreen extends StatelessWidget {
                   : loc.preferencesSuggestionsOffLine,
               onChanged: cards ? cubit.setHomeSuggestions : null,
             ),
-            look.sectionLabel(loc.preferencesListsAndDial),
+            look.section(loc.preferencesListsAndDial),
             SettingButtonsRow<ListOrder>(
               key: const ValueKey('preferences-list-order'),
               label: loc.preferencesListOrder,
@@ -218,59 +223,87 @@ class PreferencesScreen extends StatelessWidget {
               ],
               onChanged: cubit.setListOrder,
             ),
-            // Right under the dial's: the two can be the same or separate
-            // (Q-108). A drag on home makes it My order. It means nothing
-            // without cards, and keeps its value meanwhile.
-            SettingOptionList<HomeListOrder>(
+            // Right under the dial's, the same three choices, and under them
+            // whether home follows the dial (Q-108; a switch since the owner's
+            // note of 2026-11-09). While it does, the choices show the dial's,
+            // greyed. A drag on home turns it off and picks My order. It all
+            // means nothing without cards, and keeps its value meanwhile.
+            SettingButtonsRow<HomeListOrder>(
               key: const ValueKey('preferences-home-list-order'),
               label: loc.preferencesHomeListOrder,
-              selected: preferences.homeListOrder,
-              enabled: cards,
-              line: cards ? null : loc.preferencesOnlyWithCards,
+              selected: sameAsDial
+                  ? HomeListOrder.ofDial(preferences.listOrder)
+                  : preferences.homeListOrder,
+              enabled: cards && !sameAsDial,
+              line: !cards
+                  ? loc.preferencesOnlyWithCards
+                  : sameAsDial
+                  ? loc.preferencesHomeOrderFollowing
+                  : null,
               choices: [
-                choice(
-                  HomeListOrder.sameAsDial,
-                  loc.preferencesHomeListOrderSame,
-                  line: loc.preferencesHomeOrderSameLine,
-                ),
                 choice(
                   HomeListOrder.lastUsed,
                   loc.preferencesListOrderLastUsed,
-                  line: loc.preferencesHomeOrderLastUsedLine,
+                  line: homeLines ? loc.preferencesHomeOrderLastUsedLine : null,
                 ),
                 choice(
                   HomeListOrder.alphabetical,
                   loc.preferencesListOrderAz,
-                  line: loc.preferencesHomeOrderAzLine,
+                  line: homeLines ? loc.preferencesHomeOrderAzLine : null,
                 ),
                 choice(
                   HomeListOrder.myOrder,
                   loc.preferencesListOrderMine,
-                  line: loc.preferencesHomeOrderMineLine,
+                  line: homeLines ? loc.preferencesHomeOrderMineLine : null,
                 ),
               ],
               onChanged: cubit.setHomeListOrder,
+              sub: SettingSubSwitch(
+                key: const ValueKey('preferences-home-same-as-dial'),
+                label: loc.preferencesHomeListOrderSame,
+                value: sameAsDial,
+                line: sameAsDial
+                    ? loc.preferencesHomeOrderSameLine
+                    : loc.preferencesHomeOrderOwnLine,
+                onChanged: cards
+                    ? (follow) => cubit.setHomeFollowsDial(
+                        follow,
+                        dialOrder: [
+                          for (final ListDefinition list in orderLists(
+                            lists,
+                            order: ListOrder.myOrder,
+                            myOrder: preferences.myListOrder,
+                            recent: const [],
+                            nameOf: (list) => list.id,
+                          ))
+                            list.id,
+                        ],
+                      )
+                    : null,
+              ),
             ),
-            look.sectionLabel(loc.preferencesItems),
+            look.section(loc.preferencesItems),
             SettingOptionList<TickedItems>(
               key: const ValueKey('preferences-ticked-items'),
               label: loc.preferencesTicked,
               selected: preferences.tickedItems,
               choices: tickedItemsChoices(loc),
               onChanged: cubit.setTickedItems,
-            ),
-            // Lasting, on by default (Q-117): off, every list follows the
-            // choice above and keeps its own for when it is on again.
-            SettingSwitchRow(
-              key: const ValueKey('preferences-lists-own-ticked'),
-              label: loc.preferencesListsOwn,
-              value: preferences.listsOwnTickedItems,
-              line: preferences.listsOwnTickedItems
-                  ? loc.preferencesListsOwnCount(
-                      lists.where((list) => list.ownTickedItems != null).length,
-                    )
-                  : loc.preferencesListsOwnOff,
-              onChanged: cubit.setListsOwnTickedItems,
+              // Lasting, on by default (Q-117): off, every list follows the
+              // choice above and keeps its own for when it is on again.
+              sub: SettingSubSwitch(
+                key: const ValueKey('preferences-lists-own-ticked'),
+                label: loc.preferencesListsOwn,
+                value: preferences.listsOwnTickedItems,
+                line: preferences.listsOwnTickedItems
+                    ? loc.preferencesListsOwnCount(
+                        lists
+                            .where((list) => list.ownTickedItems != null)
+                            .length,
+                      )
+                    : loc.preferencesListsOwnOff,
+                onChanged: cubit.setListsOwnTickedItems,
+              ),
             ),
             SettingSwitchRow(
               key: const ValueKey('preferences-confirm-delete'),
@@ -278,21 +311,21 @@ class PreferencesScreen extends StatelessWidget {
               value: preferences.confirmDelete,
               line: loc.preferencesConfirmDeleteLine,
               onChanged: cubit.setConfirmDelete,
+              sub: SettingSubSwitch(
+                key: const ValueKey('preferences-lists-own-confirm'),
+                label: loc.preferencesListsOwn,
+                value: preferences.listsOwnConfirmDelete,
+                line: preferences.listsOwnConfirmDelete
+                    ? loc.preferencesListsOwnCount(
+                        lists
+                            .where((list) => list.ownConfirmDelete != null)
+                            .length,
+                      )
+                    : loc.preferencesListsOwnOff,
+                onChanged: cubit.setListsOwnConfirmDelete,
+              ),
             ),
-            SettingSwitchRow(
-              key: const ValueKey('preferences-lists-own-confirm'),
-              label: loc.preferencesListsOwn,
-              value: preferences.listsOwnConfirmDelete,
-              line: preferences.listsOwnConfirmDelete
-                  ? loc.preferencesListsOwnCount(
-                      lists
-                          .where((list) => list.ownConfirmDelete != null)
-                          .length,
-                    )
-                  : loc.preferencesListsOwnOff,
-              onChanged: cubit.setListsOwnConfirmDelete,
-            ),
-            look.sectionLabel(loc.preferencesAi),
+            look.section(loc.preferencesAi),
             SettingSwitchRow(
               key: const ValueKey('preferences-show-ai-bar'),
               label: loc.preferencesShowAiBar,
@@ -303,7 +336,7 @@ class PreferencesScreen extends StatelessWidget {
                   : loc.preferencesAiBarOffLine,
               onChanged: cubit.setShowAiBar,
             ),
-            look.sectionLabel(loc.preferencesGeneral),
+            look.section(loc.preferencesGeneral),
             SettingButtonsRow<TimeFormat>(
               key: const ValueKey('preferences-time-format'),
               label: loc.preferencesTimeFormat,

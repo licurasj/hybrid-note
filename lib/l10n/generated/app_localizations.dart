@@ -2485,6 +2485,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Items one per row with their details, newest first.'**
   String get viewCardsLine;
+
+  /// No description provided for @preferencesHomeOrderFollowing.
+  ///
+  /// In en, this message translates to:
+  /// **'Following the dial\'s order.'**
+  String get preferencesHomeOrderFollowing;
+
+  /// No description provided for @preferencesHomeOrderOwnLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Home keeps its own order.'**
+  String get preferencesHomeOrderOwnLine;
 }
 
 class _AppLocalizationsDelegate

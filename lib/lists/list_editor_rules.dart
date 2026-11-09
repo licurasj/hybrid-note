@@ -119,7 +119,7 @@ class ListEditorRules extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (showLabel) look.sectionLabel(loc.rules),
+        if (showLabel) look.section(loc.rules),
         look.hairline(
           child: SwitchListTile(
             key: const ValueKey('rule-clearCompleted'),

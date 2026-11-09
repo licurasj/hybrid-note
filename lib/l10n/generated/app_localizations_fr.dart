@@ -1475,4 +1475,11 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get viewCardsLine =>
       'Un élément par ligne avec ses détails, les plus récents en premier.';
+
+  @override
+  String get preferencesHomeOrderFollowing => 'Suit l\'ordre du cadran.';
+
+  @override
+  String get preferencesHomeOrderOwnLine =>
+      'L\'accueil garde son propre ordre.';
 }

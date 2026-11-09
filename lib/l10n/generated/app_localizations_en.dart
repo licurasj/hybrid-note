@@ -1453,4 +1453,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get viewCardsLine =>
       'Items one per row with their details, newest first.';
+
+  @override
+  String get preferencesHomeOrderFollowing => 'Following the dial\'s order.';
+
+  @override
+  String get preferencesHomeOrderOwnLine => 'Home keeps its own order.';
 }

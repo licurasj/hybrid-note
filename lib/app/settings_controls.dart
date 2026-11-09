@@ -48,6 +48,7 @@ class SettingButtonsRow<T> extends StatelessWidget {
     required this.onChanged,
     this.line,
     this.enabled = true,
+    this.sub,
   });
 
   final String label;
@@ -57,6 +58,8 @@ class SettingButtonsRow<T> extends StatelessWidget {
   // Shown under the buttons; a picked choice's own line comes first.
   final String? line;
   final bool enabled;
+  // A sub-option of this setting ([SettingSubSwitch]), inside its row.
+  final Widget? sub;
 
   @override
   Widget build(BuildContext context) {
@@ -117,6 +120,7 @@ class SettingButtonsRow<T> extends StatelessWidget {
               SettingLine(shown)
             else
               const SizedBox(height: 6),
+            ?sub,
           ],
         ),
       ),
@@ -179,6 +183,7 @@ class SettingOptionList<T> extends StatelessWidget {
     required this.onChanged,
     this.line,
     this.enabled = true,
+    this.sub,
   });
 
   final String label;
@@ -188,6 +193,8 @@ class SettingOptionList<T> extends StatelessWidget {
   // Under the whole list, for a reason it is greyed.
   final String? line;
   final bool enabled;
+  // A sub-option of this setting ([SettingSubSwitch]), inside its row.
+  final Widget? sub;
 
   @override
   Widget build(BuildContext context) {
@@ -268,6 +275,7 @@ class SettingOptionList<T> extends StatelessWidget {
               ),
             ),
             if (line != null) SettingLine(line!) else const SizedBox(height: 8),
+            ?sub,
           ],
         ),
       ),
@@ -284,12 +292,15 @@ class SettingSwitchRow extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.line,
+    this.sub,
   });
 
   final String label;
   final bool value;
   final ValueChanged<bool>? onChanged;
   final String? line;
+  // A sub-option of this setting ([SettingSubSwitch]), inside its row.
+  final Widget? sub;
 
   @override
   Widget build(BuildContext context) {
@@ -322,12 +333,87 @@ class SettingSwitchRow extends StatelessWidget {
               ),
             ),
           ),
-          if (line != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 0),
-              child: SettingLine(line!),
-            ),
+          if (line != null) SettingLine(line!),
+          ?sub,
         ],
+      ),
+    );
+  }
+}
+
+// A sub-option of the setting above it, as "Lists can have their own" under
+// Ticked items (owner, 2026-11-09): inside that setting's row, indented behind
+// a short rule, in smaller type, with its grey line. Greyed and fixed while
+// [onChanged] is null.
+class SettingSubSwitch extends StatelessWidget {
+  const SettingSubSwitch({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.onChanged,
+    this.line,
+  });
+
+  final String label;
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+  final String? line;
+
+  @override
+  Widget build(BuildContext context) {
+    final EditorLook look = EditorLook.of(context);
+    final ValueChanged<bool>? change = onChanged;
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(start: 4, bottom: 12),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: BorderDirectional(
+            start: BorderSide(color: look.neutrals.line, width: 2),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsetsDirectional.only(start: 14),
+          // A tap on the name or on its line flips it.
+          child: MergeSemantics(
+            child: InkWell(
+              onTap: change == null ? null : () => change(!value),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _greyed(
+                    change != null,
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 44),
+                      child: Row(
+                        children: [
+                          Expanded(child: Text(label, style: look.subLabel)),
+                          const SizedBox(width: 12),
+                          // Smaller than a setting's switch, and only as
+                          // tall as it looks; the row keeps the 44 px target.
+                          SizedBox(
+                            height: 32,
+                            child: FittedBox(
+                              child: Switch(
+                                value: value,
+                                activeTrackColor: AppColors.appBlue,
+                                onChanged: change,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (line != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: Text(line!, style: look.type.meta),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -491,20 +577,17 @@ class _FoldSectionState extends State<FoldSection> {
           button: true,
           expanded: open,
           child: InkWell(
-            onTap: widget.forceOpen ? null : () => setState(() => _open = !_open),
+            onTap: widget.forceOpen
+                ? null
+                : () => setState(() => _open = !_open),
             child: Padding(
-              padding: const EdgeInsets.only(top: 22, bottom: 6),
+              padding: const EdgeInsets.only(top: 30, bottom: 2),
               child: Row(
                 children: [
-                  Expanded(
-                    child: Text(
-                      widget.title.toUpperCase(),
-                      style: look.type.sectionLabel,
-                    ),
-                  ),
+                  Expanded(child: Text(widget.title, style: look.heading)),
                   Icon(
                     open ? Icons.expand_less : Icons.expand_more,
-                    size: 20,
+                    size: 24,
                     color: look.neutrals.muted,
                   ),
                 ],

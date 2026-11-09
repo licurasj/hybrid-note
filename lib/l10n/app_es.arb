@@ -438,5 +438,7 @@
   "viewTimelineLine": "Elementos por fecha, los más nuevos primero.",
   "viewGroupedLine": "Elementos agrupados por una opción o categoría.",
   "viewTableLine": "Un elemento por fila, los más nuevos primero.",
-  "viewCardsLine": "Un elemento por fila con sus detalles, los más nuevos primero."
+  "viewCardsLine": "Un elemento por fila con sus detalles, los más nuevos primero.",
+  "preferencesHomeOrderFollowing": "Sigue el orden del dial.",
+  "preferencesHomeOrderOwnLine": "El inicio tiene su propio orden."
 }

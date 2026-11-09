@@ -228,20 +228,23 @@ void main() {
       await _pumpApp(tester);
       await _openPreferences(tester);
 
+      // Section headings above the rows, in sentence case (the owner's
+      // hierarchy note, 2026-11-09). "Home" is also a Start screen choice.
+      expect(find.text('Home'), findsNWidgets(2));
       final List<String> order = [
-        'HOME',
         'Start screen',
         'Home shows',
         'Show suggestions',
-        'LISTS AND DIAL',
+        'Lists and dial',
         'Dial list order',
         'Home list order',
-        'ITEMS',
+        'Same as dial',
+        'Items',
         'Ticked items',
         'Confirm before deleting',
         'AI',
         'Show the AI bar',
-        'GENERAL',
+        'General',
         'Time format',
         'Week starts on',
         'Vibration',
@@ -282,19 +285,25 @@ void main() {
       expect(cubit.state.listOrder, ListOrder.myOrder);
       await choose('preferences-list-order', 'choice-ListOrder.alphabetical');
       expect(cubit.state.listOrder, ListOrder.alphabetical);
-      // Home list order, right under the dial's (Q-108).
+      // Home list order, right under the dial's (Q-108): the same three
+      // choices, greyed while Same as dial is on.
+      expect(cubit.state.homeListOrder, HomeListOrder.sameAsDial);
+      expect(find.text("Following the dial's order."), findsOneWidget);
+      await _tapKey(tester, 'choice-HomeListOrder.myOrder');
+      expect(cubit.state.homeListOrder, HomeListOrder.sameAsDial);
+      // Off, home starts from the dial's choice.
+      await _tapKey(tester, 'preferences-home-same-as-dial');
+      expect(cubit.state.homeListOrder, HomeListOrder.alphabetical);
+      expect(find.text('Home keeps its own order.'), findsOneWidget);
       await choose(
         'preferences-home-list-order',
         'choice-HomeListOrder.myOrder',
       );
       expect(cubit.state.homeListOrder, HomeListOrder.myOrder);
-      await choose(
-        'preferences-home-list-order',
-        'choice-HomeListOrder.sameAsDial',
-      );
+      await _tapKey(tester, 'preferences-home-same-as-dial');
       expect(cubit.state.homeListOrder, HomeListOrder.sameAsDial);
       expect(
-        find.byKey(const ValueKey('choice-line-HomeListOrder.sameAsDial')),
+        find.text("Pinned cards follow the dial's order."),
         findsOneWidget,
       );
       expect(cubit.state.listOrder, ListOrder.alphabetical);
@@ -420,13 +429,19 @@ void main() {
       await _openPreferences(tester);
       final AccountPreferencesCubit cubit = _account(tester);
 
-      await _tapKey(tester, 'preferences-confirm-delete');
+      await tester.ensureVisible(find.text('Confirm before deleting'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Confirm before deleting'));
+      await tester.pumpAndSettle();
       expect(cubit.state.confirmDelete, isTrue);
+      // Its own switch, not the sub-option's under it.
       await tester.tap(
-        find.descendant(
-          of: find.byKey(const ValueKey('preferences-confirm-delete')),
-          matching: find.byType(Switch),
-        ),
+        find
+            .descendant(
+              of: find.byKey(const ValueKey('preferences-confirm-delete')),
+              matching: find.byType(Switch),
+            )
+            .first,
       );
       await tester.pumpAndSettle();
       expect(cubit.state.confirmDelete, isFalse);

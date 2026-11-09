@@ -50,12 +50,12 @@ void main() {
 
     final List<String> order = [
       'LIST NAME',
-      'ICON AND COLOUR',
-      'HOME AND AI',
-      'ITEMS',
-      'FIELDS · 7',
-      'LAYOUT · CHECKLIST',
-      'RULES · 2',
+      'Icon and colour',
+      'Home and AI',
+      'Items',
+      'Fields · 7',
+      'Layout · Checklist',
+      'Rules · 2',
     ];
     double last = -1;
     for (final String text in order) {
@@ -64,8 +64,8 @@ void main() {
       last = _top(tester, find.text(text));
     }
     // Home and AI holds Suggest on home and AI may read this list.
-    expect(_top(tester, find.byKey(const ValueKey('allow-ai'))), lessThan(_top(tester, find.text('ITEMS'))));
-    expect(_top(tester, find.byKey(const ValueKey('suggest-on-home'))), greaterThan(_top(tester, find.text('HOME AND AI'))));
+    expect(_top(tester, find.byKey(const ValueKey('allow-ai'))), lessThan(_top(tester, find.text('Items'))));
+    expect(_top(tester, find.byKey(const ValueKey('suggest-on-home'))), greaterThan(_top(tester, find.text('Home and AI'))));
     // Folded.
     expect(find.byKey(const ValueKey('add-field')), findsNothing);
     expect(find.byKey(const ValueKey('view-kind')), findsNothing);
@@ -73,7 +73,7 @@ void main() {
     // No drop-downs anywhere.
     expect(find.byType(DropdownButton<Object?>), findsNothing);
 
-    await tester.tap(find.text('FIELDS · 7'));
+    await tester.tap(find.text('Fields · 7'));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('add-field')), findsOneWidget);
     expect(find.byKey(const ValueKey('tick-mark-done')), findsOneWidget);
@@ -88,7 +88,7 @@ void main() {
 
   testWidgets('a section with a problem opens itself', (tester) async {
     await _open(tester, BuiltinTemplates.tasks());
-    await tester.tap(find.text('FIELDS · 7'));
+    await tester.tap(find.text('Fields · 7'));
     await tester.pumpAndSettle();
     // Removing the date field the checklist splits by is an error.
     await tester.tap(find.byKey(const ValueKey('remove-field-reminderAt')));
@@ -100,7 +100,7 @@ void main() {
 
   testWidgets('the layout is picked on the page, with a line for the picked one', (tester) async {
     final Future<ListEditorOutcome?> Function() outcome = await _open(tester, BuiltinTemplates.watchRead());
-    await tester.tap(find.textContaining('LAYOUT ·'));
+    await tester.tap(find.textContaining('Layout ·'));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('choice-ViewKind.cards')));
     await tester.pumpAndSettle();
@@ -130,7 +130,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('confirm-follow')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('confirm-own')));
+      // The setting's own switch, not Follow Preferences under it.
+      await tester.tap(find.text('Confirm before deleting'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const ValueKey('save-list')));

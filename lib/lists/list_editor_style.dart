@@ -24,7 +24,23 @@ class EditorLook {
   TextStyle get strong => label.copyWith(fontWeight: FontWeight.w500);
   TextStyle get value => label.copyWith(color: neutrals.muted);
 
-  // "FIELDS", with room above it to start a new section.
+  // The settings hierarchy (owner, 2026-11-09), largest first: a section's
+  // heading in the serif, a setting's name (type.row), then a sub-option
+  // ([subLabel]) and the grey line (type.meta).
+  TextStyle get heading =>
+      type.screenTitle.copyWith(fontSize: 26, height: 1.15);
+  TextStyle get subLabel =>
+      type.row.copyWith(fontSize: 14, fontWeight: FontWeight.w400);
+
+  // A settings section's heading ("Items"), with room above it.
+  Widget section(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 34, bottom: 2),
+      child: Text(text, style: heading),
+    );
+  }
+
+  // A field's small label ("LIST NAME"), with room above it.
   Widget sectionLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(top: 28, bottom: 6),

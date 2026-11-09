@@ -1414,4 +1414,10 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get viewCardsLine => '1行に1項目と詳細、新しいものが先。';
+
+  @override
+  String get preferencesHomeOrderFollowing => 'ダイヤルの順番に従っています。';
+
+  @override
+  String get preferencesHomeOrderOwnLine => 'ホームは独自の順番です。';
 }

@@ -1082,5 +1082,7 @@
   "viewTimelineLine": "Items by date, newest first.",
   "viewGroupedLine": "Items grouped by a choice or a category.",
   "viewTableLine": "Items one per row, newest first.",
-  "viewCardsLine": "Items one per row with their details, newest first."
+  "viewCardsLine": "Items one per row with their details, newest first.",
+  "preferencesHomeOrderFollowing": "Following the dial's order.",
+  "preferencesHomeOrderOwnLine": "Home keeps its own order."
 }

@@ -438,5 +438,7 @@
   "viewTimelineLine": "Éléments par date, les plus récents en premier.",
   "viewGroupedLine": "Éléments groupés par un choix ou une catégorie.",
   "viewTableLine": "Un élément par ligne, les plus récents en premier.",
-  "viewCardsLine": "Un élément par ligne avec ses détails, les plus récents en premier."
+  "viewCardsLine": "Un élément par ligne avec ses détails, les plus récents en premier.",
+  "preferencesHomeOrderFollowing": "Suit l'ordre du cadran.",
+  "preferencesHomeOrderOwnLine": "L'accueil garde son propre ordre."
 }

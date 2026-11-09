@@ -446,6 +446,27 @@ void main() {
       expect(homeOf(cubit, lists), ['c', 'a', 'b']);
     });
 
+    test('Same as dial off starts home from what it showed', () async {
+      final AccountPreferencesCubit cubit = await _cubit(pinned);
+      await cubit.setListOrder(ListOrder.alphabetical);
+      await cubit.setHomeFollowsDial(false);
+      expect(cubit.state.homeListOrder, HomeListOrder.alphabetical);
+      await cubit.setHomeFollowsDial(true);
+      expect(cubit.state.homeListOrder, HomeListOrder.sameAsDial);
+      // On the dial's My order, home keeps a copy of it as its own.
+      await cubit.arrangedOnDial(['c', 'y', 'b', 'x', 'a']);
+      final List<String> shown = homeOf(cubit, lists);
+      await cubit.setHomeFollowsDial(
+        false,
+        dialOrder: dialOf(cubit, lists),
+      );
+      expect(cubit.state.homeListOrder, HomeListOrder.myOrder);
+      expect(homeOf(cubit, lists), shown);
+      // A later dial drag leaves it.
+      await cubit.arrangedOnDial(['a', 'b', 'c', 'x', 'y']);
+      expect(homeOf(cubit, lists), ['c', 'b', 'a']);
+    });
+
     test('Dial list order changes only the dial setting', () async {
       final AccountPreferencesCubit cubit = await _cubit(pinned);
       await cubit.arrangedOnHome(['c', 'a', 'b']);

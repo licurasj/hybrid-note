@@ -438,5 +438,7 @@
   "viewTimelineLine": "按日期排列，最新的在前。",
   "viewGroupedLine": "按选项或类别分组。",
   "viewTableLine": "每行一个条目，最新的在前。",
-  "viewCardsLine": "每行一个条目及其详情，最新的在前。"
+  "viewCardsLine": "每行一个条目及其详情，最新的在前。",
+  "preferencesHomeOrderFollowing": "正在跟随转盘的顺序。",
+  "preferencesHomeOrderOwnLine": "首页保持自己的顺序。"
 }

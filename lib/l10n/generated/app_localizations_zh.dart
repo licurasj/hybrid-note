@@ -1407,4 +1407,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get viewCardsLine => '每行一个条目及其详情，最新的在前。';
+
+  @override
+  String get preferencesHomeOrderFollowing => '正在跟随转盘的顺序。';
+
+  @override
+  String get preferencesHomeOrderOwnLine => '首页保持自己的顺序。';
 }

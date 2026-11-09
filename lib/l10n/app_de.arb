@@ -438,5 +438,7 @@
   "viewTimelineLine": "Einträge nach Datum, neueste zuerst.",
   "viewGroupedLine": "Einträge nach einer Auswahl oder Kategorie gruppiert.",
   "viewTableLine": "Ein Eintrag pro Zeile, neueste zuerst.",
-  "viewCardsLine": "Ein Eintrag pro Zeile mit Details, neueste zuerst."
+  "viewCardsLine": "Ein Eintrag pro Zeile mit Details, neueste zuerst.",
+  "preferencesHomeOrderFollowing": "Folgt der Reihenfolge des Rads.",
+  "preferencesHomeOrderOwnLine": "Die Startseite hat ihre eigene Reihenfolge."
 }

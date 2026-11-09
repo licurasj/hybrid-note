@@ -38,6 +38,13 @@ enum HomeListOrder {
 
   final String wire;
 
+  // Home's own choice that matches the dial's [order].
+  static HomeListOrder ofDial(ListOrder order) => switch (order) {
+    ListOrder.lastUsed => lastUsed,
+    ListOrder.alphabetical => alphabetical,
+    ListOrder.myOrder => myOrder,
+  };
+
   // Null for a missing or unknown value.
   static HomeListOrder? maybeOf(Object? wire) {
     for (final HomeListOrder order in values) {
@@ -852,6 +859,23 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
   // pinned list not in it after.
   Future<void> setHomeListOrder(HomeListOrder order) =>
       _change(AccountPreferences.homeListOrderKey, order.wire);
+
+  // The Same as dial switch (Q-108, a switch since the owner's note of
+  // 2026-11-09). Off, home starts from what it showed: the dial's choice, and
+  // on the dial's My order a copy of [dialOrder], every list in the dial's
+  // order, as home's own.
+  Future<void> setHomeFollowsDial(
+    bool follow, {
+    List<String> dialOrder = const [],
+  }) async {
+    if (follow) {
+      return setHomeListOrder(HomeListOrder.sameAsDial);
+    }
+    if (state.listOrder == ListOrder.myOrder) {
+      await _change(AccountPreferences.homeOrderKey, dialOrder);
+    }
+    await setHomeListOrder(HomeListOrder.ofDial(state.listOrder));
+  }
 
   Future<void> setMyListOrder(List<String> listIds) =>
       _change(AccountPreferences.myListOrderKey, listIds);

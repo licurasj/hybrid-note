@@ -1472,4 +1472,11 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get viewCardsLine =>
       'Ein Eintrag pro Zeile mit Details, neueste zuerst.';
+
+  @override
+  String get preferencesHomeOrderFollowing => 'Folgt der Reihenfolge des Rads.';
+
+  @override
+  String get preferencesHomeOrderOwnLine =>
+      'Die Startseite hat ihre eigene Reihenfolge.';
 }

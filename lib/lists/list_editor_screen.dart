@@ -790,19 +790,9 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
     void set(String key, Object? value) =>
         _push(ListPatchOp(PatchOpKind.setListInfo, {key: value}));
 
+    // Each setting with Follow Preferences as its sub-option (owner,
+    // 2026-11-09), as Lists can have their own in Preferences.
     return [
-      SettingSwitchRow(
-        key: const ValueKey('ticked-follow'),
-        label: '${loc.preferencesTicked}: ${loc.editorFollowPreferences}',
-        value: tickedFollows,
-        line: tickedReason,
-        onChanged: tickedReason != null
-            ? null
-            : (follow) => set(
-                ListDefinition.ownTickedItemsKey,
-                follow ? null : preferences.tickedItems.wire,
-              ),
-      ),
       SettingOptionList<TickedItems>(
         key: const ValueKey('ticked-own'),
         label: loc.preferencesTicked,
@@ -812,18 +802,18 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
         enabled: !tickedFollows && tickedReason == null,
         choices: tickedItemsChoices(loc),
         onChanged: (value) => set(ListDefinition.ownTickedItemsKey, value.wire),
-      ),
-      SettingSwitchRow(
-        key: const ValueKey('confirm-follow'),
-        label: '${loc.preferencesConfirmDelete}: ${loc.editorFollowPreferences}',
-        value: confirmFollows,
-        line: confirmReason,
-        onChanged: confirmReason != null
-            ? null
-            : (follow) => set(
-                ListDefinition.ownConfirmDeleteKey,
-                follow ? null : preferences.confirmDelete,
-              ),
+        sub: SettingSubSwitch(
+          key: const ValueKey('ticked-follow'),
+          label: loc.editorFollowPreferences,
+          value: tickedFollows,
+          line: tickedReason,
+          onChanged: tickedReason != null
+              ? null
+              : (follow) => set(
+                  ListDefinition.ownTickedItemsKey,
+                  follow ? null : preferences.tickedItems.wire,
+                ),
+        ),
       ),
       SettingSwitchRow(
         key: const ValueKey('confirm-own'),
@@ -835,6 +825,18 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
         onChanged: confirmFollows || confirmReason != null
             ? null
             : (value) => set(ListDefinition.ownConfirmDeleteKey, value),
+        sub: SettingSubSwitch(
+          key: const ValueKey('confirm-follow'),
+          label: loc.editorFollowPreferences,
+          value: confirmFollows,
+          line: confirmReason,
+          onChanged: confirmReason != null
+              ? null
+              : (follow) => set(
+                  ListDefinition.ownConfirmDeleteKey,
+                  follow ? null : preferences.confirmDelete,
+                ),
+        ),
       ),
     ];
   }
@@ -883,7 +885,7 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
         key: const ValueKey('suggest-on-home'),
         contentPadding: EdgeInsets.zero,
         activeTrackColor: AppColors.appBlue,
-        title: Text(loc.suggestOnHome, style: look.label),
+        title: Text(loc.suggestOnHome, style: look.type.row),
         subtitle: Text(
           suggestionsOn ? loc.suggestOnHomeLine : loc.suggestOnHomeOff,
           style: look.type.meta,
@@ -1027,7 +1029,7 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
                 _push(ListPatchOp(PatchOpKind.setListInfo, {'description': text}));
               },
             ),
-            look.sectionLabel(loc.editorIconAndColour),
+            look.section(loc.editorIconAndColour),
             Wrap(
               spacing: 4,
               children: [
@@ -1043,14 +1045,14 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
                   _swatch(look, color),
               ],
             ),
-            look.sectionLabel(loc.editorHomeAndAi),
+            look.section(loc.editorHomeAndAi),
             _suggestRow(look, loc),
             look.hairline(
               child: SwitchListTile(
                 key: const ValueKey('allow-ai'),
                 contentPadding: EdgeInsets.zero,
                 activeTrackColor: AppColors.appBlue,
-                title: Text(loc.allowAi, style: look.label),
+                title: Text(loc.allowAi, style: look.type.row),
                 subtitle: Text(loc.allowAiLine, style: look.type.meta),
                 value: draft.aiAllowed,
                 onChanged: (on) => _push(
@@ -1058,7 +1060,7 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
                 ),
               ),
             ),
-            look.sectionLabel(loc.preferencesItems),
+            look.section(loc.preferencesItems),
             ..._itemsSection(look, loc),
             FoldSection(
               key: const ValueKey('section-fields'),

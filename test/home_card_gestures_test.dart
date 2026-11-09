@@ -1205,8 +1205,15 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('settings-preferences')));
     await settle(tester);
     expect(find.byKey(const ValueKey('preferences-match-dial')), findsNothing);
+    // The home drag turned Same as dial off; its switch turns it on again.
     final Finder same = find.byKey(
-      const ValueKey('choice-HomeListOrder.sameAsDial'),
+      const ValueKey('preferences-home-same-as-dial'),
+    );
+    expect(
+      tester
+          .widget<Switch>(find.descendant(of: same, matching: find.byType(Switch)))
+          .value,
+      isFalse,
     );
     await tester.ensureVisible(same);
     await settle(tester);
