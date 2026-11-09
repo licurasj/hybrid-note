@@ -8,6 +8,7 @@ import 'package:hybrid_note/home_cards_view.dart';
 import 'package:hybrid_note/home_screen.dart';
 import 'package:hybrid_note/lists/builtin_templates.dart';
 import 'package:hybrid_note/lists/list_catalog.dart';
+import 'package:hybrid_note/lists/list_definition.dart';
 import 'package:hybrid_note/lists/list_item.dart';
 
 import 'support/fake_auth.dart';
@@ -76,8 +77,42 @@ void main() {
       catalog,
       _today.add(const Duration(hours: 12)),
     );
-    expect(due.map((d) => d.item.id), ['t-late', 't-today']);
+    // Ticked ones stay until cleared (t-done, ticked today).
+    expect(due.map((d) => d.item.id), ['t-late', 't-done', 't-today']);
+    expect(due.map((d) => d.done), [false, true, false]);
     expect(due.every((d) => d.hasTime), isTrue);
+  });
+
+  test('in a list that cannot clear, a ticked item stays only while due '
+      'today', () {
+    final ListDefinition tasks = BuiltinTemplates.all().firstWhere(
+      (definition) => definition.id == BuiltinTemplates.tasksId,
+    );
+    final Map<String, dynamic> json = tasks.toJson()..['behaviors'] = [];
+    final ListDefinition noClear = ListDefinition.fromJson(json);
+    final List<ListItem> items = [
+      _task(
+        't-done-today',
+        'Ticked today',
+        _today.add(const Duration(hours: 8)),
+        done: true,
+      ),
+      _task(
+        't-done-late',
+        'Ticked late',
+        _today.subtract(const Duration(days: 1)),
+        done: true,
+      ),
+    ];
+    List<String> due(ListDefinition definition) => [
+      for (final HomeDueItem item in homeDueItems(
+        ListCatalog(definitions: [definition], items: items),
+        _today.add(const Duration(hours: 12)),
+      ))
+        item.item.id,
+    ];
+    expect(due(noClear), ['t-done-today']);
+    expect(due(tasks), ['t-done-late', 't-done-today']);
   });
 
   testWidgets(
@@ -97,8 +132,9 @@ void main() {
         of: find.byKey(ValueKey('home-due-$id')),
         matching: find.text(text),
       );
-      // One line, starting at the left edge of the cards' blobs: a small blob,
-      // then the title on its line.
+      // One line, starting at the left edge of the cards' blobs: a small card
+      // mark (the blob, the tick circle over its lower right as a card's
+      // circle over its blob), then the title on its line.
       final double cardLeft = tester
           .getTopLeft(find.byType(HomeListCard).first)
           .dx;
@@ -107,19 +143,22 @@ void main() {
         matching: find.byType(HomeSmallBlob),
       );
       final Rect blobRect = tester.getRect(blob);
-      // The tick circle first, its left edge on the cards' blob edge, with a
-      // 48 touch target; then the blob.
+      expect(blobRect.left - cardLeft, homeDueLeft);
+      expect(blobRect.width, homeDueBlobSize);
       final Finder tick = find.byKey(const ValueKey('home-tick-t-today'));
       expect(tester.getSize(tick), const Size.square(homeTickTarget));
+      final Offset circle = tester.getCenter(tick);
       expect(
-        tester.getCenter(tick).dx - homeTickSize / 2 - cardLeft,
-        homeDueLeft,
+        circle.dx - blobRect.left,
+        moreOrLessEquals(homeDueBlobSize * 25 / 84 + homeTickSize / 2),
       );
-      expect(blobRect.left, tester.getRect(tick).right);
-      expect(blobRect.width, homeDueBlobSize);
+      expect(
+        circle.dy - blobRect.top,
+        moreOrLessEquals(homeDueBlobSize * 25 / 84 + homeTickSize / 2),
+      );
       final Rect title = tester.getRect(inRow('t-today', 'Submit milestone'));
-      expect(title.left, blobRect.right + homeDueBlobGap);
-      expect(blobRect.center.dy, moreOrLessEquals(title.center.dy, epsilon: 2));
+      expect(title.left, greaterThanOrEqualTo(tester.getRect(tick).right));
+      expect(circle.dy, moreOrLessEquals(title.center.dy, epsilon: 2));
       expect(
         find.descendant(
           of: find.byKey(const ValueKey('home-due-t-today')),
@@ -132,7 +171,11 @@ void main() {
       expect(inRow('t-today', 'Submit milestone'), findsOneWidget);
       expect(inRow('t-late', 'Return books'), findsOneWidget);
       expect(find.byKey(const ValueKey('home-due-t-tomorrow')), findsNothing);
-      expect(find.byKey(const ValueKey('home-due-t-done')), findsNothing);
+      // Ticked today and not cleared: it stays, ticked, with its ×; the count
+      // is of open items only.
+      expect(find.byKey(const ValueKey('home-due-t-done')), findsOneWidget);
+      expect(find.byKey(const ValueKey('home-clear-t-done')), findsOneWidget);
+      expect(find.byKey(const ValueKey('home-clear-t-today')), findsNothing);
       // Overdue first, with its date; today's with its time.
       expect(
         tester.getTopLeft(inRow('t-late', 'Return books')).dy,
@@ -185,14 +228,16 @@ void main() {
       return null;
     }
 
-    testWidgets('shows the tick a moment, then slides away and saves it', (
+    testWidgets('a tick stays on home, crossed out, and a tap unticks it', (
       tester,
     ) async {
       final FirestoreListStore store = await _pumpApp(tester);
       final Finder row = find.byKey(const ValueKey('home-due-t-today'));
       await tester.tap(find.byKey(const ValueKey('home-tick-t-today')));
-      await tester.pump();
-      // Ticked and crossed out, still there, not yet saved.
+      await settle(tester);
+      expect(await done(tester, store, 't-today'), isTrue);
+      await settle(tester);
+      expect(row, findsOneWidget);
       final Text title = tester.widget<Text>(
         find.descendant(of: row, matching: find.text('Submit milestone')),
       );
@@ -201,46 +246,31 @@ void main() {
         find.descendant(of: row, matching: find.byIcon(Icons.check)),
         findsOneWidget,
       );
-      expect(await done(tester, store, 't-today'), isFalse);
-      expect(find.text('Ticked off'), findsOneWidget);
-      await tester.pump(homeTickShown);
-      await tester.pump(const Duration(milliseconds: 400));
-      await settle(tester);
-      expect(row, findsNothing);
-      expect(await done(tester, store, 't-today'), isTrue);
-      // The other row stays, and the list page was not opened.
-      expect(find.byKey(const ValueKey('home-due-t-late')), findsOneWidget);
+      expect(find.byKey(const ValueKey('home-clear-t-today')), findsOneWidget);
+      // No banner: the circle itself takes it back.
+      expect(find.text('Ticked off'), findsNothing);
+      // The list page was not opened.
       expect(find.byKey(const ValueKey('item-t-today')), findsNothing);
-    });
-
-    testWidgets('Undo unticks it, before or after it is saved', (tester) async {
-      final FirestoreListStore store = await _pumpApp(tester);
-      // Before: the row comes back as it was.
       await tester.tap(find.byKey(const ValueKey('home-tick-t-today')));
-      await tester.pump();
-      // The banner slides up first.
-      await tester.pump(const Duration(milliseconds: 400));
-      await tester.tap(find.byKey(const ValueKey('app-banner-action')));
-      await tester.pump(homeTickShown);
       await settle(tester);
-      expect(find.byKey(const ValueKey('home-due-t-today')), findsOneWidget);
+      expect(await done(tester, store, 't-today'), isFalse);
+      await settle(tester);
       expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('home-due-t-today')),
-          matching: find.byIcon(Icons.check),
-        ),
+        find.descendant(of: row, matching: find.byIcon(Icons.check)),
         findsNothing,
       );
-      expect(await done(tester, store, 't-today'), isFalse);
-      // After: saved, then open again.
-      await tester.tap(find.byKey(const ValueKey('home-tick-t-today')));
-      await tester.pump(homeTickShown);
-      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byKey(const ValueKey('home-clear-t-today')), findsNothing);
+    });
+
+    testWidgets('× clears it as the list page does, and the row goes', (
+      tester,
+    ) async {
+      final FirestoreListStore store = await _pumpApp(tester);
+      await tester.tap(find.byKey(const ValueKey('home-clear-t-done')));
       await settle(tester);
-      expect(await done(tester, store, 't-today'), isTrue);
-      await tester.tap(find.byKey(const ValueKey('app-banner-action')));
+      expect(await done(tester, store, 't-done'), isNull);
       await settle(tester);
-      expect(await done(tester, store, 't-today'), isFalse);
+      expect(find.byKey(const ValueKey('home-due-t-done')), findsNothing);
       expect(find.byKey(const ValueKey('home-due-t-today')), findsOneWidget);
     });
   });
@@ -257,7 +287,8 @@ void main() {
     final List<HomeSmallBlob> blobs = tester
         .widgetList<HomeSmallBlob>(find.byType(HomeSmallBlob))
         .toList();
-    expect(blobs, hasLength(2));
+    // Two open rows and one ticked.
+    expect(blobs, hasLength(3));
     final Listenable? clock = blobs.first.clock;
     expect(clock, isNotNull);
     expect(blobs.every((blob) => identical(blob.clock, clock)), isTrue);

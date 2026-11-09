@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -39,13 +38,15 @@ import 'lists/list_rules.dart';
 import 'lists/list_store.dart';
 import 'lists/list_vocabulary.dart';
 
-// One open item whose reminder date is today or earlier.
+// One item whose reminder date is today or earlier: open, or ticked and not
+// yet cleared.
 class HomeDueItem {
   const HomeDueItem({
     required this.definition,
     required this.item,
     required this.due,
     required this.hasTime,
+    this.done = false,
   });
 
   final ListDefinition definition;
@@ -53,24 +54,22 @@ class HomeDueItem {
   final DateTime due;
   // Date-and-time fields show their time; date fields only their day.
   final bool hasTime;
+  final bool done;
+
+  // Its list clears ticked items (a Clear ticked rule), so its row offers ×.
+  bool get clearable => definition.behaviors.any(
+    (behavior) => behavior.kind == BehaviorKind.clearCompleted,
+  );
 }
 
-// A Today row's tick on its way: shown ticked for a moment, then sliding away,
-// then saved, as only open items show (owner, 2026-11-08).
-class _Ticking {
-  _Ticking(this.due, this.store);
-
-  final HomeDueItem due;
-  final ListStore store;
-  bool leaving = false;
-  bool saved = false;
-  Timer? timer;
-}
-
-// What is due today or overdue across every list, earliest first: open items
-// (not marked done) whose reminder-role date falls before tomorrow. Lists
-// without a reminder field have nothing due.
+// What is due today or overdue across every list, earliest first: items whose
+// reminder-role date falls before tomorrow. Open ones, and ticked ones too, so
+// that a tick by accident can be taken back (owner, 2026-11-08): those stay
+// until cleared, on home or on their list page. In a list with no Clear ticked
+// rule a ticked item cannot be cleared, so it stays only while due today.
+// Lists without a reminder field have nothing due.
 List<HomeDueItem> homeDueItems(ListCatalog catalog, DateTime now) {
+  final DateTime today = DateTime(now.year, now.month, now.day);
   final DateTime tomorrow = DateTime(now.year, now.month, now.day + 1);
   final List<HomeDueItem> due = [];
   for (final ListDefinition definition in catalog.definitions) {
@@ -83,19 +82,20 @@ List<HomeDueItem> homeDueItems(ListCatalog catalog, DateTime now) {
       final DateTime? date = raw is String
           ? DateTime.tryParse(raw)?.toLocal()
           : null;
-      if (date == null ||
-          !date.isBefore(tomorrow) ||
-          ListRules.isCompleted(definition, item)) {
+      if (date == null || !date.isBefore(tomorrow)) {
         continue;
       }
-      due.add(
-        HomeDueItem(
-          definition: definition,
-          item: item,
-          due: date,
-          hasTime: field.type == FieldType.dateTime,
-        ),
+      final HomeDueItem entry = HomeDueItem(
+        definition: definition,
+        item: item,
+        due: date,
+        hasTime: field.type == FieldType.dateTime,
+        done: ListRules.isCompleted(definition, item),
       );
+      if (entry.done && !entry.clearable && date.isBefore(today)) {
+        continue;
+      }
+      due.add(entry);
     }
   }
   due.sort((a, b) => a.due.compareTo(b.due));
@@ -168,7 +168,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // One clock for every Today row's small blob: each tick repaints them only.
   final ValueNotifier<int> _blobTick = ValueNotifier(0);
   late final Ticker _blobClock;
-  final Map<String, _Ticking> _ticking = {};
   late final AnimationController _lift;
   late final AnimationController _reveal;
   // A rest on a pinned card while arranging lifts it until it is picked up.
@@ -236,10 +235,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
-    // A tick still on screen is saved all the same.
-    for (final _Ticking ticking in _ticking.values) {
-      _saveTick(ticking);
-    }
     widget.returned?.removeListener(_refresh);
     widget.pressedElsewhere?.removeListener(_endArranging);
     _clock.dispose();
@@ -459,71 +454,38 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _syncClock();
   }
 
-  // Ticks an item as its list page does (ListRules.setCompleted): ticked at
-  // once on screen, saved once the row has slid away, with an Undo.
+  // Ticks or unticks an item as its list page does (ListRules.setCompleted).
+  // A ticked row stays, crossed out, so a tick by accident is one tap to undo.
   void _tickDue(HomeDueItem due) {
-    final String id = due.item.id;
-    if (_arranging || _ticking.containsKey(id)) {
+    if (_arranging) {
       return;
     }
-    final AppLocalizations loc = AppLocalizations.of(context);
-    final _Ticking ticking = _Ticking(due, context.read<ListStore>());
     _buzz(false);
-    setState(() => _ticking[id] = ticking);
-    ticking.timer = Timer(homeTickShown, () {
-      if (!mounted) {
-        _saveTick(ticking);
-        return;
-      }
-      setState(() => ticking.leaving = true);
-      ticking.timer = Timer(
-        _moves ? AppMotion.standard : Duration.zero,
-        () => _saveTick(ticking),
-      );
-    });
-    context.read<AppBannerController>().show(
-      loc.homeTickedBanner,
-      actionLabel: loc.undo,
-      onAction: () => _untick(ticking),
-    );
-  }
-
-  void _saveTick(_Ticking ticking) {
-    ticking.timer?.cancel();
-    if (ticking.saved) {
-      return;
-    }
-    ticking.saved = true;
     final ListChanges changes = ListRules.setCompleted(
-      ticking.due.definition,
-      ticking.due.item,
-      true,
+      due.definition,
+      due.item,
+      !due.done,
       DateTime.now().toUtc(),
     );
     if (!changes.isEmpty) {
-      ticking.store.apply(changes);
+      context.read<ListStore>().apply(changes);
     }
   }
 
-  void _untick(_Ticking ticking) {
-    ticking.timer?.cancel();
-    if (ticking.saved) {
-      final ListChanges changes = ListRules.setCompleted(
-        ticking.due.definition,
-        ticking.due.item,
-        false,
-        DateTime.now().toUtc(),
-      );
-      if (!changes.isEmpty) {
-        ticking.store.apply(changes);
-      }
+  // Clears one ticked item as the list page's Clear on that item does, so a
+  // Grocery item is kept for next time and a repeating task comes again.
+  void _clearDue(HomeDueItem due, ListCatalog catalog) {
+    if (_arranging) {
+      return;
     }
-    if (mounted) {
-      setState(() {
-        if (identical(_ticking[ticking.due.item.id], ticking)) {
-          _ticking.remove(ticking.due.item.id);
-        }
-      });
+    final ListChanges changes = ListRules.clearCompleted(
+      due.definition,
+      catalog.itemsOf(due.definition.id),
+      DateTime.now().toUtc(),
+      inScope: (other) => other.id == due.item.id,
+    );
+    if (!changes.isEmpty) {
+      context.read<ListStore>().apply(changes);
     }
   }
 
@@ -1315,7 +1277,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // the list's colour, moving in step with its card's, then the title in the
     // text colour and the time or date and list's name small and muted (owner,
     // 2026-11-08). The title gives way first.
-    Widget row(HomeDueItem due) {
+    Widget row(HomeDueItem due, ListCatalog catalog) {
       final ListDefinition definition = due.definition;
       final Object? title =
           due.item[definition.fields
@@ -1330,75 +1292,92 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           : due.hasTime
           ? timeFormat(locale, preferences.timeFormat).format(due.due)
           : '';
-      final _Ticking? ticking = _ticking[due.item.id];
-      final bool ticked = ticking != null;
-      final bool leaving = ticking?.leaving ?? false;
-      final Duration slide = _moves ? AppMotion.standard : Duration.zero;
-      final Widget tick = Semantics(
-        button: true,
-        checked: ticked,
-        label: loc.homeTick,
-        child: GestureDetector(
-          key: ValueKey('home-tick-${due.item.id}'),
-          behavior: HitTestBehavior.opaque,
-          onTap: ticked ? null : () => _tickDue(due),
-          child: SizedBox.square(
-            dimension: homeTickTarget,
-            child: Center(
-              child: Container(
-                width: homeTickSize,
-                height: homeTickSize,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: ticked ? neutrals.text : neutrals.ground,
-                  border: Border.all(color: neutrals.text, width: 1.75),
-                ),
-                child: ticked
-                    ? Icon(Icons.check, size: 14, color: neutrals.ground)
-                    : null,
+      final bool ticked = due.done;
+      // The card's mark, small: the blob behind, the tick circle over its lower
+      // right (a card's 60 circle at 25,25 on its 84 blob), with a 48 touch
+      // target around the circle.
+      const double blob = homeDueBlobSize;
+      const double inset = blob * 25 / 84;
+      const double circleCentre = inset + homeTickSize / 2;
+      // The target reaches this far left of the blob's box, so the box starts
+      // after it within the mark.
+      const double reach = homeTickTarget / 2 - circleCentre;
+      final Widget mark = SizedBox(
+        width: homeTickTarget,
+        height: homeTickTarget,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              left: reach,
+              top: homeTickTarget / 2 - circleCentre,
+              child: HomeSmallBlob(
+                color: listColor(definition.color, brightness: brightness),
+                seed: homeBlobSeed(definition.id),
+                clock: _moves ? _blobTick : null,
               ),
             ),
-          ),
+            Positioned(
+              left: 0,
+              top: 0,
+              child: Semantics(
+                button: true,
+                checked: ticked,
+                label: loc.homeTick,
+                child: GestureDetector(
+                  key: ValueKey('home-tick-${due.item.id}'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _tickDue(due),
+                  child: SizedBox.square(
+                    dimension: homeTickTarget,
+                    child: Center(
+                      child: Container(
+                        width: homeTickSize,
+                        height: homeTickSize,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: ticked ? neutrals.text : neutrals.ground,
+                          border: Border.all(color: neutrals.text, width: 1.75),
+                        ),
+                        child: ticked
+                            ? Icon(
+                                Icons.check,
+                                size: 14,
+                                color: neutrals.ground,
+                              )
+                            : null,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       );
-      // Ticked: it slides out to the side as its height closes.
-      return ClipRect(
+      return InkWell(
         key: ValueKey('home-due-${due.item.id}'),
-        child: AnimatedAlign(
-          duration: slide,
-          curve: AppMotion.curve,
-          alignment: AlignmentDirectional.topStart,
-          heightFactor: leaving ? 0 : 1,
-          child: AnimatedSlide(
-            duration: slide,
-            curve: AppMotion.curve,
-            offset: leaving ? const Offset(-1, 0) : Offset.zero,
-            child: InkWell(
-              onTap: () {
-                if (!_arranging) {
-                  widget.onOpenList?.call(definition.id);
-                }
-              },
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: homeDueRowHeight),
+        onTap: () {
+          if (!_arranging) {
+            widget.onOpenList?.call(definition.id);
+          }
+        },
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: homeDueRowHeight),
+          child: Row(
+            children: [
+              // The blob's left edge on the cards' blob edge.
+              const SizedBox(
+                width:
+                    homeDueLeft -
+                    (homeTickTarget / 2 -
+                        homeDueBlobSize * 25 / 84 -
+                        homeTickSize / 2),
+              ),
+              mark,
+              Expanded(
                 child: Row(
                   children: [
-                    // The circle's left edge on the cards' blob edge, its touch
-                    // target 48 around it.
-                    const SizedBox(
-                      width:
-                          homeDueLeft + homeTickSize / 2 - homeTickTarget / 2,
-                    ),
-                    tick,
-                    HomeSmallBlob(
-                      color: listColor(
-                        definition.color,
-                        brightness: brightness,
-                      ),
-                      seed: homeBlobSeed(definition.id),
-                      clock: _moves ? _blobTick : null,
-                    ),
-                    const SizedBox(width: homeDueBlobGap),
                     Flexible(
                       child: Text(
                         title is String ? title : '',
@@ -1432,7 +1411,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ],
                 ),
               ),
-            ),
+              // A ticked row clears from here, where its list can clear.
+              if (ticked && due.clearable)
+                IconButton(
+                  key: ValueKey('home-clear-${due.item.id}'),
+                  tooltip: loc.clearTicked,
+                  onPressed: () => _clearDue(due, catalog),
+                  icon: Icon(Icons.close, size: 18, color: neutrals.muted),
+                )
+              else
+                const SizedBox(width: 48),
+            ],
           ),
         ),
       );
@@ -1449,11 +1438,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         body: ListCatalogBuilder(
           builder: (context, catalog) {
             final List<HomeDueItem> due = homeDueItems(catalog, now);
-            // A saved tick is done with once its item has left the rows.
-            _ticking.removeWhere(
-              (id, ticking) =>
-                  ticking.saved && !due.any((each) => each.item.id == id),
-            );
             _syncBlobClock(
               _moves && preferences.homeContent.showsDue && due.isNotEmpty,
             );
@@ -1494,7 +1478,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           if (preferences.homeContent.showsDue &&
                               due.isNotEmpty) ...[
                             const SizedBox(height: homeDueGap),
-                            for (final HomeDueItem item in due) _dim(row(item)),
+                            for (final HomeDueItem item in due)
+                              _dim(row(item, catalog)),
                           ],
                           if (preferences.homeContent.showsDue &&
                               due.isEmpty &&
@@ -1590,8 +1575,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               [
                                 DateFormat.MMMMd(locale).format(now),
                                 if (preferences.homeContent.showsDue &&
-                                    due.isNotEmpty)
-                                  loc.homeThingsToday(due.length),
+                                    due.any((each) => !each.done))
+                                  loc.homeThingsToday(
+                                    due.where((each) => !each.done).length,
+                                  ),
                               ].join(' · '),
                               key: const ValueKey('home-date'),
                               style: type.meta.copyWith(fontSize: 15),

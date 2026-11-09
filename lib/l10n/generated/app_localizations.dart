@@ -2174,12 +2174,6 @@ abstract class AppLocalizations {
   /// **'Removed from home'**
   String get homeRemovedBanner;
 
-  /// Banner after ticking an item in a Today row on home; it has an Undo.
-  ///
-  /// In en, this message translates to:
-  /// **'Ticked off'**
-  String get homeTickedBanner;
-
   /// Screen reader label of the tick circle on a Today row on home.
   ///
   /// In en, this message translates to:

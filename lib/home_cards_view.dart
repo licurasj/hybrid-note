@@ -294,14 +294,11 @@ homePromptMeasure(
 const double homeDueLeft = 15;
 // Tall enough for the tick circle's touch target.
 const double homeDueRowHeight = 48;
-// The tick circle at the start of a row (its left edge on [homeDueLeft]), its
-// touch target, and how long a ticked row stays before it slides away.
-const double homeTickSize = 20;
+// The tick circle over the small blob's lower right, as a card's circle over
+// its blob (60 on 84), and its touch target.
+const double homeTickSize = homeDueBlobSize * 60 / 84;
 const double homeTickTarget = 48;
-const Duration homeTickShown = Duration(milliseconds: 1000);
-// The small blob before each row's title, and the room after it.
-const double homeDueBlobSize = 18;
-const double homeDueBlobGap = 10;
+const double homeDueBlobSize = 28;
 // Spacing on home, from the header's date line (which has 8 below it): to the
 // Today rows, and to the cards.
 const double homeDueGap = 16;
