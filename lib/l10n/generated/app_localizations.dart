@@ -1943,7 +1943,7 @@ abstract class AppLocalizations {
   /// No description provided for @preferencesListOrder.
   ///
   /// In en, this message translates to:
-  /// **'List order'**
+  /// **'Dial list order'**
   String get preferencesListOrder;
 
   /// No description provided for @preferencesListOrderLastUsed.
@@ -2198,17 +2198,17 @@ abstract class AppLocalizations {
   /// **'Move later'**
   String get homeMoveLater;
 
-  /// No description provided for @preferencesMatchDial.
+  /// No description provided for @preferencesHomeListOrder.
   ///
   /// In en, this message translates to:
-  /// **'Match dial order'**
-  String get preferencesMatchDial;
+  /// **'Home list order'**
+  String get preferencesHomeListOrder;
 
-  /// No description provided for @preferencesHomeOwnOrder.
+  /// No description provided for @preferencesHomeListOrderSame.
   ///
   /// In en, this message translates to:
-  /// **'Home has its own order'**
-  String get preferencesHomeOwnOrder;
+  /// **'Same as dial'**
+  String get preferencesHomeListOrderSame;
 }
 
 class _AppLocalizationsDelegate

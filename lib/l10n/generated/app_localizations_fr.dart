@@ -1153,7 +1153,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get preferencesGeneral => 'Général';
 
   @override
-  String get preferencesListOrder => 'Ordre des listes';
+  String get preferencesListOrder => 'Ordre du cadran';
 
   @override
   String get preferencesListOrderLastUsed => 'Dernière utilisation';
@@ -1286,8 +1286,8 @@ class AppLocalizationsFr extends AppLocalizations {
   String get homeMoveLater => 'Déplacer après';
 
   @override
-  String get preferencesMatchDial => 'Aligner sur le cadran';
+  String get preferencesHomeListOrder => 'Ordre de l\'accueil';
 
   @override
-  String get preferencesHomeOwnOrder => 'L\'accueil a son propre ordre';
+  String get preferencesHomeListOrderSame => 'Comme le cadran';
 }

@@ -1153,7 +1153,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get preferencesGeneral => 'Allgemein';
 
   @override
-  String get preferencesListOrder => 'Listenreihenfolge';
+  String get preferencesListOrder => 'Reihenfolge am Rad';
 
   @override
   String get preferencesListOrderLastUsed => 'Zuletzt verwendet';
@@ -1285,9 +1285,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get homeMoveLater => 'Nach hinten';
 
   @override
-  String get preferencesMatchDial => 'Wie am Rad anordnen';
+  String get preferencesHomeListOrder => 'Reihenfolge auf der Startseite';
 
   @override
-  String get preferencesHomeOwnOrder =>
-      'Die Startseite hat ihre eigene Reihenfolge';
+  String get preferencesHomeListOrderSame => 'Wie am Rad';
 }

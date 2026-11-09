@@ -348,7 +348,7 @@
   "preferencesItems": "条目",
   "preferencesAi": "AI",
   "preferencesGeneral": "通用",
-  "preferencesListOrder": "列表顺序",
+  "preferencesListOrder": "转盘列表顺序",
   "preferencesListOrderLastUsed": "最近使用",
   "preferencesListOrderMine": "我的顺序",
   "preferencesListOrderAz": "按名称",
@@ -391,6 +391,6 @@
   "homeSuggestionsOffBanner": "建议已关闭",
   "homeMoveEarlier": "前移",
   "homeMoveLater": "后移",
-  "preferencesMatchDial": "与转盘顺序一致",
-  "preferencesHomeOwnOrder": "首页有自己的顺序"
+  "preferencesHomeListOrder": "首页列表顺序",
+  "preferencesHomeListOrderSame": "与转盘相同"
 }

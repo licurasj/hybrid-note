@@ -266,25 +266,41 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     preferences.homePins,
     preferences.homeRemoved,
     preferences.homeOrder,
-    preferences.homeArranged,
+    preferences.homeListOrder.wire,
     preferences.listOrder.wire,
     preferences.myListOrder,
   ]);
 
-  List<String> _dialOrder(
+  // Every list in the order Home list order sorts by (Q-108), or null on
+  // home's own My order.
+  List<String>? _sortedOrder(
     ListCatalog catalog,
     AccountPreferences preferences,
     ListLabels labels,
-  ) => [
-    for (final ListDefinition list in orderLists(
-      catalog.definitions,
-      order: preferences.listOrder,
-      myOrder: preferences.myListOrder,
-      recent: widget.recentLists?.call() ?? const [],
-      nameOf: labels.listName,
-    ))
-      list.id,
-  ];
+  ) => switch (preferences.homeSortedBy) {
+    null => null,
+    final ListOrder order => [
+      for (final ListDefinition list in orderLists(
+        catalog.definitions,
+        order: order,
+        myOrder: preferences.myListOrder,
+        recent: widget.recentLists?.call() ?? const [],
+        nameOf: labels.listName,
+      ))
+        list.id,
+    ],
+  };
+
+  List<String> _shownOrder(
+    ListCatalog catalog,
+    AccountPreferences preferences,
+    ListLabels labels,
+  ) => homePinnedOrder(
+    pins: preferences.homePins,
+    existing: [for (final list in catalog.definitions) list.id],
+    sortedOrder: _sortedOrder(catalog, preferences, labels),
+    homeOrder: preferences.homeOrder,
+  );
 
   void _workOutCards(
     ListCatalog catalog,
@@ -301,12 +317,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         (_pinned!.isNotEmpty || _suggested.isNotEmpty)) {
       return;
     }
-    final List<String> pinned = homePinnedOrder(
-      pins: preferences.homePins,
-      dialOrder: _dialOrder(catalog, preferences, labels),
-      homeOrder: preferences.homeOrder,
-      homeArranged: preferences.homeArranged,
-    );
+    final List<String> pinned = _shownOrder(catalog, preferences, labels);
     _pinned = pinned;
     _suggested = [
       for (final ListDefinition list in chooseHomeCards(
@@ -351,11 +362,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ? cubit.pinToHome(
               listId,
               existing: [for (final list in catalog.definitions) list.id],
-              dialOrder: _dialOrder(
-                catalog,
-                cubit.state,
-                ListLabels(AppLocalizations.of(context)),
-              ),
               keepPlace: true,
             )
           : cubit.unpinFromHome(listId),
@@ -379,25 +385,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         if (_unfilled.contains(listId)) {
           _tapPin(listId, catalog);
         } else {
-          // At once to its place among the pinned cards: its sorted place
-          // while home follows a dial on Last used or A to Z, else the end
-          // (R6). The suggestions are worked out again at the next refresh
-          // (Q-76).
-          final AccountPreferences now = context.accountPreferences;
-          final List<String> dial = _dialOrder(catalog, now, ListLabels(loc));
+          // At once to its place in Home list order: sorted, or last on My
+          // order (Q-108). The suggestions are worked out again at the next
+          // refresh (Q-76).
+          final List<String>? sorted = _sortedOrder(
+            catalog,
+            context.accountPreferences,
+            ListLabels(loc),
+          );
           setState(() {
             _suggested = [..._suggested]..remove(listId);
-            _pinned = now.newPinSorted
-                ? _sortedIn(_pinned!, listId, dial)
-                : [..._pinned!, listId];
+            _pinned = sorted == null
+                ? [..._pinned!, listId]
+                : _sortedIn(_pinned!, listId, sorted);
           });
-          _own(
-            (cubit) => cubit.pinToHome(
-              listId,
-              existing: existing,
-              dialOrder: _dialOrder(catalog, cubit.state, ListLabels(loc)),
-            ),
-          );
+          _own((cubit) => cubit.pinToHome(listId, existing: existing));
         }
       case HomeCardAction.remove:
         setState(() => _suggested = [..._suggested]..remove(listId));
@@ -426,15 +428,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
-  // [pinned] with [listId] put before the first card that comes after it on
-  // the dial; cards with no place on the dial keep theirs.
+  // [pinned] with [listId] put before the first card that comes after it in
+  // [sorted]; cards with no place there keep theirs.
   static List<String> _sortedIn(
     List<String> pinned,
     String listId,
-    List<String> dial,
+    List<String> sorted,
   ) {
-    final int at = dial.indexOf(listId);
-    final int before = pinned.indexWhere((id) => dial.indexOf(id) > at);
+    final int at = sorted.indexOf(listId);
+    final int before = pinned.indexWhere((id) => sorted.indexOf(id) > at);
     return [...pinned]..insert(before < 0 ? pinned.length : before, listId);
   }
 
@@ -911,17 +913,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void _saveOrder(ListCatalog catalog, ListLabels labels) {
     final List<String> order = _filledPins;
     final AccountPreferences now = context.accountPreferences;
-    final List<String> shown = homePinnedOrder(
-      pins: now.homePins,
-      dialOrder: _dialOrder(catalog, now, labels),
-      homeOrder: now.homeOrder,
-      homeArranged: now.homeArranged,
-    );
-    if (listEquals(order, shown)) {
+    if (listEquals(order, _shownOrder(catalog, now, labels))) {
       return;
     }
-    final List<String> dial = _dialOrder(catalog, now, labels);
-    _own((cubit) => cubit.arrangedOnHome(order, dialOrder: dial));
+    _own((cubit) => cubit.arrangedOnHome(order));
   }
 
   // For a screen reader, which has no hold or drag.

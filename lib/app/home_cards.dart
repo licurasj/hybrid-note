@@ -25,19 +25,20 @@ List<String> keepExistingIds(Iterable<String> ids, Iterable<String> existing) {
   }.toList();
 }
 
-// The pinned lists in home's order (Q-75). Until home has been arranged they
-// follow the dial, whose order [dialOrder] holds. After that they keep the
-// dragged order, and a list pinned since joins the end.
+// The pinned lists in home's order (Q-108). [sortedOrder] is every list in the
+// order Home list order sorts by (the dial's on Same as dial), or null on
+// home's own My order, where they keep the dragged order and a list pinned
+// since joins the end. [existing] is every list's id.
 List<String> homePinnedOrder({
   required List<String> pins,
-  required List<String> dialOrder,
+  required Iterable<String> existing,
+  required List<String>? sortedOrder,
   required List<String> homeOrder,
-  required bool homeArranged,
 }) {
-  final Set<String> pinned = keepExistingIds(pins, dialOrder).toSet();
-  if (!homeArranged) {
+  final Set<String> pinned = keepExistingIds(pins, existing).toSet();
+  if (sortedOrder != null) {
     return [
-      for (final String id in dialOrder)
+      for (final String id in sortedOrder)
         if (pinned.contains(id)) id,
     ];
   }
@@ -46,20 +47,6 @@ List<String> homePinnedOrder({
       if (pinned.contains(id)) id,
     ...pinned,
   }.toList();
-}
-
-// The dial following a home drag (Q-75): the lists in [homeOrder] take that
-// order among the places they already hold, and every other list stays put.
-List<String> mergeHomeOrderIntoDial(
-  List<String> dialOrder,
-  List<String> homeOrder,
-) {
-  final Set<String> moved = keepExistingIds(homeOrder, dialOrder).toSet();
-  final Iterator<String> next = moved.iterator;
-  return [
-    for (final String id in dialOrder)
-      if (moved.contains(id)) (next..moveNext()).current else id,
-  ];
 }
 
 // How many suggestions go with this many pinned lists (Q-70).

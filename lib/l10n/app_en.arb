@@ -947,7 +947,7 @@
   "preferencesItems": "Items",
   "preferencesAi": "AI",
   "preferencesGeneral": "General",
-  "preferencesListOrder": "List order",
+  "preferencesListOrder": "Dial list order",
   "preferencesListOrderLastUsed": "Last used",
   "preferencesListOrderMine": "My order",
   "preferencesListOrderAz": "A to Z",
@@ -1000,6 +1000,6 @@
   "homeSuggestionsOffBanner": "Suggestions off",
   "homeMoveEarlier": "Move earlier",
   "homeMoveLater": "Move later",
-  "preferencesMatchDial": "Match dial order",
-  "preferencesHomeOwnOrder": "Home has its own order"
+  "preferencesHomeListOrder": "Home list order",
+  "preferencesHomeListOrderSame": "Same as dial"
 }

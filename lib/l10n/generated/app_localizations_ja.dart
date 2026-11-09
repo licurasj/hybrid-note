@@ -1119,7 +1119,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get preferencesGeneral => '一般';
 
   @override
-  String get preferencesListOrder => 'リストの順序';
+  String get preferencesListOrder => 'ダイヤルの順序';
 
   @override
   String get preferencesListOrderLastUsed => '最近使った順';
@@ -1250,8 +1250,8 @@ class AppLocalizationsJa extends AppLocalizations {
   String get homeMoveLater => '後ろへ移動';
 
   @override
-  String get preferencesMatchDial => 'ダイヤルの順に合わせる';
+  String get preferencesHomeListOrder => 'ホームの順序';
 
   @override
-  String get preferencesHomeOwnOrder => 'ホームには独自の順序があります';
+  String get preferencesHomeListOrderSame => 'ダイヤルと同じ';
 }

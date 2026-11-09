@@ -1145,7 +1145,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get preferencesGeneral => 'General';
 
   @override
-  String get preferencesListOrder => 'Orden de las listas';
+  String get preferencesListOrder => 'Orden en el dial';
 
   @override
   String get preferencesListOrderLastUsed => 'Último uso';
@@ -1278,8 +1278,8 @@ class AppLocalizationsEs extends AppLocalizations {
   String get homeMoveLater => 'Mover después';
 
   @override
-  String get preferencesMatchDial => 'Igualar al dial';
+  String get preferencesHomeListOrder => 'Orden en el inicio';
 
   @override
-  String get preferencesHomeOwnOrder => 'El inicio tiene su propio orden';
+  String get preferencesHomeListOrderSame => 'Igual que el dial';
 }

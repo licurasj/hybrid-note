@@ -348,7 +348,7 @@
   "preferencesItems": "Éléments",
   "preferencesAi": "IA",
   "preferencesGeneral": "Général",
-  "preferencesListOrder": "Ordre des listes",
+  "preferencesListOrder": "Ordre du cadran",
   "preferencesListOrderLastUsed": "Dernière utilisation",
   "preferencesListOrderMine": "Mon ordre",
   "preferencesListOrderAz": "A à Z",
@@ -391,6 +391,6 @@
   "homeSuggestionsOffBanner": "Suggestions désactivées",
   "homeMoveEarlier": "Déplacer avant",
   "homeMoveLater": "Déplacer après",
-  "preferencesMatchDial": "Aligner sur le cadran",
-  "preferencesHomeOwnOrder": "L'accueil a son propre ordre"
+  "preferencesHomeListOrder": "Ordre de l'accueil",
+  "preferencesHomeListOrderSame": "Comme le cadran"
 }

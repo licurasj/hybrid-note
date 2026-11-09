@@ -1114,7 +1114,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get preferencesGeneral => '通用';
 
   @override
-  String get preferencesListOrder => '列表顺序';
+  String get preferencesListOrder => '转盘列表顺序';
 
   @override
   String get preferencesListOrderLastUsed => '最近使用';
@@ -1245,8 +1245,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get homeMoveLater => '后移';
 
   @override
-  String get preferencesMatchDial => '与转盘顺序一致';
+  String get preferencesHomeListOrder => '首页列表顺序';
 
   @override
-  String get preferencesHomeOwnOrder => '首页有自己的顺序';
+  String get preferencesHomeListOrderSame => '与转盘相同';
 }

@@ -348,7 +348,7 @@
   "preferencesItems": "Elementos",
   "preferencesAi": "IA",
   "preferencesGeneral": "General",
-  "preferencesListOrder": "Orden de las listas",
+  "preferencesListOrder": "Orden en el dial",
   "preferencesListOrderLastUsed": "Último uso",
   "preferencesListOrderMine": "Mi orden",
   "preferencesListOrderAz": "A a la Z",
@@ -391,6 +391,6 @@
   "homeSuggestionsOffBanner": "Sugerencias desactivadas",
   "homeMoveEarlier": "Mover antes",
   "homeMoveLater": "Mover después",
-  "preferencesMatchDial": "Igualar al dial",
-  "preferencesHomeOwnOrder": "El inicio tiene su propio orden"
+  "preferencesHomeListOrder": "Orden en el inicio",
+  "preferencesHomeListOrderSame": "Igual que el dial"
 }

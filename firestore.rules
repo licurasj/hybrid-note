@@ -94,6 +94,8 @@ service cloud.firestore {
             || (data.homeRemoved is list && data.homeRemoved.size() <= 1000))
         && (!('homeOrder' in data)
             || (data.homeOrder is list && data.homeOrder.size() <= 1000))
+        && (!('homeListOrder' in data) || data.homeListOrder is string)
+        // Written by builds before Q-108 only; kept so they still save.
         && (!('homeArranged' in data) || data.homeArranged is bool)
         && (!('dialArranged' in data) || data.dialArranged is bool);
     }

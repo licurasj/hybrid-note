@@ -52,9 +52,9 @@ ListItem _item(
     catalog,
     pinnedOrder: homePinnedOrder(
       pins: pins,
-      dialOrder: [for (final list in catalog.definitions) list.id],
+      existing: [for (final list in catalog.definitions) list.id],
+      sortedOrder: [for (final list in catalog.definitions) list.id],
       homeOrder: const [],
-      homeArranged: false,
     ),
     removed: removed,
     showSuggestions: showSuggestions,
@@ -291,9 +291,9 @@ void main() {
       expect(
         homePinnedOrder(
           pins: ['l1', 'gone', 'l0'],
-          dialOrder: ['l0', 'l1'],
+          existing: ['l0', 'l1'],
+          sortedOrder: null,
           homeOrder: ['gone', 'l1', 'l0'],
-          homeArranged: true,
         ),
         ['l1', 'l0'],
       );
@@ -319,11 +319,7 @@ void main() {
           homeRemoved: ['gone', 'c'],
         ),
       );
-      await cubit.pinToHome(
-        'b',
-        existing: ['a', 'b', 'c'],
-        dialOrder: ['a', 'b', 'c'],
-      );
+      await cubit.pinToHome('b', existing: ['a', 'b', 'c']);
       expect(cubit.state.homePins, ['a', 'b']);
       await cubit.removeFromHome('a', existing: ['a', 'b', 'c']);
       expect(cubit.state.homeRemoved, ['c', 'a']);
@@ -331,56 +327,41 @@ void main() {
   });
 
   group('home order', () {
-    test('until arranged, pinned lists follow the dial', () {
+    test('sorted: the pinned lists in that order', () {
       expect(
         homePinnedOrder(
           pins: ['a', 'c'],
-          dialOrder: ['c', 'b', 'a'],
+          existing: ['a', 'b', 'c'],
+          sortedOrder: ['c', 'b', 'a'],
           homeOrder: ['a', 'c'],
-          homeArranged: false,
         ),
         ['c', 'a'],
       );
     });
 
-    test('once arranged, the dragged order holds and a new pin joins last', () {
+    test('My order: the dragged order holds and a new pin joins last', () {
       expect(
         homePinnedOrder(
           pins: ['d', 'a', 'c'],
-          dialOrder: ['c', 'b', 'a', 'd'],
+          existing: ['c', 'b', 'a', 'd'],
+          sortedOrder: null,
           homeOrder: ['a', 'b', 'c'],
-          homeArranged: true,
         ),
         ['a', 'c', 'd'],
       );
     });
-
-    test('merging keeps every other list in its place', () {
-      expect(
-        mergeHomeOrderIntoDial(['a', 'x', 'b', 'y', 'c', 'z'], ['c', 'a', 'b']),
-        ['c', 'x', 'a', 'y', 'b', 'z'],
-      );
-    });
-
-    test('merging skips ids with no list and repeats nothing', () {
-      expect(mergeHomeOrderIntoDial(['a', 'x', 'b'], ['gone', 'b', 'a', 'b']), [
-        'b',
-        'x',
-        'a',
-      ]);
-    });
-
-    test('merging only some of the lists leaves the rest alone', () {
-      expect(mergeHomeOrderIntoDial(['a', 'b', 'c'], ['c']), ['a', 'b', 'c']);
-    });
   });
 
   // Home and the dial as the app reads them: the dial from orderLists, home
-  // from homePinnedOrder.
-  List<String> dialOf(AccountPreferencesCubit cubit, List<String> lists) => [
+  // from homePinnedOrder with Home list order (Q-108).
+  List<String> idsIn(
+    AccountPreferencesCubit cubit,
+    List<String> lists,
+    ListOrder order,
+  ) => [
     for (final ListDefinition list in orderLists(
       [for (final String id in lists) _list(id)],
-      order: cubit.state.listOrder,
+      order: order,
       myOrder: cubit.state.myListOrder,
       recent: const [],
       nameOf: (definition) => definition.name!,
@@ -388,279 +369,192 @@ void main() {
       list.id,
   ];
 
+  List<String> dialOf(AccountPreferencesCubit cubit, List<String> lists) =>
+      idsIn(cubit, lists, cubit.state.listOrder);
+
   List<String> homeOf(AccountPreferencesCubit cubit, List<String> lists) =>
       homePinnedOrder(
         pins: cubit.state.homePins,
-        dialOrder: dialOf(cubit, lists),
+        existing: lists,
+        sortedOrder: switch (cubit.state.homeSortedBy) {
+          null => null,
+          final ListOrder order => idsIn(cubit, lists, order),
+        },
         homeOrder: cubit.state.homeOrder,
-        homeArranged: cubit.state.homeArranged,
       );
 
-  group('home and the dial together (Q-75)', () {
+  group('Dial list order and Home list order (Q-108)', () {
     const List<String> lists = ['a', 'x', 'b', 'y', 'c'];
     const AccountPreferences pinned = AccountPreferences(
-      homePins: ['a', 'b', 'c'],
+      homePins: ['c', 'a', 'b'],
     );
 
-    test('nothing arranged: both follow the setting', () async {
-      final AccountPreferencesCubit cubit = await _cubit(pinned);
-      await cubit.setListOrder(ListOrder.alphabetical);
-      expect(dialOf(cubit, ['c', 'a', 'x', 'b']), ['a', 'b', 'c', 'x']);
-      expect(homeOf(cubit, ['c', 'a', 'x', 'b']), ['a', 'b', 'c']);
-      expect(cubit.state.homeArranged, isFalse);
-      expect(cubit.state.dialArranged, isFalse);
-    });
+    test(
+      'Same as dial is the default, and home follows each dial order',
+      () async {
+        final AccountPreferencesCubit cubit = await _cubit(pinned);
+        expect(cubit.state.homeListOrder, HomeListOrder.sameAsDial);
+        await cubit.setListOrder(ListOrder.alphabetical);
+        expect(homeOf(cubit, lists), ['a', 'b', 'c']);
+        await cubit.arrangedOnDial(['c', 'y', 'b', 'x', 'a']);
+        expect(homeOf(cubit, lists), ['c', 'b', 'a']);
+        expect(cubit.state.homeListOrder, HomeListOrder.sameAsDial);
+      },
+    );
 
-    test('only the dial arranged: home follows it', () async {
+    test('home on its own sort while the dial is on My order', () async {
       final AccountPreferencesCubit cubit = await _cubit(pinned);
       await cubit.arrangedOnDial(['c', 'y', 'b', 'x', 'a']);
-      expect(cubit.state.listOrder, ListOrder.myOrder);
+      await cubit.setHomeListOrder(HomeListOrder.alphabetical);
+      expect(homeOf(cubit, lists), ['a', 'b', 'c']);
       expect(dialOf(cubit, lists), ['c', 'y', 'b', 'x', 'a']);
-      expect(homeOf(cubit, lists), ['c', 'b', 'a']);
-      expect(cubit.state.homeHasOwnOrder, isFalse);
-    });
-
-    test('only a home drag: the dial follows, as My order', () async {
-      final AccountPreferencesCubit cubit = await _cubit(pinned);
-      await cubit.arrangedOnHome(['c', 'a', 'b'], dialOrder: lists);
-      expect(cubit.state.listOrder, ListOrder.myOrder);
-      expect(homeOf(cubit, lists), ['c', 'a', 'b']);
-      expect(dialOf(cubit, lists), ['c', 'x', 'a', 'y', 'b']);
-      expect(cubit.state.homeHasOwnOrder, isFalse);
-    });
-
-    test('a second home drag moves the dial again', () async {
-      final AccountPreferencesCubit cubit = await _cubit(pinned);
-      await cubit.arrangedOnHome(['c', 'a', 'b'], dialOrder: lists);
-      await cubit.arrangedOnHome([
-        'b',
-        'c',
-        'a',
-      ], dialOrder: dialOf(cubit, lists));
-      expect(dialOf(cubit, lists), ['b', 'x', 'c', 'y', 'a']);
-      expect(cubit.state.dialArranged, isFalse);
-    });
-
-    test('both arranged, dial first: a home drag leaves the dial', () async {
-      final AccountPreferencesCubit cubit = await _cubit(pinned);
-      await cubit.arrangedOnDial(['y', 'x', 'c', 'b', 'a']);
-      await cubit.arrangedOnHome([
-        'a',
-        'c',
-        'b',
-      ], dialOrder: dialOf(cubit, lists));
-      expect(homeOf(cubit, lists), ['a', 'c', 'b']);
-      expect(dialOf(cubit, lists), ['y', 'x', 'c', 'b', 'a']);
-      expect(cubit.state.homeHasOwnOrder, isTrue);
-    });
-
-    test('both arranged, home first: a dial drag leaves home', () async {
-      final AccountPreferencesCubit cubit = await _cubit(pinned);
-      await cubit.arrangedOnHome(['c', 'a', 'b'], dialOrder: lists);
-      await cubit.arrangedOnDial(['y', 'b', 'x', 'a', 'c']);
-      expect(homeOf(cubit, lists), ['c', 'a', 'b']);
-      expect(dialOf(cubit, lists), ['y', 'b', 'x', 'a', 'c']);
-      expect(cubit.state.homeHasOwnOrder, isTrue);
-    });
-
-    for (final ListOrder order in [
-      ListOrder.lastUsed,
-      ListOrder.alphabetical,
-    ]) {
-      test('${order.wire} after a home drag splits them', () async {
-        final AccountPreferencesCubit cubit = await _cubit(pinned);
-        await cubit.arrangedOnHome(['c', 'a', 'b'], dialOrder: lists);
-        await cubit.setListOrder(order);
-        expect(cubit.state.homeHasOwnOrder, isTrue);
-        expect(homeOf(cubit, lists), ['c', 'a', 'b']);
-      });
-
-      test('${order.wire} with no home drag does not', () async {
-        final AccountPreferencesCubit cubit = await _cubit(pinned);
-        await cubit.setListOrder(order);
-        expect(cubit.state.dialArranged, isFalse);
-        expect(cubit.state.homeHasOwnOrder, isFalse);
-      });
-    }
-
-    test('My order after a home drag does not split them', () async {
-      final AccountPreferencesCubit cubit = await _cubit(pinned);
-      await cubit.arrangedOnHome(['c', 'a', 'b'], dialOrder: lists);
-      await cubit.setListOrder(ListOrder.myOrder);
-      expect(cubit.state.homeHasOwnOrder, isFalse);
-    });
-
-    test('Match dial order leaves only the dial arranged', () async {
-      final AccountPreferencesCubit cubit = await _cubit(pinned);
-      await cubit.arrangedOnDial(['y', 'x', 'c', 'b', 'a']);
-      await cubit.arrangedOnHome([
-        'a',
-        'c',
-        'b',
-      ], dialOrder: dialOf(cubit, lists));
-      await cubit.matchDialOrder();
-      expect(cubit.state.homeHasOwnOrder, isFalse);
-      expect(cubit.state.homeArranged, isFalse);
-      expect(cubit.state.dialArranged, isTrue);
-      expect(cubit.state.homeOrder, isEmpty);
-      expect(homeOf(cubit, lists), ['c', 'b', 'a']);
+      await cubit.setHomeListOrder(HomeListOrder.lastUsed);
+      // No list used yet: the order they were made in.
+      expect(homeOf(cubit, lists), ['a', 'b', 'c']);
     });
 
     test(
-      'a list pinned after a home drag joins the end of home only',
+      'a home drag on Same as dial makes it My order and leaves the dial (A)',
       () async {
         final AccountPreferencesCubit cubit = await _cubit(pinned);
-        await cubit.arrangedOnHome(['c', 'a', 'b'], dialOrder: lists);
-        final List<String> dialBefore = dialOf(cubit, lists);
-        await cubit.pinToHome(
-          'x',
-          existing: lists,
-          dialOrder: dialOf(cubit, lists),
-        );
-        expect(homeOf(cubit, lists), ['c', 'a', 'b', 'x']);
-        expect(dialOf(cubit, lists), dialBefore);
+        await cubit.setListOrder(ListOrder.alphabetical);
+        await cubit.arrangedOnHome(['c', 'a', 'b']);
+        expect(cubit.state.homeListOrder, HomeListOrder.myOrder);
+        expect(homeOf(cubit, lists), ['c', 'a', 'b']);
+        expect(cubit.state.listOrder, ListOrder.alphabetical);
+        expect(cubit.state.myListOrder, isEmpty);
+        expect(dialOf(cubit, lists), ['a', 'b', 'c', 'x', 'y']);
       },
     );
+
+    test('a dial drag leaves home on My order alone', () async {
+      final AccountPreferencesCubit cubit = await _cubit(pinned);
+      await cubit.arrangedOnHome(['c', 'a', 'b']);
+      await cubit.arrangedOnDial(['y', 'b', 'x', 'a', 'c']);
+      expect(homeOf(cubit, lists), ['c', 'a', 'b']);
+      expect(cubit.state.homeListOrder, HomeListOrder.myOrder);
+    });
+
+    test('Same as dial again follows the dial, and My order again brings '
+        'back the dragged order', () async {
+      final AccountPreferencesCubit cubit = await _cubit(pinned);
+      await cubit.arrangedOnDial(['y', 'b', 'x', 'a', 'c']);
+      await cubit.arrangedOnHome(['c', 'a', 'b']);
+      await cubit.setHomeListOrder(HomeListOrder.sameAsDial);
+      expect(homeOf(cubit, lists), ['b', 'a', 'c']);
+      await cubit.setHomeListOrder(HomeListOrder.myOrder);
+      expect(homeOf(cubit, lists), ['c', 'a', 'b']);
+    });
+
+    test('Dial list order changes only the dial setting', () async {
+      final AccountPreferencesCubit cubit = await _cubit(pinned);
+      await cubit.arrangedOnHome(['c', 'a', 'b']);
+      for (final ListOrder order in ListOrder.values) {
+        await cubit.setListOrder(order);
+        expect(cubit.state.homeListOrder, HomeListOrder.myOrder);
+        expect(homeOf(cubit, lists), ['c', 'a', 'b']);
+      }
+    });
   });
 
-  // A new pin (owner, 2026-11-09; review R6): last for good, except with
-  // nothing arranged on Last used or A to Z, where it takes its sorted place.
-  group('a new pin and the order table', () {
+  group('an account from before Q-108', () {
+    HomeListOrder read(Map<String, Object?> json) =>
+        AccountPreferences.fromJson(json).homeListOrder;
+
+    test('home with its own order reads as My order, any other as Same as '
+        'dial', () {
+      expect(
+        read(const {'homeArranged': true, 'dialArranged': true}),
+        HomeListOrder.myOrder,
+      );
+      expect(read(const {'homeArranged': true}), HomeListOrder.sameAsDial);
+      expect(read(const {'dialArranged': true}), HomeListOrder.sameAsDial);
+      expect(read(const {}), HomeListOrder.sameAsDial);
+    });
+
+    test('a stored Home list order wins, and an unknown one falls back', () {
+      expect(
+        read(const {
+          'homeListOrder': 'az',
+          'homeArranged': true,
+          'dialArranged': true,
+        }),
+        HomeListOrder.alphabetical,
+      );
+      expect(
+        read(const {
+          'homeListOrder': 'byColour',
+          'homeArranged': true,
+          'dialArranged': true,
+        }),
+        HomeListOrder.myOrder,
+      );
+      expect(read(const {'homeListOrder': 3}), HomeListOrder.sameAsDial);
+    });
+
+    test('the old flags are not written back', () {
+      final Map<String, Object?> json = AccountPreferences.fromJson(const {
+        'homeArranged': true,
+        'dialArranged': true,
+      }).toJson();
+      expect(json['homeListOrder'], 'myOrder');
+      expect(json.containsKey('homeArranged'), isFalse);
+      expect(json.containsKey('dialArranged'), isFalse);
+    });
+  });
+
+  // A new pin follows Home list order and changes no setting (Q-108).
+  group('a new pin', () {
     const List<String> lists = ['a', 'x', 'b', 'y', 'c'];
     const AccountPreferences pinned = AccountPreferences(
       homePins: ['a', 'b', 'c'],
     );
 
-    for (final ListOrder order in [
-      ListOrder.lastUsed,
-      ListOrder.alphabetical,
-    ]) {
-      test('nothing arranged, ${order.wire}: its sorted place', () async {
-        final AccountPreferencesCubit cubit = await _cubit(pinned);
-        await cubit.setListOrder(order);
-        final List<String> dialBefore = dialOf(cubit, lists);
-        await cubit.pinToHome(
-          'x',
-          existing: lists,
-          dialOrder: dialOf(cubit, lists),
-        );
-        expect(homeOf(cubit, lists), [
-          for (final String id in dialBefore)
-            if (['a', 'b', 'c', 'x'].contains(id)) id,
-        ]);
-        expect(cubit.state.homeArranged, isFalse);
-        expect(cubit.state.dialArranged, isFalse);
-        expect(cubit.state.listOrder, order);
-        expect(dialOf(cubit, lists), dialBefore);
-      });
-    }
+    Future<void> pin(AccountPreferencesCubit cubit, String id) =>
+        cubit.pinToHome(id, existing: lists);
 
-    test('nothing arranged, My order: last, and the dial follows', () async {
+    // Everything but the pins.
+    AccountPreferences settings(AccountPreferencesCubit cubit) =>
+        AccountPreferences.fromJson({
+          ...cubit.state.toJson(),
+          AccountPreferences.homePinsKey: const <String>[],
+        });
+
+    test('Same as dial, dial on A to Z: its sorted place', () async {
       final AccountPreferencesCubit cubit = await _cubit(pinned);
-      await cubit.setListOrder(ListOrder.myOrder);
-      await cubit.pinToHome(
-        'x',
-        existing: lists,
-        dialOrder: dialOf(cubit, lists),
-      );
-      expect(homeOf(cubit, lists), ['a', 'b', 'c', 'x']);
-      expect(cubit.state.homeArranged, isTrue);
-      expect(cubit.state.listOrder, ListOrder.myOrder);
-      // The pinned lists take that order among the places they held.
-      expect(dialOf(cubit, lists), ['a', 'b', 'c', 'y', 'x']);
-      expect(cubit.state.homeHasOwnOrder, isFalse);
-    });
-
-    test('only the dial arranged: last, and the two split', () async {
-      final AccountPreferencesCubit cubit = await _cubit(pinned);
-      await cubit.arrangedOnDial(['c', 'y', 'b', 'x', 'a']);
-      await cubit.pinToHome(
-        'x',
-        existing: lists,
-        dialOrder: dialOf(cubit, lists),
-      );
-      expect(homeOf(cubit, lists), ['c', 'b', 'a', 'x']);
-      expect(dialOf(cubit, lists), ['c', 'y', 'b', 'x', 'a']);
-      expect(cubit.state.homeHasOwnOrder, isTrue);
-      // Match dial order puts it back in its dial place.
-      await cubit.matchDialOrder();
-      expect(homeOf(cubit, lists), ['c', 'b', 'x', 'a']);
-    });
-
-    // The owner's account (2026-11-09): the dial was arranged once, so
-    // dialArranged stays true, then A to Z was chosen. Home follows a dial on
-    // A to Z, so a new pin takes its sorted place there too.
-    for (final ListOrder order in [
-      ListOrder.lastUsed,
-      ListOrder.alphabetical,
-    ]) {
-      test('the dial arranged once, then ${order.wire}: sorted', () async {
-        final AccountPreferencesCubit cubit = await _cubit(pinned);
-        await cubit.arrangedOnDial(['c', 'y', 'b', 'x', 'a']);
-        await cubit.setListOrder(order);
-        final List<String> dialBefore = dialOf(cubit, lists);
-        await cubit.pinToHome(
-          'x',
-          existing: lists,
-          dialOrder: dialOf(cubit, lists),
-        );
-        expect(homeOf(cubit, lists), [
-          for (final String id in dialBefore)
-            if (['a', 'b', 'c', 'x'].contains(id)) id,
-        ]);
-        expect(cubit.state.homeArranged, isFalse);
-        expect(cubit.state.homeHasOwnOrder, isFalse);
-        expect(cubit.state.listOrder, order);
-      });
-    }
-
-    test('after Match dial order on A to Z, still sorted', () async {
-      final AccountPreferencesCubit cubit = await _cubit(pinned);
-      await cubit.arrangedOnDial(['c', 'y', 'b', 'x', 'a']);
-      await cubit.arrangedOnHome(['a', 'c', 'b'], dialOrder: lists);
       await cubit.setListOrder(ListOrder.alphabetical);
-      await cubit.matchDialOrder();
-      await cubit.pinToHome(
-        'x',
-        existing: lists,
-        dialOrder: dialOf(cubit, lists),
-      );
+      final AccountPreferences before = settings(cubit);
+      await pin(cubit, 'x');
       expect(homeOf(cubit, lists), ['a', 'b', 'c', 'x']);
-      expect(cubit.state.homeHasOwnOrder, isFalse);
-      await cubit.pinToHome(
-        'y',
-        existing: lists,
-        dialOrder: dialOf(cubit, lists),
-      );
+      await pin(cubit, 'y');
       expect(homeOf(cubit, lists), ['a', 'b', 'c', 'x', 'y']);
-      expect(cubit.state.homeHasOwnOrder, isFalse);
+      expect(settings(cubit), before);
     });
 
-    test('home arranged: last, and the dial left alone', () async {
+    test('Same as dial, dial on My order: its place on the dial', () async {
       final AccountPreferencesCubit cubit = await _cubit(pinned);
-      await cubit.arrangedOnHome(['c', 'a', 'b'], dialOrder: lists);
-      final List<String> dialBefore = dialOf(cubit, lists);
-      await cubit.pinToHome(
-        'x',
-        existing: lists,
-        dialOrder: dialOf(cubit, lists),
-      );
+      await cubit.arrangedOnDial(['c', 'y', 'b', 'x', 'a']);
+      final AccountPreferences before = settings(cubit);
+      await pin(cubit, 'x');
+      expect(homeOf(cubit, lists), ['c', 'b', 'x', 'a']);
+      expect(settings(cubit), before);
+    });
+
+    test('Home on A to Z: its sorted place', () async {
+      final AccountPreferencesCubit cubit = await _cubit(pinned);
+      await cubit.arrangedOnDial(['c', 'y', 'b', 'x', 'a']);
+      await cubit.setHomeListOrder(HomeListOrder.alphabetical);
+      await pin(cubit, 'x');
+      expect(homeOf(cubit, lists), ['a', 'b', 'c', 'x']);
+    });
+
+    test('Home on My order: last, and the dial left alone', () async {
+      final AccountPreferencesCubit cubit = await _cubit(pinned);
+      await cubit.arrangedOnHome(['c', 'a', 'b']);
+      final AccountPreferences before = settings(cubit);
+      await pin(cubit, 'x');
       expect(homeOf(cubit, lists), ['c', 'a', 'b', 'x']);
-      expect(dialOf(cubit, lists), dialBefore);
-    });
-
-    test('tapping an unfilled pin again arranges nothing', () async {
-      final AccountPreferencesCubit cubit = await _cubit(pinned);
-      await cubit.setListOrder(ListOrder.myOrder);
-      await cubit.unpinFromHome('b');
-      await cubit.pinToHome(
-        'b',
-        existing: lists,
-        dialOrder: dialOf(cubit, lists),
-        keepPlace: true,
-      );
-      expect(cubit.state.homeArranged, isFalse);
-      expect(homeOf(cubit, lists), ['a', 'b', 'c']);
+      expect(settings(cubit), before);
     });
   });
 
@@ -671,27 +565,15 @@ void main() {
       final AccountPreferencesCubit cubit = await _cubit(
         const AccountPreferences(homeRemoved: ['a', 'b']),
       );
-      await cubit.pinToHome(
-        'a',
-        existing: lists,
-        dialOrder: dialOf(cubit, lists),
-      );
+      await cubit.pinToHome('a', existing: lists);
       await cubit.unpinFromHome('a');
       expect(cubit.state.homeRemoved, ['b']);
     });
 
     test('pinning twice keeps one pin', () async {
       final AccountPreferencesCubit cubit = await _cubit();
-      await cubit.pinToHome(
-        'a',
-        existing: lists,
-        dialOrder: dialOf(cubit, lists),
-      );
-      await cubit.pinToHome(
-        'a',
-        existing: lists,
-        dialOrder: dialOf(cubit, lists),
-      );
+      await cubit.pinToHome('a', existing: lists);
+      await cubit.pinToHome('a', existing: lists);
       expect(cubit.state.homePins, ['a']);
     });
 
@@ -700,16 +582,11 @@ void main() {
         const AccountPreferences(
           homePins: ['b', 'a', 'c'],
           homeOrder: ['b', 'a', 'c'],
-          homeArranged: true,
+          homeListOrder: HomeListOrder.myOrder,
         ),
       );
       await cubit.unpinFromHome('a');
-      await cubit.pinToHome(
-        'a',
-        existing: lists,
-        dialOrder: dialOf(cubit, lists),
-        keepPlace: true,
-      );
+      await cubit.pinToHome('a', existing: lists, keepPlace: true);
       expect(homeOf(cubit, lists), ['b', 'a', 'c']);
     });
 
@@ -718,15 +595,11 @@ void main() {
         const AccountPreferences(
           homePins: ['b', 'a', 'c'],
           homeOrder: ['b', 'a', 'c'],
-          homeArranged: true,
+          homeListOrder: HomeListOrder.myOrder,
         ),
       );
       await cubit.unpinFromHome('a');
-      await cubit.pinToHome(
-        'a',
-        existing: lists,
-        dialOrder: dialOf(cubit, lists),
-      );
+      await cubit.pinToHome('a', existing: lists);
       expect(homeOf(cubit, lists), ['b', 'c', 'a']);
     });
 

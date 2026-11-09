@@ -348,7 +348,7 @@
   "preferencesItems": "Einträge",
   "preferencesAi": "KI",
   "preferencesGeneral": "Allgemein",
-  "preferencesListOrder": "Listenreihenfolge",
+  "preferencesListOrder": "Reihenfolge am Rad",
   "preferencesListOrderLastUsed": "Zuletzt verwendet",
   "preferencesListOrderMine": "Eigene Reihenfolge",
   "preferencesListOrderAz": "A bis Z",
@@ -391,6 +391,6 @@
   "homeSuggestionsOffBanner": "Vorschläge aus",
   "homeMoveEarlier": "Nach vorn",
   "homeMoveLater": "Nach hinten",
-  "preferencesMatchDial": "Wie am Rad anordnen",
-  "preferencesHomeOwnOrder": "Die Startseite hat ihre eigene Reihenfolge"
+  "preferencesHomeListOrder": "Reihenfolge auf der Startseite",
+  "preferencesHomeListOrderSame": "Wie am Rad"
 }

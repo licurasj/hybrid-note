@@ -230,7 +230,8 @@ void main() {
 
       final List<String> order = [
         'LISTS',
-        'List order',
+        'Dial list order',
+        'Home list order',
         'Start screen',
         'ITEMS',
         'Ticked items',
@@ -277,6 +278,19 @@ void main() {
       expect(cubit.state.listOrder, ListOrder.myOrder);
       expect(find.text('My order'), findsOneWidget);
       await choose('preferences-list-order', 'choice-ListOrder.alphabetical');
+      expect(cubit.state.listOrder, ListOrder.alphabetical);
+      // Home list order, right under the dial's (Q-108).
+      await choose(
+        'preferences-home-list-order',
+        'choice-HomeListOrder.myOrder',
+      );
+      expect(cubit.state.homeListOrder, HomeListOrder.myOrder);
+      await choose(
+        'preferences-home-list-order',
+        'choice-HomeListOrder.sameAsDial',
+      );
+      expect(cubit.state.homeListOrder, HomeListOrder.sameAsDial);
+      expect(find.text('Same as dial'), findsOneWidget);
       expect(cubit.state.listOrder, ListOrder.alphabetical);
       await choose(
         'preferences-start-screen',

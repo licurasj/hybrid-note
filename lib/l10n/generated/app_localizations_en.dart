@@ -1140,7 +1140,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get preferencesGeneral => 'General';
 
   @override
-  String get preferencesListOrder => 'List order';
+  String get preferencesListOrder => 'Dial list order';
 
   @override
   String get preferencesListOrderLastUsed => 'Last used';
@@ -1272,8 +1272,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeMoveLater => 'Move later';
 
   @override
-  String get preferencesMatchDial => 'Match dial order';
+  String get preferencesHomeListOrder => 'Home list order';
 
   @override
-  String get preferencesHomeOwnOrder => 'Home has its own order';
+  String get preferencesHomeListOrderSame => 'Same as dial';
 }

@@ -348,7 +348,7 @@
   "preferencesItems": "項目",
   "preferencesAi": "AI",
   "preferencesGeneral": "一般",
-  "preferencesListOrder": "リストの順序",
+  "preferencesListOrder": "ダイヤルの順序",
   "preferencesListOrderLastUsed": "最近使った順",
   "preferencesListOrderMine": "自分の順序",
   "preferencesListOrderAz": "名前順",
@@ -391,6 +391,6 @@
   "homeSuggestionsOffBanner": "おすすめをオフにしました",
   "homeMoveEarlier": "前へ移動",
   "homeMoveLater": "後ろへ移動",
-  "preferencesMatchDial": "ダイヤルの順に合わせる",
-  "preferencesHomeOwnOrder": "ホームには独自の順序があります"
+  "preferencesHomeListOrder": "ホームの順序",
+  "preferencesHomeListOrderSame": "ダイヤルと同じ"
 }

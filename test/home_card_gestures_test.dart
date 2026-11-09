@@ -631,27 +631,40 @@ void main() {
     });
 
     // Owner, 2026-11-09: on A to Z a new pin did not take its sorted place.
-    for (final bool dialArranged in [false, true]) {
-      testWidgets('on A to Z a pin takes its sorted place at once'
-          '${dialArranged ? ', also after a dial arrange' : ''}', (
+    // Same as dial with the dial on A to Z, or home itself on A to Z (Q-108).
+    for (final (String name, Map<String, Object?> order) in [
+      (
+        'Same as dial',
+        {AccountPreferences.listOrderKey: ListOrder.alphabetical.wire},
+      ),
+      (
+        'home on A to Z',
+        {
+          AccountPreferences.listOrderKey: ListOrder.myOrder.wire,
+          AccountPreferences.homeListOrderKey: HomeListOrder.alphabetical.wire,
+        },
+      ),
+    ]) {
+      testWidgets('on A to Z a pin takes its sorted place at once, $name', (
         tester,
       ) async {
-        await _pumpApp(
-          tester,
-          pins: [_watch, _tasks],
-          preferences: {
-            AccountPreferences.listOrderKey: ListOrder.alphabetical.wire,
-            AccountPreferences.dialArrangedKey: dialArranged,
-          },
-        );
+        await _pumpApp(tester, pins: [_watch, _tasks], preferences: order);
         double top(String id) => tester.getTopLeft(_card(id)).dy;
         expect(top(_tasks), lessThan(top(_watch)));
         await _choose(tester, _grocery, HomeCardAction.pin);
         // Grocery, Tasks, Watch/Read: A to Z, before any refresh.
         expect(top(_grocery), lessThan(top(_tasks)));
         expect(top(_tasks), lessThan(top(_watch)));
-        expect(_preferences(tester).homeArranged, isFalse);
-        expect(_preferences(tester).listOrder, ListOrder.alphabetical);
+        // Pinning changes no setting.
+        expect(
+          _preferences(tester).homeListOrder.wire,
+          order[AccountPreferences.homeListOrderKey] ??
+              HomeListOrder.sameAsDial.wire,
+        );
+        expect(
+          _preferences(tester).listOrder.wire,
+          order[AccountPreferences.listOrderKey],
+        );
       });
     }
 
@@ -743,7 +756,7 @@ void main() {
         final List<String> after = [...before.skip(1), before.first];
         expect(onScreen(tester, pins), after);
         expect(_preferences(tester).homeOrder, after);
-        expect(_preferences(tester).homeArranged, isTrue);
+        expect(_preferences(tester).homeListOrder, HomeListOrder.myOrder);
         expect(isArranging(), isTrue);
       },
     );
@@ -760,7 +773,7 @@ void main() {
       await tester.pump();
       await swipe.up();
       await settle(tester);
-      expect(_preferences(tester).homeArranged, isFalse);
+      expect(_preferences(tester).homeListOrder, HomeListOrder.sameAsDial);
       expect(isArranging(), isTrue);
       expect(topOf(tester, _grocery), lessThanOrEqualTo(groceryTop));
 
@@ -775,7 +788,7 @@ void main() {
       await rest.up();
       await settle(tester);
       expect(_preferences(tester).homeOrder.first, isNot(_grocery));
-      expect(_preferences(tester).homeArranged, isTrue);
+      expect(_preferences(tester).homeListOrder, HomeListOrder.myOrder);
     });
 
     testWidgets('a drag the system cancels puts the cards back', (
@@ -797,7 +810,7 @@ void main() {
       await gesture.cancel();
       await settle(tester);
       expect(onScreen(tester, pins), before);
-      expect(_preferences(tester).homeArranged, isFalse);
+      expect(_preferences(tester).homeListOrder, HomeListOrder.sameAsDial);
       expect(isArranging(), isTrue);
       // Nothing is stuck: the card still drags, and that drop saves.
       final TestGesture again = await tester.startGesture(
@@ -810,7 +823,7 @@ void main() {
       }
       await again.up();
       await settle(tester);
-      expect(_preferences(tester).homeArranged, isTrue);
+      expect(_preferences(tester).homeListOrder, HomeListOrder.myOrder);
     });
 
     testWidgets('a press that lifts without moving does nothing', (
@@ -822,7 +835,7 @@ void main() {
       await settle(tester);
       expect(isArranging(), isTrue);
       expect(find.byKey(const ValueKey('list-pin')), findsNothing);
-      expect(_preferences(tester).homeArranged, isFalse);
+      expect(_preferences(tester).homeListOrder, HomeListOrder.sameAsDial);
     });
 
     testWidgets('a tap outside ends it, a suggestion and a swipe as stated', (
@@ -938,7 +951,7 @@ void main() {
       }
       await gesture.up();
       await settle(tester);
-      expect(_preferences(tester).homeArranged, isFalse);
+      expect(_preferences(tester).homeListOrder, HomeListOrder.sameAsDial);
       expect(isArranging(), isTrue);
     });
 
@@ -1022,12 +1035,12 @@ void main() {
       await tester.pump();
       await gesture.up();
       await settle(tester);
-      expect(_preferences(tester).homeArranged, isFalse);
+      expect(_preferences(tester).homeListOrder, HomeListOrder.sameAsDial);
       expect(topOf(tester, _journal), lessThanOrEqualTo(before));
     });
 
-    testWidgets('a home drag moves the dial, and Match dial order shows only '
-        'once they split', (tester) async {
+    testWidgets('a home drag makes Home list order My order and leaves the '
+        'dial (Q-108)', (tester) async {
       await _pumpApp(tester, pins: [_tasks, _grocery]);
       final List<String> before = onScreen(tester, [_tasks, _grocery]);
       await arrange(tester, before.first);
@@ -1042,12 +1055,10 @@ void main() {
       await gesture.up();
       await settle(tester);
       final AccountPreferences preferences = _preferences(tester);
-      expect(preferences.listOrder, ListOrder.myOrder);
-      expect(
-        preferences.myListOrder.indexOf(before.last),
-        lessThan(preferences.myListOrder.indexOf(before.first)),
-      );
-      expect(preferences.homeHasOwnOrder, isFalse);
+      expect(preferences.homeListOrder, HomeListOrder.myOrder);
+      expect(preferences.homeOrder, before.reversed.toList());
+      expect(preferences.listOrder, ListOrder.lastUsed);
+      expect(preferences.myListOrder, isEmpty);
     });
 
     testWidgets('a screen reader moves a card with its actions', (
@@ -1075,32 +1086,28 @@ void main() {
     });
   });
 
-  testWidgets('Match dial order shows once they split, and rejoins them', (
-    tester,
-  ) async {
+  testWidgets('Same as dial in Preferences puts home back on the dial\'s '
+      'order (Q-108)', (tester) async {
     await _pumpApp(tester, pins: [_tasks, _grocery]);
-    final Finder row = find.byKey(const ValueKey('preferences-match-dial'));
     final BuildContext home = tester.element(
       find.byKey(const ValueKey('home-weekday')),
     );
+    final AccountPreferencesCubit cubit = home.read<AccountPreferencesCubit>();
+    await cubit.arrangedOnDial([_grocery, _tasks]);
+    await cubit.arrangedOnHome([_tasks, _grocery]);
     await tester.tap(find.byKey(const ValueKey('settings')));
     await settle(tester);
     await tester.tap(find.byKey(const ValueKey('settings-preferences')));
     await settle(tester);
-    expect(row, findsNothing);
-    final AccountPreferencesCubit cubit = home.read<AccountPreferencesCubit>();
-    await cubit.arrangedOnDial([_grocery, _tasks]);
-    await cubit.arrangedOnHome(
-      [_tasks, _grocery],
-      dialOrder: [_grocery, _tasks],
+    expect(find.byKey(const ValueKey('preferences-match-dial')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('preferences-home-list-order')));
+    await settle(tester);
+    await tester.tap(
+      find.byKey(const ValueKey('choice-HomeListOrder.sameAsDial')),
     );
     await settle(tester);
-    expect(find.text('Home has its own order'), findsOneWidget);
-    await tester.tap(row);
-    await settle(tester);
-    expect(row, findsNothing);
-    expect(cubit.state.homeArranged, isFalse);
-    expect(cubit.state.dialArranged, isTrue);
+    expect(cubit.state.homeListOrder, HomeListOrder.sameAsDial);
+    expect(cubit.state.myListOrder, [_grocery, _tasks]);
   });
 
   group('the Journal sheet', () {

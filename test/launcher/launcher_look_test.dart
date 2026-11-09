@@ -77,9 +77,8 @@ double _tabScale(WidgetTester tester, String id) {
       (tester.getCenter(find.byKey(ValueKey('launcher-disc-$id'))) -
               _geometry.hubCenter)
           .distance;
-  final double disc = tester
-      .getSize(find.byKey(ValueKey('launcher-disc-$id')))
-      .width;
+  final double disc =
+      tester.getSize(find.byKey(ValueKey('launcher-disc-$id'))).width;
   return (out + 5 + disc / 2 - _config.innerRadius) / _config.tabLength;
 }
 
@@ -90,34 +89,23 @@ Future<void> _rest(WidgetTester tester, [int ms = 1400]) async {
 }
 
 void main() {
-  testWidgets(
-    'the hub is a text-colour disc over a blue one, offset towards the fan',
-    (tester) async {
-      await _pump(tester);
+  testWidgets('the hub is a text-colour disc over a blue one, offset towards the fan', (
+    tester,
+  ) async {
+    await _pump(tester);
 
-      final Container front = tester.widget(
-        find.byKey(const ValueKey('launcher-hub')),
-      );
-      expect(
-        (front.decoration! as BoxDecoration).color,
-        AppNeutrals.light.text,
-      );
-      final DecoratedBox back = tester.widget(
-        find.byKey(const ValueKey('launcher-hub-back')),
-      );
-      expect((back.decoration as BoxDecoration).color, AppColors.appBlue);
-      // Hub near the bottom-right corner: the blue disc peeks out up and left.
-      final Offset hub = tester.getCenter(
-        find.byKey(const ValueKey('launcher-hub')),
-      );
-      final Offset blue = tester.getCenter(
-        find.byKey(const ValueKey('launcher-hub-back')),
-      );
-      expect(hub, _geometry.hubCenter);
-      expect(blue.dx, lessThan(hub.dx));
-      expect(blue.dy, lessThan(hub.dy));
-    },
-  );
+    final Container front = tester.widget(find.byKey(const ValueKey('launcher-hub')));
+    expect((front.decoration! as BoxDecoration).color, AppNeutrals.light.text);
+    final DecoratedBox back =
+        tester.widget(find.byKey(const ValueKey('launcher-hub-back')));
+    expect((back.decoration as BoxDecoration).color, AppColors.appBlue);
+    // Hub near the bottom-right corner: the blue disc peeks out up and left.
+    final Offset hub = tester.getCenter(find.byKey(const ValueKey('launcher-hub')));
+    final Offset blue = tester.getCenter(find.byKey(const ValueKey('launcher-hub-back')));
+    expect(hub, _geometry.hubCenter);
+    expect(blue.dx, lessThan(hub.dx));
+    expect(blue.dy, lessThan(hub.dy));
+  });
 
   testWidgets('tabs grow out from under the hub, one slightly after another', (
     tester,
@@ -132,12 +120,10 @@ void main() {
       final Finder wedge = find.byKey(ValueKey('launcher-wedge-$id'));
       final LauncherWedgePainter painter =
           tester.widget<CustomPaint>(wedge).painter! as LauncherWedgePainter;
-      return (tester.getTopLeft(wedge) +
-              painter.outline.first -
+      return (tester.getTopLeft(wedge) + painter.outline.first -
               _geometry.hubCenter)
           .distance;
     }
-
     final double first = out('n0');
     final double last = out('n3');
     // Later tabs start later (16 ms stagger), so they are further behind.
@@ -155,92 +141,63 @@ void main() {
     await gesture.up();
   });
 
-  testWidgets(
-    'the tab under the finger is biggest, its neighbours a little bigger',
-    (tester) async {
-      await _pump(tester);
-      final TestGesture gesture = await tester.startGesture(
-        _geometry.hubCenter,
-      );
-      await tester.pump(const Duration(milliseconds: 50));
-      await gesture.moveTo(_geometry.tabCenter(2, 0)!);
-      await tester.pump(const Duration(milliseconds: 300));
+  testWidgets('the tab under the finger is biggest, its neighbours a little bigger', (
+    tester,
+  ) async {
+    await _pump(tester);
+    final TestGesture gesture = await tester.startGesture(_geometry.hubCenter);
+    await tester.pump(const Duration(milliseconds: 50));
+    await gesture.moveTo(_geometry.tabCenter(2, 0)!);
+    await tester.pump(const Duration(milliseconds: 300));
 
-      expect(_tabScale(tester, 'n2'), closeTo(_config.selectedTabScale, 0.005));
-      expect(
-        _tabScale(tester, 'n1'),
-        closeTo(_config.neighbourTabScale, 0.005),
-      );
-      expect(
-        _tabScale(tester, 'n3'),
-        closeTo(_config.neighbourTabScale, 0.005),
-      );
-      expect(_tabScale(tester, 'n0'), closeTo(1, 0.005));
-      // And it is the widest wedge.
-      final Size selected = tester.getSize(
-        find.byKey(const ValueKey('launcher-wedge-n2')),
-      );
-      final Size far = tester.getSize(
-        find.byKey(const ValueKey('launcher-wedge-n0')),
-      );
-      expect(
-        selected.width * selected.height,
-        greaterThan(far.width * far.height),
-      );
-      expect(_config.selectedTabScale, 1.3);
-      expect(_config.neighbourTabScale, 1.08);
-      await gesture.up();
-    },
-  );
+    expect(_tabScale(tester, 'n2'), closeTo(_config.selectedTabScale, 0.005));
+    expect(_tabScale(tester, 'n1'), closeTo(_config.neighbourTabScale, 0.005));
+    expect(_tabScale(tester, 'n3'), closeTo(_config.neighbourTabScale, 0.005));
+    expect(_tabScale(tester, 'n0'), closeTo(1, 0.005));
+    // And it is the widest wedge.
+    final Size selected = tester.getSize(find.byKey(const ValueKey('launcher-wedge-n2')));
+    final Size far = tester.getSize(find.byKey(const ValueKey('launcher-wedge-n0')));
+    expect(selected.width * selected.height, greaterThan(far.width * far.height));
+    expect(_config.selectedTabScale, 1.3);
+    expect(_config.neighbourTabScale, 1.08);
+    await gesture.up();
+  });
 
-  testWidgets(
-    'Edit starts dark and fills with the list colour as the finger nears',
-    (tester) async {
-      await _pump(tester);
-      final Offset tab = _geometry.tabCenter(2, 0)!;
-      final Offset edit = _geometry.editPromptCenter(_geometry.slotAngle(2));
-      final TestGesture gesture = await tester.startGesture(
-        _geometry.hubCenter,
-      );
-      await tester.pump(const Duration(milliseconds: 50));
-      await gesture.moveTo(tab);
-      await _rest(tester);
+  testWidgets('Edit starts dark and fills with the list colour as the finger nears', (
+    tester,
+  ) async {
+    await _pump(tester);
+    final Offset tab = _geometry.tabCenter(2, 0)!;
+    final Offset edit = _geometry.editPromptCenter(_geometry.slotAngle(2));
+    final TestGesture gesture = await tester.startGesture(_geometry.hubCenter);
+    await tester.pump(const Duration(milliseconds: 50));
+    await gesture.moveTo(tab);
+    await _rest(tester);
 
-      expect(
-        _fill(tester, 'launcher-edit-prompt'),
-        AppNeutrals.light.promptDark,
-      );
-      for (int i = 1; i <= 6; i++) {
-        await gesture.moveTo(Offset.lerp(tab, edit, i / 6)!);
-        await tester.pump(const Duration(milliseconds: 16));
-      }
-      expect(_fill(tester, 'launcher-edit-prompt'), _orange);
-      await gesture.up();
-    },
-  );
+    expect(_fill(tester, 'launcher-edit-prompt'), AppNeutrals.light.promptDark);
+    for (int i = 1; i <= 6; i++) {
+      await gesture.moveTo(Offset.lerp(tab, edit, i / 6)!);
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(_fill(tester, 'launcher-edit-prompt'), _orange);
+    await gesture.up();
+  });
 
-  testWidgets(
-    '"+" carries an app-blue disc; in dark the tab disc is the dark variant',
-    (tester) async {
-      await _pump(tester, brightness: Brightness.dark);
-      final TestGesture gesture = await tester.startGesture(
-        _geometry.hubCenter,
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      final Container add = tester.widget(
-        find.byKey(const ValueKey('launcher-add-disc')),
-      );
-      expect((add.decoration! as BoxDecoration).color, AppColors.appBlue);
+  testWidgets('"+" carries an app-blue disc; in dark the tab disc is the dark variant', (
+    tester,
+  ) async {
+    await _pump(tester, brightness: Brightness.dark);
+    final TestGesture gesture = await tester.startGesture(_geometry.hubCenter);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    final Container add = tester.widget(find.byKey(const ValueKey('launcher-add-disc')));
+    expect((add.decoration! as BoxDecoration).color, AppColors.appBlue);
 
-      final Container disc = tester.widget(
-        find.byKey(const ValueKey('launcher-disc-n0')),
-      );
-      expect((disc.decoration! as BoxDecoration).color, _orangeDark);
+    final Container disc = tester.widget(find.byKey(const ValueKey('launcher-disc-n0')));
+    expect((disc.decoration! as BoxDecoration).color, _orangeDark);
 
-      await gesture.up();
-    },
-  );
+    await gesture.up();
+  });
 
   testWidgets('with reduced motion, tabs and prompts are in place at once', (
     tester,

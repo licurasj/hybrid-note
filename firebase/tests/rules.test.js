@@ -10,6 +10,8 @@ import {
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import {
+  arrayRemove,
+  arrayUnion,
   collection,
   deleteDoc,
   doc,
@@ -391,8 +393,7 @@ describe('account preferences (T-21, Q-48 A)', () => {
     homePins: ['list-a'],
     homeRemoved: ['list-b'],
     homeOrder: ['list-a'],
-    homeArranged: false,
-    dialArranged: false,
+    homeListOrder: 'sameAsDial',
   };
 
   test('the owner creates, reads and changes one key', async () => {
@@ -431,6 +432,7 @@ describe('account preferences (T-21, Q-48 A)', () => {
     ['homePins', 'list-a'],
     ['homeRemoved', { a: 1 }],
     ['homeOrder', 5],
+    ['homeListOrder', false],
     ['homeArranged', 'no'],
     ['dialArranged', 0],
   ]) {
@@ -448,6 +450,24 @@ describe('account preferences (T-21, Q-48 A)', () => {
       await assertFails(setDoc(ref, { [key]: ids(1001) }, { merge: true }));
     });
   }
+
+  test('builds before Q-108 still save their order flags', async () => {
+    const ref = doc(owner(), path());
+    await assertSucceeds(setDoc(ref, values));
+    await assertSucceeds(
+      setDoc(ref, { homeArranged: true, dialArranged: true }, { merge: true }),
+    );
+  });
+
+  test('a pin or removal is written as one entry (R2), within 1000', async () => {
+    const ids = (count) => Array.from({ length: count }, (_, i) => `list-${i}`);
+    const ref = doc(owner(), path());
+    await assertSucceeds(setDoc(ref, values));
+    await assertSucceeds(setDoc(ref, { homePins: arrayUnion('list-b') }, { merge: true }));
+    await assertSucceeds(setDoc(ref, { homeRemoved: arrayRemove('list-b') }, { merge: true }));
+    await assertSucceeds(setDoc(ref, { homePins: ids(1000) }, { merge: true }));
+    await assertFails(setDoc(ref, { homePins: arrayUnion('one-more') }, { merge: true }));
+  });
 
   test('the app does not delete it', async () => {
     const ref = doc(owner(), path());
