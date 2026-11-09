@@ -1249,4 +1249,14 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get preferencesHomeListOrderSame => '与转盘相同';
+
+  @override
+  String clearedBanner(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '已清除 $count 项',
+    );
+    return '$_temp0';
+  }
 }

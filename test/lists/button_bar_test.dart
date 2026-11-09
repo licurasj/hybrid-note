@@ -145,6 +145,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.getRect(edit), editBefore);
     expect(tester.getRect(clear).right, lessThanOrEqualTo(editBefore.left));
-    expect(find.byTooltip('Clear'), findsOneWidget);
+    expect(find.byTooltip('Clear Ticked'), findsOneWidget);
   });
 }

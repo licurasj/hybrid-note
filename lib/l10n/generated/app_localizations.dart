@@ -2209,6 +2209,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Same as dial'**
   String get preferencesHomeListOrderSame;
+
+  /// No description provided for @clearedBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Cleared} other{{count} cleared}}'**
+  String clearedBanner(int count);
 }
 
 class _AppLocalizationsDelegate

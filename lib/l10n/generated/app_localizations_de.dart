@@ -1289,4 +1289,15 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get preferencesHomeListOrderSame => 'Wie am Rad';
+
+  @override
+  String clearedBanner(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count entfernt',
+      one: 'Entfernt',
+    );
+    return '$_temp0';
+  }
 }

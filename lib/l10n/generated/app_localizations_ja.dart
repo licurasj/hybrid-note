@@ -1254,4 +1254,14 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get preferencesHomeListOrderSame => 'ダイヤルと同じ';
+
+  @override
+  String clearedBanner(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 件消去しました',
+    );
+    return '$_temp0';
+  }
 }

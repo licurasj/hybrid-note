@@ -144,7 +144,7 @@ void main() {
     await settle(tester);
     expect(tasks().firstWhere((t) => t.id == 't2')['done'], isTrue);
 
-    await tester.tap(find.byTooltip('Clear'));
+    await tester.tap(find.byTooltip('Clear Ticked'));
     await settle(tester);
     expect(tasks().map((t) => t.id), ['t1']);
   });

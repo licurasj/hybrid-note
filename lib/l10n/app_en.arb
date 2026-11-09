@@ -1001,5 +1001,13 @@
   "homeMoveEarlier": "Move earlier",
   "homeMoveLater": "Move later",
   "preferencesHomeListOrder": "Home list order",
-  "preferencesHomeListOrderSame": "Same as dial"
+  "preferencesHomeListOrderSame": "Same as dial",
+  "clearedBanner": "{count, plural, =1{Cleared} other{{count} cleared}}",
+  "@clearedBanner": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

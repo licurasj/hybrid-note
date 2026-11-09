@@ -392,5 +392,6 @@
   "homeMoveEarlier": "前へ移動",
   "homeMoveLater": "後ろへ移動",
   "preferencesHomeListOrder": "ホームの順序",
-  "preferencesHomeListOrderSame": "ダイヤルと同じ"
+  "preferencesHomeListOrderSame": "ダイヤルと同じ",
+  "clearedBanner": "{count, plural, other{{count} 件消去しました}}"
 }

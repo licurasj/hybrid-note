@@ -1276,4 +1276,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get preferencesHomeListOrderSame => 'Same as dial';
+
+  @override
+  String clearedBanner(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count cleared',
+      one: 'Cleared',
+    );
+    return '$_temp0';
+  }
 }

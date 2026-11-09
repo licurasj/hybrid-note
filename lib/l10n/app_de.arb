@@ -392,5 +392,6 @@
   "homeMoveEarlier": "Nach vorn",
   "homeMoveLater": "Nach hinten",
   "preferencesHomeListOrder": "Reihenfolge auf der Startseite",
-  "preferencesHomeListOrderSame": "Wie am Rad"
+  "preferencesHomeListOrderSame": "Wie am Rad",
+  "clearedBanner": "{count, plural, =1{Entfernt} other{{count} entfernt}}"
 }

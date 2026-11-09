@@ -392,5 +392,6 @@
   "homeMoveEarlier": "Mover antes",
   "homeMoveLater": "Mover después",
   "preferencesHomeListOrder": "Orden en el inicio",
-  "preferencesHomeListOrderSame": "Igual que el dial"
+  "preferencesHomeListOrderSame": "Igual que el dial",
+  "clearedBanner": "{count, plural, =1{Borrado} other{{count} borrados}}"
 }

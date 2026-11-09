@@ -19,6 +19,7 @@ class AppBannerController {
   String? _actionLabel;
   VoidCallback? _onAction;
   bool _showing = false;
+  int _serial = 0;
   Timer? _timer;
   final ValueNotifier<int> _changes = ValueNotifier(0);
 
@@ -28,14 +29,27 @@ class AppBannerController {
   String? get actionLabel => _actionLabel;
   bool get showing => _showing;
 
-  void show(String text, {String? actionLabel, VoidCallback? onAction}) {
+  // Shows [text] and returns its number, which [dismissIf] takes to remove
+  // just this message and not one shown after it.
+  int show(String text, {String? actionLabel, VoidCallback? onAction}) {
     _timer?.cancel();
+    _serial++;
     _text = text;
     _actionLabel = actionLabel;
     _onAction = onAction;
     _showing = true;
     _timer = Timer(actionLabel == null ? plainFor : withActionFor, dismiss);
     _changes.value++;
+    return _serial;
+  }
+
+  // Whether message [serial] is still on screen.
+  bool isShowing(int serial) => _showing && _serial == serial;
+
+  void dismissIf(int serial) {
+    if (_serial == serial) {
+      dismiss();
+    }
   }
 
   void dismiss() {

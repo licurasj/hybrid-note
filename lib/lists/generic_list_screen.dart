@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../app/account_preferences.dart';
+import '../app/app_banner.dart';
 import '../app/app_theme.dart';
 import '../app/date_preferences.dart';
 import '../app/grow_in.dart';
@@ -10,6 +11,7 @@ import '../app_colors.dart';
 import '../home_cards_view.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../launcher/launcher_hub_area.dart';
+import 'clear_with_undo.dart';
 import 'confirm_delete_sheet.dart';
 import 'generic_item_dialog.dart';
 import 'list_definition.dart';
@@ -248,14 +250,15 @@ class _GenericListScreenState extends State<GenericListScreen>
     await _apply(ListChanges(saved: [result]));
   }
 
+  // Every clear on this page shows "Cleared · Undo" (Q-101).
   Future<void> _clearCompleted(bool Function(ListItem item) inScope) {
-    return _apply(
-      ListRules.clearCompleted(
-        _definition,
-        widget.items,
-        DateTime.now().toUtc(),
-        inScope: inScope,
-      ),
+    return ClearWithUndo.run(
+      store: widget.store,
+      definition: _definition,
+      items: widget.items,
+      inScope: inScope,
+      banners: context.read<AppBannerController?>(),
+      loc: AppLocalizations.of(context),
     );
   }
 
@@ -623,8 +626,6 @@ class _GenericListScreenState extends State<GenericListScreen>
           _showItemDialog(item: item);
         } else if (value == 'delete') {
           _deleteItem(item, primary is String ? primary : '');
-        } else if (value == 'clear') {
-          _clearCompleted((other) => other.id == item.id);
         } else if (value.startsWith('move:') && sectionField != null) {
           _apply(
             ListRules.moveTo(
@@ -656,8 +657,6 @@ class _GenericListScreenState extends State<GenericListScreen>
               if (item[sectionField.key] != option.value)
                 entry('move:${option.value}', Icons.drive_file_move_outline,
                     labels.option(option)),
-          if (done && _behavior(BehaviorKind.clearCompleted) != null)
-            entry('clear', Icons.cleaning_services_outlined, loc.clear),
           entry('delete', Icons.delete_outline, loc.delete),
         ];
       },
@@ -729,6 +728,23 @@ class _GenericListScreenState extends State<GenericListScreen>
                       open ? Icons.expand_less : Icons.expand_more,
                       size: 20,
                       color: look.neutrals.muted,
+                    ),
+                  ),
+                // The × on a ticked item clears just it (Q-101, Q-102). It
+                // grows in left of the dots, which stay put (rule 7).
+                if (completion != null &&
+                    _behavior(BehaviorKind.clearCompleted) != null)
+                  GrowIn(
+                    key: ValueKey('clear-slot-${item.id}'),
+                    shown: done,
+                    alignment: AlignmentDirectional.centerEnd,
+                    vertical: false,
+                    child: IconButton(
+                      key: ValueKey('clear-item-${item.id}'),
+                      tooltip: loc.clear,
+                      icon: Icon(Icons.close, size: 18, color: look.neutrals.muted),
+                      onPressed: () =>
+                          _clearCompleted((other) => other.id == item.id),
                     ),
                   ),
                 menu,
@@ -1323,7 +1339,7 @@ class _GenericListScreenState extends State<GenericListScreen>
               alignment: AlignmentDirectional.centerEnd,
               vertical: false,
               child: IconButton(
-                tooltip: loc.clear,
+                tooltip: loc.clearTicked,
                 icon: const Icon(Icons.cleaning_services_outlined),
                 onPressed: () => _clearCompleted(_matchesFilter),
               ),

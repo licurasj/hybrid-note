@@ -392,5 +392,6 @@
   "homeMoveEarlier": "Déplacer avant",
   "homeMoveLater": "Déplacer après",
   "preferencesHomeListOrder": "Ordre de l'accueil",
-  "preferencesHomeListOrderSame": "Comme le cadran"
+  "preferencesHomeListOrderSame": "Comme le cadran",
+  "clearedBanner": "{count, plural, =1{Effacé} other{{count} effacés}}"
 }

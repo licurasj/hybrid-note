@@ -392,5 +392,6 @@
   "homeMoveEarlier": "前移",
   "homeMoveLater": "后移",
   "preferencesHomeListOrder": "首页列表顺序",
-  "preferencesHomeListOrderSame": "与转盘相同"
+  "preferencesHomeListOrderSame": "与转盘相同",
+  "clearedBanner": "{count, plural, other{已清除 {count} 项}}"
 }

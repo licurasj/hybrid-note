@@ -1290,4 +1290,15 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get preferencesHomeListOrderSame => 'Comme le cadran';
+
+  @override
+  String clearedBanner(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count effacés',
+      one: 'Effacé',
+    );
+    return '$_temp0';
+  }
 }
