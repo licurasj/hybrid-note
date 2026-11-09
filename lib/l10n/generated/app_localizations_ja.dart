@@ -1380,4 +1380,53 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get preferencesListsOwnOff => 'Every list follows this setting.';
+
+  @override
+  String get editorIconAndColour => 'Icon and colour';
+
+  @override
+  String get editorHomeAndAi => 'Home and AI';
+
+  @override
+  String get editorFollowPreferences => 'Follow Preferences';
+
+  @override
+  String get editorNoTick => 'This list has no tick.';
+
+  @override
+  String get editorEveryListFollows =>
+      'Preferences makes every list follow this.';
+
+  @override
+  String get editorTickField => 'Tick';
+
+  @override
+  String get suggestOnHomeLine => 'Lets home suggest this list.';
+
+  @override
+  String get allowAiLine => 'Lets the AI see and change this list.';
+
+  @override
+  String get ruleClearCompletedLine =>
+      'Adds a × on ticked items and a Clear ticked button.';
+
+  @override
+  String get viewChecklistLine => 'Items with a tick, open ones first.';
+
+  @override
+  String get viewSectionedLine =>
+      'Items in sections you name, with buttons to move them.';
+
+  @override
+  String get viewTimelineLine => 'Items by date, newest first.';
+
+  @override
+  String get viewGroupedLine => 'Items grouped by a choice or a category.';
+
+  @override
+  String get viewTableLine => 'Items one per row, newest first.';
+
+  @override
+  String get viewCardsLine =>
+      'Items one per row with their details, newest first.';
 }

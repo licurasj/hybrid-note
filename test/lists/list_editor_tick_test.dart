@@ -11,6 +11,8 @@ import 'package:hybrid_note/lists/list_patch.dart';
 import 'package:hybrid_note/lists/list_rules.dart';
 import 'package:hybrid_note/lists/list_vocabulary.dart';
 
+import '../support/editor_sections.dart';
+
 final DateTime _t0 = DateTime.utc(2026, 3, 1, 9);
 
 ListItem _item(ListDefinition list, String id, Map<String, dynamic> values) =>
@@ -22,7 +24,7 @@ Future<Future<ListEditorOutcome?> Function()> _pumpEditor(
   ListDefinition definition,
   List<ListItem> items,
 ) async {
-  tester.view.physicalSize = const Size(800, 2400);
+  tester.view.physicalSize = const Size(800, 3600);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   late Future<ListEditorOutcome?> outcome;
@@ -63,6 +65,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
+    await openEditorSections(tester);
 
     await tester.tap(find.byKey(const ValueKey('remove-field-done')));
     await tester.pumpAndSettle();
@@ -71,7 +74,7 @@ void main() {
     final String line = tester.widget<Text>(find.byKey(const ValueKey('no-tick-line'))).data!;
     expect(line, contains('items can no longer be ticked'));
     expect(line, contains('The checklist shows as Table.'));
-    expect(line, contains('Clear completed items'));
+    expect(line, contains('Clear ticked items'));
     expect(line, contains('Repeat when cleared'));
     expect(line, isNot(contains('Next time')));
 
@@ -96,6 +99,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
+    await openEditorSections(tester);
 
     await tester.tap(find.byKey(const ValueKey('remove-field-done')));
     await tester.pumpAndSettle();
@@ -136,6 +140,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
+    await openEditorSections(tester);
     expect(find.byKey(const ValueKey('no-tick-line')), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('add-field')));

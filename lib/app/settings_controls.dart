@@ -332,3 +332,188 @@ class SettingSwitchRow extends StatelessWidget {
     );
   }
 }
+
+// A picked value that opens its choices in place, under it, instead of a
+// drop-down or pop-up (T-24, Q-112); picking one closes it again. For the
+// list editor's field types, layout details and rule settings.
+class SettingFoldPicker<T> extends StatefulWidget {
+  const SettingFoldPicker({
+    super.key,
+    this.label,
+    required this.value,
+    required this.choices,
+    required this.onChanged,
+    this.alignEnd = true,
+    this.style,
+  });
+
+  // On the left of the row; without one the value starts the row.
+  final String? label;
+  final T? value;
+  // Each choice's value and what it shows.
+  final List<({T value, Widget child})> choices;
+  final ValueChanged<T?>? onChanged;
+  final bool alignEnd;
+  final TextStyle? style;
+
+  @override
+  State<SettingFoldPicker<T>> createState() => _SettingFoldPickerState<T>();
+}
+
+class _SettingFoldPickerState<T> extends State<SettingFoldPicker<T>> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final EditorLook look = EditorLook.of(context);
+    final AppNeutrals n = look.neutrals;
+    final ({T value, Widget child})? current = widget.choices
+        .where((c) => c.value == widget.value)
+        .firstOrNull;
+    final bool enabled = widget.onChanged != null;
+    final Widget shown = DefaultTextStyle.merge(
+      style: widget.style ?? look.value,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      child: current?.child ?? const SizedBox.shrink(),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        InkWell(
+          onTap: enabled ? () => setState(() => _open = !_open) : null,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 44),
+            child: Row(
+              children: [
+                if (widget.label != null) ...[
+                  Text(widget.label!, style: look.label),
+                  const SizedBox(width: 16),
+                ],
+                Expanded(
+                  child: Align(
+                    alignment: widget.alignEnd
+                        ? AlignmentDirectional.centerEnd
+                        : AlignmentDirectional.centerStart,
+                    child: shown,
+                  ),
+                ),
+                if (enabled)
+                  Icon(
+                    _open ? Icons.expand_less : Icons.expand_more,
+                    size: 18,
+                    color: n.muted,
+                  ),
+              ],
+            ),
+          ),
+        ),
+        if (_open)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final ({T value, Widget child}) c in widget.choices)
+                  Semantics(
+                    selected: c.value == widget.value,
+                    inMutuallyExclusiveGroup: true,
+                    button: true,
+                    child: InkWell(
+                      onTap: () {
+                        setState(() => _open = false);
+                        widget.onChanged?.call(c.value);
+                      },
+                      child: Container(
+                        constraints: const BoxConstraints(minHeight: 40),
+                        padding: const EdgeInsetsDirectional.only(start: 4),
+                        child: Row(
+                          children: [
+                            Icon(
+                              c.value == widget.value
+                                  ? Icons.radio_button_checked
+                                  : Icons.radio_button_off,
+                              size: 20,
+                              color: n.text,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: DefaultTextStyle.merge(
+                                style: look.label,
+                                child: c.child,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// A section whose rows fold away under its header, which names what it holds
+// ("Fields · 4") (Q-115 C). [open] starts it open; [forceOpen] keeps it open,
+// for a section with a problem in it.
+class FoldSection extends StatefulWidget {
+  const FoldSection({
+    super.key,
+    required this.title,
+    required this.children,
+    this.open = false,
+    this.forceOpen = false,
+  });
+
+  final String title;
+  final List<Widget> children;
+  final bool open;
+  final bool forceOpen;
+
+  @override
+  State<FoldSection> createState() => _FoldSectionState();
+}
+
+class _FoldSectionState extends State<FoldSection> {
+  late bool _open = widget.open;
+
+  @override
+  Widget build(BuildContext context) {
+    final EditorLook look = EditorLook.of(context);
+    final bool open = _open || widget.forceOpen;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Semantics(
+          button: true,
+          expanded: open,
+          child: InkWell(
+            onTap: widget.forceOpen ? null : () => setState(() => _open = !_open),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 22, bottom: 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.title.toUpperCase(),
+                      style: look.type.sectionLabel,
+                    ),
+                  ),
+                  Icon(
+                    open ? Icons.expand_less : Icons.expand_more,
+                    size: 20,
+                    color: look.neutrals.muted,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (open) ...widget.children,
+      ],
+    );
+  }
+}

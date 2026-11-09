@@ -751,7 +751,7 @@ abstract class AppLocalizations {
   /// No description provided for @ruleClearCompleted.
   ///
   /// In en, this message translates to:
-  /// **'Clear completed items'**
+  /// **'Clear ticked items'**
   String get ruleClearCompleted;
 
   /// No description provided for @ruleRecurOnClear.
@@ -2395,6 +2395,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Every list follows this setting.'**
   String get preferencesListsOwnOff;
+
+  /// No description provided for @editorIconAndColour.
+  ///
+  /// In en, this message translates to:
+  /// **'Icon and colour'**
+  String get editorIconAndColour;
+
+  /// No description provided for @editorHomeAndAi.
+  ///
+  /// In en, this message translates to:
+  /// **'Home and AI'**
+  String get editorHomeAndAi;
+
+  /// No description provided for @editorFollowPreferences.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow Preferences'**
+  String get editorFollowPreferences;
+
+  /// No description provided for @editorNoTick.
+  ///
+  /// In en, this message translates to:
+  /// **'This list has no tick.'**
+  String get editorNoTick;
+
+  /// No description provided for @editorEveryListFollows.
+  ///
+  /// In en, this message translates to:
+  /// **'Preferences makes every list follow this.'**
+  String get editorEveryListFollows;
+
+  /// No description provided for @editorTickField.
+  ///
+  /// In en, this message translates to:
+  /// **'Tick'**
+  String get editorTickField;
+
+  /// No description provided for @suggestOnHomeLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Lets home suggest this list.'**
+  String get suggestOnHomeLine;
+
+  /// No description provided for @allowAiLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Lets the AI see and change this list.'**
+  String get allowAiLine;
+
+  /// No description provided for @ruleClearCompletedLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Adds a × on ticked items and a Clear ticked button.'**
+  String get ruleClearCompletedLine;
+
+  /// No description provided for @viewChecklistLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Items with a tick, open ones first.'**
+  String get viewChecklistLine;
+
+  /// No description provided for @viewSectionedLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Items in sections you name, with buttons to move them.'**
+  String get viewSectionedLine;
+
+  /// No description provided for @viewTimelineLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Items by date, newest first.'**
+  String get viewTimelineLine;
+
+  /// No description provided for @viewGroupedLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Items grouped by a choice or a category.'**
+  String get viewGroupedLine;
+
+  /// No description provided for @viewTableLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Items one per row, newest first.'**
+  String get viewTableLine;
+
+  /// No description provided for @viewCardsLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Items one per row with their details, newest first.'**
+  String get viewCardsLine;
 }
 
 class _AppLocalizationsDelegate

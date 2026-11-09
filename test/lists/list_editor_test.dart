@@ -8,13 +8,14 @@ import 'package:hybrid_note/lists/list_definition.dart';
 import 'package:hybrid_note/lists/list_item.dart';
 import 'package:hybrid_note/lists/list_rules.dart';
 
+import '../support/editor_sections.dart';
 import '../support/fake_auth.dart';
 import '../support/firestore_store.dart';
 
 // The app on a store holding [lists]; none unless given, so the user's own
 // list is the only one.
 Future<FirestoreListStore> _pumpApp(WidgetTester tester, {List<ListDefinition> lists = const []}) async {
-  tester.view.physicalSize = const Size(800, 1600);
+  tester.view.physicalSize = const Size(800, 3200);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
 
@@ -104,6 +105,7 @@ void main() {
     await _openLauncher(tester);
     await tester.longPress(find.byKey(const ValueKey('launcher-note-list-plants')));
     await tester.pumpAndSettle();
+    await openEditorSections(tester);
     await tester.tap(find.byKey(const ValueKey('field-type-water-text')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Number').last);
@@ -119,6 +121,7 @@ void main() {
     await _openLauncher(tester);
     await tester.longPress(find.byKey(const ValueKey('launcher-note-list-plants')));
     await tester.pumpAndSettle();
+    await openEditorSections(tester);
     await tester.tap(find.byKey(const ValueKey('delete-list')));
     await settle(tester);
     expect(store.current.definitions, isEmpty);
@@ -133,6 +136,7 @@ void main() {
     await _openLauncher(tester);
     await tester.longPress(find.byKey(const ValueKey('launcher-note-list-plants')));
     await tester.pumpAndSettle();
+    await openEditorSections(tester);
     await tester.tap(find.byKey(const ValueKey('delete-list')));
     await settle(tester);
     expect(find.text('List deleted'), findsOneWidget);
@@ -148,6 +152,7 @@ void main() {
     await _openLauncher(tester);
     await tester.longPress(find.byKey(tab));
     await tester.pumpAndSettle();
+    await openEditorSections(tester);
     expect(find.byKey(const ValueKey('add-field')), findsOneWidget);
     expect(find.byKey(const ValueKey('delete-list')), findsOneWidget);
 
@@ -166,6 +171,7 @@ void main() {
     await _openLauncher(tester);
     await tester.longPress(find.byKey(tab));
     await tester.pumpAndSettle();
+    await openEditorSections(tester);
     // Delete list is at the end of the editor.
     await tester.ensureVisible(find.byKey(const ValueKey('delete-list')));
     await tester.pump();
@@ -185,6 +191,7 @@ void main() {
     await _openLauncher(tester);
     await tester.longPress(find.byKey(tab));
     await tester.pumpAndSettle();
+    await openEditorSections(tester);
     expect(text(), contains('shopping'));
     await tester.enterText(box, '\u{1F95A}' * 250);
     await tester.pump();
@@ -202,6 +209,7 @@ void main() {
     await _openLauncher(tester);
     await tester.longPress(find.byKey(tab));
     await tester.pumpAndSettle();
+    await openEditorSections(tester);
     expect(text(), isEmpty);
   });
 
@@ -235,6 +243,7 @@ void main() {
       await _openLauncher(tester);
       await tester.longPress(find.byKey(const ValueKey('launcher-note-list-plants')));
       await tester.pumpAndSettle();
+    await openEditorSections(tester);
       // Filter the view by the category field.
       await tester.tap(find.byKey(const ValueKey('filter-null-1')));
       await tester.pumpAndSettle();

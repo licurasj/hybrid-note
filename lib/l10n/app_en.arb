@@ -151,7 +151,7 @@
   "none": "None",
   "dateCreated": "Date created",
   "rules": "Rules",
-  "ruleClearCompleted": "Clear completed items",
+  "ruleClearCompleted": "Clear ticked items",
   "ruleRecurOnClear": "Repeat when cleared",
   "ruleCopyOnClear": "Copy when cleared",
   "ruleMoveAll": "Move all button",
@@ -1067,5 +1067,20 @@
       }
     }
   },
-  "preferencesListsOwnOff": "Every list follows this setting."
+  "preferencesListsOwnOff": "Every list follows this setting.",
+  "editorIconAndColour": "Icon and colour",
+  "editorHomeAndAi": "Home and AI",
+  "editorFollowPreferences": "Follow Preferences",
+  "editorNoTick": "This list has no tick.",
+  "editorEveryListFollows": "Preferences makes every list follow this.",
+  "editorTickField": "Tick",
+  "suggestOnHomeLine": "Lets home suggest this list.",
+  "allowAiLine": "Lets the AI see and change this list.",
+  "ruleClearCompletedLine": "Adds a × on ticked items and a Clear ticked button.",
+  "viewChecklistLine": "Items with a tick, open ones first.",
+  "viewSectionedLine": "Items in sections you name, with buttons to move them.",
+  "viewTimelineLine": "Items by date, newest first.",
+  "viewGroupedLine": "Items grouped by a choice or a category.",
+  "viewTableLine": "Items one per row, newest first.",
+  "viewCardsLine": "Items one per row with their details, newest first."
 }

@@ -5,6 +5,8 @@ import 'package:uuid/uuid.dart';
 
 import '../app/account_preferences.dart';
 import '../app/app_theme.dart';
+import '../app/preferences_screen.dart' show tickedItemsChoices;
+import '../app/settings_controls.dart';
 import '../app_colors.dart';
 import '../l10n/generated/app_localizations.dart';
 import 'confirm_delete_sheet.dart';
@@ -155,68 +157,14 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
   }
 
   Future<void> _addField(ListLabels labels) async {
-    final AppLocalizations loc = labels.loc;
-    final TextEditingController name = TextEditingController();
-    FieldType type = FieldType.text;
-
-    final bool? confirmed = await showDialog<bool>(
+    final (String, FieldType)? picked = await showDialog<(String, FieldType)>(
       context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: Text(loc.addField),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    key: const ValueKey('new-field-name'),
-                    controller: name,
-                    autofocus: true,
-                    decoration: InputDecoration(labelText: loc.fieldName),
-                    onChanged: (_) => setDialogState(() {}),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<FieldType>(
-                    key: const ValueKey('new-field-type'),
-                    initialValue: type,
-                    isExpanded: true,
-                    decoration: InputDecoration(labelText: loc.fieldType),
-                    items: [
-                      for (final FieldType value in FieldType.values)
-                        DropdownMenuItem(
-                          value: value,
-                          child: Text(labels.fieldType(value)),
-                        ),
-                    ],
-                    onChanged: (value) =>
-                        setDialogState(() => type = value ?? type),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(false),
-                  child: Text(loc.cancel),
-                ),
-                FilledButton(
-                  onPressed: name.text.trim().isEmpty
-                      ? null
-                      : () => Navigator.of(dialogContext).pop(true),
-                  child: Text(loc.add),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (_) => _AddFieldDialog(labels: labels),
     );
-
-    final String label = name.text.trim();
-    name.dispose();
-    if (confirmed != true || label.isEmpty) {
+    if (picked == null) {
       return;
     }
+    final (String label, FieldType type) = picked;
 
     // The first checkbox becomes the "done" box that clearing works with,
     // with the Clear ticked rule. On a list that had a tick it takes the old
@@ -369,37 +317,18 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
     bool alignEnd = true,
     TextStyle? style,
   }) {
-    final AlignmentDirectional alignment = alignEnd
-        ? AlignmentDirectional.centerEnd
-        : AlignmentDirectional.centerStart;
-    return DropdownButtonHideUnderline(
-      child: DropdownButton<T>(
-        key: key,
-        value: value,
-        isExpanded: true,
-        icon: Icon(
-          alignEnd ? Icons.chevron_right : Icons.expand_more,
-          size: 18,
-          color: look.neutrals.muted,
-        ),
-        style: look.label,
-        dropdownColor: look.neutrals.ground,
-        borderRadius: BorderRadius.circular(AppShapes.fieldRadius),
-        selectedItemBuilder: (_) => [
-          for (final DropdownMenuItem<T> item in items)
-            Align(
-              alignment: alignment,
-              child: DefaultTextStyle.merge(
-                style: style ?? look.value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                child: item.child,
-              ),
-            ),
-        ],
-        items: items,
-        onChanged: onChanged,
-      ),
+    // DropdownMenuItem only carries each choice's value and what it shows:
+    // the choices open in place, under the row, not as a drop-down (T-24).
+    return SettingFoldPicker<T>(
+      key: key,
+      value: value,
+      alignEnd: alignEnd,
+      style: style,
+      choices: [
+        for (final DropdownMenuItem<T> item in items)
+          (value: item.value as T, child: item.child),
+      ],
+      onChanged: onChanged,
     );
   }
 
@@ -418,19 +347,16 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
     final String? shown = choices.any((field) => field.key == value)
         ? value
         : null;
-    return look.settingRow(
-      label: label,
-      value: _picker<String?>(
-        look,
+    return look.hairline(
+      child: SettingFoldPicker<String?>(
         key: ValueKey('${keyName ?? label}-$shown-${choices.length}'),
+        label: label,
         value: shown,
-        items: [
-          ...extra,
+        choices: [
+          for (final DropdownMenuItem<String?> item in extra)
+            (value: item.value, child: item.child),
           for (final FieldDefinition field in choices)
-            DropdownMenuItem(
-              value: field.key,
-              child: Text(labels.field(field)),
-            ),
+            (value: field.key, child: Text(labels.field(field))),
         ],
         onChanged: onChanged,
       ),
@@ -447,29 +373,21 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
       child: Text(loc.none),
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return FoldSection(
+      key: const ValueKey('section-layout'),
+      title: '${loc.layout} · ${labels.viewKind(view.kind)}',
+      open: widget.isNew,
+      forceOpen: _showErrors,
       children: [
-        look.sectionLabel(loc.layout),
-        look.settingRow(
+        SettingOptionList<ViewKind>(
+          key: const ValueKey('view-kind'),
           label: loc.layout,
-          value: _picker<ViewKind>(
-            look,
-            key: const ValueKey('view-kind'),
-            value: view.kind,
-            items: [
-              for (final ViewKind kind in ViewKind.values)
-                DropdownMenuItem(
-                  value: kind,
-                  child: Text(labels.viewKind(kind)),
-                ),
-            ],
-            onChanged: (kind) {
-              if (kind != null) {
-                _setView(kind);
-              }
-            },
-          ),
+          selected: view.kind,
+          choices: [
+            for (final ViewKind kind in ViewKind.values)
+              choice(kind, labels.viewKind(kind), line: _viewLine(loc, kind)),
+          ],
+          onChanged: _setView,
         ),
         if (view.kind == ViewKind.sectioned)
           _fieldDropdown(
@@ -657,6 +575,16 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
                     ),
                   ),
                 ),
+                // The field ticking works with (Q-103, T-24).
+                if (field.role == FieldRole.completion)
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(start: 8),
+                    child: Text(
+                      loc.editorTickField,
+                      key: ValueKey('tick-mark-${field.key}'),
+                      style: look.type.meta,
+                    ),
+                  ),
                 IconButton(
                   key: ValueKey('remove-field-${field.key}'),
                   tooltip: loc.delete,
@@ -825,6 +753,92 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
     );
   }
 
+  // Problems that keep Save disabled are shown, and their sections open.
+  bool get _showErrors => !_result.isValid && (_ops.isNotEmpty || widget.isNew);
+
+  static String _viewLine(AppLocalizations loc, ViewKind kind) => switch (kind) {
+    ViewKind.checklist => loc.viewChecklistLine,
+    ViewKind.sectioned => loc.viewSectionedLine,
+    ViewKind.timeline => loc.viewTimelineLine,
+    ViewKind.grouped => loc.viewGroupedLine,
+    ViewKind.table => loc.viewTableLine,
+    ViewKind.cards => loc.viewCardsLine,
+  };
+
+  // Ticked items and Confirm before deleting, each following Preferences
+  // until this list picks its own (Q-117, Q-118). Following, the choice shows
+  // the general value, greyed. Saved with the list, through setListInfo.
+  List<Widget> _itemsSection(EditorLook look, AppLocalizations loc) {
+    final AccountPreferences preferences = context.watchAccountPreferences;
+    final ListDefinition draft = _draft;
+    final bool hasTick = draft.fieldWithRole(FieldRole.completion) != null;
+
+    final String? ownTicked = draft.ownTickedItems;
+    final bool tickedFollows = ownTicked == null;
+    final String? tickedReason = !hasTick
+        ? loc.editorNoTick
+        : !preferences.listsOwnTickedItems
+        ? loc.editorEveryListFollows
+        : null;
+
+    final bool? ownConfirm = draft.ownConfirmDelete;
+    final bool confirmFollows = ownConfirm == null;
+    final String? confirmReason = preferences.listsOwnConfirmDelete
+        ? null
+        : loc.editorEveryListFollows;
+
+    void set(String key, Object? value) =>
+        _push(ListPatchOp(PatchOpKind.setListInfo, {key: value}));
+
+    return [
+      SettingSwitchRow(
+        key: const ValueKey('ticked-follow'),
+        label: '${loc.preferencesTicked}: ${loc.editorFollowPreferences}',
+        value: tickedFollows,
+        line: tickedReason,
+        onChanged: tickedReason != null
+            ? null
+            : (follow) => set(
+                ListDefinition.ownTickedItemsKey,
+                follow ? null : preferences.tickedItems.wire,
+              ),
+      ),
+      SettingOptionList<TickedItems>(
+        key: const ValueKey('ticked-own'),
+        label: loc.preferencesTicked,
+        selected: tickedFollows || tickedReason != null
+            ? preferences.tickedItems
+            : TickedItems.of(ownTicked),
+        enabled: !tickedFollows && tickedReason == null,
+        choices: tickedItemsChoices(loc),
+        onChanged: (value) => set(ListDefinition.ownTickedItemsKey, value.wire),
+      ),
+      SettingSwitchRow(
+        key: const ValueKey('confirm-follow'),
+        label: '${loc.preferencesConfirmDelete}: ${loc.editorFollowPreferences}',
+        value: confirmFollows,
+        line: confirmReason,
+        onChanged: confirmReason != null
+            ? null
+            : (follow) => set(
+                ListDefinition.ownConfirmDeleteKey,
+                follow ? null : preferences.confirmDelete,
+              ),
+      ),
+      SettingSwitchRow(
+        key: const ValueKey('confirm-own'),
+        label: loc.preferencesConfirmDelete,
+        value: confirmFollows || confirmReason != null
+            ? preferences.confirmDelete
+            : ownConfirm,
+        line: loc.preferencesConfirmDeleteLine,
+        onChanged: confirmFollows || confirmReason != null
+            ? null
+            : (value) => set(ListDefinition.ownConfirmDeleteKey, value),
+      ),
+    ];
+  }
+
   bool get _canSave =>
       _result.isValid && (_ops.isNotEmpty || widget.isNew || _suggestChanged);
 
@@ -868,10 +882,12 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
       child: SwitchListTile(
         key: const ValueKey('suggest-on-home'),
         contentPadding: EdgeInsets.zero,
+        activeTrackColor: AppColors.appBlue,
         title: Text(loc.suggestOnHome, style: look.label),
-        subtitle: suggestionsOn
-            ? null
-            : Text(loc.suggestOnHomeOff, style: look.type.meta),
+        subtitle: Text(
+          suggestionsOn ? loc.suggestOnHomeLine : loc.suggestOnHomeOff,
+          style: look.type.meta,
+        ),
         value: _suggest ?? _suggestsNow,
         onChanged: suggestionsOn
             ? (on) => setState(() => _suggest = on)
@@ -1011,7 +1027,7 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
                 _push(ListPatchOp(PatchOpKind.setListInfo, {'description': text}));
               },
             ),
-            look.sectionLabel(loc.listIcon),
+            look.sectionLabel(loc.editorIconAndColour),
             Wrap(
               spacing: 4,
               children: [
@@ -1019,7 +1035,7 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
                   _iconChoice(look, icon.key, icon.value),
               ],
             ),
-            look.sectionLabel(loc.listColor),
+            const SizedBox(height: 12),
             Wrap(
               spacing: 8,
               children: [
@@ -1027,48 +1043,67 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
                   _swatch(look, color),
               ],
             ),
-            look.sectionLabel(loc.fields),
-            ReorderableListView(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              buildDefaultDragHandles: false,
-              onReorder: (from, to) {
-                final FieldDefinition field = draft.fields[from];
-                _push(
-                  ListPatchOp(PatchOpKind.moveField, {
-                    'key': field.key,
-                    'index': to > from ? to - 1 : to,
-                  }),
-                );
-              },
+            look.sectionLabel(loc.editorHomeAndAi),
+            _suggestRow(look, loc),
+            look.hairline(
+              child: SwitchListTile(
+                key: const ValueKey('allow-ai'),
+                contentPadding: EdgeInsets.zero,
+                activeTrackColor: AppColors.appBlue,
+                title: Text(loc.allowAi, style: look.label),
+                subtitle: Text(loc.allowAiLine, style: look.type.meta),
+                value: draft.aiAllowed,
+                onChanged: (on) => _push(
+                  ListPatchOp(PatchOpKind.setListInfo, {'aiAllowed': on}),
+                ),
+              ),
+            ),
+            look.sectionLabel(loc.preferencesItems),
+            ..._itemsSection(look, loc),
+            FoldSection(
+              key: const ValueKey('section-fields'),
+              title: '${loc.fields} · ${draft.fields.length}',
+              open: widget.isNew,
+              forceOpen: _showErrors,
               children: [
-                for (int index = 0; index < draft.fields.length; index++)
-                  _fieldRow(look, labels, draft.fields[index], index),
+                ReorderableListView(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  buildDefaultDragHandles: false,
+                  onReorder: (from, to) {
+                    final FieldDefinition field = draft.fields[from];
+                    _push(
+                      ListPatchOp(PatchOpKind.moveField, {
+                        'key': field.key,
+                        'index': to > from ? to - 1 : to,
+                      }),
+                    );
+                  },
+                  children: [
+                    for (int index = 0; index < draft.fields.length; index++)
+                      _fieldRow(look, labels, draft.fields[index], index),
+                  ],
+                ),
+                look.addButton(
+                  key: const ValueKey('add-field'),
+                  text: loc.addField,
+                  onPressed: () => _addField(labels),
+                ),
+                ?_noTickLine(look, labels),
               ],
             ),
-            look.addButton(
-              key: const ValueKey('add-field'),
-              text: loc.addField,
-              onPressed: () => _addField(labels),
-            ),
-            ?_noTickLine(look, labels),
             _layoutSection(look, labels),
-            ListEditorRules(
-              definition: draft,
-              labels: labels,
-              onOp: _push,
-              extraRows: [
-                _suggestRow(look, loc),
-                look.hairline(
-                  child: SwitchListTile(
-                    key: const ValueKey('allow-ai'),
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(loc.allowAi, style: look.label),
-                    value: draft.aiAllowed,
-                    onChanged: (on) => _push(
-                      ListPatchOp(PatchOpKind.setListInfo, {'aiAllowed': on}),
-                    ),
-                  ),
+            FoldSection(
+              key: const ValueKey('section-rules'),
+              title: '${loc.rules} · ${draft.behaviors.length}',
+              open: widget.isNew,
+              forceOpen: _showErrors,
+              children: [
+                ListEditorRules(
+                  definition: draft,
+                  labels: labels,
+                  onOp: _push,
+                  showLabel: false,
                 ),
               ],
             ),
@@ -1081,7 +1116,7 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
                 ),
               ),
             // Problems that keep Save disabled.
-            if (!_result.isValid && (_ops.isNotEmpty || widget.isNew))
+            if (_showErrors)
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: Text(
@@ -1126,6 +1161,74 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// Add field: a name and a type, the types opening in place (T-24). It owns
+// its text controller, so nothing is disposed while it slides away.
+class _AddFieldDialog extends StatefulWidget {
+  const _AddFieldDialog({required this.labels});
+
+  final ListLabels labels;
+
+  @override
+  State<_AddFieldDialog> createState() => _AddFieldDialogState();
+}
+
+class _AddFieldDialogState extends State<_AddFieldDialog> {
+  final TextEditingController _name = TextEditingController();
+  FieldType _type = FieldType.text;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ListLabels labels = widget.labels;
+    final AppLocalizations loc = labels.loc;
+    final String label = _name.text.trim();
+    return AlertDialog(
+      title: Text(loc.addField),
+      scrollable: true,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            key: const ValueKey('new-field-name'),
+            controller: _name,
+            autofocus: true,
+            decoration: InputDecoration(labelText: loc.fieldName),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 12),
+          SettingFoldPicker<FieldType>(
+            key: const ValueKey('new-field-type'),
+            label: loc.fieldType,
+            value: _type,
+            choices: [
+              for (final FieldType value in FieldType.values)
+                (value: value, child: Text(labels.fieldType(value))),
+            ],
+            onChanged: (value) => setState(() => _type = value ?? _type),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(loc.cancel),
+        ),
+        FilledButton(
+          onPressed: label.isEmpty
+              ? null
+              : () => Navigator.of(context).pop((label, _type)),
+          child: Text(loc.add),
+        ),
+      ],
     );
   }
 }
