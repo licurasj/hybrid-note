@@ -325,6 +325,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (_pinned != null &&
         _workedOutFrom == choices &&
         (_pinned!.isNotEmpty || _suggested.isNotEmpty)) {
+      _topUp(catalog, preferences, now);
       return;
     }
     final List<String> pinned = _shownOrder(catalog, preferences, labels);
@@ -341,6 +342,37 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     ];
     _unfilled.clear();
     _workedOutFrom = choices;
+  }
+
+  // Fills free suggestion places (Q-70) at the bottom, leaving every card
+  // shown where it is: after a suggestion is pinned here, once its change is
+  // saved and no finger is on home, or when a list gains open items later
+  // (owner, 2026-11-09: home stayed at 3 cards; when it fills is Proposed).
+  void _topUp(
+    ListCatalog catalog,
+    AccountPreferences preferences,
+    DateTime now,
+  ) {
+    final List<String> pinned = _pinned!;
+    final int free = preferences.homeSuggestions
+        ? homeSuggestionCount(pinned.length) - _suggested.length
+        : 0;
+    if (free <= 0) {
+      return;
+    }
+    final List<String> more = [
+      for (final ListDefinition list in chooseHomeCards(
+        catalog,
+        pinnedOrder: pinned,
+        removed: [...preferences.homeRemoved, ..._suggested],
+        showSuggestions: true,
+        now: now,
+      ).suggested.take(free))
+        list.id,
+    ];
+    if (more.isNotEmpty) {
+      _suggested = [..._suggested, ...more];
+    }
   }
 
   // A change made here: the cards do not treat it as news from elsewhere.
