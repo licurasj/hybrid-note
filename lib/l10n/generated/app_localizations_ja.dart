@@ -1483,4 +1483,40 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get editorNoReminder => 'このリストには「通知する」の日付がありません。';
+
+  @override
+  String reminderBody(String list, String when) {
+    return '$list · $when';
+  }
+
+  @override
+  String get reminderExactTitle => '時間どおりに鳴らす';
+
+  @override
+  String get reminderExactText =>
+      'Hybrid Note の「アラームとリマインダー」がオンのときだけ、リマインダーは分単位で時間どおりに鳴ります。オフでも鳴りますが、遅れることがあります。';
+
+  @override
+  String get reminderExactOpen => '設定を開く';
+
+  @override
+  String get reminderExactLater => '後で';
+
+  @override
+  String get preferencesReminderPermission => '権限';
+
+  @override
+  String get preferencesReminderPermissionOk =>
+      '通知と「アラームとリマインダー」がオンです。リマインダーは時間どおりに鳴ります。';
+
+  @override
+  String get preferencesReminderNotificationsOff =>
+      'Hybrid Note の通知がオフのため、何も鳴りません。';
+
+  @override
+  String get preferencesReminderExactOff =>
+      '「アラームとリマインダー」がオフです。リマインダーは鳴りますが、遅れることがあります。';
+
+  @override
+  String get preferencesReminderAllow => 'オンにする';
 }

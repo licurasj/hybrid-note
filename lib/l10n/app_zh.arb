@@ -460,5 +460,15 @@
   "preferencesRingOnThisPhoneLine": "仅此手机；你的其他手机有各自的开关。",
   "preferencesRingOnThisPhoneOffLine": "此手机保持安静；你的其他手机仍会响铃。",
   "preferencesRemindersAndroidOnly": "目前提醒只在 Android 手机上响铃。",
-  "editorNoReminder": "此列表没有标记为提醒的日期。"
+  "editorNoReminder": "此列表没有标记为提醒的日期。",
+  "reminderBody": "{list} · {when}",
+  "reminderExactTitle": "准时提醒",
+  "reminderExactText": "只有为 Hybrid Note 打开“闹钟和提醒”，提醒才会准时到分钟。不打开也会提醒，但可能会晚。",
+  "reminderExactOpen": "打开设置",
+  "reminderExactLater": "以后再说",
+  "preferencesReminderPermission": "权限",
+  "preferencesReminderPermissionOk": "通知和“闹钟和提醒”都已打开：提醒会准时响起。",
+  "preferencesReminderNotificationsOff": "Hybrid Note 的通知已关闭，因此不会有提醒。",
+  "preferencesReminderExactOff": "“闹钟和提醒”已关闭：提醒仍会响起，但可能会晚。",
+  "preferencesReminderAllow": "打开"
 }

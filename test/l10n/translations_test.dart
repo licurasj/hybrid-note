@@ -14,6 +14,8 @@ void main() {
     'languageFrench',
     'languageSpanish',
     'languageGerman',
+    // The list's name and the time, with a dot between (T-13).
+    'reminderBody',
   };
   const Map<String, Set<String>> sameWord = {
     'de': {'journal', 'status', 'typeText', 'typeUrl', 'preferencesVibration'},

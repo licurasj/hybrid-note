@@ -13,6 +13,7 @@ import '../lists/list_definition.dart';
 import '../lists/list_editor_style.dart';
 import '../lists/list_store.dart';
 import '../lists/list_vocabulary.dart';
+import '../reminders/reminder_permission_row.dart';
 import '../reminders/reminder_settings.dart';
 import 'account_preferences.dart';
 import 'app_settings.dart';
@@ -506,6 +507,7 @@ Widget _remindersSection(
             ? settings.setRingOnThisPhone
             : null,
       ),
+      if (android) const ReminderPermissionRow(),
     ],
   );
 }

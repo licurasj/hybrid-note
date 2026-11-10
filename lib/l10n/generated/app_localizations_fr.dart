@@ -1562,4 +1562,40 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get editorNoReminder =>
       'Cette liste n\'a pas de date marquée Me le rappeler.';
+
+  @override
+  String reminderBody(String list, String when) {
+    return '$list · $when';
+  }
+
+  @override
+  String get reminderExactTitle => 'Sonner à l\'heure';
+
+  @override
+  String get reminderExactText =>
+      'Les rappels sonnent à la minute près seulement si Alarmes et rappels est activé pour Hybrid Note. Sinon ils sonnent quand même, mais parfois en retard.';
+
+  @override
+  String get reminderExactOpen => 'Ouvrir les réglages';
+
+  @override
+  String get reminderExactLater => 'Pas maintenant';
+
+  @override
+  String get preferencesReminderPermission => 'Autorisation';
+
+  @override
+  String get preferencesReminderPermissionOk =>
+      'Les notifications et Alarmes et rappels sont activés : les rappels sonnent à l\'heure.';
+
+  @override
+  String get preferencesReminderNotificationsOff =>
+      'Les notifications sont désactivées pour Hybrid Note : rien ne sonne.';
+
+  @override
+  String get preferencesReminderExactOff =>
+      'Alarmes et rappels est désactivé : les rappels sonnent, mais parfois en retard.';
+
+  @override
+  String get preferencesReminderAllow => 'Activer';
 }

@@ -1475,4 +1475,38 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get editorNoReminder => '此列表没有标记为提醒的日期。';
+
+  @override
+  String reminderBody(String list, String when) {
+    return '$list · $when';
+  }
+
+  @override
+  String get reminderExactTitle => '准时提醒';
+
+  @override
+  String get reminderExactText =>
+      '只有为 Hybrid Note 打开“闹钟和提醒”，提醒才会准时到分钟。不打开也会提醒，但可能会晚。';
+
+  @override
+  String get reminderExactOpen => '打开设置';
+
+  @override
+  String get reminderExactLater => '以后再说';
+
+  @override
+  String get preferencesReminderPermission => '权限';
+
+  @override
+  String get preferencesReminderPermissionOk => '通知和“闹钟和提醒”都已打开：提醒会准时响起。';
+
+  @override
+  String get preferencesReminderNotificationsOff =>
+      'Hybrid Note 的通知已关闭，因此不会有提醒。';
+
+  @override
+  String get preferencesReminderExactOff => '“闹钟和提醒”已关闭：提醒仍会响起，但可能会晚。';
+
+  @override
+  String get preferencesReminderAllow => '打开';
 }

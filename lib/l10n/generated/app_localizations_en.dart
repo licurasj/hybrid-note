@@ -1532,4 +1532,40 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get editorNoReminder => 'This list has no date marked Remind me.';
+
+  @override
+  String reminderBody(String list, String when) {
+    return '$list · $when';
+  }
+
+  @override
+  String get reminderExactTitle => 'Ring on time';
+
+  @override
+  String get reminderExactText =>
+      'Reminders ring at their minute only with Alarms & reminders on for Hybrid Note. Without it they still ring, but may come late.';
+
+  @override
+  String get reminderExactOpen => 'Open settings';
+
+  @override
+  String get reminderExactLater => 'Not now';
+
+  @override
+  String get preferencesReminderPermission => 'Permission';
+
+  @override
+  String get preferencesReminderPermissionOk =>
+      'Notifications and Alarms & reminders are on: reminders ring on time.';
+
+  @override
+  String get preferencesReminderNotificationsOff =>
+      'Notifications are off for Hybrid Note, so nothing rings.';
+
+  @override
+  String get preferencesReminderExactOff =>
+      'Alarms & reminders is off: reminders ring, but may come late.';
+
+  @override
+  String get preferencesReminderAllow => 'Turn on';
 }

@@ -2617,6 +2617,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This list has no date marked Remind me.'**
   String get editorNoReminder;
+
+  /// A ring's text under the item's title: the list's name and the time.
+  ///
+  /// In en, this message translates to:
+  /// **'{list} · {when}'**
+  String reminderBody(String list, String when);
+
+  /// No description provided for @reminderExactTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Ring on time'**
+  String get reminderExactTitle;
+
+  /// No description provided for @reminderExactText.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders ring at their minute only with Alarms & reminders on for Hybrid Note. Without it they still ring, but may come late.'**
+  String get reminderExactText;
+
+  /// No description provided for @reminderExactOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open settings'**
+  String get reminderExactOpen;
+
+  /// No description provided for @reminderExactLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get reminderExactLater;
+
+  /// No description provided for @preferencesReminderPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission'**
+  String get preferencesReminderPermission;
+
+  /// No description provided for @preferencesReminderPermissionOk.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications and Alarms & reminders are on: reminders ring on time.'**
+  String get preferencesReminderPermissionOk;
+
+  /// No description provided for @preferencesReminderNotificationsOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications are off for Hybrid Note, so nothing rings.'**
+  String get preferencesReminderNotificationsOff;
+
+  /// No description provided for @preferencesReminderExactOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Alarms & reminders is off: reminders ring, but may come late.'**
+  String get preferencesReminderExactOff;
+
+  /// No description provided for @preferencesReminderAllow.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on'**
+  String get preferencesReminderAllow;
 }
 
 class _AppLocalizationsDelegate

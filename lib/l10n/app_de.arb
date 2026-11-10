@@ -460,5 +460,15 @@
   "preferencesRingOnThisPhoneLine": "Nur dieses Telefon; deine anderen Telefone haben ihren eigenen Schalter.",
   "preferencesRingOnThisPhoneOffLine": "Dieses Telefon bleibt still; deine anderen Telefone klingeln weiter.",
   "preferencesRemindersAndroidOnly": "Erinnerungen klingeln vorerst nur auf Android-Telefonen.",
-  "editorNoReminder": "Diese Liste hat kein Datum mit Erinnern."
+  "editorNoReminder": "Diese Liste hat kein Datum mit Erinnern.",
+  "reminderBody": "{list} · {when}",
+  "reminderExactTitle": "Pünktlich klingeln",
+  "reminderExactText": "Erinnerungen klingeln nur dann auf die Minute, wenn „Wecker und Erinnerungen“ für Hybrid Note an ist. Sonst klingeln sie trotzdem, aber vielleicht später.",
+  "reminderExactOpen": "Einstellungen öffnen",
+  "reminderExactLater": "Nicht jetzt",
+  "preferencesReminderPermission": "Berechtigung",
+  "preferencesReminderPermissionOk": "Benachrichtigungen und „Wecker und Erinnerungen“ sind an: Erinnerungen klingeln pünktlich.",
+  "preferencesReminderNotificationsOff": "Benachrichtigungen sind für Hybrid Note aus, daher klingelt nichts.",
+  "preferencesReminderExactOff": "„Wecker und Erinnerungen“ ist aus: Erinnerungen klingeln, aber vielleicht später.",
+  "preferencesReminderAllow": "Einschalten"
 }

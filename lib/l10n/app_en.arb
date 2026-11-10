@@ -1104,5 +1104,16 @@
   "preferencesRingOnThisPhoneLine": "Only this phone; your other phones have their own switch.",
   "preferencesRingOnThisPhoneOffLine": "This phone stays quiet; your other phones still ring.",
   "preferencesRemindersAndroidOnly": "Reminders ring on Android phones only for now.",
-  "editorNoReminder": "This list has no date marked Remind me."
+  "editorNoReminder": "This list has no date marked Remind me.",
+  "reminderBody": "{list} · {when}",
+  "@reminderBody": {"description": "A ring's text under the item's title: the list's name and the time.", "placeholders": {"list": {"type": "String"}, "when": {"type": "String"}}},
+  "reminderExactTitle": "Ring on time",
+  "reminderExactText": "Reminders ring at their minute only with Alarms & reminders on for Hybrid Note. Without it they still ring, but may come late.",
+  "reminderExactOpen": "Open settings",
+  "reminderExactLater": "Not now",
+  "preferencesReminderPermission": "Permission",
+  "preferencesReminderPermissionOk": "Notifications and Alarms & reminders are on: reminders ring on time.",
+  "preferencesReminderNotificationsOff": "Notifications are off for Hybrid Note, so nothing rings.",
+  "preferencesReminderExactOff": "Alarms & reminders is off: reminders ring, but may come late.",
+  "preferencesReminderAllow": "Turn on"
 }

@@ -460,5 +460,15 @@
   "preferencesRingOnThisPhoneLine": "Ce téléphone seulement ; vos autres téléphones ont leur propre interrupteur.",
   "preferencesRingOnThisPhoneOffLine": "Ce téléphone reste silencieux ; vos autres téléphones sonnent toujours.",
   "preferencesRemindersAndroidOnly": "Pour l'instant, les rappels ne sonnent que sur les téléphones Android.",
-  "editorNoReminder": "Cette liste n'a pas de date marquée Me le rappeler."
+  "editorNoReminder": "Cette liste n'a pas de date marquée Me le rappeler.",
+  "reminderBody": "{list} · {when}",
+  "reminderExactTitle": "Sonner à l'heure",
+  "reminderExactText": "Les rappels sonnent à la minute près seulement si Alarmes et rappels est activé pour Hybrid Note. Sinon ils sonnent quand même, mais parfois en retard.",
+  "reminderExactOpen": "Ouvrir les réglages",
+  "reminderExactLater": "Pas maintenant",
+  "preferencesReminderPermission": "Autorisation",
+  "preferencesReminderPermissionOk": "Les notifications et Alarmes et rappels sont activés : les rappels sonnent à l'heure.",
+  "preferencesReminderNotificationsOff": "Les notifications sont désactivées pour Hybrid Note : rien ne sonne.",
+  "preferencesReminderExactOff": "Alarmes et rappels est désactivé : les rappels sonnent, mais parfois en retard.",
+  "preferencesReminderAllow": "Activer"
 }

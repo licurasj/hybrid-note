@@ -1552,4 +1552,40 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get editorNoReminder => 'Diese Liste hat kein Datum mit Erinnern.';
+
+  @override
+  String reminderBody(String list, String when) {
+    return '$list · $when';
+  }
+
+  @override
+  String get reminderExactTitle => 'Pünktlich klingeln';
+
+  @override
+  String get reminderExactText =>
+      'Erinnerungen klingeln nur dann auf die Minute, wenn „Wecker und Erinnerungen“ für Hybrid Note an ist. Sonst klingeln sie trotzdem, aber vielleicht später.';
+
+  @override
+  String get reminderExactOpen => 'Einstellungen öffnen';
+
+  @override
+  String get reminderExactLater => 'Nicht jetzt';
+
+  @override
+  String get preferencesReminderPermission => 'Berechtigung';
+
+  @override
+  String get preferencesReminderPermissionOk =>
+      'Benachrichtigungen und „Wecker und Erinnerungen“ sind an: Erinnerungen klingeln pünktlich.';
+
+  @override
+  String get preferencesReminderNotificationsOff =>
+      'Benachrichtigungen sind für Hybrid Note aus, daher klingelt nichts.';
+
+  @override
+  String get preferencesReminderExactOff =>
+      '„Wecker und Erinnerungen“ ist aus: Erinnerungen klingeln, aber vielleicht später.';
+
+  @override
+  String get preferencesReminderAllow => 'Einschalten';
 }

@@ -57,6 +57,9 @@ class AppSettingsCubit extends Cubit<AppSettings> {
   static const String hubXKey = 'settings.hubX';
   static const String hubYKey = 'settings.hubY';
   static const String ringOnThisPhoneKey = 'settings.ringOnThisPhone';
+  // Whether this phone has asked for the reminder permissions (Q-94): once
+  // per phone, the first time the open app has a ring to book.
+  static const String remindersAskedKey = 'settings.remindersAsked';
 
   // Lists by when they were last opened, newest first. Per phone and per
   // user; the first is the last open list (Q-49, Q-50 a).
@@ -119,6 +122,12 @@ class AppSettingsCubit extends Cubit<AppSettings> {
   Future<void> setRingOnThisPhone(bool value) async {
     emit(state.copyWith(ringOnThisPhone: value));
     await preferences.setBool(ringOnThisPhoneKey, value);
+  }
+
+  bool get remindersAsked => preferences.getBool(remindersAskedKey) ?? false;
+
+  Future<void> setRemindersAsked() async {
+    await preferences.setBool(remindersAskedKey, true);
   }
 
   Future<void> setHubPosition(Offset position) async {

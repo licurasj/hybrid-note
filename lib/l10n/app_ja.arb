@@ -460,5 +460,15 @@
   "preferencesRingOnThisPhoneLine": "この端末だけの設定です。ほかの端末にはそれぞれのスイッチがあります。",
   "preferencesRingOnThisPhoneOffLine": "この端末は鳴りません。ほかの端末では鳴ります。",
   "preferencesRemindersAndroidOnly": "リマインダーは今のところAndroid端末でのみ鳴ります。",
-  "editorNoReminder": "このリストには「通知する」の日付がありません。"
+  "editorNoReminder": "このリストには「通知する」の日付がありません。",
+  "reminderBody": "{list} · {when}",
+  "reminderExactTitle": "時間どおりに鳴らす",
+  "reminderExactText": "Hybrid Note の「アラームとリマインダー」がオンのときだけ、リマインダーは分単位で時間どおりに鳴ります。オフでも鳴りますが、遅れることがあります。",
+  "reminderExactOpen": "設定を開く",
+  "reminderExactLater": "後で",
+  "preferencesReminderPermission": "権限",
+  "preferencesReminderPermissionOk": "通知と「アラームとリマインダー」がオンです。リマインダーは時間どおりに鳴ります。",
+  "preferencesReminderNotificationsOff": "Hybrid Note の通知がオフのため、何も鳴りません。",
+  "preferencesReminderExactOff": "「アラームとリマインダー」がオフです。リマインダーは鳴りますが、遅れることがあります。",
+  "preferencesReminderAllow": "オンにする"
 }

@@ -9,6 +9,8 @@ import '../backend/firestore_list_store.dart';
 import '../backend/firestore_setup.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../lists/list_store.dart';
+import '../reminders/reminder_host.dart';
+import '../reminders/ring_booker.dart';
 import 'account_preferences.dart';
 import 'app_banner.dart';
 import 'app_settings.dart';
@@ -43,6 +45,7 @@ class HybridNoteApp extends StatefulWidget {
     required this.openStore,
     this.openPreferences,
     this.afterSignOut,
+    this.ringBooker,
   });
 
   final AuthService auth;
@@ -56,6 +59,9 @@ class HybridNoteApp extends StatefulWidget {
   // When it is set, the gate opens no store after a sign-out: the restarted
   // app does.
   final VoidCallback? afterSignOut;
+  // Books reminders on this phone (Android); null elsewhere and in tests,
+  // where nothing rings (T-13, Q-95).
+  final RingBooker? ringBooker;
 
   @override
   State<HybridNoteApp> createState() => _HybridNoteAppState();
@@ -190,6 +196,8 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
     _watchWriteFailures();
     final bool cleared;
     try {
+      // No ring of this account stays booked, nor its titles (T-13).
+      await widget.ringBooker?.cancelAll();
       await store?.close();
       await preferences?.close();
       cleared = await widget.auth.signOut();
@@ -254,7 +262,7 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
         onRetryCleanup: _cleanupFailed ? _retryCleanup : null,
       );
     } else {
-      home = const MainShell();
+      home = const ReminderHost(child: MainShell());
     }
 
     final Widget app = BlocBuilder<AppSettingsCubit, AppSettings>(
@@ -294,6 +302,8 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
         RepositoryProvider<StarterSeeding>.value(
           value: _starter ?? StarterSeeding.done(),
         ),
+        if (widget.ringBooker != null)
+          RepositoryProvider<RingBooker>.value(value: widget.ringBooker!),
         RepositoryProvider<SignedInAccount>.value(
           value: SignedInAccount(user: user, signOut: _signOut),
         ),
