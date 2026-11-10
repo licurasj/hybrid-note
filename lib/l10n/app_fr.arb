@@ -57,7 +57,7 @@
   "tomorrow": "Demain",
   "later": "Plus tard",
   "noTasksHereYet": "Aucune tâche pour l'instant.",
-  "tickedCount": "{count} cochés",
+  "tickedCount": "{count, plural, one{{count} coché} other{{count} cochés}}",
   "@tickedCount": {
     "placeholders": {
       "count": {
@@ -182,7 +182,7 @@
   "next": "Suivant",
   "launcherNoteHint": "Touchez deux fois pour ouvrir, appuyez longuement pour modifier",
   "hiddenValuesWarning": "{count} valeurs ne correspondent pas au nouveau type et seront conservées masquées",
-  "itemsCount": "{name}, {count} éléments",
+  "itemsCount": "{name}, {count, plural, =1{1 élément} other{{count} éléments}}",
   "moveHub": "Déplacer",
   "errorFormatTooNew": "Cette liste vient d'une version plus récente de l'app (format {version}).",
   "errorEmptyId": "La liste n'a pas d'identifiant.",

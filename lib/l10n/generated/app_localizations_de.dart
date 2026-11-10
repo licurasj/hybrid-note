@@ -438,7 +438,13 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String itemsCount(String name, int count) {
-    return '$name, $count Einträge';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Einträge',
+      one: '1 Eintrag',
+    );
+    return '$name, $_temp0';
   }
 
   @override

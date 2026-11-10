@@ -1356,6 +1356,7 @@ class AppLocalizationsZh extends AppLocalizations {
       count,
       locale: localeName,
       other: '有 $count 个列表使用自己的设置。',
+      zero: '每个列表都可以在“编辑列表”中选择自己的设置。',
     );
     return '$_temp0';
   }

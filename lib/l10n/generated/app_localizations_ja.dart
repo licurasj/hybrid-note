@@ -295,16 +295,16 @@ class AppLocalizationsJa extends AppLocalizations {
   String get listColor => '色';
 
   @override
-  String get fields => '項目';
+  String get fields => 'フィールド';
 
   @override
-  String get addField => '項目を追加';
+  String get addField => 'フィールドを追加';
 
   @override
-  String get fieldName => '項目名';
+  String get fieldName => 'フィールド名';
 
   @override
-  String get fieldType => '項目の種類';
+  String get fieldType => 'フィールドの種類';
 
   @override
   String get required => '必須';
@@ -322,7 +322,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get sectionBy => 'セクション';
 
   @override
-  String get dateField => '日付の項目';
+  String get dateField => '日付のフィールド';
 
   @override
   String get splitByDate => '今日 / 明日 / 後で の基準';
@@ -457,92 +457,92 @@ class AppLocalizationsJa extends AppLocalizations {
   String get errorBadColor => '色は #RRGGBB の形式にしてください。';
 
   @override
-  String get errorNoFields => 'リストには項目が 1 つ以上必要です。';
+  String get errorNoFields => 'リストにはフィールドが 1 つ以上必要です。';
 
   @override
-  String get errorPrimaryCount => 'メイン項目はちょうど 1 つにしてください。';
+  String get errorPrimaryCount => 'メインフィールドはちょうど 1 つにしてください。';
 
   @override
-  String get errorPrimaryNotText => 'メイン項目はテキストにしてください。';
+  String get errorPrimaryNotText => 'メインフィールドはテキストにしてください。';
 
   @override
   String errorDuplicateRole(String role) {
-    return '役割 $role を持てる項目は 1 つだけです。';
+    return '役割 $role を持てるフィールドは 1 つだけです。';
   }
 
   @override
   String errorBadFieldKey(String field) {
-    return '項目キー「$field」は英字で始め、英字・数字・_ だけを使ってください。';
+    return 'フィールドキー「$field」は英字で始め、英字・数字・_ だけを使ってください。';
   }
 
   @override
   String errorReservedFieldKey(String field) {
-    return '項目キー「$field」は予約されています。';
+    return 'フィールドキー「$field」は予約されています。';
   }
 
   @override
   String errorDuplicateFieldKey(String field) {
-    return '2 つの項目がキー「$field」を使っています。';
+    return '2 つのフィールドがキー「$field」を使っています。';
   }
 
   @override
   String errorMissingFieldLabel(String field) {
-    return '項目「$field」には名前が必要です。';
+    return 'フィールド「$field」には名前が必要です。';
   }
 
   @override
   String errorMissingOptions(String field) {
-    return '項目「$field」には選択肢が 1 つ以上必要です。';
+    return 'フィールド「$field」には選択肢が 1 つ以上必要です。';
   }
 
   @override
   String errorOptionsNotAllowed(String field, String type) {
-    return '項目「$field」: 種類「$type」の項目には選択肢を設定できません。';
+    return 'フィールド「$field」: 種類「$type」のフィールドには選択肢を設定できません。';
   }
 
   @override
   String errorDuplicateOption(String field, String option) {
-    return '項目「$field」: 選択肢「$option」が重複しています。';
+    return 'フィールド「$field」: 選択肢「$option」が重複しています。';
   }
 
   @override
   String errorDefaultNotOption(String field) {
-    return '項目「$field」: 既定値が選択肢にありません。';
+    return 'フィールド「$field」: 既定値が選択肢にありません。';
   }
 
   @override
   String errorMinAboveMax(String field) {
-    return '項目「$field」: 最小値が最大値より大きくなっています。';
+    return 'フィールド「$field」: 最小値が最大値より大きくなっています。';
   }
 
   @override
   String errorConditionNotChoice(String field) {
-    return '項目「$field」は選択項目にしか連動できません。';
+    return 'フィールド「$field」は選択フィールドにしか連動できません。';
   }
 
   @override
   String errorConditionOnItself(String field) {
-    return '項目「$field」は自分自身に連動できません。';
+    return 'フィールド「$field」は自分自身に連動できません。';
   }
 
   @override
   String errorConditionNotOption(String field, String value, String target) {
-    return '項目「$field」: 「$value」は「$target」の選択肢ではありません。';
+    return 'フィールド「$field」: 「$value」は「$target」の選択肢ではありません。';
   }
 
   @override
   String errorRoleNeedsType(String field, String role, String type) {
-    return '項目「$field」: 役割 $role には種類「$type」が必要です。';
+    return 'フィールド「$field」: 役割 $role には種類「$type」が必要です。';
   }
 
   @override
   String errorViewNeedsParam(String view, String param) {
-    return 'レイアウト「$view」には「$param」の項目が必要です。';
+    return 'レイアウト「$view」には「$param」のフィールドが必要です。';
   }
 
   @override
   String errorViewParamNotField(String param, String field) {
-    return '「$param」: 「$field」はこのリストの項目ではありません。';
+    return '「$param」: 「$field」はこのリストのフィールドではありません。';
   }
 
   @override
@@ -551,11 +551,11 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get errorChecklistNeedsCompletion => 'チェックリストのレイアウトには完了を示す項目が必要です。';
+  String get errorChecklistNeedsCompletion => 'チェックリストのレイアウトには完了を示すフィールドが必要です。';
 
   @override
   String errorRuleNeedsCompletion(String rule) {
-    return 'ルール「$rule」には完了を示す項目が必要です。';
+    return 'ルール「$rule」には完了を示すフィールドが必要です。';
   }
 
   @override
@@ -565,7 +565,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String errorRuleParamNotField(String rule, String param, String field) {
-    return 'ルール「$rule」の「$param」: 「$field」はこのリストの項目ではありません。';
+    return 'ルール「$rule」の「$param」: 「$field」はこのリストのフィールドではありません。';
   }
 
   @override
@@ -580,7 +580,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String errorRuleUnknownField(String rule, String param, String field) {
-    return 'ルール「$rule」の「$param」: 項目「$field」はありません。';
+    return 'ルール「$rule」の「$param」: フィールド「$field」はありません。';
   }
 
   @override
@@ -648,17 +648,17 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String errorOpNoField(String field) {
-    return '項目「$field」はありません。';
+    return 'フィールド「$field」はありません。';
   }
 
   @override
   String errorFieldExists(String field) {
-    return 'キー「$field」の項目はすでにあります。';
+    return 'キー「$field」のフィールドはすでにあります。';
   }
 
   @override
   String errorUnknownFieldType(String type) {
-    return '不明な項目の種類「$type」です。';
+    return '不明なフィールドの種類「$type」です。';
   }
 
   @override
@@ -685,10 +685,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get ruleKind => 'ルール';
 
   @override
-  String get ruleRepeatField => '繰り返しの項目';
+  String get ruleRepeatField => '繰り返しのフィールド';
 
   @override
-  String get ruleMoveField => '項目';
+  String get ruleMoveField => 'フィールド';
 
   @override
   String get ruleMoveFrom => '移動元';
@@ -847,14 +847,14 @@ class AppLocalizationsJa extends AppLocalizations {
   String get aiDescribeNewList => '新しいリストを説明する';
 
   @override
-  String get aiDescribeNewListMeta => 'AIが項目を選びます';
+  String get aiDescribeNewListMeta => 'AIがフィールドを選びます';
 
   @override
   String get aiNoticeTitle => '最初のリクエストの前に';
 
   @override
   String get aiNoticeDeepSeek =>
-      'リクエスト、リストの名前・説明・項目、開いているリスト（またはリクエストが対象とするリスト）と最近の項目最大20件がDeepSeekに送られます。DeepSeekはデータを中国で処理・保存するAIプロバイダーです。AIをオフにしたリストは送信されません。リクエストの文章は不具合調査のため約7日間保存され、その後削除されます。';
+      'リクエスト、リストの名前・説明・フィールド、開いているリスト（またはリクエストが対象とするリスト）と最近の項目最大20件がDeepSeekに送られます。DeepSeekはデータを中国で処理・保存するAIプロバイダーです。AIをオフにしたリストは送信されません。リクエストの文章は不具合調査のため約7日間保存され、その後削除されます。';
 
   @override
   String get aiNoticeContinue => '続ける';
@@ -879,12 +879,12 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String aiOpAddField(String list, String field) {
-    return '$list：項目「$field」を追加';
+    return '$list：フィールド「$field」を追加';
   }
 
   @override
   String aiOpRemoveField(String list, String field) {
-    return '$list：項目「$field」を削除';
+    return '$list：フィールド「$field」を削除';
   }
 
   @override
@@ -894,7 +894,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String aiOpChangeField(String list, String field) {
-    return '$list：項目「$field」を変更';
+    return '$list：フィールド「$field」を変更';
   }
 
   @override
@@ -1363,6 +1363,7 @@ class AppLocalizationsJa extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count 件のリストが独自の設定を使っています。',
+      zero: '各リストは「リストを編集」で独自に選べます。',
     );
     return '$_temp0';
   }

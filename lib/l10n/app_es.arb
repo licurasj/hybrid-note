@@ -57,7 +57,7 @@
   "tomorrow": "Mañana",
   "later": "Más tarde",
   "noTasksHereYet": "Aún no hay tareas.",
-  "tickedCount": "{count} marcados",
+  "tickedCount": "{count, plural, one{{count} marcado} other{{count} marcados}}",
   "@tickedCount": {
     "placeholders": {
       "count": {
@@ -182,7 +182,7 @@
   "next": "Siguiente",
   "launcherNoteHint": "Toca dos veces para abrir, mantén pulsado para editar",
   "hiddenValuesWarning": "{count} valores no encajan con el nuevo tipo y se guardarán ocultos",
-  "itemsCount": "{name}, {count} elementos",
+  "itemsCount": "{name}, {count, plural, =1{1 elemento} other{{count} elementos}}",
   "moveHub": "Mover",
   "errorFormatTooNew": "Esta lista viene de una versión más reciente de la app (formato {version}).",
   "errorEmptyId": "La lista no tiene ID.",

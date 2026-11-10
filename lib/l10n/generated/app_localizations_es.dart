@@ -162,7 +162,13 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String tickedCount(int count) {
-    return '$count marcados';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count marcados',
+      one: '$count marcado',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -437,7 +443,13 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String itemsCount(String name, int count) {
-    return '$name, $count elementos';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count elementos',
+      one: '1 elemento',
+    );
+    return '$name, $_temp0';
   }
 
   @override

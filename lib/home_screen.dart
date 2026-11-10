@@ -1605,7 +1605,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         alignment: Alignment.center,
                         child: IconButton(
                           key: ValueKey('home-clear-${due.item.id}'),
-                          tooltip: loc.clearTicked,
+                          tooltip: loc.clear,
                           onPressed: () => _clearDue(due, catalog),
                           icon: Icon(
                             Icons.close,

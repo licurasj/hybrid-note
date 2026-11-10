@@ -1282,13 +1282,30 @@ class _GenericListScreenState extends State<GenericListScreen>
     );
   }
 
+  static const double _addDisc = 62;
+  static const double _addHeight = _addDisc + 6;
+
+  // Room at the end of the list: enough for the last row to scroll clear of
+  // the add button, which floats above the hub (and the AI bar) under the
+  // launcher, and at least the old 120.
+  double _bottomRoom(LauncherHubArea? hubArea) {
+    const double least = 120;
+    if (hubArea == null) return least;
+    final double above = AboveHubButtonLocation.heightAboveBottom(
+      hubArea,
+      MediaQuery.sizeOf(context),
+      _addHeight,
+    );
+    return above + 12 > least ? above + 12 : least;
+  }
+
   // The eclipse: a list-colour disc over a black one, with the floating shadow.
   Widget _addButton() {
     final _Look look = _look;
-    const double disc = 62;
+    const double disc = _addDisc;
     return SizedBox(
       width: disc + 10,
-      height: disc + 6,
+      height: _addHeight,
       child: Stack(
         children: [
           Positioned(
@@ -1464,7 +1481,9 @@ class _GenericListScreenState extends State<GenericListScreen>
               color: _look.color,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.only(bottom: 120),
+                // The last row, its × included, clears the add button when
+                // scrolled to the end (T-24 unit 7 D1).
+                padding: EdgeInsets.only(bottom: _bottomRoom(hubArea)),
                 children: [
                   ..._filters(labels),
                   if (showEmpty)

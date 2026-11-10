@@ -422,7 +422,7 @@
   "preferencesTickedClear": "立即清除",
   "preferencesTickedClearLine": "勾选后立即清除条目，可撤销。重复和“下次”副本照常生成。",
   "preferencesListsOwn": "列表可以有自己的设置",
-  "preferencesListsOwnCount": "{count, plural, other{有 {count} 个列表使用自己的设置。}}",
+  "preferencesListsOwnCount": "{count, plural, =0{每个列表都可以在“编辑列表”中选择自己的设置。} other{有 {count} 个列表使用自己的设置。}}",
   "preferencesListsOwnOff": "所有列表都遵循此设置。",
   "editorIconAndColour": "图标和颜色",
   "editorHomeAndAi": "首页和 AI",

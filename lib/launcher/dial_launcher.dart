@@ -1756,12 +1756,19 @@ class _DialLauncherState extends State<DialLauncher>
     if (!_tapDragging) {
       return;
     }
-    // Still in tap mode, the grown list selected: a tap opens it.
+    // Still in tap mode, the grown list selected: a tap opens it. The dial
+    // turns it into view as the arrow steps do, so near the screen's edge it
+    // is not left under the Next arrow (T-24 unit 7 D3).
+    final int? selected = _selected;
     setState(() {
       _tapDragging = false;
       _edge = 0;
       _pointer = null;
+      if (selected != null) {
+        _scroll = selected.clamp(_firstList, _lastList).toDouble();
+      }
     });
+    _wake();
   }
 
   void _openTapMode() {

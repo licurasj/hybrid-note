@@ -637,6 +637,23 @@ class FirestoreListStore implements ListStore {
   // of a list not loaded yet gets 0, so the repair step checks it.
   int _revisionOf(String listId) => _definitions[listId]?.schemaRevision ?? 0;
 
+  // [item] fitted to its list's fields as cached, as the repair would fit it:
+  // a write is stamped with that revision, so the repair never looks at it
+  // again. An item put back from before a field change (Undo of a clear,
+  // T-24 unit 7 D2) keeps what does not fit in `_legacy` (D-10).
+  ListItem _fitted(ListItem item) {
+    final ListDefinition? definition = _definitions[item.listId];
+    if (definition == null) {
+      return item;
+    }
+    try {
+      return _fit(definition, item) ?? item;
+    } on Object catch (error) {
+      _log('fit ${item.listId}/${item.id}', error);
+      return item;
+    }
+  }
+
   void Function(WriteBatch batch) _deleteItem(String listId, String itemId) {
     return (batch) => batch.delete(_itemsOf(listId).doc(itemId));
   }
@@ -651,7 +668,7 @@ class FirestoreListStore implements ListStore {
       if (from != null && from != item.listId) {
         writes.add(_deleteItem(from, item.id));
       }
-      writes.add(_setItem(item, _revisionOf(item.listId)));
+      writes.add(_setItem(_fitted(item), _revisionOf(item.listId)));
     }
     for (final String itemId in changes.deletedIds) {
       final String? listId = _listOfItem(itemId);

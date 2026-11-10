@@ -658,6 +658,42 @@ void main() {
     expect(log, ['open n11']);
   });
 
+  testWidgets('tap mode: after a drag the dial turns the grown list into view '
+      'as the arrows do (T-24 unit 7 D3)', (WidgetTester tester) async {
+    final List<String> log = await _pump(tester, count: 12);
+    await tester.tap(find.byKey(const ValueKey('launcher-hub')));
+    await tester.pumpAndSettle();
+    final TestGesture gesture =
+        await tester.startGesture(_at(tester, _diagonal(tester), 160));
+    await tester.pump(const Duration(milliseconds: 50));
+    await _turn(tester, gesture, _diagonal(tester), math.pi - 0.45, 160);
+    await tester.pump(const Duration(milliseconds: 300));
+    await gesture.up();
+    await tester.pumpAndSettle();
+    final Map<String, Rect> dragged = {
+      for (int i = 0; i < 12; i++)
+        if (find.byKey(ValueKey('launcher-note-n$i')).evaluate().isNotEmpty)
+          'n$i': tester.getRect(find.byKey(ValueKey('launcher-note-n$i'))),
+    };
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(log, hasLength(1));
+    final String grown = log.single.split(' ').last;
+    final int index = int.parse(grown.substring(1));
+    expect(index, greaterThan(1));
+
+    await tester.tap(find.byKey(const ValueKey('launcher-hub')));
+    await tester.pumpAndSettle();
+    for (int i = 0; i < index; i++) {
+      await tester.tap(find.byKey(const ValueKey('launcher-next')));
+      await tester.pumpAndSettle();
+    }
+    expect(
+      tester.getRect(find.byKey(ValueKey('launcher-note-$grown'))),
+      rectMoreOrLessEquals(dragged[grown]!, epsilon: 0.5),
+    );
+  });
+
   testWidgets('tap mode: a still tap on a tab still opens it', (
     WidgetTester tester,
   ) async {

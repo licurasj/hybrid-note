@@ -182,7 +182,7 @@
   "next": "Weiter",
   "launcherNoteHint": "Doppeltippen zum Öffnen, lange drücken zum Bearbeiten",
   "hiddenValuesWarning": "{count} Werte passen nicht zum neuen Typ und werden ausgeblendet aufbewahrt",
-  "itemsCount": "{name}, {count} Einträge",
+  "itemsCount": "{name}, {count, plural, =1{1 Eintrag} other{{count} Einträge}}",
   "moveHub": "Verschieben",
   "errorFormatTooNew": "Diese Liste stammt aus einer neueren App-Version (Format {version}).",
   "errorEmptyId": "Die Liste hat keine ID.",

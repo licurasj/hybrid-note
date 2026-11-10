@@ -937,7 +937,7 @@ abstract class AppLocalizations {
   /// No description provided for @itemsCount.
   ///
   /// In en, this message translates to:
-  /// **'{name}, {count} items'**
+  /// **'{name}, {count, plural, =1{1 item} other{{count} items}}'**
   String itemsCount(String name, int count);
 
   /// No description provided for @moveHub.

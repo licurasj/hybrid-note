@@ -1199,6 +1199,44 @@ void main() {
       },
     );
 
+    test('an item put back from before a field change is fitted to the '
+        'current fields, as the repair would (T-24 unit 7 D2)', () async {
+      final FakeFirebaseFirestore firestore = await _seeded();
+      final FirestoreListStore store = await _loaded(firestore);
+      await store.createList(
+        _simple('list-a'),
+        items: [_kind('one', '1'), _kind('two', 'many')],
+      );
+      await _until(store, (c) => c.itemsOf('list-a').length == 2);
+      final ListItem two =
+          store.current.itemsOf('list-a').firstWhere((i) => i.id == 'two');
+      // Cleared, then the field changes on another phone, then Undo.
+      await store.apply(const ListChanges(deletedIds: ['two']));
+      final ListPatchResult? result = await store.patchList(
+        'list-a',
+        _toCounter,
+      );
+      await _until(
+        store,
+        (c) => c.definition('list-a')!.schemaRevision ==
+            result!.definition.schemaRevision,
+      );
+      await store.apply(ListChanges(saved: [two]));
+
+      final ListCatalog catalog = await _until(
+        store,
+        (c) => c.itemsOf('list-a').any((i) => i.id == 'two'),
+      );
+      final ListItem back =
+          catalog.itemsOf('list-a').firstWhere((i) => i.id == 'two');
+      expect(back['kind'], isNull);
+      expect(back[ListPatch.legacyKey], {
+        'kind': ['many'],
+      });
+      final Map<String, dynamic> doc = await _doc(firestore, 'list-a/items/two');
+      expect(doc['_rev'], result!.definition.schemaRevision);
+    });
+
     test(
       'a transaction that does not finish in time falls back to a batch',
       () async {
