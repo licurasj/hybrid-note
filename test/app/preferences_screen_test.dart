@@ -137,6 +137,19 @@ void main() {
           lessThan(top('settings-ai-auto-apply')),
         );
         expect(top('settings-ai-auto-apply'), lessThan(preferences));
+        // No line between them: the slider draws none of its own here.
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey('settings-ai-ask')),
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is DecoratedBox &&
+                  widget.decoration is BoxDecoration &&
+                  (widget.decoration as BoxDecoration).border != null,
+            ),
+          ),
+          findsNothing,
+        );
       },
     );
 

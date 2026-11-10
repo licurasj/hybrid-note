@@ -2103,6 +2103,7 @@ class _SettingsSheet extends StatelessWidget {
                         child: AiAskSlider(
                           level: synced.aiAskLevel,
                           onChanged: preferences.setAiAskLevel,
+                          line: false,
                         ),
                       ),
                       // No hairline between the two AI rows (owner,

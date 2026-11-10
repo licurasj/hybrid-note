@@ -465,10 +465,18 @@ List<SettingChoice<TickedItems>> tickedItemsChoices(AppLocalizations loc) => [
 // How often the AI checks with you (Q-43): a slider from asking to just doing
 // it, with what the stop means under it.
 class AiAskSlider extends StatelessWidget {
-  const AiAskSlider({super.key, required this.level, required this.onChanged});
+  const AiAskSlider({
+    super.key,
+    required this.level,
+    required this.onChanged,
+    this.line = true,
+  });
 
   final AiAskLevel level;
   final ValueChanged<AiAskLevel> onChanged;
+  // Its own hairline underneath; off where the next row follows with none
+  // (the Settings sheet, Q-131).
+  final bool line;
 
   static String _label(AppLocalizations loc, AiAskLevel level) =>
       switch (level) {
@@ -483,89 +491,83 @@ class AiAskSlider extends StatelessWidget {
     final EditorLook look = EditorLook.of(context);
     final AppNeutrals neutrals = look.neutrals;
 
-    return look.hairline(
-      child: Padding(
-        padding: const EdgeInsets.only(top: 14, bottom: 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.help_outline, size: 22, color: neutrals.text),
-                const SizedBox(width: 14),
-                Expanded(child: Text(loc.settingsAiAsk, style: look.type.row)),
-              ],
-            ),
-            // Styled like the switches: a thick track as tall as theirs, a
-            // round knob, and the settings blue (owner, 2026-11-04).
-            SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                trackHeight: 32,
-                activeTrackColor: AppColors.appBlue,
-                inactiveTrackColor: neutrals.line,
-                thumbColor: neutrals.ground,
-                thumbShape: const RoundSliderThumbShape(
-                  enabledThumbRadius: 12,
-                  elevation: 1,
-                  pressedElevation: 2,
-                ),
-                trackShape: const RoundedRectSliderTrackShape(),
-                tickMarkShape: const RoundSliderTickMarkShape(
-                  tickMarkRadius: 3,
-                ),
-                activeTickMarkColor: AppColors.onAppBlue.withValues(
-                  alpha: 0.35,
-                ),
-                inactiveTickMarkColor: neutrals.muted,
-                overlayColor: Colors.transparent,
-                showValueIndicator: ShowValueIndicator.never,
+    final Widget slider = Padding(
+      padding: const EdgeInsets.only(top: 14, bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.help_outline, size: 22, color: neutrals.text),
+              const SizedBox(width: 14),
+              Expanded(child: Text(loc.settingsAiAsk, style: look.type.row)),
+            ],
+          ),
+          // Styled like the switches: a thick track as tall as theirs, a
+          // round knob, and the settings blue (owner, 2026-11-04).
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 32,
+              activeTrackColor: AppColors.appBlue,
+              inactiveTrackColor: neutrals.line,
+              thumbColor: neutrals.ground,
+              thumbShape: const RoundSliderThumbShape(
+                enabledThumbRadius: 12,
+                elevation: 1,
+                pressedElevation: 2,
               ),
-              child: Slider(
-                key: const ValueKey('settings-ai-ask-slider'),
-                value: level.index.toDouble(),
-                max: AiAskLevel.values.length - 1,
-                divisions: AiAskLevel.values.length - 1,
-                label: _label(loc, level),
-                semanticFormatterCallback: (value) =>
-                    _label(loc, AiAskLevel.values[value.round()]),
-                onChanged: (value) =>
-                    onChanged(AiAskLevel.values[value.round()]),
-              ),
+              trackShape: const RoundedRectSliderTrackShape(),
+              tickMarkShape: const RoundSliderTickMarkShape(tickMarkRadius: 3),
+              activeTickMarkColor: AppColors.onAppBlue.withValues(alpha: 0.35),
+              inactiveTickMarkColor: neutrals.muted,
+              overlayColor: Colors.transparent,
+              showValueIndicator: ShowValueIndicator.never,
             ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // A third each, so a long translation wraps under its own stop.
-                for (final AiAskLevel stop in AiAskLevel.values)
-                  Expanded(
-                    child: Text(
-                      _label(loc, stop),
-                      textAlign: switch (stop) {
-                        AiAskLevel.more => TextAlign.start,
-                        AiAskLevel.balanced => TextAlign.center,
-                        AiAskLevel.less => TextAlign.end,
-                      },
-                      style: look.type.meta.copyWith(
-                        color: stop == level ? neutrals.text : neutrals.muted,
-                      ),
+            child: Slider(
+              key: const ValueKey('settings-ai-ask-slider'),
+              value: level.index.toDouble(),
+              max: AiAskLevel.values.length - 1,
+              divisions: AiAskLevel.values.length - 1,
+              label: _label(loc, level),
+              semanticFormatterCallback: (value) =>
+                  _label(loc, AiAskLevel.values[value.round()]),
+              onChanged: (value) => onChanged(AiAskLevel.values[value.round()]),
+            ),
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // A third each, so a long translation wraps under its own stop.
+              for (final AiAskLevel stop in AiAskLevel.values)
+                Expanded(
+                  child: Text(
+                    _label(loc, stop),
+                    textAlign: switch (stop) {
+                      AiAskLevel.more => TextAlign.start,
+                      AiAskLevel.balanced => TextAlign.center,
+                      AiAskLevel.less => TextAlign.end,
+                    },
+                    style: look.type.meta.copyWith(
+                      color: stop == level ? neutrals.text : neutrals.muted,
                     ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              switch (level) {
-                AiAskLevel.more => loc.aiAskMoreHint,
-                AiAskLevel.balanced => loc.aiAskBalancedHint,
-                AiAskLevel.less => loc.aiAskLessHint,
-              },
-              key: const ValueKey('settings-ai-ask-hint'),
-              style: look.type.meta,
-            ),
-          ],
-        ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            switch (level) {
+              AiAskLevel.more => loc.aiAskMoreHint,
+              AiAskLevel.balanced => loc.aiAskBalancedHint,
+              AiAskLevel.less => loc.aiAskLessHint,
+            },
+            key: const ValueKey('settings-ai-ask-hint'),
+            style: look.type.meta,
+          ),
+        ],
       ),
     );
+    return line ? look.hairline(child: slider) : slider;
   }
 }
 
