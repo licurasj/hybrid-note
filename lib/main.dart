@@ -16,8 +16,8 @@ import 'backend/auth_service.dart';
 import 'backend/firestore_preferences.dart';
 import 'backend/firestore_setup.dart';
 import 'firebase_options.dart';
-import 'l10n/generated/app_localizations.dart';
 import 'reminders/local_ring_platform.dart';
+import 'reminders/reminder_background.dart';
 import 'reminders/ring_booker.dart';
 
 // The web App Check site key (Fraud Defense, formerly reCAPTCHA Enterprise;
@@ -76,18 +76,11 @@ RingBooker? _ringBooker(SharedPreferences preferences) {
   if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
     return null;
   }
-  final String? code = preferences.getString(AppSettingsCubit.localeKey);
-  final Locale locale = code != null
-      ? Locale(code)
-      : PlatformDispatcher.instance.locale;
-  final AppLocalizations loc = lookupAppLocalizations(
-    AppLocalizations.supportedLocales.any(
-          (supported) => supported.languageCode == locale.languageCode,
-        )
-        ? Locale(locale.languageCode)
-        : const Locale('en'),
+  return RingBooker(
+    LocalRingPlatform(
+      channelName: reminderLocalizations(preferences).preferencesReminders,
+    ),
   );
-  return RingBooker(LocalRingPlatform(channelName: loc.preferencesReminders));
 }
 
 // App Check for the AI function (Q-34 1): Play Integrity on Android (the

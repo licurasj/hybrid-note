@@ -470,5 +470,6 @@
   "preferencesReminderPermissionOk": "通知和“闹钟和提醒”都已打开：提醒会准时响起。",
   "preferencesReminderNotificationsOff": "Hybrid Note 的通知已关闭，因此不会有提醒。",
   "preferencesReminderExactOff": "“闹钟和提醒”已关闭：提醒仍会响起，但可能会晚。",
-  "preferencesReminderAllow": "打开"
+  "preferencesReminderAllow": "打开",
+  "reminderDone": "完成"
 }

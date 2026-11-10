@@ -1115,5 +1115,9 @@
   "preferencesReminderPermissionOk": "Notifications and Alarms & reminders are on: reminders ring on time.",
   "preferencesReminderNotificationsOff": "Notifications are off for Hybrid Note, so nothing rings.",
   "preferencesReminderExactOff": "Alarms & reminders is off: reminders ring, but may come late.",
-  "preferencesReminderAllow": "Turn on"
+  "preferencesReminderAllow": "Turn on",
+  "reminderDone": "Done",
+  "@reminderDone": {
+    "description": "The button on a reminder notification that ticks the item without opening the app."
+  }
 }

@@ -28,5 +28,6 @@ RingText reminderText(
   return (
     title: ring.title.isEmpty ? ring.listName : ring.title,
     body: loc.reminderBody(ring.listName, when),
+    done: loc.reminderDone,
   );
 }

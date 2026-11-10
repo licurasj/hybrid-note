@@ -2677,6 +2677,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Turn on'**
   String get preferencesReminderAllow;
+
+  /// The button on a reminder notification that ticks the item without opening the app.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get reminderDone;
 }
 
 class _AppLocalizationsDelegate

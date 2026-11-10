@@ -53,6 +53,7 @@ class _ReminderHostState extends State<ReminderHost>
       return;
     }
     WidgetsBinding.instance.addObserver(this);
+    unawaited(_booker!.platform.startBackgroundCheck());
     final ListStore store = context.read<ListStore>();
     _catalog = store.current;
     _lists = store.watch().listen((catalog) {

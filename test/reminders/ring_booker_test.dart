@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hybrid_note/app/account_preferences.dart' show TimeFormat;
@@ -54,6 +56,24 @@ class FakeRingPlatform implements RingPlatform {
 
   @override
   Future<void> openNotificationSettings() async {}
+
+  final StreamController<RingPayload> tapped =
+      StreamController<RingPayload>.broadcast();
+  RingPayload? launched;
+
+  @override
+  Stream<RingPayload> get taps => tapped.stream;
+
+  @override
+  Future<RingPayload?> launchTap() async => launched;
+
+  bool checking = false;
+
+  @override
+  Future<void> startBackgroundCheck() async => checking = true;
+
+  @override
+  Future<void> stopBackgroundCheck() async => checking = false;
 }
 
 PlannedRing ring(
@@ -73,7 +93,8 @@ PlannedRing ring(
   listName: 'Tasks',
 );
 
-RingText text(PlannedRing ring) => (title: ring.title, body: ring.listName);
+RingText text(PlannedRing ring) =>
+    (title: ring.title, body: ring.listName, done: 'Done');
 
 void main() {
   final DateTime soon = DateTime.now().toUtc().add(const Duration(hours: 2));

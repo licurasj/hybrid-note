@@ -470,5 +470,6 @@
   "preferencesReminderPermissionOk": "Las notificaciones y Alarmas y recordatorios están activados: los recordatorios suenan a tiempo.",
   "preferencesReminderNotificationsOff": "Las notificaciones están desactivadas para Hybrid Note, así que nada suena.",
   "preferencesReminderExactOff": "Alarmas y recordatorios está desactivado: los recordatorios suenan, pero pueden llegar tarde.",
-  "preferencesReminderAllow": "Activar"
+  "preferencesReminderAllow": "Activar",
+  "reminderDone": "Hecho"
 }

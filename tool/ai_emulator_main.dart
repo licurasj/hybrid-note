@@ -25,6 +25,8 @@ import 'package:flutter/foundation.dart';
 import 'package:hybrid_note/ai/ai_service.dart';
 import 'package:hybrid_note/firebase_options.dart';
 import 'package:hybrid_note/main.dart' as app;
+import 'package:hybrid_note/reminders/reminder_background.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const String _host = String.fromEnvironment(
   'EMULATOR_HOST',
@@ -60,6 +62,11 @@ Future<void> main() async {
   await app.startApp(
     afterInit: () async {
       FirebaseFirestore.instance.useFirestoreEmulator(_host, _firestorePort);
+      // Reminders' background isolates reach the same emulators (T-13 unit 4).
+      await (await SharedPreferences.getInstance()).setString(
+        reminderEmulatorKey,
+        '$_host|$_authPort|$_firestorePort',
+      );
       await _signIn(FirebaseAuth.instance);
       aiApp = await Firebase.initializeApp(
         name: 'ai-emulator',

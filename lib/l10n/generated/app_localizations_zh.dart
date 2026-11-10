@@ -1509,4 +1509,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get preferencesReminderAllow => '打开';
+
+  @override
+  String get reminderDone => '完成';
 }

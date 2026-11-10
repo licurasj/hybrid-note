@@ -470,5 +470,6 @@
   "preferencesReminderPermissionOk": "通知と「アラームとリマインダー」がオンです。リマインダーは時間どおりに鳴ります。",
   "preferencesReminderNotificationsOff": "Hybrid Note の通知がオフのため、何も鳴りません。",
   "preferencesReminderExactOff": "「アラームとリマインダー」がオフです。リマインダーは鳴りますが、遅れることがあります。",
-  "preferencesReminderAllow": "オンにする"
+  "preferencesReminderAllow": "オンにする",
+  "reminderDone": "完了"
 }

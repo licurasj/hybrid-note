@@ -470,5 +470,6 @@
   "preferencesReminderPermissionOk": "Benachrichtigungen und „Wecker und Erinnerungen“ sind an: Erinnerungen klingeln pünktlich.",
   "preferencesReminderNotificationsOff": "Benachrichtigungen sind für Hybrid Note aus, daher klingelt nichts.",
   "preferencesReminderExactOff": "„Wecker und Erinnerungen“ ist aus: Erinnerungen klingeln, aber vielleicht später.",
-  "preferencesReminderAllow": "Einschalten"
+  "preferencesReminderAllow": "Einschalten",
+  "reminderDone": "Erledigt"
 }

@@ -12,9 +12,12 @@ import 'list_store.dart';
 // One list on the generic screen. A list made from a template gets that
 // template's texts; any other list gets plain ones.
 class GenericListHost extends StatelessWidget {
-  const GenericListHost({super.key, required this.listId});
+  const GenericListHost({super.key, required this.listId, this.openItemId});
 
   final String listId;
+
+  // An item whose sheet opens with the list (a tap on its ring).
+  final String? openItemId;
 
   static GenericListTexts textsFor(
     AppLocalizations loc,
@@ -83,6 +86,7 @@ class GenericListHost extends StatelessWidget {
           items: catalog.itemsOf(listId),
           store: store,
           texts: textsFor(loc, definition),
+          openItemId: openItemId,
         );
       },
     );

@@ -1519,4 +1519,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get preferencesReminderAllow => 'オンにする';
+
+  @override
+  String get reminderDone => '完了';
 }

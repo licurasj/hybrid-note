@@ -252,6 +252,39 @@ class FirestoreListStore implements ListStore {
     return ListDefinition.fromJson(_decode(data)..remove(createdAtKey));
   }
 
+  // The account's lists read once, from the server when online, else from
+  // the cache, with no store open (the background check, T-13 unit 4).
+  // Malformed documents are skipped, as the store skips them.
+  static Future<ListCatalog> readOnce(
+    FirebaseFirestore firestore,
+    String uid,
+  ) async {
+    final QuerySnapshot<Map<String, dynamic>> lists = await firestore
+        .collection('users')
+        .doc(uid)
+        .collection('lists')
+        .get();
+    final List<ListDefinition> definitions = [];
+    final List<ListItem> items = [];
+    for (final QueryDocumentSnapshot<Map<String, dynamic>> list in lists.docs) {
+      try {
+        definitions.add(_definitionFrom(list.data()));
+      } on Object catch (error) {
+        developer.log('skipped ${list.reference.path}: $error');
+        continue;
+      }
+      for (final QueryDocumentSnapshot<Map<String, dynamic>> item
+          in (await list.reference.collection('items').get()).docs) {
+        try {
+          items.add(_itemFrom(item.data()));
+        } on Object catch (error) {
+          developer.log('skipped ${item.reference.path}: $error');
+        }
+      }
+    }
+    return ListCatalog(definitions: definitions, items: items);
+  }
+
   static DateTime? _createdAtOf(Map<String, dynamic> data) {
     final Object? raw = data[createdAtKey];
     return raw is String ? DateTime.tryParse(raw) : null;
@@ -1289,6 +1322,122 @@ class FirestoreListStore implements ListStore {
       // harm.
       return null;
     }
+  }
+
+  // Done on a ring (T-13 unit 4, plan's Sync safety for Done): [change] works
+  // out the tick from a fresh copy of the item and its list, read from the
+  // server in a transaction, so a ring booked before a change elsewhere ticks
+  // what is there now. It needs no open store, so a background isolate can
+  // call it. Returns true when written with the server, false when nothing
+  // was written (the list or item is gone, or [change] gave nothing), and
+  // null when offline: then the cached copies decide, and the write waits in
+  // the cache to sync later, the same last-writer-wins as a tick on the list.
+  static Future<bool?> applyFresh(
+    FirebaseFirestore firestore,
+    String uid, {
+    required String listId,
+    required String itemId,
+    required ListChanges Function(ListDefinition definition, ListItem item)
+    change,
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    final DocumentReference<Map<String, dynamic>> listRef = firestore
+        .collection('users')
+        .doc(uid)
+        .collection('lists')
+        .doc(listId);
+    final DocumentReference<Map<String, dynamic>> itemRef = listRef
+        .collection('items')
+        .doc(itemId);
+    void write(
+      ListDefinition definition,
+      ListChanges changes,
+      void Function(DocumentReference<Map<String, dynamic>> ref, Object data)
+      set,
+      void Function(DocumentReference<Map<String, dynamic>> ref) delete,
+    ) {
+      for (final ListItem item in changes.saved) {
+        set(
+          listRef.parent.doc(item.listId).collection('items').doc(item.id),
+          itemData(_fit(definition, item) ?? item, definition.schemaRevision),
+        );
+      }
+      for (final String id in changes.deletedIds) {
+        delete(listRef.collection('items').doc(id));
+      }
+    }
+
+    try {
+      return await firestore.runTransaction<bool>((transaction) async {
+        final Map<String, dynamic>? listData = (await transaction.get(
+          listRef,
+        )).data();
+        final Map<String, dynamic>? data = (await transaction.get(
+          itemRef,
+        )).data();
+        if (listData == null || data == null) {
+          return false;
+        }
+        final ListDefinition definition = _definitionFrom(listData);
+        final ListChanges changes = change(definition, _itemFrom(data));
+        if (changes.isEmpty) {
+          return false;
+        }
+        write(
+          definition,
+          changes,
+          (ref, data) => transaction.set(ref, data as Map<String, dynamic>),
+          transaction.delete,
+        );
+        return true;
+      }).timeout(timeout);
+    } on FirebaseException catch (error) {
+      if (!_offlineCodes.contains(error.code)) {
+        rethrow;
+      }
+    } on TimeoutException {
+      // Offline below. A late commit writes the same tick, and a cleared
+      // repeat's copy has a fixed id, so both landing does no harm.
+    }
+
+    const GetOptions cache = GetOptions(source: Source.cache);
+    final Map<String, dynamic>? listData;
+    final Map<String, dynamic>? data;
+    try {
+      listData = (await listRef.get(cache)).data();
+      data = (await itemRef.get(cache)).data();
+    } on FirebaseException {
+      // Not in the cache: nothing to go on.
+      return false;
+    }
+    if (listData == null || data == null) {
+      return false;
+    }
+    final ListDefinition definition = _definitionFrom(listData);
+    final ListChanges changes = change(definition, _itemFrom(data));
+    if (changes.isEmpty) {
+      return false;
+    }
+    final WriteBatch batch = firestore.batch();
+    write(
+      definition,
+      changes,
+      (ref, data) => batch.set(ref, data as Map<String, dynamic>),
+      batch.delete,
+    );
+    // Offline the commit completes only when the server has it; the write is
+    // in the cache at once, which a cache read after it waits for.
+    unawaited(
+      batch.commit().catchError(
+        (Object error) => developer.log('Done not synced: $error'),
+      ),
+    );
+    try {
+      await itemRef.get(cache);
+    } on FirebaseException {
+      // A deleted item may be absent from the cache; the write is queued.
+    }
+    return null;
   }
 
   @override

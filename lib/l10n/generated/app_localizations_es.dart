@@ -1586,4 +1586,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get preferencesReminderAllow => 'Activar';
+
+  @override
+  String get reminderDone => 'Hecho';
 }

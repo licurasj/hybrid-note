@@ -1598,4 +1598,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get preferencesReminderAllow => 'Activer';
+
+  @override
+  String get reminderDone => 'Fait';
 }

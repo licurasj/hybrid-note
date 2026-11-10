@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -68,12 +70,17 @@ class GenericListScreen extends StatefulWidget {
     required this.items,
     required this.store,
     required this.texts,
+    this.openItemId,
   });
 
   final ListDefinition definition;
   final List<ListItem> items;
   final ListStore store;
   final GenericListTexts texts;
+
+  // An item whose sheet opens once the list shows it (a tap on its ring,
+  // T-13 unit 4). A gone item opens nothing.
+  final String? openItemId;
 
   @override
   State<GenericListScreen> createState() {
@@ -116,6 +123,39 @@ class _GenericListScreenState extends State<GenericListScreen>
   );
 
   ListDefinition get _definition => widget.definition;
+
+  bool _itemOpened = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _openRingItem();
+  }
+
+  @override
+  void didUpdateWidget(GenericListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _openRingItem();
+  }
+
+  void _openRingItem() {
+    final String? id = widget.openItemId;
+    if (id == null || _itemOpened) {
+      return;
+    }
+    final ListItem? item = widget.items
+        .where((candidate) => candidate.id == id)
+        .firstOrNull;
+    if (item == null) {
+      return;
+    }
+    _itemOpened = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        unawaited(_showItemDialog(item: item));
+      }
+    });
+  }
 
   bool get _addShown => _pageArrived && !_pageLeaving;
 

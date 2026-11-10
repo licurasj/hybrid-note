@@ -28,6 +28,17 @@ abstract class RingPlatform {
 
   // Opens the system's notification settings for this app.
   Future<void> openNotificationSettings();
+
+  // Taps on a ring while the app runs (T-13 unit 4): the ring's payload.
+  Stream<RingPayload> get taps;
+
+  // The ring whose tap started the app, if one did.
+  Future<RingPayload?> launchTap();
+
+  // The background check that books again with the app closed (Q-93).
+  Future<void> startBackgroundCheck();
+
+  Future<void> stopBackgroundCheck();
 }
 
 @immutable
@@ -138,7 +149,8 @@ class RingPayload {
 }
 
 // What a ring shows: the item's title, then the list's name and the time.
-typedef RingText = ({String title, String body});
+// [done] is the Done button's label (T-13 unit 4).
+typedef RingText = ({String title, String body, String done});
 
 // One ring to book.
 @immutable
@@ -187,6 +199,7 @@ class RingBooker {
     _next = null;
     await _running;
     await platform.cancelAll();
+    await platform.stopBackgroundCheck();
   }
 
   Future<void> _drain() async {
@@ -218,6 +231,7 @@ class RingBooker {
         ring.at.millisecondsSinceEpoch,
         text.title,
         text.body,
+        text.done,
         ring.itemDate,
         permissions.exact,
       ].join('\u0000');
