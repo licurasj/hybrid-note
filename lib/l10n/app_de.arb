@@ -440,5 +440,8 @@
   "viewTableLine": "Ein Eintrag pro Zeile, neueste zuerst.",
   "viewCardsLine": "Ein Eintrag pro Zeile mit Details, neueste zuerst.",
   "preferencesHomeOrderFollowing": "Folgt der Reihenfolge des Rads.",
-  "preferencesHomeOrderOwnLine": "Die Startseite hat ihre eigene Reihenfolge."
+  "preferencesHomeOrderOwnLine": "Die Startseite hat ihre eigene Reihenfolge.",
+  "noTime": "Keine Uhrzeit",
+  "editorRemindMe": "Erinnern",
+  "editorRemindMeLine": "Klingelt zur Uhrzeit; ein Datum ohne Uhrzeit klingelt am Morgen."
 }

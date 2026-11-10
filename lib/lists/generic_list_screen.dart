@@ -14,6 +14,7 @@ import '../launcher/launcher_hub_area.dart';
 import 'clear_with_undo.dart';
 import 'confirm_delete_sheet.dart';
 import 'generic_item_dialog.dart';
+import 'item_dates.dart';
 import 'list_definition.dart';
 import 'list_icons.dart';
 import 'list_item.dart';
@@ -345,9 +346,10 @@ class _GenericListScreenState extends State<GenericListScreen>
     );
   }
 
-  String _formatDate(FieldType type, DateTime date) {
+  // A day with No time shows no time (Q-91).
+  String _formatDate(bool hasTime, DateTime date) {
     final String locale = Localizations.localeOf(context).toLanguageTag();
-    final DateFormat format = type == FieldType.dateTime
+    final DateFormat format = hasTime
         ? dateTimeFormat(locale, context.watchAccountPreferences.timeFormat)
         : DateFormat.yMMMd(locale);
     return format.format(date.toLocal());
@@ -422,7 +424,10 @@ class _GenericListScreenState extends State<GenericListScreen>
           if (date == null) {
             break;
           }
-          final String text = _formatDate(field.type, date);
+          final String text = _formatDate(
+            ItemDates.hasTime(field.type, value),
+            date,
+          );
           final FieldDefinition? recurrenceField = _recurrenceFor(field.key);
           final Object? recurrence =
               recurrenceField == null ? null : item[recurrenceField.key];

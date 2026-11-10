@@ -67,8 +67,9 @@ class BuiltinTemplates {
           type: FieldType.checklist,
           labelKey: 'subtasks',
         ),
-        // Labelled "Date": reminders are stored but no notification fires
-        // yet (plan section 2, caveat 5).
+        // Labelled "Date". Its reminder role makes it ring (T-13): at the
+        // time, or in the morning for a day with No time; the list editor's
+        // Remind me switch can take the mark off.
         const FieldDefinition(
           key: 'reminderAt',
           type: FieldType.dateTime,

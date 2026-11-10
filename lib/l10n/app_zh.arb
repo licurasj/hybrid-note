@@ -440,5 +440,8 @@
   "viewTableLine": "每行一个条目，最新的在前。",
   "viewCardsLine": "每行一个条目及其详情，最新的在前。",
   "preferencesHomeOrderFollowing": "正在跟随转盘的顺序。",
-  "preferencesHomeOrderOwnLine": "首页保持自己的顺序。"
+  "preferencesHomeOrderOwnLine": "首页保持自己的顺序。",
+  "noTime": "不设时间",
+  "editorRemindMe": "提醒我",
+  "editorRemindMeLine": "到时间时提醒；没有时间的日期在早上提醒。"
 }

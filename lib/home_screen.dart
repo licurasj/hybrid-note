@@ -30,6 +30,7 @@ import 'launcher/launcher_hub_area.dart';
 import 'lists/clear_with_undo.dart';
 import 'lists/generic_list_screen.dart' show ListEditAction;
 import 'lists/generic_item_dialog.dart';
+import 'lists/item_dates.dart';
 import 'lists/list_catalog.dart';
 import 'lists/list_catalog_builder.dart';
 import 'lists/list_definition.dart';
@@ -54,7 +55,8 @@ class HomeDueItem {
   final ListDefinition definition;
   final ListItem item;
   final DateTime due;
-  // Date-and-time fields show their time; date fields only their day.
+  // A date and time shows its time; a date, or a day with No time, only its
+  // day (Q-91).
   final bool hasTime;
   final bool done;
 
@@ -99,7 +101,7 @@ List<HomeDueItem> homeDueItems(ListCatalog catalog, DateTime now) {
         definition: definition,
         item: item,
         due: date,
-        hasTime: field.type == FieldType.dateTime,
+        hasTime: ItemDates.hasTime(field.type, raw),
         done: ListRules.isCompleted(definition, item),
       );
       if (entry.done && !entry.clearable && date.isBefore(today)) {

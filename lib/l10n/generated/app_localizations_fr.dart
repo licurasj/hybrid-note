@@ -1494,4 +1494,14 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get preferencesHomeOrderOwnLine =>
       'L\'accueil garde son propre ordre.';
+
+  @override
+  String get noTime => 'Sans heure';
+
+  @override
+  String get editorRemindMe => 'Me le rappeler';
+
+  @override
+  String get editorRemindMeLine =>
+      'Sonne à l’heure prévue ; une date sans heure sonne le matin.';
 }

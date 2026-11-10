@@ -587,11 +587,11 @@ class ListDefinition {
         }
       }
 
-      final FieldType? roleType = _roleType(field.role);
-      if (roleType != null && field.type != roleType) {
+      final Set<FieldType> roleTypes = roleFieldTypes(field.role);
+      if (roleTypes.isNotEmpty && !roleTypes.contains(field.type)) {
         fieldError(
           ListErrorCode.roleNeedsType,
-          {'role': field.role!.wire, 'type': roleType.wire},
+          {'role': field.role!.wire, 'type': _typeWires(roleTypes)},
         );
       }
     }
@@ -619,20 +619,21 @@ class ListDefinition {
     return errors;
   }
 
-  // The field type a role needs.
-  static FieldType? _roleType(FieldRole? role) {
+  // The field types a role fits; empty for no role. A reminder rings on a
+  // date (in the morning) or a date and time (T-13, Q-96).
+  static Set<FieldType> roleFieldTypes(FieldRole? role) {
     switch (role) {
       case null:
-        return null;
+        return const {};
       case FieldRole.completion:
-        return FieldType.checkbox;
+        return const {FieldType.checkbox};
       case FieldRole.reminder:
-        return FieldType.dateTime;
+        return const {FieldType.date, FieldType.dateTime};
       case FieldRole.status:
       case FieldRole.section:
-        return FieldType.choice;
+        return const {FieldType.choice};
       case FieldRole.category:
-        return FieldType.category;
+        return const {FieldType.category};
     }
   }
 

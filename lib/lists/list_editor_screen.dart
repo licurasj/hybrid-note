@@ -560,6 +560,22 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
     );
   }
 
+  // One list has one reminder field: turning it on here takes it off the
+  // field that had it.
+  void _setReminder(FieldDefinition field, bool on) {
+    final FieldDefinition? had = _draft.fieldWithRole(FieldRole.reminder);
+    if (on && had != null && had.key != field.key) {
+      _push(ListPatchOp(PatchOpKind.setFieldProps, {
+        'key': had.key,
+        'role': null,
+      }));
+    }
+    _push(ListPatchOp(PatchOpKind.setFieldProps, {
+      'key': field.key,
+      'role': on ? FieldRole.reminder.wire : null,
+    }));
+  }
+
   // Room for the drag handle; the type and options line up after it.
   static const double _handleWidth = 36;
 
@@ -688,6 +704,22 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
                 ],
               ),
             ),
+            // Remind me (T-13, Q-96): a field edit that moves the list's one
+            // reminder mark here, or takes it off (Q-128).
+            if (field.type == FieldType.date ||
+                field.type == FieldType.dateTime)
+              Padding(
+                padding: const EdgeInsetsDirectional.only(start: _handleWidth),
+                child: SettingSubSwitch(
+                  key: ValueKey('field-remind-${field.key}'),
+                  label: loc.editorRemindMe,
+                  line: field.role == FieldRole.reminder
+                      ? loc.editorRemindMeLine
+                      : null,
+                  value: field.role == FieldRole.reminder,
+                  onChanged: (on) => _setReminder(field, on),
+                ),
+              ),
             if (field.type == FieldType.choice ||
                 field.type == FieldType.category)
               _optionsEditor(look, labels, field),

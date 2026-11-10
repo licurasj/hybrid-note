@@ -440,5 +440,8 @@
   "viewTableLine": "1行に1項目、新しいものが先。",
   "viewCardsLine": "1行に1項目と詳細、新しいものが先。",
   "preferencesHomeOrderFollowing": "ダイヤルの順番に従っています。",
-  "preferencesHomeOrderOwnLine": "ホームは独自の順番です。"
+  "preferencesHomeOrderOwnLine": "ホームは独自の順番です。",
+  "noTime": "時刻なし",
+  "editorRemindMe": "通知する",
+  "editorRemindMeLine": "指定の時刻に通知します。時刻のない日付は朝に通知します。"
 }

@@ -268,7 +268,11 @@ class ListLabels {
           fieldName(error.arg('target')),
         );
       case ListErrorCode.roleNeedsType:
-        return loc.errorRoleNeedsType(name, error.arg('role'), type);
+        return loc.errorRoleNeedsType(
+          name,
+          error.arg('role'),
+          error.arg('type').split('|').map(typeName).join(' / '),
+        );
       case ListErrorCode.viewNeedsParam:
         return loc.errorViewNeedsParam(
           view == null ? error.arg('view') : viewKind(view),

@@ -1465,4 +1465,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get preferencesHomeOrderOwnLine => 'Home keeps its own order.';
+
+  @override
+  String get noTime => 'No time';
+
+  @override
+  String get editorRemindMe => 'Remind me';
+
+  @override
+  String get editorRemindMeLine =>
+      'Rings at its time; a date with no time rings in the morning.';
 }

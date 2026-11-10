@@ -440,5 +440,8 @@
   "viewTableLine": "Un elemento por fila, los más nuevos primero.",
   "viewCardsLine": "Un elemento por fila con sus detalles, los más nuevos primero.",
   "preferencesHomeOrderFollowing": "Sigue el orden del dial.",
-  "preferencesHomeOrderOwnLine": "El inicio tiene su propio orden."
+  "preferencesHomeOrderOwnLine": "El inicio tiene su propio orden.",
+  "noTime": "Sin hora",
+  "editorRemindMe": "Recordarme",
+  "editorRemindMeLine": "Suena a su hora; una fecha sin hora suena por la mañana."
 }

@@ -1415,4 +1415,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get preferencesHomeOrderOwnLine => '首页保持自己的顺序。';
+
+  @override
+  String get noTime => '不设时间';
+
+  @override
+  String get editorRemindMe => '提醒我';
+
+  @override
+  String get editorRemindMeLine => '到时间时提醒；没有时间的日期在早上提醒。';
 }

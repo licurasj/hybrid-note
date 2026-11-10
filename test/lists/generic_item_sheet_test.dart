@@ -109,6 +109,31 @@ void main() {
     });
   }
 
+  // T-13 unit 1 (Q-91): the time step offers No time; the day alone is kept
+  // and shows without a time.
+  testWidgets('a date with No time saves the day alone', (tester) async {
+    ListItem? saved;
+    await tester.pumpWidget(_app(onResult: (item) => saved = item));
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('field-title')), 'Call');
+    await tester.tap(find.byKey(const ValueKey('field-reminderAt')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('time-none')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('time-none')));
+    await tester.pumpAndSettle();
+    final DateTime now = DateTime.now();
+    final String today = '${now.year.toString().padLeft(4, '0')}-'
+        '${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    expect(find.textContaining(':'), findsNothing, reason: 'no time shown');
+
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(saved!['reminderAt'], today);
+  });
+
   testWidgets('subtasks: add, tick and save', (tester) async {
     ListItem? saved;
     await tester.pumpWidget(_app(onResult: (item) => saved = item));

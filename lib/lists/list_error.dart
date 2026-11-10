@@ -170,7 +170,7 @@ class ListError {
       case ListErrorCode.conditionNotOption:
         return '$field: visibleWhen "${arg('value')}" is not an option of "${arg('target')}"';
       case ListErrorCode.roleNeedsType:
-        final String type = arg('type');
+        final String type = arg('type').split('|').join(' or ');
         final String article = type.startsWith(RegExp('[aeiou]')) ? 'an' : 'a';
         return '$field: ${arg('role')} role needs $article $type field';
       case ListErrorCode.viewNeedsParam:

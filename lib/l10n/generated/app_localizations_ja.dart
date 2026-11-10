@@ -1421,4 +1421,13 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get preferencesHomeOrderOwnLine => 'ホームは独自の順番です。';
+
+  @override
+  String get noTime => '時刻なし';
+
+  @override
+  String get editorRemindMe => '通知する';
+
+  @override
+  String get editorRemindMeLine => '指定の時刻に通知します。時刻のない日付は朝に通知します。';
 }

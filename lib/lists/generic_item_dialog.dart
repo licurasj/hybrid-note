@@ -11,6 +11,7 @@ import '../app/date_preferences.dart';
 import '../app_colors.dart';
 import '../l10n/generated/app_localizations.dart';
 import 'builtin_templates.dart';
+import 'item_dates.dart';
 import 'list_definition.dart';
 import 'list_error.dart';
 import 'list_icons.dart';
@@ -408,28 +409,52 @@ class _GenericItemDialogState extends State<GenericItemDialog>
       return;
     }
 
-    TimeOfDay time = TimeOfDay.fromDateTime(current);
+    TimeOfDay time = ItemDates.hasTime(field.type, raw)
+        ? TimeOfDay.fromDateTime(current)
+        : TimeOfDay.now();
+    // The time step offers No time: the day alone, which rings in the
+    // morning when the field is a reminder (T-13, Q-91).
+    bool noTime = false;
     if (field.type == FieldType.dateTime) {
       final TimeOfDay? picked = await showTimePicker(
         context: context,
         initialTime: time,
         builder: (context, child) => _inListColour(
           context,
-          timePickerIn(preferences.timeFormat, context, child),
+          timePickerIn(
+            preferences.timeFormat,
+            context,
+            _WithNoTime(
+              label: AppLocalizations.of(context).noTime,
+              onNoTime: () {
+                noTime = true;
+                Navigator.of(context).pop();
+              },
+              child: child,
+            ),
+          ),
         ),
       );
-      if (picked == null || !mounted) {
+      if (!mounted || (picked == null && !noTime)) {
         return;
       }
-      time = picked;
+      time = picked ?? time;
     }
 
-    final DateTime local = field.type == FieldType.dateTime
-        ? DateTime(day.year, day.month, day.day, time.hour, time.minute)
-        : DateTime(day.year, day.month, day.day);
+    final String value;
+    if (field.type == FieldType.dateTime && !noTime) {
+      value = DateTime(day.year, day.month, day.day, time.hour, time.minute)
+          .toUtc()
+          .toIso8601String();
+    } else if (field.type == FieldType.dateTime) {
+      value = ItemDates.dayValue(day);
+    } else {
+      // A date field keeps the form it has always stored.
+      value = DateTime(day.year, day.month, day.day).toUtc().toIso8601String();
+    }
 
     setState(() {
-      _values[field.key] = local.toUtc().toIso8601String();
+      _values[field.key] = value;
     });
   }
 
@@ -860,7 +885,7 @@ class _GenericItemDialogState extends State<GenericItemDialog>
             ? DateTime.tryParse(raw)?.toLocal()
             : null;
         final String locale = Localizations.localeOf(context).toLanguageTag();
-        final DateFormat format = field.type == FieldType.dateTime
+        final DateFormat format = ItemDates.hasTime(field.type, raw)
             ? dateTimeFormat(locale, context.watchAccountPreferences.timeFormat)
             : DateFormat.yMMMd(locale);
         return _row(
@@ -1447,4 +1472,46 @@ Future<T?> showSlideUpSheet<T>({
       builder: builder,
     ),
   );
+}
+
+// The time picker with a No time button under it, on the scrim: the picker
+// keeps its own Cancel and OK (T-13, Q-91). The picker sizes itself, so the
+// column only stacks the two and scrolls on a short screen.
+class _WithNoTime extends StatelessWidget {
+  const _WithNoTime({
+    required this.label,
+    required this.onNoTime,
+    required this.child,
+  });
+
+  final String label;
+  final VoidCallback onNoTime;
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ?child,
+            FilledButton(
+              key: const ValueKey('time-none'),
+              style: FilledButton.styleFrom(
+                backgroundColor: scheme.surfaceContainerHigh,
+                foregroundColor: scheme.onSurface,
+                shape: const StadiumBorder(),
+                minimumSize: const Size(120, 48),
+              ),
+              onPressed: onNoTime,
+              child: Text(label),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
 }

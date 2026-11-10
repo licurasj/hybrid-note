@@ -440,5 +440,8 @@
   "viewTableLine": "Un élément par ligne, les plus récents en premier.",
   "viewCardsLine": "Un élément par ligne avec ses détails, les plus récents en premier.",
   "preferencesHomeOrderFollowing": "Suit l'ordre du cadran.",
-  "preferencesHomeOrderOwnLine": "L'accueil garde son propre ordre."
+  "preferencesHomeOrderOwnLine": "L'accueil garde son propre ordre.",
+  "noTime": "Sans heure",
+  "editorRemindMe": "Me le rappeler",
+  "editorRemindMeLine": "Sonne à l’heure prévue ; une date sans heure sonne le matin."
 }

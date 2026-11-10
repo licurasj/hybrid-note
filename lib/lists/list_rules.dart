@@ -1,3 +1,4 @@
+import 'item_dates.dart';
 import 'list_definition.dart';
 import 'list_item.dart';
 import 'list_vocabulary.dart';
@@ -290,11 +291,15 @@ class ListRules {
       return null;
     }
 
+    // A day with no time stays one (Q-91); a date field's day too.
+    final bool dayOnly = ItemDates.isDayOnly(rawDate) ||
+        definition.field(dateField)?.type == FieldType.date;
     final DateTime? next = nextOccurrence(
       date,
       frequency,
       recurrence['customDays'] as int?,
       now,
+      dayOnly: dayOnly,
     );
     if (next == null) {
       return null;
@@ -307,7 +312,9 @@ class ListRules {
     // The next one shows on home even if this one was hidden there.
     final Map<String, dynamic> values = {
       ...item.values,
-      dateField: next.toIso8601String(),
+      dateField: ItemDates.isDayOnly(rawDate)
+          ? ItemDates.dayValue(next.toLocal())
+          : next.toIso8601String(),
       if (completion != null) completion.key: false,
     }..remove(homeHiddenKey);
 
@@ -337,42 +344,71 @@ class ListRules {
     );
   }
 
-  // The first occurrence after `now`, stepping in the local time zone so a
-  // daily 8:00 stays at 8:00. Months and years clamp to the last day.
+  // The first occurrence after `now`, stepping in the local time zone by
+  // calendar days, so a daily 8:00 stays at 8:00 across a clock change.
+  // Months and years clamp to the last day, counted from `from` each time, so
+  // the 31st comes back on the 31st where the month has one. A day with no
+  // time ([dayOnly], T-13 Q-91) stays due all day: today counts as after `now`.
   static DateTime? nextOccurrence(
     DateTime from,
     RecurrenceFrequency frequency,
     int? customDays,
-    DateTime now,
-  ) {
-    DateTime? step(DateTime local) {
-      switch (frequency) {
-        case RecurrenceFrequency.none:
-          return null;
-        case RecurrenceFrequency.daily:
-          return local.add(const Duration(days: 1));
-        case RecurrenceFrequency.weekly:
-          return local.add(const Duration(days: 7));
-        case RecurrenceFrequency.monthly:
-          return _clamped(local, local.year, local.month + 1);
-        case RecurrenceFrequency.yearly:
-          return _clamped(local, local.year + 1, local.month);
-        case RecurrenceFrequency.custom:
-          if (customDays == null || customDays <= 0) {
-            return null;
-          }
-          return local.add(Duration(days: customDays));
+    DateTime now, {
+    bool dayOnly = false,
+  }) {
+    final DateTime local = from.toLocal();
+    final DateTime localNow = now.toLocal();
+    final DateTime today = DateTime(localNow.year, localNow.month, localNow.day);
+    for (int n = 1; n <= 100000; n++) {
+      final DateTime? next = occurrence(local, frequency, customDays, n);
+      if (next == null) {
+        return null;
+      }
+      final bool passed = dayOnly
+          ? next.isBefore(today)
+          : !next.toUtc().isAfter(now);
+      if (!passed) {
+        return next.toUtc();
       }
     }
+    return null;
+  }
 
-    DateTime? next = step(from.toLocal());
-    int guard = 0;
-    while (next != null && !next.toUtc().isAfter(now) && guard < 1000) {
-      next = step(next);
-      guard++;
+  // The n-th occurrence after `local` (n = 1 is the next one), in local
+  // time; null for no repeat. The reminder planner books from these too.
+  static DateTime? occurrence(
+    DateTime local,
+    RecurrenceFrequency frequency,
+    int? customDays,
+    int n,
+  ) {
+    DateTime days(int count) => DateTime(
+      local.year,
+      local.month,
+      local.day + count,
+      local.hour,
+      local.minute,
+      local.second,
+      local.millisecond,
+      local.microsecond,
+    );
+    switch (frequency) {
+      case RecurrenceFrequency.none:
+        return null;
+      case RecurrenceFrequency.daily:
+        return days(n);
+      case RecurrenceFrequency.weekly:
+        return days(7 * n);
+      case RecurrenceFrequency.monthly:
+        return _clamped(local, local.year, local.month + n);
+      case RecurrenceFrequency.yearly:
+        return _clamped(local, local.year + n, local.month);
+      case RecurrenceFrequency.custom:
+        if (customDays == null || customDays <= 0) {
+          return null;
+        }
+        return days(customDays * n);
     }
-
-    return next?.toUtc();
   }
 
   static DateTime _clamped(DateTime local, int year, int month) {

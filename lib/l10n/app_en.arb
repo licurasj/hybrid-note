@@ -1084,5 +1084,8 @@
   "viewTableLine": "Items one per row, newest first.",
   "viewCardsLine": "Items one per row with their details, newest first.",
   "preferencesHomeOrderFollowing": "Following the dial's order.",
-  "preferencesHomeOrderOwnLine": "Home keeps its own order."
+  "preferencesHomeOrderOwnLine": "Home keeps its own order.",
+  "noTime": "No time",
+  "editorRemindMe": "Remind me",
+  "editorRemindMeLine": "Rings at its time; a date with no time rings in the morning."
 }

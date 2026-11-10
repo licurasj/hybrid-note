@@ -2497,6 +2497,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Home keeps its own order.'**
   String get preferencesHomeOrderOwnLine;
+
+  /// No description provided for @noTime.
+  ///
+  /// In en, this message translates to:
+  /// **'No time'**
+  String get noTime;
+
+  /// No description provided for @editorRemindMe.
+  ///
+  /// In en, this message translates to:
+  /// **'Remind me'**
+  String get editorRemindMe;
+
+  /// No description provided for @editorRemindMeLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Rings at its time; a date with no time rings in the morning.'**
+  String get editorRemindMeLine;
 }
 
 class _AppLocalizationsDelegate

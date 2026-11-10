@@ -270,13 +270,18 @@
     },
     "opSetFieldProps": {
       "type": "object",
-      "description": "Makes a field required or optional.",
-      "required": ["op", "key", "required"],
+      "description": "Changes details of an existing field other than the title, in one edit: required or optional; role reminder makes a date or dateTime field ring as a reminder, null takes the mark off; default value; min and max of a number, counter or rating field; visibleWhen. Give only the details that change; null removes a default, min, max or visibleWhen.",
+      "required": ["op", "key"],
       "additionalProperties": false,
       "properties": {
         "op": { "const": "setFieldProps" },
         "key": { "$ref": "#/$defs/aiFieldKey" },
-        "required": { "type": "boolean" }
+        "required": { "type": "boolean" },
+        "role": { "enum": ["reminder", null] },
+        "default": { "anyOf": [{ "$ref": "#/$defs/scalar" }, { "type": "null" }] },
+        "min": { "anyOf": [{ "type": "number" }, { "type": "null" }] },
+        "max": { "anyOf": [{ "type": "number" }, { "type": "null" }] },
+        "visibleWhen": { "anyOf": [{ "$ref": "#/$defs/aiVisibleWhen" }, { "type": "null" }] }
       }
     },
     "opSetOptions": {

@@ -39,7 +39,7 @@
       ]
     },
     "fieldRole": {
-      "description": "What the app uses a field for; each role at most once per list. Use when: completion = the checkbox that marks an item done (needed by the checklist view and by every behavior except moveAll); reminder = the dateTime field of a reminder; status = the enum field that holds an item's progress (planned, in progress, done); section = the enum field the sectioned view splits the list by; category = the category field used for filter chips.",
+      "description": "What the app uses a field for; each role at most once per list. Use when: completion = the checkbox that marks an item done (needed by the checklist view and by every behavior except moveAll); reminder = the date or dateTime field that rings as a reminder (a date alone rings in the morning); status = the enum field that holds an item's progress (planned, in progress, done); section = the enum field the sectioned view splits the list by; category = the category field used for filter chips.",
       "enum": ["completion", "reminder", "status", "section", "category"]
     },
     "viewKind": {

@@ -1485,4 +1485,14 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get preferencesHomeOrderOwnLine =>
       'Die Startseite hat ihre eigene Reihenfolge.';
+
+  @override
+  String get noTime => 'Keine Uhrzeit';
+
+  @override
+  String get editorRemindMe => 'Erinnern';
+
+  @override
+  String get editorRemindMeLine =>
+      'Klingelt zur Uhrzeit; ein Datum ohne Uhrzeit klingelt am Morgen.';
 }
