@@ -42,13 +42,44 @@ Future<void> _openSettings(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _openPreferences(WidgetTester tester) async {
+// Opens Preferences; with [unfold], every group is opened too (Q-127: they
+// start shut).
+Future<void> _openPreferences(
+  WidgetTester tester, {
+  bool unfold = true,
+}) async {
   await _openSettings(tester);
   await tester.ensureVisible(
     find.byKey(const ValueKey('settings-preferences')),
   );
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(const ValueKey('settings-preferences')));
+  await tester.pumpAndSettle();
+  if (unfold) {
+    await _unfoldAll(tester);
+  }
+}
+
+const List<String> _sections = [
+  'home',
+  'lists-and-dial',
+  'items',
+  'ai',
+  'general',
+];
+
+Future<void> _unfoldAll(WidgetTester tester) async {
+  for (final String section in _sections) {
+    final Finder header = find.descendant(
+      of: find.byKey(ValueKey('preferences-section-$section')),
+      matching: find.byType(InkWell),
+    ).first;
+    await tester.ensureVisible(header);
+    await tester.pumpAndSettle();
+    await tester.tap(header);
+    await tester.pumpAndSettle();
+  }
+  await tester.drag(find.byType(SingleChildScrollView).last, const Offset(0, 5000));
   await tester.pumpAndSettle();
 }
 
@@ -223,6 +254,61 @@ void main() {
         greaterThan(0),
       );
       expect(find.byType(FadeTransition), findsNothing);
+    });
+
+    testWidgets('each group folds under its header, all shut when the page '
+        'opens (Q-127)', (WidgetTester tester) async {
+      await _pumpApp(tester);
+      await _openPreferences(tester, unfold: false);
+      Finder header(String section) => find.descendant(
+        of: find.byKey(ValueKey('preferences-section-$section')),
+        matching: find.byType(InkWell),
+      ).first;
+
+      // Shut: the headers, none of the rows.
+      for (final String text in [
+        'Home',
+        'Lists and dial',
+        'Items',
+        'AI',
+        'General',
+      ]) {
+        expect(find.text(text), findsOneWidget, reason: text);
+      }
+      expect(find.text('Start screen'), findsNothing);
+      expect(find.text('Ticked items'), findsNothing);
+      expect(find.text('Vibration'), findsNothing);
+
+      // A screen reader hears each header as a button, shut or open.
+      final SemanticsHandle handle = tester.ensureSemantics();
+      expect(
+        tester.getSemantics(header('items')),
+        isSemantics(isButton: true, hasExpandedState: true, isExpanded: false),
+      );
+      await tester.tap(header('items'));
+      await tester.pumpAndSettle();
+      expect(find.text('Ticked items'), findsOneWidget);
+      expect(find.text('Start screen'), findsNothing);
+      expect(
+        tester.getSemantics(header('items')),
+        isSemantics(isButton: true, hasExpandedState: true, isExpanded: true),
+      );
+      handle.dispose();
+
+      // Tapped again, it shuts.
+      await tester.tap(header('items'));
+      await tester.pumpAndSettle();
+      expect(find.text('Ticked items'), findsNothing);
+
+      // Open groups are not kept: the page opens shut again.
+      await tester.tap(header('general'));
+      await tester.pumpAndSettle();
+      expect(find.text('Vibration'), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('settings-preferences')));
+      await tester.pumpAndSettle();
+      expect(find.text('Vibration'), findsNothing);
     });
 
     testWidgets('the groups in order, with what the table lists', (
@@ -526,6 +612,7 @@ void main() {
         await tester.tap(row);
         await tester.pumpAndSettle();
         expect(find.byType(PreferencesScreen), findsOneWidget, reason: locale);
+        await _unfoldAll(tester);
         expect(tester.takeException(), isNull, reason: 'page $locale');
         await tester.pumpWidget(const SizedBox());
       }

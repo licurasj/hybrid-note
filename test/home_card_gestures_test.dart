@@ -1204,6 +1204,14 @@ void main() {
     await settle(tester);
     await tester.tap(find.byKey(const ValueKey('settings-preferences')));
     await settle(tester);
+    // Its group starts shut (Q-127).
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('preferences-section-lists-and-dial')),
+        matching: find.byType(InkWell),
+      ).first,
+    );
+    await settle(tester);
     expect(find.byKey(const ValueKey('preferences-match-dial')), findsNothing);
     // The home drag turned Same as dial off; its switch turns it on again.
     final Finder same = find.byKey(
