@@ -908,9 +908,11 @@ class _GenericListScreenState extends State<GenericListScreen>
   List<ListItem> _allVisible = const [];
 
   // Ticking an item; with Clear straight away it is cleared at once, with
-  // Undo, through the same clear as Clear ticked (Q-119).
+  // Undo, through the same clear as Clear ticked (Q-119), on a list with the
+  // Clear ticked rule only: elsewhere it is a plain tick (Q-124).
   Future<void> _setTick(ListItem item, bool value) {
     if (value &&
+        _behavior(BehaviorKind.clearCompleted) != null &&
         context.accountPreferences.tickedItemsFor(_definition) ==
             TickedItems.clearAtOnce) {
       return ClearWithUndo.run(

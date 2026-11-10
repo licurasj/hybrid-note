@@ -62,6 +62,23 @@ void main() {
     expect(result.errors.map((error) => error.code), contains(ListErrorCode.badOp));
   });
 
+  test('Ticked items must be one of its wire values', () {
+    final ListPatchResult junk = ListPatch.apply(
+      grocery,
+      const [],
+      [ListPatchOp(PatchOpKind.setListInfo, {'tickedItems': 'sometimes'})],
+      _t0,
+    );
+    expect(junk.errors.map((error) => error.code), contains(ListErrorCode.badOp));
+    expect(
+      ListDefinition.tickedItemsWires,
+      TickedItems.values.map((ticked) => ticked.wire).toSet(),
+    );
+    for (final String wire in ListDefinition.tickedItemsWires) {
+      expect(_patched(grocery, {'tickedItems': wire}).ownTickedItems, wire);
+    }
+  });
+
   group('the value a list uses', () {
     late final ListDefinition own;
     setUpAll(() {

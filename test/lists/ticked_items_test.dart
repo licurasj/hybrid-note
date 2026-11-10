@@ -159,6 +159,25 @@ void main() {
     expect(back['done'], isFalse);
   });
 
+  testWidgets('Clear straight away on a list without the Clear ticked rule: just a tick (Q-124)', (
+    tester,
+  ) async {
+    final Map<String, dynamic> json = _list(_views[ViewKind.checklist]!).toJson()
+      ..['behaviors'] = <Object>[];
+    final (FirestoreListStore store, _) = await _pump(
+      tester,
+      ListDefinition.fromJson(json),
+      TickedItems.clearAtOnce,
+      [_item('open', 'Open one')],
+    );
+
+    await tester.tap(find.byType(Checkbox).first);
+    await settle(tester);
+    expect(find.text('Open one'), findsOneWidget);
+    expect(find.text('Cleared'), findsNothing);
+    expect(store.current.itemsOf('list-test').single['done'], isTrue);
+  });
+
   testWidgets('Sections: Clear ticked still counts the ticked ones moved to Done', (tester) async {
     await _pump(
       tester,

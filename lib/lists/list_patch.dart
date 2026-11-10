@@ -252,10 +252,12 @@ class ListPatch {
           case PatchOpKind.setListInfo:
             final Object? ticked = op.args[ListDefinition.ownTickedItemsKey];
             final Object? confirm = op.args[ListDefinition.ownConfirmDeleteKey];
-            if (ticked is! String? || confirm is! bool?) {
+            if ((ticked != null &&
+                    !ListDefinition.tickedItemsWires.contains(ticked)) ||
+                confirm is! bool?) {
               errors.add(ListError(
                 ListErrorCode.badOp,
-                {'op': op.kind.wire, 'detail': 'tickedItems must be a string and confirmDelete true or false, or null'},
+                {'op': op.kind.wire, 'detail': 'tickedItems must be one of ${ListDefinition.tickedItemsWires.join(', ')} and confirmDelete true or false, or null'},
               ));
               continue;
             }

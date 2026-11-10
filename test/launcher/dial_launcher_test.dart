@@ -612,6 +612,63 @@ void main() {
     expect(log, ['open n11', 'edit n2', 'edit n0']);
   });
 
+  testWidgets('tap mode: a finger moved on the dial grows the list under it; '
+      'letting go keeps tap mode with it selected (Q-125)', (
+    WidgetTester tester,
+  ) async {
+    final List<String> log = await _pump(tester);
+    await tester.tap(find.byKey(const ValueKey('launcher-hub')));
+    await tester.pumpAndSettle();
+    final double diagonal = _diagonal(tester);
+    final TestGesture gesture =
+        await tester.startGesture(_at(tester, diagonal, 160));
+    await tester.pump(const Duration(milliseconds: 50));
+    await _turn(tester, gesture, diagonal, diagonal + 1.1 * _step, 160);
+    await tester.pump(const Duration(milliseconds: 300));
+    await gesture.up();
+    await tester.pumpAndSettle();
+    // Nothing opened, tap mode still open, and it settles.
+    expect(log, isEmpty);
+    expect(find.byKey(const ValueKey('launcher-barrier')), findsOneWidget);
+    expect(tester.binding.hasScheduledFrame, isFalse);
+    // The grown list is the selected one: Enter opens it; so would a tap.
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(log, ['open n1']);
+  });
+
+  testWidgets('tap mode: holding a dragged finger in a scroll zone scrolls '
+      '(Q-125)', (WidgetTester tester) async {
+    final List<String> log = await _pump(tester, count: 12);
+    await tester.tap(find.byKey(const ValueKey('launcher-hub')));
+    await tester.pumpAndSettle();
+    final TestGesture gesture =
+        await tester.startGesture(_at(tester, _diagonal(tester), 160));
+    await tester.pump(const Duration(milliseconds: 50));
+    await _turn(tester, gesture, _diagonal(tester), math.pi - 0.05, 160);
+    for (int i = 0; i < 150; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(log, isEmpty);
+    expect(find.byKey(const ValueKey('launcher-note-n11')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('launcher-note-n11')));
+    await tester.pump();
+    expect(log, ['open n11']);
+  });
+
+  testWidgets('tap mode: a still tap on a tab still opens it', (
+    WidgetTester tester,
+  ) async {
+    final List<String> log = await _pump(tester);
+    await tester.tap(find.byKey(const ValueKey('launcher-hub')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('launcher-note-n1')));
+    await tester.pump();
+    expect(log, ['open n1']);
+  });
+
   testWidgets('tap mode stops animating once settled', (
     WidgetTester tester,
   ) async {

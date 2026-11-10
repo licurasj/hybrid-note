@@ -147,9 +147,11 @@ void main() {
   });
 
   group('Suggest on home in the editor (Q-106)', () {
+    late Future<ListEditorOutcome?> outcome;
     Future<AccountPreferencesCubit> pumpEditor(
       WidgetTester tester, {
       Map<String, Object> stored = const {},
+      bool isNew = false,
     }) async {
       tester.view.physicalSize = const Size(800, 2400);
       tester.view.devicePixelRatio = 1;
@@ -169,9 +171,9 @@ void main() {
             supportedLocales: AppLocalizations.supportedLocales,
             home: Builder(
               builder: (context) => TextButton(
-                onPressed: () => Navigator.of(context).push(
+                onPressed: () => outcome = Navigator.of(context).push(
                   MaterialPageRoute<ListEditorOutcome>(
-                    builder: (_) => ListEditorScreen(definition: BuiltinTemplates.grocery()),
+                    builder: (_) => ListEditorScreen(definition: BuiltinTemplates.grocery(), isNew: isNew),
                   ),
                 ),
                 child: const Text('open'),
@@ -202,6 +204,18 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('save-list')));
       await tester.pumpAndSettle();
       expect(preferences.state.homeRemoved, [BuiltinTemplates.groceryId]);
+    });
+
+    testWidgets('a new list: written by the caller once it is created, not by the editor (O3)', (
+      tester,
+    ) async {
+      final AccountPreferencesCubit preferences = await pumpEditor(tester, isNew: true);
+      await tester.tap(find.byKey(const ValueKey('suggest-on-home')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('save-list')));
+      await tester.pumpAndSettle();
+      expect(preferences.state.homeRemoved, isEmpty);
+      expect((await outcome)!.hideFromHome, isTrue);
     });
 
     testWidgets('greyed with a line while Show suggestions is off', (tester) async {

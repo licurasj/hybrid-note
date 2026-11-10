@@ -8,6 +8,8 @@ import 'package:hybrid_note/app/app_settings.dart';
 import 'package:hybrid_note/app/preferences_screen.dart';
 import 'package:hybrid_note/backend/firestore_list_store.dart';
 import 'package:hybrid_note/home_screen.dart';
+import 'package:hybrid_note/lists/builtin_templates.dart';
+import 'package:hybrid_note/lists/list_patch.dart';
 
 import '../support/fake_auth.dart';
 import '../support/firestore_store.dart';
@@ -15,7 +17,7 @@ import '../support/firestore_store.dart';
 final Finder _hub = find.byKey(const ValueKey('launcher-hub'));
 final Finder _settings = find.byKey(const ValueKey('settings'));
 
-Future<void> _pumpApp(
+Future<FirestoreListStore> _pumpApp(
   WidgetTester tester, {
   Map<String, Object> stored = const {},
   Size size = const Size(360, 780),
@@ -32,6 +34,7 @@ Future<void> _pumpApp(
     ),
   );
   await settle(tester);
+  return store;
 }
 
 Future<void> _openSettings(WidgetTester tester) async {
@@ -350,9 +353,11 @@ void main() {
       expect(
         tester.getSemantics(current),
         isSemantics(
-          isSelected: true,
+          hasCheckedState: true,
+          isChecked: true,
           isInMutuallyExclusiveGroup: true,
-          isButton: true,
+          hasEnabledState: true,
+          isEnabled: true,
         ),
       );
       expect(tester.getSemantics(current).label, startsWith('Move to the bottom'));
@@ -402,6 +407,34 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(cubit.state.homeSuggestions, isTrue);
+    });
+
+    testWidgets('"N lists have their own" counts lists with a tick, live (O4)', (
+      WidgetTester tester,
+    ) async {
+      final FirestoreListStore store = await _pumpApp(tester);
+      await _openPreferences(tester);
+      Finder line(String text) => find.descendant(
+        of: find.byKey(const ValueKey('preferences-lists-own-ticked')),
+        matching: find.text(text),
+      );
+      const String none = 'A list can pick its own in Edit list.';
+      expect(line(none), findsOneWidget);
+
+      Future<void> own(String listId) async {
+        await tester.runAsync(
+          () => store.patchList(listId, [
+            ListPatchOp(PatchOpKind.setListInfo, {'tickedItems': 'hide'}),
+          ]),
+        );
+        await settle(tester);
+      }
+
+      // Journal has no tick: its choice does not count.
+      await own(BuiltinTemplates.journalId);
+      expect(line(none), findsOneWidget);
+      await own(BuiltinTemplates.groceryId);
+      expect(line('1 list has its own choice.'), findsOneWidget);
     });
 
     testWidgets('lines follow the choice: the AI bar line shows only when off', (
@@ -462,7 +495,7 @@ void main() {
       await _openPreferences(tester);
 
       bool picked(String key) => isSemantics(
-        isSelected: true,
+        isChecked: true,
       ).matches(tester.getSemantics(find.byKey(ValueKey(key))), {});
       final SemanticsHandle handle = tester.ensureSemantics();
       expect(picked('choice-ListOrder.alphabetical'), isTrue);

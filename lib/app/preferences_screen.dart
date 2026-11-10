@@ -1,12 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../app_colors.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../lists/generic_item_dialog.dart';
+import '../lists/list_catalog.dart';
 import '../lists/list_definition.dart';
 import '../lists/list_editor_style.dart';
 import '../lists/list_store.dart';
+import '../lists/list_vocabulary.dart';
 import 'account_preferences.dart';
 import 'list_order.dart';
 import 'app_theme.dart';
@@ -148,15 +152,27 @@ class PreferencesScreen extends StatelessWidget {
         .state;
     final AccountPreferencesCubit cubit = context
         .read<AccountPreferencesCubit>();
+    // For the lines saying how many lists have their own choice, kept up to
+    // date while lists sync with the page open.
+    return _LiveLists(
+      builder: (context, lists) =>
+          _page(context, loc, look, preferences, cubit, lists),
+    );
+  }
+
+  Widget _page(
+    BuildContext context,
+    AppLocalizations loc,
+    EditorLook look,
+    AccountPreferences preferences,
+    AccountPreferencesCubit cubit,
+    List<ListDefinition> lists,
+  ) {
     final bool cards = preferences.homeContent.showsCards;
     final bool sameAsDial =
         preferences.homeListOrder == HomeListOrder.sameAsDial;
     // A choice's own line only while home has its own order to pick.
     final bool homeLines = cards && !sameAsDial;
-    // For the lines saying how many lists have their own choice.
-    final List<ListDefinition> lists =
-        context.read<ListStore?>()?.current.definitions ?? const [];
-
     return Scaffold(
       appBar: AppBar(),
       body: SingleChildScrollView(
@@ -297,8 +313,14 @@ class PreferencesScreen extends StatelessWidget {
                 value: preferences.listsOwnTickedItems,
                 line: preferences.listsOwnTickedItems
                     ? loc.preferencesListsOwnCount(
+                        // Only lists with a tick use their choice.
                         lists
-                            .where((list) => list.ownTickedItems != null)
+                            .where(
+                              (list) =>
+                                  list.ownTickedItems != null &&
+                                  list.fieldWithRole(FieldRole.completion) !=
+                                      null,
+                            )
                             .length,
                       )
                     : loc.preferencesListsOwnOff,
@@ -506,4 +528,41 @@ class AiAskSlider extends StatelessWidget {
       ),
     );
   }
+}
+
+// The lists as they are now, rebuilt whenever they change.
+class _LiveLists extends StatefulWidget {
+  const _LiveLists({required this.builder});
+
+  final Widget Function(BuildContext context, List<ListDefinition> lists)
+  builder;
+
+  @override
+  State<_LiveLists> createState() => _LiveListsState();
+}
+
+class _LiveListsState extends State<_LiveLists> {
+  StreamSubscription<ListCatalog>? _watch;
+  List<ListDefinition> _lists = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    final ListStore? store = context.read<ListStore?>();
+    _lists = store?.current.definitions ?? const [];
+    _watch = store?.watch().listen((catalog) {
+      if (mounted) {
+        setState(() => _lists = catalog.definitions);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _watch?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context, _lists);
 }

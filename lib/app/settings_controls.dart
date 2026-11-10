@@ -89,10 +89,12 @@ class SettingButtonsRow<T> extends StatelessWidget {
                             in choices.indexed) ...[
                           if (i > 0) const SizedBox(width: 6),
                           Expanded(
+                            // Read as Flutter's Radio is: a checked choice
+                            // in a group, and not enabled while greyed.
                             child: Semantics(
-                              selected: c.value == selected,
+                              checked: c.value == selected,
                               inMutuallyExclusiveGroup: true,
-                              button: true,
+                              enabled: onChanged != null && enabled,
                               child: _Pill(
                                 key: ValueKey('choice-${c.value}'),
                                 text: c.label,
@@ -218,9 +220,9 @@ class SettingOptionList<T> extends StatelessWidget {
                     const SizedBox(height: 4),
                     for (final SettingChoice<T> c in choices)
                       Semantics(
-                        selected: c.value == selected,
+                        checked: c.value == selected,
                         inMutuallyExclusiveGroup: true,
-                        button: true,
+                        enabled: onChanged != null && enabled,
                         child: InkWell(
                           key: ValueKey('choice-${c.value}'),
                           onTap: onChanged == null || !enabled
@@ -466,31 +468,36 @@ class _SettingFoldPickerState<T> extends State<SettingFoldPicker<T>> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        InkWell(
-          onTap: enabled ? () => setState(() => _open = !_open) : null,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 44),
-            child: Row(
-              children: [
-                if (widget.label != null) ...[
-                  Text(widget.label!, style: look.label),
-                  const SizedBox(width: 16),
+        Semantics(
+          button: true,
+          enabled: enabled,
+          expanded: _open,
+          child: InkWell(
+            onTap: enabled ? () => setState(() => _open = !_open) : null,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 44),
+              child: Row(
+                children: [
+                  if (widget.label != null) ...[
+                    Text(widget.label!, style: look.label),
+                    const SizedBox(width: 16),
+                  ],
+                  Expanded(
+                    child: Align(
+                      alignment: widget.alignEnd
+                          ? AlignmentDirectional.centerEnd
+                          : AlignmentDirectional.centerStart,
+                      child: shown,
+                    ),
+                  ),
+                  if (enabled)
+                    Icon(
+                      _open ? Icons.expand_less : Icons.expand_more,
+                      size: 18,
+                      color: n.muted,
+                    ),
                 ],
-                Expanded(
-                  child: Align(
-                    alignment: widget.alignEnd
-                        ? AlignmentDirectional.centerEnd
-                        : AlignmentDirectional.centerStart,
-                    child: shown,
-                  ),
-                ),
-                if (enabled)
-                  Icon(
-                    _open ? Icons.expand_less : Icons.expand_more,
-                    size: 18,
-                    color: n.muted,
-                  ),
-              ],
+              ),
             ),
           ),
         ),
@@ -502,9 +509,9 @@ class _SettingFoldPickerState<T> extends State<SettingFoldPicker<T>> {
               children: [
                 for (final ({T value, Widget child}) c in widget.choices)
                   Semantics(
-                    selected: c.value == widget.value,
+                    checked: c.value == widget.value,
                     inMutuallyExclusiveGroup: true,
-                    button: true,
+                    enabled: true,
                     child: InkWell(
                       onTap: () {
                         setState(() => _open = false);
@@ -543,8 +550,9 @@ class _SettingFoldPickerState<T> extends State<SettingFoldPicker<T>> {
 }
 
 // A section whose rows fold away under its header, which names what it holds
-// ("Fields · 4") (Q-115 C). [open] starts it open; [forceOpen] keeps it open,
-// for a section with a problem in it.
+// ("Fields · 4") (Q-115 C). [open] starts it open; [forceOpen] opens it, for
+// a section with a problem in it, and it stays open once the problem is gone,
+// so nothing folds under the finger while typing.
 class FoldSection extends StatefulWidget {
   const FoldSection({
     super.key,
@@ -564,7 +572,15 @@ class FoldSection extends StatefulWidget {
 }
 
 class _FoldSectionState extends State<FoldSection> {
-  late bool _open = widget.open;
+  late bool _open = widget.open || widget.forceOpen;
+
+  @override
+  void didUpdateWidget(FoldSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.forceOpen) {
+      _open = true;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

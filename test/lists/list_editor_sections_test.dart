@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:hybrid_note/app/settings_controls.dart';
 import 'package:hybrid_note/l10n/generated/app_localizations.dart';
 import 'package:hybrid_note/lists/builtin_templates.dart';
 import 'package:hybrid_note/lists/list_definition.dart';
@@ -98,6 +99,38 @@ void main() {
     expect(find.byKey(const ValueKey('rule-clearCompleted')), findsOneWidget);
   });
 
+  testWidgets('a problem outside the sections opens none, and nothing folds while typing (Q-113)', (tester) async {
+    await _open(tester, BuiltinTemplates.tasks());
+    await tester.enterText(find.byKey(const ValueKey('list-name')), '');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('editor-errors')), findsOneWidget);
+    expect(find.byKey(const ValueKey('add-field')), findsNothing);
+    expect(find.byKey(const ValueKey('view-kind')), findsNothing);
+    expect(find.byKey(const ValueKey('rule-clearCompleted')), findsNothing);
+  });
+
+  testWidgets('a section opened by a problem stays open once it is fixed', (tester) async {
+    Widget section(bool problem) => MaterialApp(
+      home: Scaffold(
+        body: FoldSection(
+          title: 'Rules · 2',
+          forceOpen: problem,
+          children: const [Text('inside')],
+        ),
+      ),
+    );
+    await tester.pumpWidget(section(false));
+    expect(find.text('inside'), findsNothing);
+    await tester.pumpWidget(section(true));
+    expect(find.text('inside'), findsOneWidget);
+    await tester.pumpWidget(section(false));
+    expect(find.text('inside'), findsOneWidget);
+    // Folded again only by its header.
+    await tester.tap(find.text('Rules · 2'));
+    await tester.pump();
+    expect(find.text('inside'), findsNothing);
+  });
+
   testWidgets('the layout is picked on the page, with a line for the picked one', (tester) async {
     final Future<ListEditorOutcome?> Function() outcome = await _open(tester, BuiltinTemplates.watchRead());
     await tester.tap(find.textContaining('Layout ·'));
@@ -123,9 +156,20 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('choice-TickedItems.hide')), warnIfMissed: false);
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('choice-line-TickedItems.moveToDone')), findsOneWidget);
+      // A screen reader hears the greyed choices as not enabled.
+      final SemanticsHandle handle = tester.ensureSemantics();
+      expect(
+        tester.getSemantics(find.byKey(const ValueKey('choice-TickedItems.hide'))),
+        isSemantics(hasEnabledState: true, isEnabled: false, isInMutuallyExclusiveGroup: true),
+      );
 
       await tester.tap(find.byKey(const ValueKey('ticked-follow')));
       await tester.pumpAndSettle();
+      expect(
+        tester.getSemantics(find.byKey(const ValueKey('choice-TickedItems.hide'))),
+        isSemantics(hasEnabledState: true, isEnabled: true, hasCheckedState: true, isChecked: false),
+      );
+      handle.dispose();
       await tester.tap(find.byKey(const ValueKey('choice-TickedItems.hide')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('confirm-follow')));

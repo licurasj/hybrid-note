@@ -144,7 +144,9 @@ class ClearWithUndo {
       actionLabel: loc.undo,
       onAction: () {
         stop();
-        if (changed) {
+        // The watch flags, and the store as it is now: a made item edited
+        // before the watch saw the clear's own write must not be undone.
+        if (changed || !undo.isCurrent(store.current.itemsOf(undo.listId))) {
           return;
         }
         store.apply(undo.reverse()).catchError((Object error) {

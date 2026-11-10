@@ -249,11 +249,12 @@ class ListRules {
     return ListItem(
       id: makeId(),
       listId: item.listId,
+      // A copy is a new row on home, even if the item was hidden there.
       values: {
         ...item.values,
         ...setField,
         if (completion != null) completion.key: false,
-      },
+      }..remove(homeHiddenKey),
       createdAt: now,
       updatedAt: now,
     );
@@ -300,11 +301,12 @@ class ListRules {
     // same next occurrence instead of two.
     final String nextId = 'repeat-${item.id}-${next.millisecondsSinceEpoch}';
     final FieldDefinition? completion = _completion(definition);
+    // The next one shows on home even if this one was hidden there.
     final Map<String, dynamic> values = {
       ...item.values,
       dateField: next.toIso8601String(),
       if (completion != null) completion.key: false,
-    };
+    }..remove(homeHiddenKey);
 
     for (final FieldDefinition field in definition.fields) {
       final Object? subItems = values[field.key];

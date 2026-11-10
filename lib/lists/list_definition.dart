@@ -370,6 +370,14 @@ class ListDefinition {
   // changed through setListInfo.
   static const String ownTickedItemsKey = 'tickedItems';
   static const String ownConfirmDeleteKey = 'confirmDelete';
+  // The wire values of TickedItems (app/account_preferences.dart), which a
+  // list's own Ticked items must be one of.
+  static const Set<String> tickedItemsWires = {
+    'moveToDone',
+    'stayInPlace',
+    'hide',
+    'clearAtOnce',
+  };
 
   // The wire value of its own Ticked items choice, or null to follow.
   String? get ownTickedItems {

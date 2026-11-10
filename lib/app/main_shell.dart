@@ -289,9 +289,20 @@ class _MainShellState extends State<MainShell> {
       return;
     }
 
-    final List<ListError> errors = await context.read<ListStore>().createList(
-      result.definition,
-    );
+    final ListStore store = context.read<ListStore>();
+    final AccountPreferencesCubit preferences = context
+        .read<AccountPreferencesCubit>();
+    final List<ListError> errors = await store.createList(result.definition);
+    if (errors.isEmpty && outcome!.hideFromHome) {
+      // Suggest on home off (Q-106), written only once the list exists.
+      preferences.removeFromHome(
+        result.definition.id,
+        existing: [
+          for (final ListDefinition list in store.current.definitions) list.id,
+          result.definition.id,
+        ],
+      );
+    }
     if (mounted && errors.isEmpty) {
       _openList(result.definition.id);
     }

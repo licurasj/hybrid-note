@@ -13,6 +13,7 @@ import 'confirm_delete_sheet.dart';
 import 'list_definition.dart';
 import 'list_editor_rules.dart';
 import 'list_editor_style.dart';
+import 'list_error.dart';
 import 'list_icons.dart';
 import 'list_item.dart';
 import 'list_labels.dart';
@@ -24,15 +25,23 @@ import 'list_vocabulary.dart';
 // (with an Undo snackbar, D-5); otherwise `ops` and their checked `result`
 // are ready to save.
 class ListEditorOutcome {
-  const ListEditorOutcome.saved(this.ops, this.result) : deleted = false;
+  const ListEditorOutcome.saved(
+    this.ops,
+    this.result, {
+    this.hideFromHome = false,
+  }) : deleted = false;
   const ListEditorOutcome.deleted()
     : ops = const [],
       result = null,
+      hideFromHome = false,
       deleted = true;
 
   final List<ListPatchOp> ops;
   final ListPatchResult? result;
   final bool deleted;
+  // A new list with Suggest on home off: the caller writes it to homeRemoved
+  // once the list is created, so a failed create leaves no stray id there.
+  final bool hideFromHome;
 }
 
 // A blank list to start from: a title and a done checkbox.
@@ -186,6 +195,14 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
         ).toJson(),
       }),
     );
+    final ListDefinition before = widget.definition;
+    if (oldTick != null &&
+        oldTick == before.fieldWithRole(FieldRole.completion)?.key) {
+      // The tick removed in this edit comes back: so do the rules and the
+      // checklist view that went with it, as the list had them.
+      _restoreWithTick(before);
+      return;
+    }
     if (completion &&
         !_draft.behaviors.any((rule) => rule.kind == BehaviorKind.clearCompleted)) {
       _push(
@@ -193,6 +210,22 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
           const BehaviorDefinition(kind: BehaviorKind.clearCompleted),
         ),
       );
+    }
+  }
+
+  // Undoes what [_removeField] did with the tick: the list's rules that are
+  // gone (some, such as Copy when cleared, cannot be added in the editor)
+  // and its checklist view, unless the view was changed since.
+  void _restoreWithTick(ListDefinition before) {
+    for (final BehaviorDefinition rule in before.behaviors) {
+      if (!_draft.behaviors.any((now) => now.kind == rule.kind)) {
+        _push(ListEditorRules.addOp(rule));
+      }
+    }
+    if (before.view.kind == ViewKind.checklist &&
+        _draft.view.kind == ViewKind.table &&
+        _draft.view.filterChipsBy == before.view.filterChipsBy) {
+      _push(ListPatchOp(PatchOpKind.setView, {'view': before.view.toJson()}));
     }
   }
 
@@ -377,7 +410,7 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
       key: const ValueKey('section-layout'),
       title: '${loc.layout} · ${labels.viewKind(view.kind)}',
       open: widget.isNew,
-      forceOpen: _showErrors,
+      forceOpen: _errorsIn(_EditorPart.layout),
       children: [
         SettingOptionList<ViewKind>(
           key: const ValueKey('view-kind'),
@@ -754,6 +787,45 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
   }
 
   // Problems that keep Save disabled are shown, and their sections open.
+  // Which fold section a problem belongs to, so only that one opens (Q-113).
+  bool _errorsIn(_EditorPart part) =>
+      _showErrors && _result.errors.any((error) => _partOf(error.code) == part);
+
+  static _EditorPart? _partOf(ListErrorCode code) => switch (code) {
+    ListErrorCode.noFields ||
+    ListErrorCode.primaryCount ||
+    ListErrorCode.primaryNotText ||
+    ListErrorCode.duplicateRole ||
+    ListErrorCode.badFieldKey ||
+    ListErrorCode.reservedFieldKey ||
+    ListErrorCode.duplicateFieldKey ||
+    ListErrorCode.missingFieldLabel ||
+    ListErrorCode.missingOptions ||
+    ListErrorCode.optionsNotAllowed ||
+    ListErrorCode.duplicateOption ||
+    ListErrorCode.defaultNotOption ||
+    ListErrorCode.minAboveMax ||
+    ListErrorCode.conditionNotChoice ||
+    ListErrorCode.conditionOnItself ||
+    ListErrorCode.conditionNotOption ||
+    ListErrorCode.roleNeedsType ||
+    ListErrorCode.opNoField ||
+    ListErrorCode.fieldExists ||
+    ListErrorCode.unknownFieldType => _EditorPart.fields,
+    ListErrorCode.viewNeedsParam ||
+    ListErrorCode.viewParamNotField ||
+    ListErrorCode.viewParamWrongType ||
+    ListErrorCode.checklistNeedsCompletion => _EditorPart.layout,
+    ListErrorCode.ruleNeedsCompletion ||
+    ListErrorCode.ruleNeedsParam ||
+    ListErrorCode.ruleParamNotField ||
+    ListErrorCode.ruleParamWrongType ||
+    ListErrorCode.ruleUnknownField ||
+    ListErrorCode.ruleValueNotOption ||
+    ListErrorCode.ruleParamNotOption => _EditorPart.rules,
+    _ => null,
+  };
+
   bool get _showErrors => !_result.isValid && (_ops.isNotEmpty || widget.isNew);
 
   static String _viewLine(AppLocalizations loc, ViewKind kind) => switch (kind) {
@@ -857,7 +929,7 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
   void _saveSuggest() {
     final AccountPreferencesCubit? preferences =
         context.read<AccountPreferencesCubit?>();
-    if (preferences == null || !_suggestChanged) {
+    if (preferences == null || !_suggestChanged || widget.isNew) {
       return;
     }
     final String id = widget.definition.id;
@@ -924,7 +996,14 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
                     _saveSuggest();
                     Navigator.of(
                       context,
-                    ).pop(ListEditorOutcome.saved(List.of(_ops), _result));
+                    ).pop(
+                      ListEditorOutcome.saved(
+                        List.of(_ops),
+                        _result,
+                        hideFromHome:
+                            widget.isNew && _suggestChanged && !_suggest!,
+                      ),
+                    );
                   }
                 : null,
           ),
@@ -1066,7 +1145,7 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
               key: const ValueKey('section-fields'),
               title: '${loc.fields} · ${draft.fields.length}',
               open: widget.isNew,
-              forceOpen: _showErrors,
+              forceOpen: _errorsIn(_EditorPart.fields),
               children: [
                 ReorderableListView(
                   shrinkWrap: true,
@@ -1099,7 +1178,7 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
               key: const ValueKey('section-rules'),
               title: '${loc.rules} · ${draft.behaviors.length}',
               open: widget.isNew,
-              forceOpen: _showErrors,
+              forceOpen: _errorsIn(_EditorPart.rules),
               children: [
                 ListEditorRules(
                   definition: draft,
@@ -1234,3 +1313,6 @@ class _AddFieldDialogState extends State<_AddFieldDialog> {
     );
   }
 }
+
+// The editor's fold sections.
+enum _EditorPart { fields, layout, rules }

@@ -160,4 +160,65 @@ void main() {
     expect(ListRules.isCompleted(result, items.first), isTrue);
     expect(ListRules.isCompleted(result, items.last), isFalse);
   });
+
+  testWidgets('Grocery: the tick removed and a checkbox added back in one edit brings its rules back', (
+    tester,
+  ) async {
+    final ListDefinition grocery = BuiltinTemplates.grocery();
+    final Future<ListEditorOutcome?> Function() outcome = await _pumpEditor(tester, grocery, const []);
+    await tester.pump();
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    await openEditorSections(tester);
+
+    await tester.tap(find.byKey(const ValueKey('remove-field-done')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('add-field')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('new-field-name')), 'Got it');
+    await tester.tap(find.byKey(const ValueKey('new-field-type')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Checkbox').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('no-tick-line')), findsNothing);
+
+    final ListDefinition result = (await _save(tester, outcome())).result!.definition;
+    expect(result.fieldWithRole(FieldRole.completion)!.key, 'done');
+    expect(
+      result.behaviors.map((rule) => rule.kind).toSet(),
+      grocery.behaviors.map((rule) => rule.kind).toSet(),
+    );
+    expect(result.view.kind, grocery.view.kind);
+    expect(result.validate(), isEmpty);
+  });
+
+  testWidgets('Tasks: the checklist comes back with the tick', (tester) async {
+    final ListDefinition tasks = BuiltinTemplates.tasks();
+    final Future<ListEditorOutcome?> Function() outcome = await _pumpEditor(tester, tasks, const []);
+    await tester.pump();
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    await openEditorSections(tester);
+
+    await tester.tap(find.byKey(const ValueKey('remove-field-done')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('add-field')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('new-field-name')), 'Done');
+    await tester.tap(find.byKey(const ValueKey('new-field-type')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Checkbox').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
+
+    final ListDefinition result = (await _save(tester, outcome())).result!.definition;
+    expect(result.view.kind, ViewKind.checklist);
+    expect(
+      result.behaviors.map((rule) => rule.kind).toSet(),
+      tasks.behaviors.map((rule) => rule.kind).toSet(),
+    );
+  });
 }

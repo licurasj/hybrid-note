@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/gestures.dart' show kTouchSlop;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -150,6 +151,12 @@ class _DialLauncherState extends State<DialLauncher>
   // emphasis is, easing towards the selected entry; and how far the selected
   // tab has grown (0 to 1).
   int? _selected;
+  // A finger put on the dial in tap mode (Q-125): once it moves, the list
+  // under it grows and the scroll zones scroll, as in a hold; letting go
+  // keeps tap mode with that list selected (Proposed).
+  int? _tapDragPointer;
+  Offset? _tapDragStart;
+  bool _tapDragging = false;
   double _position = 0;
   double _scroll = 0;
   double _focus = 0;
@@ -867,6 +874,8 @@ class _DialLauncherState extends State<DialLauncher>
       _slides.clear();
       _dragPointer = null;
       _swipePointer = null;
+      _tapDragPointer = null;
+      _tapDragging = false;
       _edge = 0;
       _selected = null;
       _zoom = 0;
@@ -946,6 +955,9 @@ class _DialLauncherState extends State<DialLauncher>
     _arrangeIn = moving ? arrangeIn : arrangeTarget;
 
     bool changed = animating;
+    if (_tapDragging && g != null && pointer != null) {
+      changed = _scrollAtEdge(g, pointer, seconds) || true;
+    }
     if (_mode == _Mode.hold && g != null && pointer != null) {
       changed = _scrollAtEdge(g, pointer, seconds) || changed;
       changed = _offerPrompt(g, pointer) || changed;
@@ -1686,6 +1698,72 @@ class _DialLauncherState extends State<DialLauncher>
 
   // --- Tap mode and keyboard ------------------------------------------------
 
+  // A finger down on the open dial in tap mode, off the hub (the hub's own
+  // press closes tap mode). It counts as a drag only once it moves past the
+  // touch slop; until then a tab's tap or the barrier's tap acts as before.
+  void _onTapAreaDown(PointerDownEvent event) {
+    final LauncherGeometry? g = _geometry;
+    if (_mode != _Mode.tap || _tapDragPointer != null || g == null) {
+      return;
+    }
+    final (double _, double radius) = _polar(g, event.position);
+    if (radius <= _config.hubRadius) {
+      return;
+    }
+    _tapDragPointer = event.pointer;
+    _tapDragStart = event.position;
+    _tapDragging = false;
+  }
+
+  void _onTapAreaMove(PointerMoveEvent event) {
+    final LauncherGeometry? g = _geometry;
+    if (event.pointer != _tapDragPointer || _mode != _Mode.tap || g == null) {
+      return;
+    }
+    if (!_tapDragging) {
+      if ((event.position - _tapDragStart!).distance < kTouchSlop) {
+        return;
+      }
+      _tapDragging = true;
+      _edge = 0;
+      _turnAt = null;
+      _turnSpeed = 0;
+      _wake();
+    }
+    final Offset finger = event.position;
+    final (double angle, double radius) = _polar(g, finger);
+    final bool onHub = radius <= _config.hubRadius;
+    _trackTurn(event.timeStamp, angle, onHub);
+    setState(() {
+      _pointer = finger;
+      // On the hub or off the dial the selection stays where it was.
+      if (onHub || !_onDial(g, angle, radius)) {
+        _edge = 0;
+        return;
+      }
+      final int? before = _selected;
+      _followEdge(g, angle);
+      _selected ??= before;
+    });
+  }
+
+  void _onTapAreaUp(PointerEvent event) {
+    if (event.pointer != _tapDragPointer) {
+      return;
+    }
+    _tapDragPointer = null;
+    _tapDragStart = null;
+    if (!_tapDragging) {
+      return;
+    }
+    // Still in tap mode, the grown list selected: a tap opens it.
+    setState(() {
+      _tapDragging = false;
+      _edge = 0;
+      _pointer = null;
+    });
+  }
+
   void _openTapMode() {
     setState(() {
       _mode = _Mode.tap;
@@ -2398,6 +2476,11 @@ class _DialLauncherState extends State<DialLauncher>
           onKeyEvent: _onKey,
           // The hub and the tabs are the screen reader's nodes.
           includeSemantics: false,
+          child: Listener(
+          onPointerDown: _onTapAreaDown,
+          onPointerMove: _onTapAreaMove,
+          onPointerUp: _onTapAreaUp,
+          onPointerCancel: _onTapAreaUp,
           child: Stack(
             children: [
               if (_mode == _Mode.tap)
@@ -2471,6 +2554,7 @@ class _DialLauncherState extends State<DialLauncher>
                 ),
               ),
             ],
+          ),
           ),
           ),
         );

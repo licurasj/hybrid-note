@@ -508,8 +508,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       return;
     }
     _buzz(false);
-    // Clear straight away (Q-119): ticked and cleared at once, with Undo.
+    // Clear straight away (Q-119): ticked and cleared at once, with Undo, in a
+    // list with the Clear ticked rule; elsewhere a plain tick (Q-124).
     if (!due.done &&
+        due.clearable &&
         context.accountPreferences.tickedItemsFor(due.definition) ==
             TickedItems.clearAtOnce) {
       ClearWithUndo.run(
