@@ -517,7 +517,7 @@ class AiAskSlider extends StatelessWidget {
                   alpha: 0.35,
                 ),
                 inactiveTickMarkColor: neutrals.muted,
-                overlayColor: AppColors.appBlue.withValues(alpha: 0.18),
+                overlayColor: Colors.transparent,
                 showValueIndicator: ShowValueIndicator.never,
               ),
               child: Slider(

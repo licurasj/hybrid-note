@@ -128,6 +128,15 @@ void main() {
           findsOneWidget,
         );
         expect(find.byKey(const ValueKey('settings-ai-ask')), findsOneWidget);
+        // How often the AI checks comes first, then Apply without asking,
+        // both above Preferences (Q-131).
+        double top(String key) =>
+            tester.getTopLeft(find.byKey(ValueKey(key))).dy;
+        expect(
+          top('settings-ai-ask'),
+          lessThan(top('settings-ai-auto-apply')),
+        );
+        expect(top('settings-ai-auto-apply'), lessThan(preferences));
       },
     );
 

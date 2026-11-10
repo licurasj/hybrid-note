@@ -29,6 +29,26 @@ class AppMotion {
   static const Curve curve = Curves.easeOutCubic;
 }
 
+// No ink (owner, 2026-11-10): nothing grey or tinted behind what is pressed
+// or held. The theme turns splashes and pressed highlights off; a button with
+// its own style (or its own colour) goes through [pressless], which keeps its
+// hover and focus tint, so keyboard focus stays visible.
+class AppInk {
+  const AppInk._();
+
+  static ButtonStyle pressless(ButtonStyle style) {
+    final WidgetStateProperty<Color?>? own = style.overlayColor;
+    return style.copyWith(
+      splashFactory: NoSplash.splashFactory,
+      overlayColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.pressed)
+            ? Colors.transparent
+            : own?.resolve(states),
+      ),
+    );
+  }
+}
+
 class AppShapes {
   const AppShapes._();
 
@@ -362,6 +382,24 @@ class AppTheme {
           shadow: Colors.black,
         );
 
+    // No ink anywhere (owner, 2026-11-10: no grey box behind what is held or
+    // pressed): no splash and no pressed highlight. Keyboard focus and a
+    // mouse's hover keep a faint tint, so focus stays visible on wide screens.
+    final WidgetStateProperty<Color?> noPress = WidgetStateProperty.resolveWith(
+      (states) {
+        if (states.contains(WidgetState.focused)) {
+          return n.text.withValues(alpha: 0.12);
+        }
+        if (states.contains(WidgetState.hovered)) {
+          return n.text.withValues(alpha: 0.06);
+        }
+        return Colors.transparent;
+      },
+    );
+    ButtonStyle inkless(ButtonStyle style) => style.copyWith(
+      overlayColor: noPress,
+      splashFactory: NoSplash.splashFactory,
+    );
     final TextStyle buttonText = sans(15, weight: FontWeight.w500);
     const EdgeInsets buttonPadding = EdgeInsets.symmetric(
       horizontal: 20,
@@ -375,18 +413,22 @@ class AppTheme {
           ? BorderSide(color: n.line)
           : BorderSide.none,
     );
-    final ButtonStyle pickerCancel = TextButton.styleFrom(
-      foregroundColor: n.text,
-      textStyle: buttonText,
-      padding: buttonPadding,
-      shape: AppShapes.pill,
+    final ButtonStyle pickerCancel = inkless(
+      TextButton.styleFrom(
+        foregroundColor: n.text,
+        textStyle: buttonText,
+        padding: buttonPadding,
+        shape: AppShapes.pill,
+      ),
     );
-    final ButtonStyle pickerConfirm = TextButton.styleFrom(
-      backgroundColor: n.text,
-      foregroundColor: n.ground,
-      textStyle: buttonText,
-      padding: buttonPadding,
-      shape: AppShapes.pill,
+    final ButtonStyle pickerConfirm = inkless(
+      TextButton.styleFrom(
+        backgroundColor: n.text,
+        foregroundColor: n.ground,
+        textStyle: buttonText,
+        padding: buttonPadding,
+        shape: AppShapes.pill,
+      ),
     );
     final OutlineInputBorder fieldBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(AppShapes.fieldRadius),
@@ -403,6 +445,11 @@ class AppTheme {
       textTheme: textTheme,
       extensions: [typography],
       iconTheme: IconThemeData(color: n.text),
+      splashFactory: NoSplash.splashFactory,
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      focusColor: n.text.withValues(alpha: 0.12),
+      hoverColor: n.text.withValues(alpha: 0.06),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
           TargetPlatform.android: SlidePageTransitionsBuilder(),
@@ -436,50 +483,59 @@ class AppTheme {
         subtitleTextStyle: sans(13, color: n.muted),
       ),
       filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          backgroundColor: n.text,
-          foregroundColor: n.ground,
-          disabledBackgroundColor: n.surface,
-          disabledForegroundColor: n.muted,
-          textStyle: buttonText,
-          padding: buttonPadding,
-          shape: AppShapes.pill,
+        style: inkless(
+          FilledButton.styleFrom(
+            backgroundColor: n.text,
+            foregroundColor: n.ground,
+            disabledBackgroundColor: n.surface,
+            disabledForegroundColor: n.muted,
+            textStyle: buttonText,
+            padding: buttonPadding,
+            shape: AppShapes.pill,
+          ),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: n.surface,
-          foregroundColor: n.text,
-          elevation: 0,
-          textStyle: buttonText,
-          padding: buttonPadding,
-          shape: AppShapes.pill,
+        style: inkless(
+          ElevatedButton.styleFrom(
+            backgroundColor: n.surface,
+            foregroundColor: n.text,
+            elevation: 0,
+            textStyle: buttonText,
+            padding: buttonPadding,
+            shape: AppShapes.pill,
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: n.text,
-          side: BorderSide(color: n.text),
-          textStyle: buttonText,
-          padding: buttonPadding,
-          shape: AppShapes.pill,
+        style: inkless(
+          OutlinedButton.styleFrom(
+            foregroundColor: n.text,
+            side: BorderSide(color: n.text),
+            textStyle: buttonText,
+            padding: buttonPadding,
+            shape: AppShapes.pill,
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: n.text,
-          textStyle: buttonText,
-          shape: AppShapes.pill,
+        style: inkless(
+          TextButton.styleFrom(
+            foregroundColor: n.text,
+            textStyle: buttonText,
+            shape: AppShapes.pill,
+          ),
         ),
       ),
       iconButtonTheme: IconButtonThemeData(
-        style: IconButton.styleFrom(foregroundColor: n.text),
+        style: inkless(IconButton.styleFrom(foregroundColor: n.text)),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: n.text,
         foregroundColor: n.ground,
         elevation: 6,
         highlightElevation: 6,
+        splashColor: Colors.transparent,
         shape: const CircleBorder(),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -505,11 +561,13 @@ class AppTheme {
               : Colors.transparent,
         ),
         checkColor: WidgetStatePropertyAll(n.ground),
+        overlayColor: noPress,
       ),
       radioTheme: RadioThemeData(
         fillColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.selected) ? n.text : n.muted,
         ),
+        overlayColor: noPress,
       ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith(
@@ -525,6 +583,7 @@ class AppTheme {
               ? Colors.transparent
               : n.line,
         ),
+        overlayColor: noPress,
       ),
       chipTheme: ChipThemeData(
         backgroundColor: n.ground,
@@ -595,6 +654,8 @@ class AppTheme {
         subHeaderForegroundColor: n.muted,
         cancelButtonStyle: pickerCancel,
         confirmButtonStyle: pickerConfirm,
+        dayOverlayColor: noPress,
+        yearOverlayColor: noPress,
       ),
       popupMenuTheme: PopupMenuThemeData(
         color: n.ground,
@@ -608,6 +669,7 @@ class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: n.ground,
         indicatorColor: n.surface,
+        overlayColor: noPress,
         labelTextStyle: WidgetStatePropertyAll(
           sans(12, weight: FontWeight.w500),
         ),

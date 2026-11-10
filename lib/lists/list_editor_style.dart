@@ -92,11 +92,13 @@ class EditorLook {
       alignment: AlignmentDirectional.centerStart,
       child: TextButton.icon(
         key: key,
-        style: TextButton.styleFrom(
-          foregroundColor: neutrals.text,
-          minimumSize: const Size(0, 48),
-          padding: const EdgeInsets.symmetric(horizontal: 0),
-          textStyle: strong,
+        style: AppInk.pressless(
+          TextButton.styleFrom(
+            foregroundColor: neutrals.text,
+            minimumSize: const Size(0, 48),
+            padding: const EdgeInsets.symmetric(horizontal: 0),
+            textStyle: strong,
+          ),
         ),
         icon: const Icon(Icons.add, size: 20),
         label: Text(text),

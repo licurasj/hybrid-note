@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_colors.dart';
+import 'app_theme.dart';
 import '../lists/list_editor_style.dart';
 
 // The settings controls of the Preferences page and the list editor (T-24,
@@ -571,15 +572,54 @@ class FoldSection extends StatefulWidget {
   State<FoldSection> createState() => _FoldSectionState();
 }
 
-class _FoldSectionState extends State<FoldSection> {
+class _FoldSectionState extends State<FoldSection>
+    with SingleTickerProviderStateMixin {
   late bool _open = widget.open || widget.forceOpen;
+  // Opening and shutting slide the rows' height, quick and eased out, and
+  // the arrow turns with them (owner, 2026-11-10; AESTHETICS Motion: size,
+  // no fade). Reduced motion jumps.
+  late final AnimationController _fold =
+      AnimationController(
+        vsync: this,
+        duration: AppMotion.standard,
+        value: _open ? 1 : 0,
+      )..addStatusListener((status) {
+        // Shut rows are not built.
+        if (status == AnimationStatus.dismissed && mounted) {
+          setState(() {});
+        }
+      });
+  late final CurvedAnimation _height = CurvedAnimation(
+    parent: _fold,
+    curve: AppMotion.curve,
+  );
+
+  bool get _reduceMotion => MediaQuery.disableAnimationsOf(context);
+
+  void _turn(bool open) {
+    if (_reduceMotion) {
+      _fold.value = open ? 1 : 0;
+    } else if (open) {
+      _fold.forward();
+    } else {
+      _fold.reverse();
+    }
+  }
 
   @override
   void didUpdateWidget(FoldSection oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.forceOpen) {
+    if (widget.forceOpen && !_open) {
       _open = true;
+      _turn(true);
     }
+  }
+
+  @override
+  void dispose() {
+    _height.dispose();
+    _fold.dispose();
+    super.dispose();
   }
 
   @override
@@ -595,23 +635,43 @@ class _FoldSectionState extends State<FoldSection> {
           child: InkWell(
             onTap: widget.forceOpen
                 ? null
-                : () => setState(() => _open = !_open),
+                : () {
+                    setState(() => _open = !_open);
+                    _turn(_open);
+                  },
             child: Padding(
               padding: const EdgeInsets.only(top: 30, bottom: 2),
               child: Row(
                 children: [
                   Expanded(child: Text(widget.title, style: look.heading)),
-                  Icon(
-                    open ? Icons.expand_less : Icons.expand_more,
-                    size: 24,
-                    color: look.neutrals.muted,
+                  AnimatedRotation(
+                    turns: open ? 0.5 : 0,
+                    duration: _reduceMotion
+                        ? Duration.zero
+                        : AppMotion.standard,
+                    curve: AppMotion.curve,
+                    child: Icon(
+                      Icons.expand_more,
+                      size: 24,
+                      color: look.neutrals.muted,
+                    ),
                   ),
                 ],
               ),
             ),
           ),
         ),
-        if (open) ...widget.children,
+        if (open || !_fold.isDismissed)
+          ClipRect(
+            child: SizeTransition(
+              sizeFactor: _height,
+              axisAlignment: -1,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: widget.children,
+              ),
+            ),
+          ),
       ],
     );
   }

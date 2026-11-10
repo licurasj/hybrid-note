@@ -609,14 +609,14 @@ class _GenericListScreenState extends State<GenericListScreen>
 
   ButtonStyle get _barButtonStyle {
     final _Look look = _look;
-    return TextButton.styleFrom(
+    return AppInk.pressless(TextButton.styleFrom(
       foregroundColor: look.neutrals.text,
       backgroundColor: look.neutrals.surface,
       textStyle: look.type.meta.copyWith(fontWeight: FontWeight.w500),
       padding: const EdgeInsets.symmetric(horizontal: 14),
       minimumSize: const Size(0, 36),
       shape: AppShapes.pill,
-    );
+    ));
   }
 
   Widget _itemRow(ListLabels labels, ListItem item) {

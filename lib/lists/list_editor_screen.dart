@@ -622,6 +622,7 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
                   key: ValueKey('remove-field-${field.key}'),
                   tooltip: loc.delete,
                   color: look.neutrals.muted,
+                  highlightColor: Colors.transparent,
                   icon: const Icon(Icons.delete_outline, size: 20),
                   onPressed: field.primary ? null : () => _removeField(field),
                 ),
@@ -1215,12 +1216,12 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
                   alignment: AlignmentDirectional.centerStart,
                   child: TextButton.icon(
                     key: const ValueKey('delete-list'),
-                    style: TextButton.styleFrom(
+                    style: AppInk.pressless(TextButton.styleFrom(
                       foregroundColor: errorColor,
                       minimumSize: const Size(0, 48),
                       padding: EdgeInsets.zero,
                       textStyle: look.strong,
-                    ),
+                    )),
                     icon: const Icon(Icons.delete_outline, size: 20),
                     label: Text(loc.deleteList),
                     onPressed: () async {

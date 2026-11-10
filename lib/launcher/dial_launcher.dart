@@ -2354,6 +2354,7 @@ class _DialLauncherState extends State<DialLauncher>
               ? () => _turnArranging(direction)
               : () => _stepTap(direction),
           color: neutrals.text,
+          highlightColor: Colors.transparent,
           icon: Transform.rotate(
             angle: math.atan2(turn.dy, turn.dx),
             child: const Icon(Icons.arrow_forward),

@@ -89,8 +89,12 @@ class _ConfirmDeleteSheet extends StatelessWidget {
                       const SizedBox(width: 8),
                       TextButton(
                         key: const ValueKey('confirm-delete-yes'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: Theme.of(context).colorScheme.error,
+                        style: AppInk.pressless(
+                          TextButton.styleFrom(
+                            foregroundColor: Theme.of(
+                              context,
+                            ).colorScheme.error,
+                          ),
                         ),
                         onPressed: () => Navigator.of(context).pop(true),
                         child: Text(loc.delete),

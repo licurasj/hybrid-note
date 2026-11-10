@@ -1160,13 +1160,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       child: TextButton(
         key: const ValueKey('home-arrange-done'),
         onPressed: _endArranging,
-        style: TextButton.styleFrom(
-          backgroundColor: neutrals.promptDark,
-          foregroundColor: AppColors.onColor(neutrals.promptDark),
-          minimumSize: const Size(72, 40),
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          shape: AppShapes.pill,
-          textStyle: HomePrompt.labelStyle,
+        style: AppInk.pressless(
+          TextButton.styleFrom(
+            backgroundColor: neutrals.promptDark,
+            foregroundColor: AppColors.onColor(neutrals.promptDark),
+            minimumSize: const Size(72, 40),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            shape: AppShapes.pill,
+            textStyle: HomePrompt.labelStyle,
+          ),
         ),
         child: Text(loc.homeArrangeDone),
       ),
@@ -1733,11 +1735,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     showSettingsSheet(context);
                                   }
                                 },
-                                style: IconButton.styleFrom(
-                                  backgroundColor: AppColors.appBlue,
-                                  foregroundColor: AppColors.onAppBlue,
-                                  fixedSize: const Size(40, 40),
-                                  minimumSize: const Size(40, 40),
+                                style: AppInk.pressless(
+                                  IconButton.styleFrom(
+                                    backgroundColor: AppColors.appBlue,
+                                    foregroundColor: AppColors.onAppBlue,
+                                    fixedSize: const Size(40, 40),
+                                    minimumSize: const Size(40, 40),
+                                  ),
                                 ),
                                 icon: const Icon(
                                   Icons.settings_outlined,
@@ -2089,6 +2093,19 @@ class _SettingsSheet extends StatelessWidget {
                         onTap: () => _showLanguageDialog(context, settings),
                       ),
                       hairline(),
+                      // How often the AI checks, then Apply without asking
+                      // (Q-131).
+                      Padding(
+                        key: const ValueKey('settings-ai-ask'),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppShapes.sideMargin,
+                        ),
+                        child: AiAskSlider(
+                          level: synced.aiAskLevel,
+                          onChanged: preferences.setAiAskLevel,
+                        ),
+                      ),
+                      hairline(),
                       // One node for a screen reader: the switch with its name.
                       MergeSemantics(
                         child: row(
@@ -2105,16 +2122,6 @@ class _SettingsSheet extends StatelessWidget {
                         ),
                       ),
                       hairline(),
-                      Padding(
-                        key: const ValueKey('settings-ai-ask'),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppShapes.sideMargin,
-                        ),
-                        child: AiAskSlider(
-                          level: synced.aiAskLevel,
-                          onChanged: preferences.setAiAskLevel,
-                        ),
-                      ),
                       row(
                         key: const ValueKey('settings-preferences'),
                         icon: Icons.tune,

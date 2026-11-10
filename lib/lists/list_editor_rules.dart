@@ -152,6 +152,7 @@ class ListEditorRules extends StatelessWidget {
                 key: ValueKey('remove-rule-${ids[index]}'),
                 tooltip: loc.delete,
                 color: look.neutrals.muted,
+                highlightColor: Colors.transparent,
                 icon: const Icon(Icons.delete_outline, size: 20),
                 onPressed: () => onOp(removeOp(behavior.kind)),
               ),
