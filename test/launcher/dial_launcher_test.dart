@@ -91,6 +91,7 @@ final Finder _movePill = find.descendant(
 
 // The app's theme in these tests is light.
 final Color _dark = AppColors.neutrals(Brightness.light).promptDark;
+final Color _faint = AppColors.neutrals(Brightness.light).line;
 
 Color _moveColor(WidgetTester tester) {
   final Container pill = tester.widget<Container>(_movePill);
@@ -351,6 +352,38 @@ void main() {
     expect(_hub(tester).dy, lessThan(hub.dy - 100));
   });
 
+  testWidgets('with Move out, sliding on to a list still opens it', (
+    WidgetTester tester,
+  ) async {
+    // Owner, 2026-11-09: once the hub's prompts were out, no list could be
+    // reached in that hold. Past them, out on the lists, the dial works again.
+    final List<String> log = await _pump(tester);
+    final Offset hub = _hub(tester);
+    final TestGesture gesture = await tester.startGesture(hub);
+    await _holdUntilMoveShows(tester);
+    await tester.pump(const Duration(milliseconds: 300));
+    await _moveTo(tester, gesture, hub, _at(tester, _diagonal(tester), 160));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byKey(const ValueKey('launcher-move-prompt')), findsNothing);
+    await gesture.up();
+    await tester.pump();
+    expect(log, ['open n0']);
+  });
+
+  testWidgets('with Move out, letting go short of the lists does nothing', (
+    WidgetTester tester,
+  ) async {
+    final List<String> log = await _pump(tester);
+    final Offset hub = _hub(tester);
+    final TestGesture gesture = await tester.startGesture(hub);
+    await _holdUntilMoveShows(tester);
+    await _moveTo(tester, gesture, hub, _at(tester, _diagonal(tester), 60));
+    expect(find.byKey(const ValueKey('launcher-move-prompt')), findsOneWidget);
+    await gesture.up();
+    await tester.pump();
+    expect(log, isEmpty);
+  });
+
   testWidgets('Move slides out from behind the hub, under it', (
     WidgetTester tester,
   ) async {
@@ -364,7 +397,8 @@ void main() {
     expect((start.center - hub).distance, lessThan(1));
     expect(start.width, lessThan(64));
     expect(start.height, lessThan(64));
-    expect(_moveColor(tester), _dark);
+    // Faint while the finger rests (Q-121 D).
+    expect(_moveColor(tester), _faint);
 
     // It is painted before the hub, so the hub stays on top while it slides.
     final List<Element> stacked = [];
@@ -394,7 +428,7 @@ void main() {
     expect((middle - hub).distance, lessThan((end.center - hub).distance));
     expect(end.width, greaterThan(start.width));
     // Nothing has filled it: the finger has not moved.
-    expect(_moveColor(tester), _dark);
+    expect(_moveColor(tester), _faint);
     await gesture.up();
   });
 
@@ -576,6 +610,99 @@ void main() {
     );
     await tester.pump();
     expect(log, ['open n11', 'edit n2', 'edit n0']);
+  });
+
+  testWidgets('tap mode: a finger moved on the dial grows the list under it; '
+      'letting go keeps tap mode with it selected (Q-125)', (
+    WidgetTester tester,
+  ) async {
+    final List<String> log = await _pump(tester);
+    await tester.tap(find.byKey(const ValueKey('launcher-hub')));
+    await tester.pumpAndSettle();
+    final double diagonal = _diagonal(tester);
+    final TestGesture gesture =
+        await tester.startGesture(_at(tester, diagonal, 160));
+    await tester.pump(const Duration(milliseconds: 50));
+    await _turn(tester, gesture, diagonal, diagonal + 1.1 * _step, 160);
+    await tester.pump(const Duration(milliseconds: 300));
+    await gesture.up();
+    await tester.pumpAndSettle();
+    // Nothing opened, tap mode still open, and it settles.
+    expect(log, isEmpty);
+    expect(find.byKey(const ValueKey('launcher-barrier')), findsOneWidget);
+    expect(tester.binding.hasScheduledFrame, isFalse);
+    // The grown list is the selected one: Enter opens it; so would a tap.
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(log, ['open n1']);
+  });
+
+  testWidgets('tap mode: holding a dragged finger in a scroll zone scrolls '
+      '(Q-125)', (WidgetTester tester) async {
+    final List<String> log = await _pump(tester, count: 12);
+    await tester.tap(find.byKey(const ValueKey('launcher-hub')));
+    await tester.pumpAndSettle();
+    final TestGesture gesture =
+        await tester.startGesture(_at(tester, _diagonal(tester), 160));
+    await tester.pump(const Duration(milliseconds: 50));
+    await _turn(tester, gesture, _diagonal(tester), math.pi - 0.05, 160);
+    for (int i = 0; i < 150; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(log, isEmpty);
+    expect(find.byKey(const ValueKey('launcher-note-n11')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('launcher-note-n11')));
+    await tester.pump();
+    expect(log, ['open n11']);
+  });
+
+  testWidgets('tap mode: after a drag the dial turns the grown list into view '
+      'as the arrows do (T-24 unit 7 D3)', (WidgetTester tester) async {
+    final List<String> log = await _pump(tester, count: 12);
+    await tester.tap(find.byKey(const ValueKey('launcher-hub')));
+    await tester.pumpAndSettle();
+    final TestGesture gesture =
+        await tester.startGesture(_at(tester, _diagonal(tester), 160));
+    await tester.pump(const Duration(milliseconds: 50));
+    await _turn(tester, gesture, _diagonal(tester), math.pi - 0.45, 160);
+    await tester.pump(const Duration(milliseconds: 300));
+    await gesture.up();
+    await tester.pumpAndSettle();
+    final Map<String, Rect> dragged = {
+      for (int i = 0; i < 12; i++)
+        if (find.byKey(ValueKey('launcher-note-n$i')).evaluate().isNotEmpty)
+          'n$i': tester.getRect(find.byKey(ValueKey('launcher-note-n$i'))),
+    };
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(log, hasLength(1));
+    final String grown = log.single.split(' ').last;
+    final int index = int.parse(grown.substring(1));
+    expect(index, greaterThan(1));
+
+    await tester.tap(find.byKey(const ValueKey('launcher-hub')));
+    await tester.pumpAndSettle();
+    for (int i = 0; i < index; i++) {
+      await tester.tap(find.byKey(const ValueKey('launcher-next')));
+      await tester.pumpAndSettle();
+    }
+    expect(
+      tester.getRect(find.byKey(ValueKey('launcher-note-$grown'))),
+      rectMoreOrLessEquals(dragged[grown]!, epsilon: 0.5),
+    );
+  });
+
+  testWidgets('tap mode: a still tap on a tab still opens it', (
+    WidgetTester tester,
+  ) async {
+    final List<String> log = await _pump(tester);
+    await tester.tap(find.byKey(const ValueKey('launcher-hub')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('launcher-note-n1')));
+    await tester.pump();
+    expect(log, ['open n1']);
   });
 
   testWidgets('tap mode stops animating once settled', (

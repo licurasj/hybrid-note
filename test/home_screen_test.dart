@@ -184,6 +184,13 @@ void main() {
       // is of open items only.
       expect(find.byKey(const ValueKey('home-due-t-done')), findsOneWidget);
       expect(find.byKey(const ValueKey('home-clear-t-done')), findsOneWidget);
+      // Its label is the list page's × label (T-24 unit 7).
+      expect(
+        tester
+            .widget<IconButton>(find.byKey(const ValueKey('home-clear-t-done')))
+            .tooltip,
+        'Clear',
+      );
       expect(find.byKey(const ValueKey('home-clear-t-today')), findsNothing);
       // Overdue first, with its date; today's with its time.
       expect(

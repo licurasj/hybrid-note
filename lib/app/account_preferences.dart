@@ -7,6 +7,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../lists/list_definition.dart';
 import 'home_cards.dart';
 
 // How the home and launcher order the lists (Q-49).
@@ -36,6 +37,13 @@ enum HomeListOrder {
   const HomeListOrder(this.wire);
 
   final String wire;
+
+  // Home's own choice that matches the dial's [order].
+  static HomeListOrder ofDial(ListOrder order) => switch (order) {
+    ListOrder.lastUsed => lastUsed,
+    ListOrder.alphabetical => alphabetical,
+    ListOrder.myOrder => myOrder,
+  };
 
   // Null for a missing or unknown value.
   static HomeListOrder? maybeOf(Object? wire) {
@@ -67,7 +75,10 @@ enum StartScreen {
 enum TickedItems {
   moveToDone('moveToDone'),
   stayInPlace('stayInPlace'),
-  hide('hide');
+  hide('hide'),
+  // Ticking clears the item at once, with Undo (Q-119). A phone on an older
+  // build reads it as moveToDone.
+  clearAtOnce('clearAtOnce');
 
   const TickedItems(this.wire);
 
@@ -171,6 +182,8 @@ class AccountPreferences {
     this.homeRemoved = const [],
     this.homeOrder = const [],
     this.homeListOrder = HomeListOrder.sameAsDial,
+    this.listsOwnTickedItems = true,
+    this.listsOwnConfirmDelete = true,
   });
 
   static const String listOrderKey = 'listOrder';
@@ -192,6 +205,8 @@ class AccountPreferences {
   static const String homeRemovedKey = 'homeRemoved';
   static const String homeOrderKey = 'homeOrder';
   static const String homeListOrderKey = 'homeListOrder';
+  static const String listsOwnTickedItemsKey = 'listsOwnTickedItems';
+  static const String listsOwnConfirmDeleteKey = 'listsOwnConfirmDelete';
   // Before Q-108: which orders had been arranged by hand (Q-75). Read only to
   // work out homeListOrder on an account that has none yet.
   static const String homeArrangedKey = 'homeArranged';
@@ -228,6 +243,25 @@ class AccountPreferences {
   final List<String> homeOrder;
   // Home list order (Q-108). The dial's is [listOrder].
   final HomeListOrder homeListOrder;
+  // Whether a list's own Ticked items and Confirm before deleting count
+  // (Q-117). Off, every list follows the general one; the lists keep their
+  // own choices for when it is on again.
+  final bool listsOwnTickedItems;
+  final bool listsOwnConfirmDelete;
+
+  // What [list] uses: its own choice while lists may have their own, else the
+  // general one (Q-117).
+  TickedItems tickedItemsFor(ListDefinition? list) {
+    final String? own = list?.ownTickedItems;
+    return listsOwnTickedItems && own != null
+        ? TickedItems.of(own)
+        : tickedItems;
+  }
+
+  bool confirmDeleteFor(ListDefinition? list) {
+    final bool? own = list?.ownConfirmDelete;
+    return listsOwnConfirmDelete && own != null ? own : confirmDelete;
+  }
 
   // The order setting that sorts home's cards, or null on home's own My order.
   ListOrder? get homeSortedBy => switch (homeListOrder) {
@@ -280,6 +314,8 @@ class AccountPreferences {
       homeRemoved: ids(homeRemovedKey),
       homeOrder: ids(homeOrderKey),
       homeListOrder: homeListOrder,
+      listsOwnTickedItems: flag(listsOwnTickedItemsKey, true),
+      listsOwnConfirmDelete: flag(listsOwnConfirmDeleteKey, true),
     );
   }
 
@@ -303,6 +339,8 @@ class AccountPreferences {
     homeRemovedKey: homeRemoved,
     homeOrderKey: homeOrder,
     homeListOrderKey: homeListOrder.wire,
+    listsOwnTickedItemsKey: listsOwnTickedItems,
+    listsOwnConfirmDeleteKey: listsOwnConfirmDelete,
   };
 
   @override
@@ -326,10 +364,12 @@ class AccountPreferences {
       listEquals(other.homePins, homePins) &&
       listEquals(other.homeRemoved, homeRemoved) &&
       listEquals(other.homeOrder, homeOrder) &&
-      other.homeListOrder == homeListOrder;
+      other.homeListOrder == homeListOrder &&
+      other.listsOwnTickedItems == listsOwnTickedItems &&
+      other.listsOwnConfirmDelete == listsOwnConfirmDelete;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     listOrder,
     Object.hashAll(myListOrder),
     startScreen,
@@ -349,7 +389,9 @@ class AccountPreferences {
     Object.hashAll(homeRemoved),
     Object.hashAll(homeOrder),
     homeListOrder,
-  );
+    listsOwnTickedItems,
+    listsOwnConfirmDelete,
+  ]);
 }
 
 extension AccountPreferencesOf on BuildContext {
@@ -818,6 +860,23 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
   Future<void> setHomeListOrder(HomeListOrder order) =>
       _change(AccountPreferences.homeListOrderKey, order.wire);
 
+  // The Same as dial switch (Q-108, a switch since the owner's note of
+  // 2026-11-09). Off, home starts from what it showed: the dial's choice, and
+  // on the dial's My order a copy of [dialOrder], every list in the dial's
+  // order, as home's own.
+  Future<void> setHomeFollowsDial(
+    bool follow, {
+    List<String> dialOrder = const [],
+  }) async {
+    if (follow) {
+      return setHomeListOrder(HomeListOrder.sameAsDial);
+    }
+    if (state.listOrder == ListOrder.myOrder) {
+      await _change(AccountPreferences.homeOrderKey, dialOrder);
+    }
+    await setHomeListOrder(HomeListOrder.ofDial(state.listOrder));
+  }
+
   Future<void> setMyListOrder(List<String> listIds) =>
       _change(AccountPreferences.myListOrderKey, listIds);
 
@@ -829,6 +888,12 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
 
   Future<void> setConfirmDelete(bool value) =>
       _change(AccountPreferences.confirmDeleteKey, value);
+
+  Future<void> setListsOwnTickedItems(bool value) =>
+      _change(AccountPreferences.listsOwnTickedItemsKey, value);
+
+  Future<void> setListsOwnConfirmDelete(bool value) =>
+      _change(AccountPreferences.listsOwnConfirmDeleteKey, value);
 
   Future<void> setShowAiBar(bool value) =>
       _change(AccountPreferences.showAiBarKey, value);

@@ -3,12 +3,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../app/account_preferences.dart';
+import '../app/app_banner.dart';
 import '../app/app_theme.dart';
 import '../app/date_preferences.dart';
+import '../app/grow_in.dart';
 import '../app_colors.dart';
 import '../home_cards_view.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../launcher/launcher_hub_area.dart';
+import 'clear_with_undo.dart';
 import 'confirm_delete_sheet.dart';
 import 'generic_item_dialog.dart';
 import 'list_definition.dart';
@@ -247,14 +250,15 @@ class _GenericListScreenState extends State<GenericListScreen>
     await _apply(ListChanges(saved: [result]));
   }
 
+  // Every clear on this page shows "Cleared · Undo" (Q-101).
   Future<void> _clearCompleted(bool Function(ListItem item) inScope) {
-    return _apply(
-      ListRules.clearCompleted(
-        _definition,
-        widget.items,
-        DateTime.now().toUtc(),
-        inScope: inScope,
-      ),
+    return ClearWithUndo.run(
+      store: widget.store,
+      definition: _definition,
+      items: widget.items,
+      inScope: inScope,
+      banners: context.read<AppBannerController?>(),
+      loc: AppLocalizations.of(context),
     );
   }
 
@@ -515,28 +519,47 @@ class _GenericListScreenState extends State<GenericListScreen>
   }
 
   // An uppercase section label with its count, and any actions (clear ticked,
-  // move all) as a bar under it.
-  Widget _header(String text, {int? count, List<Widget> actions = const []}) {
+  // move all) as a bar under it. [trailing] sits on the label's own line at its
+  // right, in a line always as tall as a button, so it comes and goes without
+  // moving anything (Q-120 C).
+  Widget _header(
+    String text, {
+    int? count,
+    List<Widget> actions = const [],
+    Widget? trailing,
+  }) {
     final _Look look = _look;
+    final Widget label = Semantics(
+      header: true,
+      child: Text(
+        count == null ? text.toUpperCase() : '${text.toUpperCase()} · $count',
+        style: look.type.sectionLabel,
+        // Beside a button, one line, so the line keeps its height.
+        maxLines: trailing == null ? null : 1,
+        overflow: trailing == null ? null : TextOverflow.ellipsis,
+      ),
+    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(_margin, 22, _margin, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Semantics(
-            header: true,
-            child: Text(
-              count == null
-                  ? text.toUpperCase()
-                  : '${text.toUpperCase()} · $count',
-              style: look.type.sectionLabel,
+          if (trailing == null)
+            label
+          else
+            SizedBox(
+              height: 36,
+              child: Row(
+                children: [
+                  Expanded(child: label),
+                  const SizedBox(width: 8),
+                  trailing,
+                ],
+              ),
             ),
-          ),
-          if (actions.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Wrap(spacing: 8, children: actions),
-            ),
+          // Each action brings its own top gap (see _barGap), so a bar whose
+          // buttons are all hidden takes no room.
+          if (actions.isNotEmpty) Wrap(spacing: 8, children: actions),
         ],
       ),
     );
@@ -579,16 +602,21 @@ class _GenericListScreenState extends State<GenericListScreen>
     );
   }
 
+  // The gap between a section label and its button bar, inside each button
+  // so it grows and goes with it.
+  Widget _barGap(Widget button) =>
+      Padding(padding: const EdgeInsets.only(top: 4), child: button);
+
   ButtonStyle get _barButtonStyle {
     final _Look look = _look;
-    return TextButton.styleFrom(
+    return AppInk.pressless(TextButton.styleFrom(
       foregroundColor: look.neutrals.text,
       backgroundColor: look.neutrals.surface,
       textStyle: look.type.meta.copyWith(fontWeight: FontWeight.w500),
       padding: const EdgeInsets.symmetric(horizontal: 14),
       minimumSize: const Size(0, 36),
       shape: AppShapes.pill,
-    );
+    ));
   }
 
   Widget _itemRow(ListLabels labels, ListItem item) {
@@ -619,8 +647,6 @@ class _GenericListScreenState extends State<GenericListScreen>
           _showItemDialog(item: item);
         } else if (value == 'delete') {
           _deleteItem(item, primary is String ? primary : '');
-        } else if (value == 'clear') {
-          _clearCompleted((other) => other.id == item.id);
         } else if (value.startsWith('move:') && sectionField != null) {
           _apply(
             ListRules.moveTo(
@@ -652,8 +678,6 @@ class _GenericListScreenState extends State<GenericListScreen>
               if (item[sectionField.key] != option.value)
                 entry('move:${option.value}', Icons.drive_file_move_outline,
                     labels.option(option)),
-          if (done && _behavior(BehaviorKind.clearCompleted) != null)
-            entry('clear', Icons.cleaning_services_outlined, loc.clear),
           entry('delete', Icons.delete_outline, loc.delete),
         ];
       },
@@ -704,17 +728,7 @@ class _GenericListScreenState extends State<GenericListScreen>
                 if (completion == null)
                   const SizedBox(width: _margin - _edge)
                 else ...[
-                  _check(
-                    done,
-                    (value) => _apply(
-                      ListRules.setCompleted(
-                        _definition,
-                        item,
-                        value,
-                        DateTime.now().toUtc(),
-                      ),
-                    ),
-                  ),
+                  _check(done, (value) => _setTick(item, value)),
                   const SizedBox(width: 2),
                 ],
                 Expanded(child: text),
@@ -725,6 +739,23 @@ class _GenericListScreenState extends State<GenericListScreen>
                       open ? Icons.expand_less : Icons.expand_more,
                       size: 20,
                       color: look.neutrals.muted,
+                    ),
+                  ),
+                // The × on a ticked item clears just it (Q-101, Q-102). It
+                // grows in left of the dots, which stay put (rule 7).
+                if (completion != null &&
+                    _behavior(BehaviorKind.clearCompleted) != null)
+                  GrowIn(
+                    key: ValueKey('clear-slot-${item.id}'),
+                    shown: done,
+                    alignment: AlignmentDirectional.centerEnd,
+                    vertical: false,
+                    child: IconButton(
+                      key: ValueKey('clear-item-${item.id}'),
+                      tooltip: loc.clear,
+                      icon: Icon(Icons.close, size: 18, color: look.neutrals.muted),
+                      onPressed: () =>
+                          _clearCompleted((other) => other.id == item.id),
                     ),
                   ),
                 menu,
@@ -861,20 +892,51 @@ class _GenericListScreenState extends State<GenericListScreen>
   }
 
   Future<void> _deleteItem(ListItem item, String name) async {
-    if (await confirmDelete(context, name) && mounted) {
+    if (await confirmDelete(context, name, list: _definition) && mounted) {
       await _apply(ListChanges(deletedIds: [item.id]));
     }
   }
 
   // Open items in their groups, then ticked items in one Done group, unless
   // the user keeps them in place (Q-50 b).
+  // Where ticked items go (Q-109): the same in every layout.
+  TickedItems get _ticked =>
+      context.watchAccountPreferences.tickedItemsFor(_definition);
+
+  // Every item the filter lets through, ticked ones included, for counts that
+  // must not depend on where ticked items are shown.
+  List<ListItem> _allVisible = const [];
+
+  // Ticking an item; with Clear straight away it is cleared at once, with
+  // Undo, through the same clear as Clear ticked (Q-119), on a list with the
+  // Clear ticked rule only: elsewhere it is a plain tick (Q-124).
+  Future<void> _setTick(ListItem item, bool value) {
+    if (value &&
+        _behavior(BehaviorKind.clearCompleted) != null &&
+        context.accountPreferences.tickedItemsFor(_definition) ==
+            TickedItems.clearAtOnce) {
+      return ClearWithUndo.run(
+        store: widget.store,
+        definition: _definition,
+        items: widget.items,
+        tick: item,
+        banners: context.read<AppBannerController?>(),
+        loc: AppLocalizations.of(context),
+      );
+    }
+    return _apply(
+      ListRules.setCompleted(_definition, item, value, DateTime.now().toUtc()),
+    );
+  }
+
+  // Move to the bottom: ticked items go to an open Done group under the
+  // layout's own groups, in every layout (Q-109).
   List<Widget> _withDone(
     ListLabels labels,
     List<ListItem> sorted,
     List<Widget> Function(List<ListItem> open) openPart,
   ) {
-    if (_completion == null ||
-        context.watchAccountPreferences.tickedItems != TickedItems.moveToDone) {
+    if (_completion == null || _ticked != TickedItems.moveToDone) {
       return openPart(sorted);
     }
     final List<ListItem> done =
@@ -940,12 +1002,30 @@ class _GenericListScreenState extends State<GenericListScreen>
     for (final FieldOption option in sectionField.options) {
       final List<ListItem> members =
           sorted.where((item) => item[sectionField.key] == option.value).toList();
-      final int ticked =
-          members.where((item) => ListRules.isCompleted(_definition, item)).length;
+      // Counted over every item of the section, wherever ticked ones show.
+      final int ticked = _allVisible
+          .where((item) =>
+              item[sectionField.key] == option.value &&
+              ListRules.isCompleted(_definition, item))
+          .length;
       final bool movesFromHere = moveAll != null &&
           moveAll.stringParam('field') == sectionField.key &&
           moveAll.stringParam('from') == option.value &&
-          members.isNotEmpty;
+          _allVisible.any((item) => item[sectionField.key] == option.value);
+      // The section has a Move button (shown or not).
+      final bool hasMove = moveAll != null &&
+          moveAll.stringParam('field') == sectionField.key &&
+          moveAll.stringParam('from') == option.value;
+      final Widget clearButton = TextButton(
+        key: ValueKey('clear-ticked-button-${option.value}'),
+        style: _barButtonStyle,
+        onPressed: () => _clearCompleted(
+          (item) => item[sectionField.key] == option.value,
+        ),
+        child: Text(
+          '${labels.loc.clearTicked} (${labels.loc.tickedCount(ticked)})',
+        ),
+      );
       final FieldOption? target = movesFromHere
           ? sectionField.options
               .where((other) => other.value == moveAll.stringParam('to'))
@@ -956,30 +1036,45 @@ class _GenericListScreenState extends State<GenericListScreen>
         _header(
           labels.option(option),
           count: members.length,
+          // Rule 7 (Q-105): Move keeps the first spot and Clear ticked grows
+          // in on its right, so a tick never moves Move. Clear ticked is
+          // shown only while Move is (it needs items), so Move growing in
+          // never pushes it either. In a section with no Move, Clear ticked
+          // grows in on the label's line instead, so no row opens (Q-120 C).
+          trailing: canClear && !hasMove
+              ? GrowIn(
+                  key: ValueKey('clear-ticked-${option.value}'),
+                  shown: ticked > 0,
+                  vertical: false,
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: clearButton,
+                )
+              : null,
           actions: [
-            if (canClear && ticked > 0)
-              TextButton(
-                style: _barButtonStyle,
-                onPressed: () => _clearCompleted(
-                  (item) => item[sectionField.key] == option.value,
-                ),
-                child: Text(
-                  '${labels.loc.clearTicked} (${labels.loc.tickedCount(ticked)})',
-                ),
-              ),
-            if (target != null)
-              TextButton.icon(
-                style: _barButtonStyle,
-                icon: const Icon(Icons.arrow_upward, size: 16),
-                label: Text(labels.option(target)),
-                onPressed: () => _apply(
-                  ListRules.moveAll(
-                    _definition,
-                    widget.items,
-                    moveAll!,
-                    DateTime.now().toUtc(),
+            if (hasMove)
+              GrowIn(
+                key: ValueKey('move-all-${option.value}'),
+                shown: target != null,
+                child: _barGap(TextButton.icon(
+                  key: ValueKey('move-all-button-${option.value}'),
+                  style: _barButtonStyle,
+                  icon: const Icon(Icons.arrow_upward, size: 16),
+                  label: Text(target == null ? '' : labels.option(target)),
+                  onPressed: () => _apply(
+                    ListRules.moveAll(
+                      _definition,
+                      widget.items,
+                      moveAll,
+                      DateTime.now().toUtc(),
+                    ),
                   ),
-                ),
+                )),
+              ),
+            if (canClear && hasMove)
+              GrowIn(
+                key: ValueKey('clear-ticked-${option.value}'),
+                shown: ticked > 0,
+                child: _barGap(clearButton),
               ),
           ],
         ),
@@ -1109,8 +1204,7 @@ class _GenericListScreenState extends State<GenericListScreen>
       return sorted;
     }
 
-    final bool doneLast =
-        context.watchAccountPreferences.tickedItems != TickedItems.stayInPlace;
+    final bool doneLast = _ticked != TickedItems.stayInPlace;
     final String? dateKey = _definition.view.bucketBy;
     DateTime? dateOf(ListItem item) {
       final Object? raw = dateKey == null ? null : item[dateKey];
@@ -1188,13 +1282,30 @@ class _GenericListScreenState extends State<GenericListScreen>
     );
   }
 
+  static const double _addDisc = 62;
+  static const double _addHeight = _addDisc + 6;
+
+  // Room at the end of the list: enough for the last row to scroll clear of
+  // the add button, which floats above the hub (and the AI bar) under the
+  // launcher, and at least the old 120.
+  double _bottomRoom(LauncherHubArea? hubArea) {
+    const double least = 120;
+    if (hubArea == null) return least;
+    final double above = AboveHubButtonLocation.heightAboveBottom(
+      hubArea,
+      MediaQuery.sizeOf(context),
+      _addHeight,
+    );
+    return above + 12 > least ? above + 12 : least;
+  }
+
   // The eclipse: a list-colour disc over a black one, with the floating shadow.
   Widget _addButton() {
     final _Look look = _look;
-    const double disc = 62;
+    const double disc = _addDisc;
     return SizedBox(
       width: disc + 10,
-      height: disc + 6,
+      height: _addHeight,
       child: Stack(
         children: [
           Positioned(
@@ -1251,20 +1362,26 @@ class _GenericListScreenState extends State<GenericListScreen>
     }
 
     final List<ListItem> visible = _sorted(widget.items.where(_matchesFilter).toList());
-    final bool hideDone = _completion != null &&
-        context.watchAccountPreferences.tickedItems == TickedItems.hide;
+    _allVisible = visible;
+    final bool hideDone = _completion != null && _ticked == TickedItems.hide;
     final List<ListItem> shown = hideDone
         ? visible.where((item) => !ListRules.isCompleted(_definition, item)).toList()
         : visible;
-    final bool canClearAll = _definition.view.kind == ViewKind.checklist &&
-        _behavior(BehaviorKind.clearCompleted) != null &&
+    // The top bar's clear button belongs to checklist lists that clear; it
+    // shows while any visible item is ticked.
+    final bool hasClearAll = _definition.view.kind == ViewKind.checklist &&
+        _behavior(BehaviorKind.clearCompleted) != null;
+    final bool canClearAll = hasClearAll &&
         visible.any((item) => ListRules.isCompleted(_definition, item));
 
     final List<Widget> content = [
       ...switch (_definition.view.kind) {
-        ViewKind.grouped => _grouped(labels, shown),
-        ViewKind.sectioned => _sectioned(labels, shown),
-        ViewKind.timeline => _timeline(labels, shown),
+        ViewKind.grouped =>
+          _withDone(labels, shown, (open) => _grouped(labels, open)),
+        ViewKind.sectioned =>
+          _withDone(labels, shown, (open) => _sectioned(labels, open)),
+        ViewKind.timeline =>
+          _withDone(labels, shown, (open) => _timeline(labels, open)),
         ViewKind.checklist =>
           _withDone(labels, shown, (open) => _checklist(labels, open)),
         ViewKind.table || ViewKind.cards => _withDone(labels, shown, (open) => [
@@ -1291,6 +1408,20 @@ class _GenericListScreenState extends State<GenericListScreen>
         elevation: 0,
         scrolledUnderElevation: 0,
         actions: [
+          // Rule 7 (Q-105): the clear button grows in at the left end of the
+          // right-aligned buttons, so the pin and Edit list never move.
+          if (hasClearAll)
+            GrowIn(
+              key: const ValueKey('list-clear'),
+              shown: canClearAll,
+              alignment: AlignmentDirectional.centerEnd,
+              vertical: false,
+              child: IconButton(
+                tooltip: loc.clearTicked,
+                icon: const Icon(Icons.cleaning_services_outlined),
+                onPressed: () => _clearCompleted(_matchesFilter),
+              ),
+            ),
           // Pins follow the account, so there is none without one.
           if (context.read<AccountPreferencesCubit?>()
               case final AccountPreferencesCubit preferences)
@@ -1313,12 +1444,6 @@ class _GenericListScreenState extends State<GenericListScreen>
                   );
                 }
               },
-            ),
-          if (canClearAll)
-            IconButton(
-              tooltip: loc.clear,
-              icon: const Icon(Icons.cleaning_services_outlined),
-              onPressed: () => _clearCompleted(_matchesFilter),
             ),
           if (editAction != null)
             IconButton(
@@ -1356,7 +1481,9 @@ class _GenericListScreenState extends State<GenericListScreen>
               color: _look.color,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.only(bottom: 120),
+                // The last row, its × included, clears the add button when
+                // scrolled to the end (T-24 unit 7 D1).
+                padding: EdgeInsets.only(bottom: _bottomRoom(hubArea)),
                 children: [
                   ..._filters(labels),
                   if (showEmpty)

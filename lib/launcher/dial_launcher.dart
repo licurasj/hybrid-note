@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/gestures.dart' show kTouchSlop;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -150,6 +151,12 @@ class _DialLauncherState extends State<DialLauncher>
   // emphasis is, easing towards the selected entry; and how far the selected
   // tab has grown (0 to 1).
   int? _selected;
+  // A finger put on the dial in tap mode (Q-125): once it moves, the list
+  // under it grows and the scroll zones scroll, as in a hold; letting go
+  // keeps tap mode with that list selected (Proposed).
+  int? _tapDragPointer;
+  Offset? _tapDragStart;
+  bool _tapDragging = false;
   double _position = 0;
   double _scroll = 0;
   double _focus = 0;
@@ -169,6 +176,9 @@ class _DialLauncherState extends State<DialLauncher>
   // Edit or Move prompt.
   bool _editShown = false;
   bool _moveShown = false;
+  // Whether the finger has headed for Move or Arrange since they came, which
+  // buzzes once and shows them in full (Q-121 D).
+  bool _hubWoken = false;
   Offset _promptAnchor = Offset.zero;
   Duration _promptAt = Duration.zero;
   bool _promptOut = false;
@@ -808,8 +818,30 @@ class _DialLauncherState extends State<DialLauncher>
     return nearest;
   }
 
+  // The finger heads for Move or Arrange: they show in full and buzz, once.
+  void _wakeHub() {
+    if (_hubWoken ||
+        math.max(_progress, _arrangeProgress) < _config.hubPromptWakeAt) {
+      return;
+    }
+    _hubWoken = true;
+    if (widget.haptics) {
+      HapticFeedback.mediumImpact();
+    }
+  }
+
+  // How far from the hub's centre Move and Arrange reach.
+  double _promptsReach(LauncherGeometry g) =>
+      math.max(
+        (g.movePromptCenter - g.hubCenter).distance,
+        (g.arrangePromptCenter - g.hubCenter).distance,
+      ) +
+      _promptHit;
+
+  static const double _promptHit = 26;
+
   double _towards(Offset finger, Offset from, Offset target) {
-    const double hit = 26;
+    const double hit = _promptHit;
     final double remaining = (finger - target).distance;
     if (remaining <= hit) {
       return 1;
@@ -842,6 +874,8 @@ class _DialLauncherState extends State<DialLauncher>
       _slides.clear();
       _dragPointer = null;
       _swipePointer = null;
+      _tapDragPointer = null;
+      _tapDragging = false;
       _edge = 0;
       _selected = null;
       _zoom = 0;
@@ -921,6 +955,9 @@ class _DialLauncherState extends State<DialLauncher>
     _arrangeIn = moving ? arrangeIn : arrangeTarget;
 
     bool changed = animating;
+    if (_tapDragging && g != null && pointer != null) {
+      changed = _scrollAtEdge(g, pointer, seconds) || true;
+    }
     if (_mode == _Mode.hold && g != null && pointer != null) {
       changed = _scrollAtEdge(g, pointer, seconds) || changed;
       changed = _offerPrompt(g, pointer) || changed;
@@ -1029,12 +1066,18 @@ class _DialLauncherState extends State<DialLauncher>
     } else if (selected == null &&
         (!_leftHub || radius <= _config.hubRadius) &&
         (widget.onHubMoved != null || _canArrange)) {
+      // A longer rest on the hub (Q-121 A); they come faint and silent, and
+      // buzz once the finger heads for one (Q-121 D).
+      if (_now - _restStart < _config.hubPromptDelay) {
+        return false;
+      }
       _moveShown = true;
+      _hubWoken = false;
     } else {
       return false;
     }
-    // The prompts' arrival buzzes, as on a home card.
-    if (widget.haptics) {
+    // Edit's arrival buzzes, as on a home card.
+    if (_editShown && widget.haptics) {
       HapticFeedback.mediumImpact();
     }
     _promptAnchor = pointer;
@@ -1123,6 +1166,20 @@ class _DialLauncherState extends State<DialLauncher>
         _restStart = _now;
       }
 
+      // Out on the lists, past Move and Arrange without taking either: the
+      // prompts go and the dial works again in the same hold (owner,
+      // 2026-11-09: once they were out, no list could be reached).
+      if (_moveShown &&
+          !onHub &&
+          radius > _promptsReach(g) &&
+          _onDial(g, angle, radius)) {
+        _moveShown = false;
+        _progress = 0;
+        _promptSelected = false;
+        _arrangeProgress = 0;
+        _arrangeSelected = false;
+      }
+
       if (_moveShown) {
         if (_canArrange) {
           // Arrange acts on letting go; moving away lets it go again.
@@ -1137,10 +1194,12 @@ class _DialLauncherState extends State<DialLauncher>
           }
         }
         if (widget.onHubMoved == null) {
+          _wakeHub();
           return;
         }
         final Offset target = g.movePromptCenter;
         _progress = _towards(finger, _promptAnchor, target);
+        _wakeHub();
         _promptSelected = _promptSelected
             ? _progress >= _config.promptUnselectAt
             : _progress >= _config.promptSelectAt;
@@ -1638,6 +1697,79 @@ class _DialLauncherState extends State<DialLauncher>
   }
 
   // --- Tap mode and keyboard ------------------------------------------------
+
+  // A finger down on the open dial in tap mode, off the hub (the hub's own
+  // press closes tap mode). It counts as a drag only once it moves past the
+  // touch slop; until then a tab's tap or the barrier's tap acts as before.
+  void _onTapAreaDown(PointerDownEvent event) {
+    final LauncherGeometry? g = _geometry;
+    if (_mode != _Mode.tap || _tapDragPointer != null || g == null) {
+      return;
+    }
+    final (double _, double radius) = _polar(g, event.position);
+    if (radius <= _config.hubRadius) {
+      return;
+    }
+    _tapDragPointer = event.pointer;
+    _tapDragStart = event.position;
+    _tapDragging = false;
+  }
+
+  void _onTapAreaMove(PointerMoveEvent event) {
+    final LauncherGeometry? g = _geometry;
+    if (event.pointer != _tapDragPointer || _mode != _Mode.tap || g == null) {
+      return;
+    }
+    if (!_tapDragging) {
+      if ((event.position - _tapDragStart!).distance < kTouchSlop) {
+        return;
+      }
+      _tapDragging = true;
+      _edge = 0;
+      _turnAt = null;
+      _turnSpeed = 0;
+      _wake();
+    }
+    final Offset finger = event.position;
+    final (double angle, double radius) = _polar(g, finger);
+    final bool onHub = radius <= _config.hubRadius;
+    _trackTurn(event.timeStamp, angle, onHub);
+    setState(() {
+      _pointer = finger;
+      // On the hub or off the dial the selection stays where it was.
+      if (onHub || !_onDial(g, angle, radius)) {
+        _edge = 0;
+        return;
+      }
+      final int? before = _selected;
+      _followEdge(g, angle);
+      _selected ??= before;
+    });
+  }
+
+  void _onTapAreaUp(PointerEvent event) {
+    if (event.pointer != _tapDragPointer) {
+      return;
+    }
+    _tapDragPointer = null;
+    _tapDragStart = null;
+    if (!_tapDragging) {
+      return;
+    }
+    // Still in tap mode, the grown list selected: a tap opens it. The dial
+    // turns it into view as the arrow steps do, so near the screen's edge it
+    // is not left under the Next arrow (T-24 unit 7 D3).
+    final int? selected = _selected;
+    setState(() {
+      _tapDragging = false;
+      _edge = 0;
+      _pointer = null;
+      if (selected != null) {
+        _scroll = selected.clamp(_firstList, _lastList).toDouble();
+      }
+    });
+    _wake();
+  }
 
   void _openTapMode() {
     setState(() {
@@ -2141,8 +2273,13 @@ class _DialLauncherState extends State<DialLauncher>
     // Fully filled by the time it is reached.
     final double near =
         (progress / _config.promptSelectAt).clamp(0, 1).toDouble();
-    final Color fill =
-        Color.lerp(neutrals.promptDark, AppColors.appBlue, near)!;
+    // Faint until the finger heads for one of them (Q-121 D), then dark, then
+    // blue as it nears: colour that follows the finger, nothing fades.
+    final double woken = _hubWoken
+        ? 1
+        : (progress / _config.hubPromptWakeAt).clamp(0, 1).toDouble();
+    final Color base = Color.lerp(neutrals.line, neutrals.promptDark, woken)!;
+    final Color fill = Color.lerp(base, AppColors.appBlue, near)!;
     // A prompt slides out from behind the hub, painted under it, and grows as
     // the finger comes closer.
     final double reveal = _reveal();
@@ -2217,6 +2354,7 @@ class _DialLauncherState extends State<DialLauncher>
               ? () => _turnArranging(direction)
               : () => _stepTap(direction),
           color: neutrals.text,
+          highlightColor: Colors.transparent,
           icon: Transform.rotate(
             angle: math.atan2(turn.dy, turn.dx),
             child: const Icon(Icons.arrow_forward),
@@ -2243,7 +2381,7 @@ class _DialLauncherState extends State<DialLauncher>
     if (_leftHub && _polar(g, pointer).$2 > _config.hubRadius) {
       return 0;
     }
-    return _config.holdBuild(_now - _restStart);
+    return _config.hubHoldBuild(_now - _restStart);
   }
 
   Widget _hub(LauncherGeometry g) {
@@ -2346,6 +2484,11 @@ class _DialLauncherState extends State<DialLauncher>
           onKeyEvent: _onKey,
           // The hub and the tabs are the screen reader's nodes.
           includeSemantics: false,
+          child: Listener(
+          onPointerDown: _onTapAreaDown,
+          onPointerMove: _onTapAreaMove,
+          onPointerUp: _onTapAreaUp,
+          onPointerCancel: _onTapAreaUp,
           child: Stack(
             children: [
               if (_mode == _Mode.tap)
@@ -2419,6 +2562,7 @@ class _DialLauncherState extends State<DialLauncher>
                 ),
               ),
             ],
+          ),
           ),
           ),
         );

@@ -340,7 +340,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rules => 'Rules';
 
   @override
-  String get ruleClearCompleted => 'Clear completed items';
+  String get ruleClearCompleted => 'Clear ticked items';
 
   @override
   String get ruleRecurOnClear => 'Repeat when cleared';
@@ -436,7 +436,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String itemsCount(String name, int count) {
-    return '$name, $count items';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items',
+      one: '1 item',
+    );
+    return '$name, $_temp0';
   }
 
   @override
@@ -1161,13 +1167,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get preferencesTicked => 'Ticked items';
 
   @override
-  String get preferencesTickedMove => 'Move to Done';
+  String get preferencesTickedMove => 'Move to the bottom';
 
   @override
   String get preferencesTickedStay => 'Stay in place';
 
   @override
-  String get preferencesTickedHide => 'Hide';
+  String get preferencesTickedHide => 'Fold away at the bottom';
 
   @override
   String get preferencesConfirmDelete => 'Confirm before deleting';
@@ -1276,4 +1282,187 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get preferencesHomeListOrderSame => 'Same as dial';
+
+  @override
+  String clearedBanner(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count cleared',
+      one: 'Cleared',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String noTickLine(String field) {
+    return 'Without the $field field, items can no longer be ticked.';
+  }
+
+  @override
+  String noTickView(String view) {
+    return 'The checklist shows as $view.';
+  }
+
+  @override
+  String noTickRules(String rules) {
+    return 'These rules go: $rules.';
+  }
+
+  @override
+  String get noTickCopies =>
+      'Copying to Next time can only be added back by the AI.';
+
+  @override
+  String get homeHide => 'Take off home';
+
+  @override
+  String get homeHiddenBanner => 'Hidden from home';
+
+  @override
+  String get suggestOnHome => 'Suggest on home';
+
+  @override
+  String get suggestOnHomeOff => 'Suggestions are off in Preferences.';
+
+  @override
+  String get preferencesListsAndDial => 'Lists and dial';
+
+  @override
+  String get preferencesStartScreenLine => 'What opens when you start the app.';
+
+  @override
+  String get preferencesSuggestionsLine =>
+      'Fills home up to 3 cards with lists you may want.';
+
+  @override
+  String get preferencesOnlyWithCards => 'Only when home shows list cards.';
+
+  @override
+  String get preferencesDialOrderLine => 'The order of lists on the dial.';
+
+  @override
+  String get preferencesHomeOrderSameLine =>
+      'Pinned cards follow the dial\'s order.';
+
+  @override
+  String get preferencesHomeOrderLastUsedLine =>
+      'Pinned cards in the order you last opened them.';
+
+  @override
+  String get preferencesHomeOrderAzLine => 'Pinned cards by name.';
+
+  @override
+  String get preferencesHomeOrderMineLine => 'The order you arranged on home.';
+
+  @override
+  String get preferencesConfirmDeleteLine =>
+      'Asks before an item or a list is deleted.';
+
+  @override
+  String get preferencesAiBarOffLine =>
+      'The AI bar is hidden. Your lists stay as they are.';
+
+  @override
+  String get preferencesWeekStartLine => 'Used by the date pickers and the AI.';
+
+  @override
+  String get preferencesTickedMoveLine =>
+      'Ticked items go to an open Done group at the bottom of each list.';
+
+  @override
+  String get preferencesTickedStayLine =>
+      'Ticked items stay where they are, crossed out.';
+
+  @override
+  String get preferencesTickedHideLine =>
+      'Ticked items wait in a closed Done group at the bottom of each list. Tap it to see them.';
+
+  @override
+  String get preferencesSuggestionsOffLine =>
+      'Home shows only the lists you pinned.';
+
+  @override
+  String get preferencesAiBarOnLine =>
+      'The AI bar sits beside the hub on every screen.';
+
+  @override
+  String get preferencesTickedClear => 'Clear straight away';
+
+  @override
+  String get preferencesTickedClearLine =>
+      'Ticking clears an item at once, with Undo. Repeats and Next time copies still happen.';
+
+  @override
+  String get preferencesListsOwn => 'Lists can have their own';
+
+  @override
+  String preferencesListsOwnCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count lists have their own choice.',
+      one: '1 list has its own choice.',
+      zero: 'A list can pick its own in Edit list.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get preferencesListsOwnOff => 'Every list follows this setting.';
+
+  @override
+  String get editorIconAndColour => 'Icon and colour';
+
+  @override
+  String get editorHomeAndAi => 'Home and AI';
+
+  @override
+  String get editorFollowPreferences => 'Follow Preferences';
+
+  @override
+  String get editorNoTick => 'This list has no tick.';
+
+  @override
+  String get editorEveryListFollows =>
+      'Preferences makes every list follow this.';
+
+  @override
+  String get editorTickField => 'Tick';
+
+  @override
+  String get suggestOnHomeLine => 'Lets home suggest this list.';
+
+  @override
+  String get allowAiLine => 'Lets the AI see and change this list.';
+
+  @override
+  String get ruleClearCompletedLine =>
+      'Adds a × on ticked items and a Clear ticked button.';
+
+  @override
+  String get viewChecklistLine => 'Items with a tick, open ones first.';
+
+  @override
+  String get viewSectionedLine =>
+      'Items in sections you name, with buttons to move them.';
+
+  @override
+  String get viewTimelineLine => 'Items by date, newest first.';
+
+  @override
+  String get viewGroupedLine => 'Items grouped by a choice or a category.';
+
+  @override
+  String get viewTableLine => 'Items one per row, newest first.';
+
+  @override
+  String get viewCardsLine =>
+      'Items one per row with their details, newest first.';
+
+  @override
+  String get preferencesHomeOrderFollowing => 'Following the dial\'s order.';
+
+  @override
+  String get preferencesHomeOrderOwnLine => 'Home keeps its own order.';
 }

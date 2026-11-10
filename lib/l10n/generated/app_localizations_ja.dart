@@ -295,16 +295,16 @@ class AppLocalizationsJa extends AppLocalizations {
   String get listColor => '色';
 
   @override
-  String get fields => '項目';
+  String get fields => 'フィールド';
 
   @override
-  String get addField => '項目を追加';
+  String get addField => 'フィールドを追加';
 
   @override
-  String get fieldName => '項目名';
+  String get fieldName => 'フィールド名';
 
   @override
-  String get fieldType => '項目の種類';
+  String get fieldType => 'フィールドの種類';
 
   @override
   String get required => '必須';
@@ -322,7 +322,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get sectionBy => 'セクション';
 
   @override
-  String get dateField => '日付の項目';
+  String get dateField => '日付のフィールド';
 
   @override
   String get splitByDate => '今日 / 明日 / 後で の基準';
@@ -340,7 +340,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get rules => 'ルール';
 
   @override
-  String get ruleClearCompleted => '完了した項目を消去';
+  String get ruleClearCompleted => 'チェック済みを消去';
 
   @override
   String get ruleRecurOnClear => '消去時に繰り返す';
@@ -457,92 +457,92 @@ class AppLocalizationsJa extends AppLocalizations {
   String get errorBadColor => '色は #RRGGBB の形式にしてください。';
 
   @override
-  String get errorNoFields => 'リストには項目が 1 つ以上必要です。';
+  String get errorNoFields => 'リストにはフィールドが 1 つ以上必要です。';
 
   @override
-  String get errorPrimaryCount => 'メイン項目はちょうど 1 つにしてください。';
+  String get errorPrimaryCount => 'メインフィールドはちょうど 1 つにしてください。';
 
   @override
-  String get errorPrimaryNotText => 'メイン項目はテキストにしてください。';
+  String get errorPrimaryNotText => 'メインフィールドはテキストにしてください。';
 
   @override
   String errorDuplicateRole(String role) {
-    return '役割 $role を持てる項目は 1 つだけです。';
+    return '役割 $role を持てるフィールドは 1 つだけです。';
   }
 
   @override
   String errorBadFieldKey(String field) {
-    return '項目キー「$field」は英字で始め、英字・数字・_ だけを使ってください。';
+    return 'フィールドキー「$field」は英字で始め、英字・数字・_ だけを使ってください。';
   }
 
   @override
   String errorReservedFieldKey(String field) {
-    return '項目キー「$field」は予約されています。';
+    return 'フィールドキー「$field」は予約されています。';
   }
 
   @override
   String errorDuplicateFieldKey(String field) {
-    return '2 つの項目がキー「$field」を使っています。';
+    return '2 つのフィールドがキー「$field」を使っています。';
   }
 
   @override
   String errorMissingFieldLabel(String field) {
-    return '項目「$field」には名前が必要です。';
+    return 'フィールド「$field」には名前が必要です。';
   }
 
   @override
   String errorMissingOptions(String field) {
-    return '項目「$field」には選択肢が 1 つ以上必要です。';
+    return 'フィールド「$field」には選択肢が 1 つ以上必要です。';
   }
 
   @override
   String errorOptionsNotAllowed(String field, String type) {
-    return '項目「$field」: 種類「$type」の項目には選択肢を設定できません。';
+    return 'フィールド「$field」: 種類「$type」のフィールドには選択肢を設定できません。';
   }
 
   @override
   String errorDuplicateOption(String field, String option) {
-    return '項目「$field」: 選択肢「$option」が重複しています。';
+    return 'フィールド「$field」: 選択肢「$option」が重複しています。';
   }
 
   @override
   String errorDefaultNotOption(String field) {
-    return '項目「$field」: 既定値が選択肢にありません。';
+    return 'フィールド「$field」: 既定値が選択肢にありません。';
   }
 
   @override
   String errorMinAboveMax(String field) {
-    return '項目「$field」: 最小値が最大値より大きくなっています。';
+    return 'フィールド「$field」: 最小値が最大値より大きくなっています。';
   }
 
   @override
   String errorConditionNotChoice(String field) {
-    return '項目「$field」は選択項目にしか連動できません。';
+    return 'フィールド「$field」は選択フィールドにしか連動できません。';
   }
 
   @override
   String errorConditionOnItself(String field) {
-    return '項目「$field」は自分自身に連動できません。';
+    return 'フィールド「$field」は自分自身に連動できません。';
   }
 
   @override
   String errorConditionNotOption(String field, String value, String target) {
-    return '項目「$field」: 「$value」は「$target」の選択肢ではありません。';
+    return 'フィールド「$field」: 「$value」は「$target」の選択肢ではありません。';
   }
 
   @override
   String errorRoleNeedsType(String field, String role, String type) {
-    return '項目「$field」: 役割 $role には種類「$type」が必要です。';
+    return 'フィールド「$field」: 役割 $role には種類「$type」が必要です。';
   }
 
   @override
   String errorViewNeedsParam(String view, String param) {
-    return 'レイアウト「$view」には「$param」の項目が必要です。';
+    return 'レイアウト「$view」には「$param」のフィールドが必要です。';
   }
 
   @override
   String errorViewParamNotField(String param, String field) {
-    return '「$param」: 「$field」はこのリストの項目ではありません。';
+    return '「$param」: 「$field」はこのリストのフィールドではありません。';
   }
 
   @override
@@ -551,11 +551,11 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get errorChecklistNeedsCompletion => 'チェックリストのレイアウトには完了を示す項目が必要です。';
+  String get errorChecklistNeedsCompletion => 'チェックリストのレイアウトには完了を示すフィールドが必要です。';
 
   @override
   String errorRuleNeedsCompletion(String rule) {
-    return 'ルール「$rule」には完了を示す項目が必要です。';
+    return 'ルール「$rule」には完了を示すフィールドが必要です。';
   }
 
   @override
@@ -565,7 +565,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String errorRuleParamNotField(String rule, String param, String field) {
-    return 'ルール「$rule」の「$param」: 「$field」はこのリストの項目ではありません。';
+    return 'ルール「$rule」の「$param」: 「$field」はこのリストのフィールドではありません。';
   }
 
   @override
@@ -580,7 +580,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String errorRuleUnknownField(String rule, String param, String field) {
-    return 'ルール「$rule」の「$param」: 項目「$field」はありません。';
+    return 'ルール「$rule」の「$param」: フィールド「$field」はありません。';
   }
 
   @override
@@ -648,17 +648,17 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String errorOpNoField(String field) {
-    return '項目「$field」はありません。';
+    return 'フィールド「$field」はありません。';
   }
 
   @override
   String errorFieldExists(String field) {
-    return 'キー「$field」の項目はすでにあります。';
+    return 'キー「$field」のフィールドはすでにあります。';
   }
 
   @override
   String errorUnknownFieldType(String type) {
-    return '不明な項目の種類「$type」です。';
+    return '不明なフィールドの種類「$type」です。';
   }
 
   @override
@@ -685,10 +685,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get ruleKind => 'ルール';
 
   @override
-  String get ruleRepeatField => '繰り返しの項目';
+  String get ruleRepeatField => '繰り返しのフィールド';
 
   @override
-  String get ruleMoveField => '項目';
+  String get ruleMoveField => 'フィールド';
 
   @override
   String get ruleMoveFrom => '移動元';
@@ -847,14 +847,14 @@ class AppLocalizationsJa extends AppLocalizations {
   String get aiDescribeNewList => '新しいリストを説明する';
 
   @override
-  String get aiDescribeNewListMeta => 'AIが項目を選びます';
+  String get aiDescribeNewListMeta => 'AIがフィールドを選びます';
 
   @override
   String get aiNoticeTitle => '最初のリクエストの前に';
 
   @override
   String get aiNoticeDeepSeek =>
-      'リクエスト、リストの名前・説明・項目、開いているリスト（またはリクエストが対象とするリスト）と最近の項目最大20件がDeepSeekに送られます。DeepSeekはデータを中国で処理・保存するAIプロバイダーです。AIをオフにしたリストは送信されません。リクエストの文章は不具合調査のため約7日間保存され、その後削除されます。';
+      'リクエスト、リストの名前・説明・フィールド、開いているリスト（またはリクエストが対象とするリスト）と最近の項目最大20件がDeepSeekに送られます。DeepSeekはデータを中国で処理・保存するAIプロバイダーです。AIをオフにしたリストは送信されません。リクエストの文章は不具合調査のため約7日間保存され、その後削除されます。';
 
   @override
   String get aiNoticeContinue => '続ける';
@@ -879,12 +879,12 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String aiOpAddField(String list, String field) {
-    return '$list：項目「$field」を追加';
+    return '$list：フィールド「$field」を追加';
   }
 
   @override
   String aiOpRemoveField(String list, String field) {
-    return '$list：項目「$field」を削除';
+    return '$list：フィールド「$field」を削除';
   }
 
   @override
@@ -894,7 +894,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String aiOpChangeField(String list, String field) {
-    return '$list：項目「$field」を変更';
+    return '$list：フィールド「$field」を変更';
   }
 
   @override
@@ -1140,13 +1140,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get preferencesTicked => 'チェック済みの項目';
 
   @override
-  String get preferencesTickedMove => '完了へ移動';
+  String get preferencesTickedMove => '下に移動';
 
   @override
   String get preferencesTickedStay => 'その場に残す';
 
   @override
-  String get preferencesTickedHide => '隠す';
+  String get preferencesTickedHide => '下にたたむ';
 
   @override
   String get preferencesConfirmDelete => '削除前に確認';
@@ -1254,4 +1254,171 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get preferencesHomeListOrderSame => 'ダイヤルと同じ';
+
+  @override
+  String clearedBanner(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 件消去しました',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String noTickLine(String field) {
+    return '「$field」フィールドがないと、項目にチェックを付けられなくなります。';
+  }
+
+  @override
+  String noTickView(String view) {
+    return 'チェックリストは$viewで表示されます。';
+  }
+
+  @override
+  String noTickRules(String rules) {
+    return '次のルールがなくなります: $rules。';
+  }
+
+  @override
+  String get noTickCopies => '「次回へコピー」は AI でのみ追加し直せます。';
+
+  @override
+  String get homeHide => 'ホームから外す';
+
+  @override
+  String get homeHiddenBanner => 'ホームに表示しません';
+
+  @override
+  String get suggestOnHome => 'ホームでおすすめする';
+
+  @override
+  String get suggestOnHomeOff => '環境設定でおすすめがオフになっています。';
+
+  @override
+  String get preferencesListsAndDial => 'リストとダイヤル';
+
+  @override
+  String get preferencesStartScreenLine => 'アプリを開いたときに表示する画面です。';
+
+  @override
+  String get preferencesSuggestionsLine => 'ホームを最大3枚まで、使いそうなリストで埋めます。';
+
+  @override
+  String get preferencesOnlyWithCards => 'ホームにリストカードを表示するときだけ。';
+
+  @override
+  String get preferencesDialOrderLine => 'ダイヤル上のリストの順番です。';
+
+  @override
+  String get preferencesHomeOrderSameLine => 'ピン留めしたカードはダイヤルの順番に従います。';
+
+  @override
+  String get preferencesHomeOrderLastUsedLine => 'ピン留めしたカードを最後に開いた順に並べます。';
+
+  @override
+  String get preferencesHomeOrderAzLine => 'ピン留めしたカードを名前順に並べます。';
+
+  @override
+  String get preferencesHomeOrderMineLine => 'ホームで並べ替えた順番です。';
+
+  @override
+  String get preferencesConfirmDeleteLine => '項目やリストを削除する前に確認します。';
+
+  @override
+  String get preferencesAiBarOffLine => 'AIバーは非表示です。リストはそのままです。';
+
+  @override
+  String get preferencesWeekStartLine => '日付の選択とAIで使います。';
+
+  @override
+  String get preferencesTickedMoveLine => 'チェックした項目は各リストの下にある開いた「完了」グループに移ります。';
+
+  @override
+  String get preferencesTickedStayLine => 'チェックした項目は取り消し線付きでその場に残ります。';
+
+  @override
+  String get preferencesTickedHideLine =>
+      'チェックした項目は各リストの下にある閉じた「完了」グループに入ります。タップすると表示されます。';
+
+  @override
+  String get preferencesSuggestionsOffLine => 'ホームにはピン留めしたリストだけを表示します。';
+
+  @override
+  String get preferencesAiBarOnLine => 'AIバーはどの画面でもボタンの横に表示されます。';
+
+  @override
+  String get preferencesTickedClear => 'すぐに消去';
+
+  @override
+  String get preferencesTickedClearLine =>
+      'チェックするとすぐに消去され、元に戻せます。繰り返しや次回へのコピーはそのまま行われます。';
+
+  @override
+  String get preferencesListsOwn => 'リストごとに設定できる';
+
+  @override
+  String preferencesListsOwnCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 件のリストが独自の設定を使っています。',
+      zero: '各リストは「リストを編集」で独自に選べます。',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get preferencesListsOwnOff => 'すべてのリストがこの設定に従います。';
+
+  @override
+  String get editorIconAndColour => 'アイコンと色';
+
+  @override
+  String get editorHomeAndAi => 'ホームとAI';
+
+  @override
+  String get editorFollowPreferences => '環境設定に従う';
+
+  @override
+  String get editorNoTick => 'このリストにはチェックがありません。';
+
+  @override
+  String get editorEveryListFollows => '環境設定で、すべてのリストがこれに従います。';
+
+  @override
+  String get editorTickField => 'チェック';
+
+  @override
+  String get suggestOnHomeLine => 'ホームでこのリストをおすすめします。';
+
+  @override
+  String get allowAiLine => 'AIがこのリストを見て変更できます。';
+
+  @override
+  String get ruleClearCompletedLine => 'チェックした項目に × を付け、「チェック済みを消去」ボタンを追加します。';
+
+  @override
+  String get viewChecklistLine => 'チェック付きの項目、未完了が先。';
+
+  @override
+  String get viewSectionedLine => '名前を付けたセクションに分け、移動ボタン付き。';
+
+  @override
+  String get viewTimelineLine => '日付順、新しいものが先。';
+
+  @override
+  String get viewGroupedLine => '選択肢やカテゴリでグループ化。';
+
+  @override
+  String get viewTableLine => '1行に1項目、新しいものが先。';
+
+  @override
+  String get viewCardsLine => '1行に1項目と詳細、新しいものが先。';
+
+  @override
+  String get preferencesHomeOrderFollowing => 'ダイヤルの順番に従っています。';
+
+  @override
+  String get preferencesHomeOrderOwnLine => 'ホームは独自の順番です。';
 }

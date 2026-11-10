@@ -86,8 +86,10 @@ void main() {
     );
     List<ListItem> groceries() => store.current.itemsOf(BuiltinTemplates.groceryId);
 
-    expect(find.text('CURRENT GROCERY RUN · 2'), findsOneWidget);
+    // Ticked Milk sits in the Done group at the bottom (Q-109).
+    expect(find.text('CURRENT GROCERY RUN · 1'), findsOneWidget);
     expect(find.text('NEXT TIME · 0'), findsOneWidget);
+    expect(find.text('DONE · 1'), findsOneWidget);
 
     await tester.tap(find.textContaining('Clear Ticked'));
     await settle(tester);
@@ -144,7 +146,7 @@ void main() {
     await settle(tester);
     expect(tasks().firstWhere((t) => t.id == 't2')['done'], isTrue);
 
-    await tester.tap(find.byTooltip('Clear'));
+    await tester.tap(find.byTooltip('Clear Ticked'));
     await settle(tester);
     expect(tasks().map((t) => t.id), ['t1']);
   });

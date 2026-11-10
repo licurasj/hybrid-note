@@ -7,6 +7,7 @@ import 'package:hybrid_note/app/account_preferences.dart';
 import 'package:hybrid_note/backend/firestore_list_store.dart';
 import 'package:hybrid_note/home_cards_view.dart';
 import 'package:hybrid_note/lists/builtin_templates.dart';
+import 'package:hybrid_note/lists/list_definition.dart';
 import 'package:hybrid_note/lists/list_item.dart';
 import 'package:hybrid_note/lists/list_rules.dart';
 
@@ -110,6 +111,68 @@ void main() {
       expect(find.byKey(const ValueKey('list-pin')), findsOneWidget);
     });
 
+    testWidgets(
+      'a suggestion pinned here: home fills to Q-70 again at the bottom '
+      'once the pin is saved (owner, 2026-11-09)',
+      (tester) async {
+        final List<ListDefinition> lists = [
+          ...BuiltinTemplates.all(),
+          BuiltinTemplates.tasks().copyWith(id: 'extra-1'),
+          BuiltinTemplates.tasks().copyWith(id: 'extra-2'),
+        ];
+        final FirestoreListStore store = await widgetTestStore(
+          tester,
+          lists: lists,
+          items: [
+            for (final (int i, ListDefinition list) in lists.indexed)
+              _item(list.id, 'Open $i', at: _now.subtract(Duration(hours: i))),
+          ],
+        );
+        tester.view.physicalSize = const Size(500, 2400);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        SharedPreferences.setMockInitialValues(const {});
+        final ScriptedPreferencesSync sync = ScriptedPreferencesSync();
+        await tester.pumpWidget(
+          await testApp(
+            auth: FakeAuthService(user: testUser),
+            openStore: (_) => store,
+            openPreferences: (_) => sync,
+          ),
+        );
+        await settle(tester);
+        sync.send(const {});
+        await settle(tester);
+        int cards() => find.byType(HomeListCard).evaluate().length;
+        // 0 pins: 3 suggestions.
+        expect(cards(), 3);
+
+        final String first = tester
+            .widget<HomeListCard>(find.byType(HomeListCard).first)
+            .definition
+            .id;
+        await tester.tap(find.byKey(ValueKey('home-dots-$first')));
+        await settle(tester);
+        await tester.tap(find.byKey(const ValueKey('home-menu-pin')));
+        await settle(tester);
+        // Once the pin is saved, a fourth card comes in at the bottom; the
+        // others stay where they are.
+        expect(_pin(first), findsOneWidget);
+        expect(cards(), 4);
+        final List<HomeListCard> shown = tester
+            .widgetList<HomeListCard>(find.byType(HomeListCard))
+            .toList();
+        expect(
+          tester.getTopLeft(_card(shown.last.definition.id)).dy,
+          greaterThan(tester.getTopLeft(_card(shown[2].definition.id)).dy),
+        );
+
+        // And a refresh keeps it: 1 pin and 3 suggestions.
+        await _openAndComeBack(tester, first);
+        expect(cards(), 4);
+      },
+    );
+
     testWidgets('a pinned list with nothing open says so', (tester) async {
       await _pumpApp(
         tester,
@@ -138,6 +201,28 @@ void main() {
       );
       await settle(tester);
       expect(find.text('Eggs'), findsOneWidget);
+    });
+
+    testWidgets('a list gaining open items fills a free place at the bottom', (
+      tester,
+    ) async {
+      final (FirestoreListStore store, _) = await _pumpApp(tester);
+      expect(find.byType(HomeListCard), findsNWidgets(2));
+      final double tasksTop = tester
+          .getTopLeft(_card(BuiltinTemplates.tasksId))
+          .dy;
+      await tester.runAsync(
+        () => store.apply(
+          ListChanges(saved: [_item(BuiltinTemplates.journalId, 'Walk')]),
+        ),
+      );
+      await settle(tester);
+      expect(find.byType(HomeListCard), findsNWidgets(3));
+      expect(tester.getTopLeft(_card(BuiltinTemplates.tasksId)).dy, tasksTop);
+      expect(
+        tester.getTopLeft(_card(BuiltinTemplates.journalId)).dy,
+        greaterThan(tester.getTopLeft(_card(BuiltinTemplates.groceryId)).dy),
+      );
     });
   });
 

@@ -73,6 +73,9 @@ class _MainShellState extends State<MainShell> {
   StarterSeeding? _starter;
 
   final GlobalKey<NavigatorState> _content = GlobalKey<NavigatorState>();
+  // The shell's stack and the AI bar, to tell the banner where they are.
+  final GlobalKey _stackKey = GlobalKey();
+  final GlobalKey _barKey = GlobalKey();
   final _TopRoute _top = _TopRoute();
 
   // Null without an AiService (tests, other hosts): no bar.
@@ -286,9 +289,20 @@ class _MainShellState extends State<MainShell> {
       return;
     }
 
-    final List<ListError> errors = await context.read<ListStore>().createList(
-      result.definition,
-    );
+    final ListStore store = context.read<ListStore>();
+    final AccountPreferencesCubit preferences = context
+        .read<AccountPreferencesCubit>();
+    final List<ListError> errors = await store.createList(result.definition);
+    if (errors.isEmpty && outcome!.hideFromHome) {
+      // Suggest on home off (Q-106), written only once the list exists.
+      preferences.removeFromHome(
+        result.definition.id,
+        existing: [
+          for (final ListDefinition list in store.current.definitions) list.id,
+          result.definition.id,
+        ],
+      );
+    }
     if (mounted && errors.isEmpty) {
       _openList(result.definition.id);
     }
@@ -316,6 +330,10 @@ class _MainShellState extends State<MainShell> {
 
     if (outcome.deleted) {
       await _deleteList(listId);
+      return;
+    }
+    // Only "Suggest on home" changed, which the editor saved itself.
+    if (outcome.ops.isEmpty) {
       return;
     }
 
@@ -431,6 +449,67 @@ class _MainShellState extends State<MainShell> {
     });
   }
 
+  // After the frame, tells the banner where the AI bar and the hub are, so it
+  // sits above the bar and off the hub (owner, 2026-11-09). The bar's place
+  // is where it is going ([PromptBarGeometry]), not where its slide is.
+  void _tellBanner(ListCatalog catalog, Offset? savedHub, Offset? hubPosition) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      final RenderBox? stack =
+          _stackKey.currentContext?.findRenderObject() as RenderBox?;
+      if (stack == null || !stack.hasSize) {
+        return;
+      }
+      final Size size = stack.size;
+      final Offset origin = stack.localToGlobal(Offset.zero);
+      final LauncherHubArea hubArea = LauncherHubArea(
+        hubPosition: hubPosition,
+        child: const SizedBox(),
+      );
+      final Rect hub = Rect.fromCircle(
+        center: origin + hubArea.hubCenter(size),
+        radius: hubArea.hubReach,
+      );
+      // Where the bar is, or would be while it is hidden.
+      final AiBarController? ai = _ai;
+      final PromptBarGeometry geometry = PromptBarGeometry.of(
+        size,
+        hub: LauncherHubArea(hubPosition: savedHub, child: const SizedBox()),
+        bottomInset: MediaQuery.paddingOf(context).bottom,
+        panelOpen: ai?.isOpen ?? false,
+        focused: ai?.focused ?? false,
+        fieldHeight: ai?.fieldHeight.value,
+        panelHeight: ai?.panelHeight.value ?? 0,
+      );
+      final double laneLeft = origin.dx + geometry.left;
+      final double laneRight = origin.dx + size.width - geometry.right;
+      Rect? bar;
+      final RenderBox? column =
+          _barKey.currentContext?.findRenderObject() as RenderBox?;
+      if (ai != null &&
+          column != null &&
+          column.hasSize &&
+          !_barHidden(_top.route.value, catalog)) {
+        final double bottom = origin.dy + size.height - geometry.bottom;
+        bar = Rect.fromLTRB(
+          laneLeft,
+          bottom - column.size.height,
+          laneRight,
+          bottom,
+        );
+      }
+      context.read<AppBannerController>().room = BannerRoom(
+        bar: bar,
+        hub: hub,
+        laneLeft: laneLeft,
+        laneRight: laneRight,
+        wide: laneRight - laneLeft >= PromptBarGeometry.maxWidth - 0.5,
+      );
+    });
+  }
+
   Widget _bar(AiBarController ai, ListCatalog catalog, Offset? hubPosition) {
     return ValueListenableBuilder<Route<dynamic>?>(
       valueListenable: _top.route,
@@ -446,7 +525,7 @@ class _MainShellState extends State<MainShell> {
             ),
             child: LauncherHubArea(
               hubPosition: hubPosition,
-              child: PromptBar(controller: ai, openList: open),
+              child: PromptBar(controller: ai, openList: open, barKey: _barKey),
             ),
           ),
         );
@@ -525,7 +604,9 @@ class _MainShellState extends State<MainShell> {
     AppSettings settings,
     Offset? hubPosition,
   ) {
+    _tellBanner(catalog, settings.hubPosition, hubPosition);
     return Stack(
+      key: _stackKey,
       children: [
         // Back pops the shell's navigator first (the open list,
         // a sheet), then leaves the app as before.

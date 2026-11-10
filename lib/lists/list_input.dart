@@ -274,9 +274,17 @@ class ListInput {
           ));
           continue;
         }
-        // The AI never changes whether a list may be sent to it.
-        if (kind == PatchOpKind.setListInfo && json.containsKey('aiAllowed')) {
-          errors.add(_unknown(op, '$path.aiAllowed'));
+        // The AI never changes whether a list may be sent to it, nor the
+        // list's own Ticked items and Confirm before deleting (Q-117).
+        final String? notForAi = kind == PatchOpKind.setListInfo
+            ? const [
+                'aiAllowed',
+                ListDefinition.ownTickedItemsKey,
+                ListDefinition.ownConfirmDeleteKey,
+              ].where(json.containsKey).firstOrNull
+            : null;
+        if (notForAi != null) {
+          errors.add(_unknown(op, '$path.$notForAi'));
           continue;
         }
         if (kind == PatchOpKind.addBehavior) {

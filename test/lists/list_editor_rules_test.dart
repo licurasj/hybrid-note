@@ -9,6 +9,8 @@ import 'package:hybrid_note/lists/list_item.dart';
 import 'package:hybrid_note/lists/list_labels.dart';
 import 'package:hybrid_note/lists/list_rules.dart';
 
+import '../support/editor_sections.dart';
+
 final DateTime _then = DateTime.utc(2026, 10, 1);
 
 ListDefinition _list(List<Map<String, dynamic>> fields, {List<Map<String, dynamic>> behaviors = const []}) {
@@ -64,7 +66,7 @@ Future<Future<ListEditorOutcome?> Function()> _openEditor(
   List<ListItem> items = const [],
   String language = 'en',
 }) async {
-  tester.view.physicalSize = const Size(800, 2000);
+  tester.view.physicalSize = const Size(800, 3600);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
 
@@ -88,6 +90,7 @@ Future<Future<ListEditorOutcome?> Function()> _openEditor(
   );
   await tester.tap(find.text('open'));
   await tester.pumpAndSettle();
+  await openEditorSections(tester);
 
   return () async {
     await tester.tap(find.byKey(const ValueKey('save-list')));
@@ -99,7 +102,10 @@ Future<Future<ListEditorOutcome?> Function()> _openEditor(
 Future<void> _pick(WidgetTester tester, String param, String choice) async {
   await tester.tap(find.byKey(ValueKey('rule-$param')));
   await tester.pumpAndSettle();
-  await tester.tap(find.text(choice).last);
+  // The choices open in place, under the picker (T-24).
+  await tester.tap(
+    find.descendant(of: find.byKey(ValueKey('rule-$param')), matching: find.text(choice)).last,
+  );
   await tester.pumpAndSettle();
 }
 

@@ -341,7 +341,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get rules => 'Regeln';
 
   @override
-  String get ruleClearCompleted => 'Erledigte entfernen';
+  String get ruleClearCompleted => 'Abgehakte entfernen';
 
   @override
   String get ruleRecurOnClear => 'Beim Entfernen wiederholen';
@@ -438,7 +438,13 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String itemsCount(String name, int count) {
-    return '$name, $count Einträge';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Einträge',
+      one: '1 Eintrag',
+    );
+    return '$name, $_temp0';
   }
 
   @override
@@ -1174,13 +1180,13 @@ class AppLocalizationsDe extends AppLocalizations {
   String get preferencesTicked => 'Abgehakte Einträge';
 
   @override
-  String get preferencesTickedMove => 'Nach „Erledigt“';
+  String get preferencesTickedMove => 'Nach unten verschieben';
 
   @override
   String get preferencesTickedStay => 'An der Stelle lassen';
 
   @override
-  String get preferencesTickedHide => 'Ausblenden';
+  String get preferencesTickedHide => 'Unten einklappen';
 
   @override
   String get preferencesConfirmDelete => 'Vor dem Löschen bestätigen';
@@ -1289,4 +1295,194 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get preferencesHomeListOrderSame => 'Wie am Rad';
+
+  @override
+  String clearedBanner(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count entfernt',
+      one: 'Entfernt',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String noTickLine(String field) {
+    return 'Ohne das Feld „$field“ lassen sich Einträge nicht mehr abhaken.';
+  }
+
+  @override
+  String noTickView(String view) {
+    return 'Die Checkliste wird als $view angezeigt.';
+  }
+
+  @override
+  String noTickRules(String rules) {
+    return 'Diese Regeln entfallen: $rules.';
+  }
+
+  @override
+  String get noTickCopies =>
+      'Das Kopieren für das nächste Mal kann nur die KI wieder hinzufügen.';
+
+  @override
+  String get homeHide => 'Von der Startseite nehmen';
+
+  @override
+  String get homeHiddenBanner => 'Von der Startseite ausgeblendet';
+
+  @override
+  String get suggestOnHome => 'Auf der Startseite vorschlagen';
+
+  @override
+  String get suggestOnHomeOff => 'Vorschläge sind in den Präferenzen aus.';
+
+  @override
+  String get preferencesListsAndDial => 'Listen und Rad';
+
+  @override
+  String get preferencesStartScreenLine => 'Was beim Öffnen der App erscheint.';
+
+  @override
+  String get preferencesSuggestionsLine =>
+      'Füllt die Startseite mit bis zu 3 Listen, die du brauchen könntest.';
+
+  @override
+  String get preferencesOnlyWithCards =>
+      'Nur wenn die Startseite Listenkarten zeigt.';
+
+  @override
+  String get preferencesDialOrderLine => 'Die Reihenfolge der Listen am Rad.';
+
+  @override
+  String get preferencesHomeOrderSameLine =>
+      'Angeheftete Karten folgen der Reihenfolge des Rads.';
+
+  @override
+  String get preferencesHomeOrderLastUsedLine =>
+      'Angeheftete Karten in der Reihenfolge, in der du sie zuletzt geöffnet hast.';
+
+  @override
+  String get preferencesHomeOrderAzLine => 'Angeheftete Karten nach Name.';
+
+  @override
+  String get preferencesHomeOrderMineLine =>
+      'Die Reihenfolge, die du auf der Startseite angeordnet hast.';
+
+  @override
+  String get preferencesConfirmDeleteLine =>
+      'Fragt nach, bevor ein Eintrag oder eine Liste gelöscht wird.';
+
+  @override
+  String get preferencesAiBarOffLine =>
+      'Die KI-Leiste ist ausgeblendet. Deine Listen bleiben, wie sie sind.';
+
+  @override
+  String get preferencesWeekStartLine =>
+      'Gilt für die Datumsauswahl und die KI.';
+
+  @override
+  String get preferencesTickedMoveLine =>
+      'Abgehakte Einträge kommen in eine offene Gruppe „Erledigt“ unten in jeder Liste.';
+
+  @override
+  String get preferencesTickedStayLine =>
+      'Abgehakte Einträge bleiben, wo sie sind, durchgestrichen.';
+
+  @override
+  String get preferencesTickedHideLine =>
+      'Abgehakte Einträge warten in einer geschlossenen Gruppe „Erledigt“ unten in jeder Liste. Tippe darauf, um sie zu sehen.';
+
+  @override
+  String get preferencesSuggestionsOffLine =>
+      'Die Startseite zeigt nur deine angehefteten Listen.';
+
+  @override
+  String get preferencesAiBarOnLine =>
+      'Die KI-Leiste steht auf jedem Bildschirm neben dem Knopf.';
+
+  @override
+  String get preferencesTickedClear => 'Sofort entfernen';
+
+  @override
+  String get preferencesTickedClearLine =>
+      'Abhaken entfernt einen Eintrag sofort, mit Rückgängig. Wiederholungen und Kopien für nächstes Mal gibt es weiterhin.';
+
+  @override
+  String get preferencesListsOwn => 'Listen dürfen eigene Wahl haben';
+
+  @override
+  String preferencesListsOwnCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Listen haben eine eigene Wahl.',
+      one: '1 Liste hat eine eigene Wahl.',
+      zero:
+          'Eine Liste kann unter „Liste bearbeiten“ ihre eigene Wahl treffen.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get preferencesListsOwnOff => 'Jede Liste folgt dieser Einstellung.';
+
+  @override
+  String get editorIconAndColour => 'Symbol und Farbe';
+
+  @override
+  String get editorHomeAndAi => 'Startseite und KI';
+
+  @override
+  String get editorFollowPreferences => 'Wie in den Präferenzen';
+
+  @override
+  String get editorNoTick => 'Diese Liste hat kein Häkchen.';
+
+  @override
+  String get editorEveryListFollows =>
+      'Die Präferenzen lassen jede Liste dieser Einstellung folgen.';
+
+  @override
+  String get editorTickField => 'Häkchen';
+
+  @override
+  String get suggestOnHomeLine =>
+      'Lässt die Startseite diese Liste vorschlagen.';
+
+  @override
+  String get allowAiLine => 'Lässt die KI diese Liste sehen und ändern.';
+
+  @override
+  String get ruleClearCompletedLine =>
+      'Fügt abgehakten Einträgen ein × hinzu und eine Schaltfläche „Abgehakte entfernen“.';
+
+  @override
+  String get viewChecklistLine => 'Einträge mit Häkchen, offene zuerst.';
+
+  @override
+  String get viewSectionedLine =>
+      'Einträge in benannten Abschnitten, mit Schaltflächen zum Verschieben.';
+
+  @override
+  String get viewTimelineLine => 'Einträge nach Datum, neueste zuerst.';
+
+  @override
+  String get viewGroupedLine =>
+      'Einträge nach einer Auswahl oder Kategorie gruppiert.';
+
+  @override
+  String get viewTableLine => 'Ein Eintrag pro Zeile, neueste zuerst.';
+
+  @override
+  String get viewCardsLine =>
+      'Ein Eintrag pro Zeile mit Details, neueste zuerst.';
+
+  @override
+  String get preferencesHomeOrderFollowing => 'Folgt der Reihenfolge des Rads.';
+
+  @override
+  String get preferencesHomeOrderOwnLine =>
+      'Die Startseite hat ihre eigene Reihenfolge.';
 }

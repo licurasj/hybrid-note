@@ -8,6 +8,8 @@ import 'package:hybrid_note/app/app_settings.dart';
 import 'package:hybrid_note/app/preferences_screen.dart';
 import 'package:hybrid_note/backend/firestore_list_store.dart';
 import 'package:hybrid_note/home_screen.dart';
+import 'package:hybrid_note/lists/builtin_templates.dart';
+import 'package:hybrid_note/lists/list_patch.dart';
 
 import '../support/fake_auth.dart';
 import '../support/firestore_store.dart';
@@ -15,7 +17,7 @@ import '../support/firestore_store.dart';
 final Finder _hub = find.byKey(const ValueKey('launcher-hub'));
 final Finder _settings = find.byKey(const ValueKey('settings'));
 
-Future<void> _pumpApp(
+Future<FirestoreListStore> _pumpApp(
   WidgetTester tester, {
   Map<String, Object> stored = const {},
   Size size = const Size(360, 780),
@@ -32,6 +34,7 @@ Future<void> _pumpApp(
     ),
   );
   await settle(tester);
+  return store;
 }
 
 Future<void> _openSettings(WidgetTester tester) async {
@@ -39,13 +42,44 @@ Future<void> _openSettings(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _openPreferences(WidgetTester tester) async {
+// Opens Preferences; with [unfold], every group is opened too (Q-127: they
+// start shut).
+Future<void> _openPreferences(
+  WidgetTester tester, {
+  bool unfold = true,
+}) async {
   await _openSettings(tester);
   await tester.ensureVisible(
     find.byKey(const ValueKey('settings-preferences')),
   );
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(const ValueKey('settings-preferences')));
+  await tester.pumpAndSettle();
+  if (unfold) {
+    await _unfoldAll(tester);
+  }
+}
+
+const List<String> _sections = [
+  'home',
+  'lists-and-dial',
+  'items',
+  'ai',
+  'general',
+];
+
+Future<void> _unfoldAll(WidgetTester tester) async {
+  for (final String section in _sections) {
+    final Finder header = find.descendant(
+      of: find.byKey(ValueKey('preferences-section-$section')),
+      matching: find.byType(InkWell),
+    ).first;
+    await tester.ensureVisible(header);
+    await tester.pumpAndSettle();
+    await tester.tap(header);
+    await tester.pumpAndSettle();
+  }
+  await tester.drag(find.byType(SingleChildScrollView).last, const Offset(0, 5000));
   await tester.pumpAndSettle();
 }
 
@@ -94,6 +128,28 @@ void main() {
           findsOneWidget,
         );
         expect(find.byKey(const ValueKey('settings-ai-ask')), findsOneWidget);
+        // How often the AI checks comes first, then Apply without asking,
+        // both above Preferences (Q-131).
+        double top(String key) =>
+            tester.getTopLeft(find.byKey(ValueKey(key))).dy;
+        expect(
+          top('settings-ai-ask'),
+          lessThan(top('settings-ai-auto-apply')),
+        );
+        expect(top('settings-ai-auto-apply'), lessThan(preferences));
+        // No line between them: the slider draws none of its own here.
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey('settings-ai-ask')),
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is DecoratedBox &&
+                  widget.decoration is BoxDecoration &&
+                  (widget.decoration as BoxDecoration).border != null,
+            ),
+          ),
+          findsNothing,
+        );
       },
     );
 
@@ -222,26 +278,87 @@ void main() {
       expect(find.byType(FadeTransition), findsNothing);
     });
 
+    testWidgets('each group folds under its header, all shut when the page '
+        'opens (Q-127)', (WidgetTester tester) async {
+      await _pumpApp(tester);
+      await _openPreferences(tester, unfold: false);
+      Finder header(String section) => find.descendant(
+        of: find.byKey(ValueKey('preferences-section-$section')),
+        matching: find.byType(InkWell),
+      ).first;
+
+      // Shut: the headers, none of the rows.
+      for (final String text in [
+        'Home',
+        'Lists and dial',
+        'Items',
+        'AI',
+        'General',
+      ]) {
+        expect(find.text(text), findsOneWidget, reason: text);
+      }
+      expect(find.text('Start screen'), findsNothing);
+      expect(find.text('Ticked items'), findsNothing);
+      expect(find.text('Vibration'), findsNothing);
+
+      // A screen reader hears each header as a button, shut or open.
+      final SemanticsHandle handle = tester.ensureSemantics();
+      expect(
+        tester.getSemantics(header('items')),
+        isSemantics(isButton: true, hasExpandedState: true, isExpanded: false),
+      );
+      await tester.tap(header('items'));
+      await tester.pumpAndSettle();
+      expect(find.text('Ticked items'), findsOneWidget);
+      expect(find.text('Start screen'), findsNothing);
+      expect(
+        tester.getSemantics(header('items')),
+        isSemantics(isButton: true, hasExpandedState: true, isExpanded: true),
+      );
+      handle.dispose();
+
+      // Tapped again, it shuts.
+      await tester.tap(header('items'));
+      await tester.pumpAndSettle();
+      expect(find.text('Ticked items'), findsNothing);
+
+      // Open groups are not kept: the page opens shut again.
+      await tester.tap(header('general'));
+      await tester.pumpAndSettle();
+      expect(find.text('Vibration'), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('settings-preferences')));
+      await tester.pumpAndSettle();
+      expect(find.text('Vibration'), findsNothing);
+    });
+
     testWidgets('the groups in order, with what the table lists', (
       WidgetTester tester,
     ) async {
       await _pumpApp(tester);
       await _openPreferences(tester);
 
+      // Section headings above the rows, in sentence case (the owner's
+      // hierarchy note, 2026-11-09). "Home" is also a Start screen choice.
+      expect(find.text('Home'), findsNWidgets(2));
       final List<String> order = [
-        'LISTS',
+        'Start screen',
+        'Home shows',
+        'Show suggestions',
+        'Lists and dial',
         'Dial list order',
         'Home list order',
-        'Start screen',
-        'ITEMS',
+        'Same as dial',
+        'Items',
         'Ticked items',
         'Confirm before deleting',
         'AI',
         'Show the AI bar',
-        'GENERAL',
-        'Vibration',
+        'General',
         'Time format',
         'Week starts on',
+        'Vibration',
       ];
       double last = -1;
       for (final String text in order) {
@@ -269,28 +386,37 @@ void main() {
       await _openPreferences(tester);
       final AccountPreferencesCubit cubit = _account(tester);
 
+      // On the page, one tap (T-24, Q-112): no pop-up.
       Future<void> choose(String row, String choice) async {
-        await _tapKey(tester, row);
         await _tapKey(tester, choice);
+        expect(find.byType(BottomSheet), findsNothing);
       }
 
       await choose('preferences-list-order', 'choice-ListOrder.myOrder');
       expect(cubit.state.listOrder, ListOrder.myOrder);
-      expect(find.text('My order'), findsOneWidget);
       await choose('preferences-list-order', 'choice-ListOrder.alphabetical');
       expect(cubit.state.listOrder, ListOrder.alphabetical);
-      // Home list order, right under the dial's (Q-108).
+      // Home list order, right under the dial's (Q-108): the same three
+      // choices, greyed while Same as dial is on.
+      expect(cubit.state.homeListOrder, HomeListOrder.sameAsDial);
+      expect(find.text("Following the dial's order."), findsOneWidget);
+      await _tapKey(tester, 'choice-HomeListOrder.myOrder');
+      expect(cubit.state.homeListOrder, HomeListOrder.sameAsDial);
+      // Off, home starts from the dial's choice.
+      await _tapKey(tester, 'preferences-home-same-as-dial');
+      expect(cubit.state.homeListOrder, HomeListOrder.alphabetical);
+      expect(find.text('Home keeps its own order.'), findsOneWidget);
       await choose(
         'preferences-home-list-order',
         'choice-HomeListOrder.myOrder',
       );
       expect(cubit.state.homeListOrder, HomeListOrder.myOrder);
-      await choose(
-        'preferences-home-list-order',
-        'choice-HomeListOrder.sameAsDial',
-      );
+      await _tapKey(tester, 'preferences-home-same-as-dial');
       expect(cubit.state.homeListOrder, HomeListOrder.sameAsDial);
-      expect(find.text('Same as dial'), findsOneWidget);
+      expect(
+        find.text("Pinned cards follow the dial's order."),
+        findsOneWidget,
+      );
       expect(cubit.state.listOrder, ListOrder.alphabetical);
       await choose(
         'preferences-start-screen',
@@ -310,31 +436,132 @@ void main() {
       expect(cubit.state.weekStart, WeekStart.sunday);
     });
 
-    testWidgets(
-      'a choice sheet marks the current one; dismissing changes nothing',
-      (WidgetTester tester) async {
-        await _pumpApp(tester);
-        await _openPreferences(tester);
-        await _tapKey(tester, 'preferences-week-start');
+    testWidgets('the picked choice is marked, as one of a group, with its line', (
+      WidgetTester tester,
+    ) async {
+      await _pumpApp(tester);
+      await _openPreferences(tester);
+      final Finder current = find.byKey(
+        const ValueKey('choice-TickedItems.moveToDone'),
+      );
+      await tester.ensureVisible(current);
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: current,
+          matching: find.byIcon(Icons.radio_button_checked),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('choice-line-TickedItems.moveToDone')),
+        findsOneWidget,
+      );
+      final SemanticsHandle handle = tester.ensureSemantics();
+      expect(
+        tester.getSemantics(current),
+        isSemantics(
+          hasCheckedState: true,
+          isChecked: true,
+          isInMutuallyExclusiveGroup: true,
+          hasEnabledState: true,
+          isEnabled: true,
+        ),
+      );
+      expect(tester.getSemantics(current).label, startsWith('Move to the bottom'));
+      handle.dispose();
 
-        expect(find.byIcon(Icons.radio_button_checked), findsOneWidget);
-        final Finder current = find.byKey(
-          const ValueKey('choice-WeekStart.followLanguage'),
-        );
-        expect(
-          find.descendant(
-            of: current,
-            matching: find.byIcon(Icons.radio_button_checked),
-          ),
-          findsOneWidget,
-        );
+      await _tapKey(tester, 'choice-TickedItems.hide');
+      expect(
+        find.byKey(const ValueKey('choice-line-TickedItems.moveToDone')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('choice-line-TickedItems.hide')),
+        findsOneWidget,
+      );
+    });
 
-        await tester.tapAt(const Offset(180, 20));
-        await tester.pumpAndSettle();
-        expect(_account(tester).state.weekStart, WeekStart.followLanguage);
-        expect(find.byType(PreferencesScreen), findsOneWidget);
-      },
-    );
+    testWidgets('rows stay put when Home shows changes: they grey with a line', (
+      WidgetTester tester,
+    ) async {
+      await _pumpApp(tester);
+      await _openPreferences(tester);
+      final AccountPreferencesCubit cubit = _account(tester);
+      final Finder below = find.byKey(const ValueKey('preferences-list-order'));
+      await tester.ensureVisible(below);
+      await tester.pumpAndSettle();
+      final double before = tester.getTopLeft(below).dy;
+      expect(find.text('Only when home shows list cards.'), findsNothing);
+
+      await cubit.setHomeContent(HomeContent.dueToday);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('preferences-home-suggestions')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('preferences-home-list-order')),
+        findsOneWidget,
+      );
+      expect(find.text('Only when home shows list cards.'), findsNWidgets(2));
+      // The suggestions row's line is as tall as the one it replaced.
+      expect(tester.getTopLeft(below).dy, before);
+      // Greyed rows do nothing.
+      await tester.tap(
+        find.byKey(const ValueKey('preferences-home-suggestions')),
+        warnIfMissed: false,
+      );
+      await tester.pumpAndSettle();
+      expect(cubit.state.homeSuggestions, isTrue);
+    });
+
+    testWidgets('"N lists have their own" counts lists with a tick, live (O4)', (
+      WidgetTester tester,
+    ) async {
+      final FirestoreListStore store = await _pumpApp(tester);
+      await _openPreferences(tester);
+      Finder line(String text) => find.descendant(
+        of: find.byKey(const ValueKey('preferences-lists-own-ticked')),
+        matching: find.text(text),
+      );
+      const String none = 'A list can pick its own in Edit list.';
+      expect(line(none), findsOneWidget);
+
+      Future<void> own(String listId) async {
+        await tester.runAsync(
+          () => store.patchList(listId, [
+            ListPatchOp(PatchOpKind.setListInfo, {'tickedItems': 'hide'}),
+          ]),
+        );
+        await settle(tester);
+      }
+
+      // Journal has no tick: its choice does not count.
+      await own(BuiltinTemplates.journalId);
+      expect(line(none), findsOneWidget);
+      await own(BuiltinTemplates.groceryId);
+      expect(line('1 list has its own choice.'), findsOneWidget);
+    });
+
+    testWidgets('lines follow the choice: the AI bar line shows only when off', (
+      WidgetTester tester,
+    ) async {
+      await _pumpApp(tester);
+      await _openPreferences(tester);
+      expect(find.text('What opens when you start the app.'), findsOneWidget);
+      expect(find.text('The order of lists on the dial.'), findsOneWidget);
+      expect(
+        find.text('The AI bar is hidden. Your lists stay as they are.'),
+        findsNothing,
+      );
+      await _tapKey(tester, 'preferences-show-ai-bar');
+      expect(
+        find.text('The AI bar is hidden. Your lists stay as they are.'),
+        findsOneWidget,
+      );
+    });
 
     testWidgets('each switch flips from the row and from the switch', (
       WidgetTester tester,
@@ -343,13 +570,19 @@ void main() {
       await _openPreferences(tester);
       final AccountPreferencesCubit cubit = _account(tester);
 
-      await _tapKey(tester, 'preferences-confirm-delete');
+      await tester.ensureVisible(find.text('Confirm before deleting'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Confirm before deleting'));
+      await tester.pumpAndSettle();
       expect(cubit.state.confirmDelete, isTrue);
+      // Its own switch, not the sub-option's under it.
       await tester.tap(
-        find.descendant(
-          of: find.byKey(const ValueKey('preferences-confirm-delete')),
-          matching: find.byType(Switch),
-        ),
+        find
+            .descendant(
+              of: find.byKey(const ValueKey('preferences-confirm-delete')),
+              matching: find.byType(Switch),
+            )
+            .first,
       );
       await tester.pumpAndSettle();
       expect(cubit.state.confirmDelete, isFalse);
@@ -369,14 +602,19 @@ void main() {
       await cubit.setTimeFormat(TimeFormat.h12);
       await _openPreferences(tester);
 
-      expect(find.text('A to Z'), findsOneWidget);
-      expect(find.text('12-hour'), findsOneWidget);
+      bool picked(String key) => isSemantics(
+        isChecked: true,
+      ).matches(tester.getSemantics(find.byKey(ValueKey(key))), {});
+      final SemanticsHandle handle = tester.ensureSemantics();
+      expect(picked('choice-ListOrder.alphabetical'), isTrue);
+      expect(picked('choice-TimeFormat.h12'), isTrue);
 
       // Another phone changes one while the page is open.
       await cubit.setListOrder(ListOrder.lastUsed);
       await tester.pumpAndSettle();
-      expect(find.text('Last used'), findsOneWidget);
-      expect(find.text('A to Z'), findsNothing);
+      expect(picked('choice-ListOrder.lastUsed'), isTrue);
+      expect(picked('choice-ListOrder.alphabetical'), isFalse);
+      handle.dispose();
     });
 
     testWidgets('in every language, at the smallest width, nothing overflows', (
@@ -396,6 +634,7 @@ void main() {
         await tester.tap(row);
         await tester.pumpAndSettle();
         expect(find.byType(PreferencesScreen), findsOneWidget, reason: locale);
+        await _unfoldAll(tester);
         expect(tester.takeException(), isNull, reason: 'page $locale');
         await tester.pumpWidget(const SizedBox());
       }

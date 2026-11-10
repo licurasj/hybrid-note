@@ -126,6 +126,32 @@ void main() {
       expect((next['subtasks'] as List).single, containsPair('id', '${next.id}-subtask-s1'));
     });
 
+    test('Next time copies and next repeats do not carry Hidden from home (O2)', () {
+      final ListChanges copied = ListRules.clearCompleted(
+        grocery,
+        [
+          _grocery('milk', {
+            'title': 'Milk',
+            'section': 'current',
+            'done': true,
+            'autoAddToNext': true,
+            ListRules.homeHiddenKey: true,
+          }),
+        ],
+        _t0,
+        newId: nextId,
+      );
+      expect(copied.saved.single.values.containsKey(ListRules.homeHiddenKey), isFalse);
+      final ListChanges repeated = ListRules.clearCompleted(tasks, [
+        _task('1', {
+          'reminderAt': DateTime.utc(2026, 2, 26, 8).toIso8601String(),
+          'repeat': {'frequency': 'daily'},
+          ListRules.homeHiddenKey: true,
+        }),
+      ], _t0);
+      expect(repeated.saved.single.values.containsKey(ListRules.homeHiddenKey), isFalse);
+    });
+
     test('monthly repeats clamp to the end of short months', () {
       final DateTime jan31 = DateTime(2026, 1, 31, 8);
       final DateTime? next = ListRules.nextOccurrence(

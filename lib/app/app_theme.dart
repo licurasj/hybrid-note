@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show PlatformDispatcher;
 
 import 'package:flutter/material.dart';
@@ -26,6 +27,26 @@ class AppMotion {
   static const Duration tabStagger = Duration(milliseconds: 16);
 
   static const Curve curve = Curves.easeOutCubic;
+}
+
+// No ink (owner, 2026-11-10): nothing grey or tinted behind what is pressed
+// or held. The theme turns splashes and pressed highlights off; a button with
+// its own style (or its own colour) goes through [pressless], which keeps its
+// hover and focus tint, so keyboard focus stays visible.
+class AppInk {
+  const AppInk._();
+
+  static ButtonStyle pressless(ButtonStyle style) {
+    final WidgetStateProperty<Color?>? own = style.overlayColor;
+    return style.copyWith(
+      splashFactory: NoSplash.splashFactory,
+      overlayColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.pressed)
+            ? Colors.transparent
+            : own?.resolve(states),
+      ),
+    );
+  }
 }
 
 class AppShapes {
@@ -160,12 +181,108 @@ class SlidePageTransitionsBuilder extends PageTransitionsBuilder {
 class AppTheme {
   const AppTheme._();
 
+  // [theme] with the time and date pickers in [accent], the colour of the list
+  // whose item is edited (owner, 2026-11-09, Q-122 A): the picked hour or
+  // minute, AM or PM, the dial's hand and the picked day are filled with it,
+  // in white or dark digits, whichever reads on it; the others are grey.
+  // Null, no list: the text colour.
+  // As [withPickerAccent], for a picker opened from [context]: where the
+  // phone's text size makes AM or PM (in this language) wider than its
+  // circle, they get an oval as wide as their button instead, so the letters
+  // stay on it (the circle is as tall as the button, 40 dp).
+  static ThemeData pickerTheme(BuildContext context, Color? accent) {
+    final ThemeData theme = withPickerAccent(Theme.of(context), accent);
+    final MaterialLocalizations? loc = Localizations.of<MaterialLocalizations>(
+      context,
+      MaterialLocalizations,
+    );
+    final TextStyle? style = theme.timePickerTheme.dayPeriodTextStyle;
+    if (loc == null || style == null) {
+      return theme;
+    }
+    double widest = 0;
+    for (final String label in [
+      loc.anteMeridiemAbbreviation,
+      loc.postMeridiemAbbreviation,
+    ]) {
+      final TextPainter painter = TextPainter(
+        text: TextSpan(text: label, style: style),
+        textDirection: TextDirection.ltr,
+        textScaler: MediaQuery.textScalerOf(context),
+      )..layout();
+      widest = math.max(widest, painter.width);
+      painter.dispose();
+    }
+    // Room inside a 40 dp circle, with a little margin.
+    const double inCircle = 34;
+    if (widest <= inCircle) {
+      return theme;
+    }
+    return theme.copyWith(
+      timePickerTheme: theme.timePickerTheme.copyWith(
+        dayPeriodShape: const OvalBorder(),
+      ),
+    );
+  }
+
+  static ThemeData withPickerAccent(ThemeData theme, Color? accent) {
+    final AppNeutrals n = AppColors.neutrals(theme.brightness);
+    final Color fill = accent ?? n.text;
+    final Color onFill = accent == null ? n.ground : AppColors.onColor(fill);
+    Color picked(Set<WidgetState> states, Color yes, Color no) =>
+        states.contains(WidgetState.selected) ? yes : no;
+    return theme.copyWith(
+      timePickerTheme: theme.timePickerTheme.copyWith(
+        hourMinuteColor: WidgetStateColor.resolveWith(
+          (states) => picked(states, fill, Colors.transparent),
+        ),
+        hourMinuteTextColor: WidgetStateColor.resolveWith(
+          (states) => picked(states, onFill, n.muted),
+        ),
+        dayPeriodColor: WidgetStateColor.resolveWith(
+          (states) => picked(states, fill, Colors.transparent),
+        ),
+        dayPeriodTextColor: WidgetStateColor.resolveWith(
+          (states) => picked(states, onFill, n.muted),
+        ),
+        dialHandColor: fill,
+        dialTextColor: WidgetStateColor.resolveWith(
+          (states) => picked(states, onFill, n.text),
+        ),
+      ),
+      datePickerTheme: theme.datePickerTheme.copyWith(
+        dayForegroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? onFill
+              : states.contains(WidgetState.disabled)
+              ? n.muted
+              : n.text,
+        ),
+        dayBackgroundColor: WidgetStateProperty.resolveWith(
+          (states) => picked(states, fill, Colors.transparent),
+        ),
+        todayForegroundColor: WidgetStateProperty.resolveWith(
+          (states) => picked(states, onFill, n.text),
+        ),
+        todayBackgroundColor: WidgetStateProperty.resolveWith(
+          (states) => picked(states, fill, Colors.transparent),
+        ),
+        yearForegroundColor: WidgetStateProperty.resolveWith(
+          (states) => picked(states, onFill, n.text),
+        ),
+        yearBackgroundColor: WidgetStateProperty.resolveWith(
+          (states) => picked(states, fill, Colors.transparent),
+        ),
+      ),
+    );
+  }
+
   // languageCode is the app's chosen language; null follows the device.
   static ThemeData light({String? languageCode}) =>
-      _build(Brightness.light, languageCode);
+      withPickerAccent(_build(Brightness.light, languageCode), null);
 
   static ThemeData dark({String? languageCode}) =>
-      _build(Brightness.dark, languageCode);
+      withPickerAccent(_build(Brightness.dark, languageCode), null);
 
   static bool _uprightTitles(String? languageCode) {
     final String code =
@@ -265,10 +382,53 @@ class AppTheme {
           shadow: Colors.black,
         );
 
+    // No ink anywhere (owner, 2026-11-10: no grey box behind what is held or
+    // pressed): no splash and no pressed highlight. Keyboard focus and a
+    // mouse's hover keep a faint tint, so focus stays visible on wide screens.
+    final WidgetStateProperty<Color?> noPress = WidgetStateProperty.resolveWith(
+      (states) {
+        if (states.contains(WidgetState.focused)) {
+          return n.text.withValues(alpha: 0.12);
+        }
+        if (states.contains(WidgetState.hovered)) {
+          return n.text.withValues(alpha: 0.06);
+        }
+        return Colors.transparent;
+      },
+    );
+    ButtonStyle inkless(ButtonStyle style) => style.copyWith(
+      overlayColor: noPress,
+      splashFactory: NoSplash.splashFactory,
+    );
     final TextStyle buttonText = sans(15, weight: FontWeight.w500);
     const EdgeInsets buttonPadding = EdgeInsets.symmetric(
       horizontal: 20,
       vertical: 12,
+    );
+    // The time and date pickers' dialog, tiles and buttons.
+    // In dark its shadow does not show, so a hairline gives it its edge.
+    final RoundedRectangleBorder dialogShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppShapes.sheetRadius),
+      side: brightness == Brightness.dark
+          ? BorderSide(color: n.line)
+          : BorderSide.none,
+    );
+    final ButtonStyle pickerCancel = inkless(
+      TextButton.styleFrom(
+        foregroundColor: n.text,
+        textStyle: buttonText,
+        padding: buttonPadding,
+        shape: AppShapes.pill,
+      ),
+    );
+    final ButtonStyle pickerConfirm = inkless(
+      TextButton.styleFrom(
+        backgroundColor: n.text,
+        foregroundColor: n.ground,
+        textStyle: buttonText,
+        padding: buttonPadding,
+        shape: AppShapes.pill,
+      ),
     );
     final OutlineInputBorder fieldBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(AppShapes.fieldRadius),
@@ -285,6 +445,11 @@ class AppTheme {
       textTheme: textTheme,
       extensions: [typography],
       iconTheme: IconThemeData(color: n.text),
+      splashFactory: NoSplash.splashFactory,
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      focusColor: n.text.withValues(alpha: 0.12),
+      hoverColor: n.text.withValues(alpha: 0.06),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
           TargetPlatform.android: SlidePageTransitionsBuilder(),
@@ -318,50 +483,59 @@ class AppTheme {
         subtitleTextStyle: sans(13, color: n.muted),
       ),
       filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          backgroundColor: n.text,
-          foregroundColor: n.ground,
-          disabledBackgroundColor: n.surface,
-          disabledForegroundColor: n.muted,
-          textStyle: buttonText,
-          padding: buttonPadding,
-          shape: AppShapes.pill,
+        style: inkless(
+          FilledButton.styleFrom(
+            backgroundColor: n.text,
+            foregroundColor: n.ground,
+            disabledBackgroundColor: n.surface,
+            disabledForegroundColor: n.muted,
+            textStyle: buttonText,
+            padding: buttonPadding,
+            shape: AppShapes.pill,
+          ),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: n.surface,
-          foregroundColor: n.text,
-          elevation: 0,
-          textStyle: buttonText,
-          padding: buttonPadding,
-          shape: AppShapes.pill,
+        style: inkless(
+          ElevatedButton.styleFrom(
+            backgroundColor: n.surface,
+            foregroundColor: n.text,
+            elevation: 0,
+            textStyle: buttonText,
+            padding: buttonPadding,
+            shape: AppShapes.pill,
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: n.text,
-          side: BorderSide(color: n.text),
-          textStyle: buttonText,
-          padding: buttonPadding,
-          shape: AppShapes.pill,
+        style: inkless(
+          OutlinedButton.styleFrom(
+            foregroundColor: n.text,
+            side: BorderSide(color: n.text),
+            textStyle: buttonText,
+            padding: buttonPadding,
+            shape: AppShapes.pill,
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: n.text,
-          textStyle: buttonText,
-          shape: AppShapes.pill,
+        style: inkless(
+          TextButton.styleFrom(
+            foregroundColor: n.text,
+            textStyle: buttonText,
+            shape: AppShapes.pill,
+          ),
         ),
       ),
       iconButtonTheme: IconButtonThemeData(
-        style: IconButton.styleFrom(foregroundColor: n.text),
+        style: inkless(IconButton.styleFrom(foregroundColor: n.text)),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: n.text,
         foregroundColor: n.ground,
         elevation: 6,
         highlightElevation: 6,
+        splashColor: Colors.transparent,
         shape: const CircleBorder(),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -387,11 +561,13 @@ class AppTheme {
               : Colors.transparent,
         ),
         checkColor: WidgetStatePropertyAll(n.ground),
+        overlayColor: noPress,
       ),
       radioTheme: RadioThemeData(
         fillColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.selected) ? n.text : n.muted,
         ),
+        overlayColor: noPress,
       ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith(
@@ -407,6 +583,7 @@ class AppTheme {
               ? Colors.transparent
               : n.line,
         ),
+        overlayColor: noPress,
       ),
       chipTheme: ChipThemeData(
         backgroundColor: n.ground,
@@ -434,6 +611,52 @@ class AppTheme {
         titleTextStyle: serif(28),
         contentTextStyle: sans(15),
       ),
+      // Material's time and date pickers in the app's look (Q-122 A, owner,
+      // 2026-11-09: "I like the android one"); the colours that follow the
+      // list come from withPickerAccent, here the text colour for no list.
+      timePickerTheme: TimePickerThemeData(
+        backgroundColor: n.ground,
+        elevation: 8,
+        shape: dialogShape,
+        helpTextStyle: sans(13, weight: FontWeight.w500, color: n.muted),
+        // The picked one of the hour and the minute on a circle, centred in
+        // Material's box and as tall as it (owner, 2026-11-09: "circle
+        // instead of oval"); the other bare, grey digits only.
+        hourMinuteShape: const CircleBorder(),
+        hourMinuteTextStyle: serif(52, height: 1),
+        timeSelectorSeparatorColor: WidgetStatePropertyAll(n.muted),
+        timeSelectorSeparatorTextStyle: WidgetStatePropertyAll(
+          serif(52, height: 1),
+        ),
+        // A plain strip with no outline; the picked one on a circle.
+        dayPeriodShape: const CircleBorder(),
+        dayPeriodBorderSide: BorderSide.none,
+        dayPeriodTextStyle: sans(14, weight: FontWeight.w600),
+        dialBackgroundColor: n.surface,
+        dialTextStyle: sans(16, weight: FontWeight.w500),
+        entryModeIconColor: n.muted,
+        cancelButtonStyle: pickerCancel,
+        confirmButtonStyle: pickerConfirm,
+      ),
+      datePickerTheme: DatePickerThemeData(
+        backgroundColor: n.ground,
+        surfaceTintColor: Colors.transparent,
+        elevation: 8,
+        shape: dialogShape,
+        headerForegroundColor: n.text,
+        headerHeadlineStyle: serif(32),
+        headerHelpStyle: sans(13, weight: FontWeight.w500, color: n.muted),
+        weekdayStyle: sans(13, weight: FontWeight.w500, color: n.muted),
+        dayStyle: sans(15),
+        todayBorder: BorderSide(color: n.text),
+        yearStyle: sans(15),
+        dividerColor: n.line,
+        subHeaderForegroundColor: n.muted,
+        cancelButtonStyle: pickerCancel,
+        confirmButtonStyle: pickerConfirm,
+        dayOverlayColor: noPress,
+        yearOverlayColor: noPress,
+      ),
       popupMenuTheme: PopupMenuThemeData(
         color: n.ground,
         surfaceTintColor: Colors.transparent,
@@ -446,6 +669,7 @@ class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: n.ground,
         indicatorColor: n.surface,
+        overlayColor: noPress,
         labelTextStyle: WidgetStatePropertyAll(
           sans(12, weight: FontWeight.w500),
         ),

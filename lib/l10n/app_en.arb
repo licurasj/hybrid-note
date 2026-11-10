@@ -151,7 +151,7 @@
   "none": "None",
   "dateCreated": "Date created",
   "rules": "Rules",
-  "ruleClearCompleted": "Clear completed items",
+  "ruleClearCompleted": "Clear ticked items",
   "ruleRecurOnClear": "Repeat when cleared",
   "ruleCopyOnClear": "Copy when cleared",
   "ruleMoveAll": "Move all button",
@@ -189,7 +189,7 @@
       }
     }
   },
-  "itemsCount": "{name}, {count} items",
+  "itemsCount": "{name}, {count, plural, =1{1 item} other{{count} items}}",
   "@itemsCount": {
     "placeholders": {
       "name": {
@@ -954,9 +954,9 @@
   "preferencesStartScreen": "Start screen",
   "preferencesStartLastList": "Last open list",
   "preferencesTicked": "Ticked items",
-  "preferencesTickedMove": "Move to Done",
+  "preferencesTickedMove": "Move to the bottom",
   "preferencesTickedStay": "Stay in place",
-  "preferencesTickedHide": "Hide",
+  "preferencesTickedHide": "Fold away at the bottom",
   "preferencesConfirmDelete": "Confirm before deleting",
   "preferencesShowAiBar": "Show the AI bar",
   "preferencesVibration": "Vibration",
@@ -1001,5 +1001,88 @@
   "homeMoveEarlier": "Move earlier",
   "homeMoveLater": "Move later",
   "preferencesHomeListOrder": "Home list order",
-  "preferencesHomeListOrderSame": "Same as dial"
+  "preferencesHomeListOrderSame": "Same as dial",
+  "clearedBanner": "{count, plural, =1{Cleared} other{{count} cleared}}",
+  "@clearedBanner": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noTickLine": "Without the {field} field, items can no longer be ticked.",
+  "@noTickLine": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "noTickView": "The checklist shows as {view}.",
+  "@noTickView": {
+    "placeholders": {
+      "view": {
+        "type": "String"
+      }
+    }
+  },
+  "noTickRules": "These rules go: {rules}.",
+  "@noTickRules": {
+    "placeholders": {
+      "rules": {
+        "type": "String"
+      }
+    }
+  },
+  "noTickCopies": "Copying to Next time can only be added back by the AI.",
+  "homeHide": "Take off home",
+  "homeHiddenBanner": "Hidden from home",
+  "suggestOnHome": "Suggest on home",
+  "suggestOnHomeOff": "Suggestions are off in Preferences.",
+  "preferencesListsAndDial": "Lists and dial",
+  "preferencesStartScreenLine": "What opens when you start the app.",
+  "preferencesSuggestionsLine": "Fills home up to 3 cards with lists you may want.",
+  "preferencesOnlyWithCards": "Only when home shows list cards.",
+  "preferencesDialOrderLine": "The order of lists on the dial.",
+  "preferencesHomeOrderSameLine": "Pinned cards follow the dial's order.",
+  "preferencesHomeOrderLastUsedLine": "Pinned cards in the order you last opened them.",
+  "preferencesHomeOrderAzLine": "Pinned cards by name.",
+  "preferencesHomeOrderMineLine": "The order you arranged on home.",
+  "preferencesConfirmDeleteLine": "Asks before an item or a list is deleted.",
+  "preferencesAiBarOffLine": "The AI bar is hidden. Your lists stay as they are.",
+  "preferencesWeekStartLine": "Used by the date pickers and the AI.",
+  "preferencesTickedMoveLine": "Ticked items go to an open Done group at the bottom of each list.",
+  "preferencesTickedStayLine": "Ticked items stay where they are, crossed out.",
+  "preferencesTickedHideLine": "Ticked items wait in a closed Done group at the bottom of each list. Tap it to see them.",
+  "preferencesSuggestionsOffLine": "Home shows only the lists you pinned.",
+  "preferencesAiBarOnLine": "The AI bar sits beside the hub on every screen.",
+  "preferencesTickedClear": "Clear straight away",
+  "preferencesTickedClearLine": "Ticking clears an item at once, with Undo. Repeats and Next time copies still happen.",
+  "preferencesListsOwn": "Lists can have their own",
+  "preferencesListsOwnCount": "{count, plural, =0{A list can pick its own in Edit list.} =1{1 list has its own choice.} other{{count} lists have their own choice.}}",
+  "@preferencesListsOwnCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "preferencesListsOwnOff": "Every list follows this setting.",
+  "editorIconAndColour": "Icon and colour",
+  "editorHomeAndAi": "Home and AI",
+  "editorFollowPreferences": "Follow Preferences",
+  "editorNoTick": "This list has no tick.",
+  "editorEveryListFollows": "Preferences makes every list follow this.",
+  "editorTickField": "Tick",
+  "suggestOnHomeLine": "Lets home suggest this list.",
+  "allowAiLine": "Lets the AI see and change this list.",
+  "ruleClearCompletedLine": "Adds a × on ticked items and a Clear ticked button.",
+  "viewChecklistLine": "Items with a tick, open ones first.",
+  "viewSectionedLine": "Items in sections you name, with buttons to move them.",
+  "viewTimelineLine": "Items by date, newest first.",
+  "viewGroupedLine": "Items grouped by a choice or a category.",
+  "viewTableLine": "Items one per row, newest first.",
+  "viewCardsLine": "Items one per row with their details, newest first.",
+  "preferencesHomeOrderFollowing": "Following the dial's order.",
+  "preferencesHomeOrderOwnLine": "Home keeps its own order."
 }

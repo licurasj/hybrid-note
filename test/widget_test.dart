@@ -21,6 +21,7 @@ import 'package:hybrid_note/lists/list_definition.dart';
 import 'package:hybrid_note/lists/list_editor_screen.dart';
 import 'package:hybrid_note/lists/list_item.dart';
 import 'package:hybrid_note/lists/list_patch.dart';
+import 'package:hybrid_note/lists/list_rules.dart';
 
 import 'support/fake_auth.dart';
 import 'support/firestore_store.dart';
@@ -818,6 +819,58 @@ void main() {
     await settle(tester);
     expect(find.byType(ListEditorScreen), findsOneWidget);
   });
+
+  for (final Size screen in const [Size(360, 780), Size(412, 915)]) {
+    testWidgets('scrolled to the end, a list\'s last row clears the add button '
+        '(${screen.width.toInt()} dp, T-24 unit 7 D1)', (
+      WidgetTester tester,
+    ) async {
+      final FirestoreListStore store =
+          await _pumpApp(tester, FakeAuthService(user: testUser));
+      tester.view.physicalSize = screen * 3;
+      tester.view.devicePixelRatio = 3;
+      final DateTime at = DateTime.utc(2026, 3, 1);
+      await tester.runAsync(
+        () => store.apply(
+          ListChanges(
+            saved: [
+              for (int n = 0; n < 30; n++)
+                ListItem(
+                  id: 'row$n',
+                  listId: BuiltinTemplates.groceryId,
+                  values: {'title': 'Row $n', 'section': 'nextTime'},
+                  createdAt: at,
+                  updatedAt: at,
+                ),
+            ],
+          ),
+        ),
+      );
+      await settle(tester);
+      await tester.tap(_hub);
+      await tester.pump();
+      await tester.tap(
+        find.byKey(ValueKey('launcher-note-${BuiltinTemplates.groceryId}')),
+      );
+      await settle(tester);
+
+      final ScrollableState scrollable = tester.state<ScrollableState>(
+        find.descendant(
+          of: find.byType(ListView),
+          matching: find.byType(Scrollable),
+        ).first,
+      );
+      scrollable.position.jumpTo(scrollable.position.maxScrollExtent);
+      await settle(tester);
+      final double lowest = [
+        for (final Element row in find.textContaining('Row ', findRichText: true).evaluate())
+          tester.getRect(find.byElementPredicate((e) => e == row)).bottom,
+      ].reduce((a, b) => a > b ? a : b);
+      final Rect add = tester.getRect(find.byType(FloatingActionButton));
+      // The row's own height below its text, × included, fits too.
+      expect(lowest + 24, lessThanOrEqualTo(add.top));
+    });
+  }
 
   // The add button's own size animation (under the hub) and whether any
   // turn is applied around it.

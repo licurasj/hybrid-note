@@ -1204,12 +1204,28 @@ void main() {
     await settle(tester);
     await tester.tap(find.byKey(const ValueKey('settings-preferences')));
     await settle(tester);
-    expect(find.byKey(const ValueKey('preferences-match-dial')), findsNothing);
-    await tester.tap(find.byKey(const ValueKey('preferences-home-list-order')));
-    await settle(tester);
+    // Its group starts shut (Q-127).
     await tester.tap(
-      find.byKey(const ValueKey('choice-HomeListOrder.sameAsDial')),
+      find.descendant(
+        of: find.byKey(const ValueKey('preferences-section-lists-and-dial')),
+        matching: find.byType(InkWell),
+      ).first,
     );
+    await settle(tester);
+    expect(find.byKey(const ValueKey('preferences-match-dial')), findsNothing);
+    // The home drag turned Same as dial off; its switch turns it on again.
+    final Finder same = find.byKey(
+      const ValueKey('preferences-home-same-as-dial'),
+    );
+    expect(
+      tester
+          .widget<Switch>(find.descendant(of: same, matching: find.byType(Switch)))
+          .value,
+      isFalse,
+    );
+    await tester.ensureVisible(same);
+    await settle(tester);
+    await tester.tap(same);
     await settle(tester);
     expect(cubit.state.homeListOrder, HomeListOrder.sameAsDial);
     expect(cubit.state.myListOrder, [_grocery, _tasks]);

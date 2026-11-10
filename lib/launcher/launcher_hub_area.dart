@@ -54,6 +54,22 @@ class AboveHubButtonLocation extends FloatingActionButtonLocation {
 
   static const double gap = 12;
 
+  // How far up from the screen's bottom the button's top sits, so a list
+  // scrolled to its end can keep its last row clear of it; 0 when the button
+  // sits below a hub in the top half.
+  static double heightAboveBottom(
+    LauncherHubArea area,
+    Size screen,
+    double buttonHeight,
+  ) {
+    final Offset hub = area.hubCenter(screen);
+    if (hub.dy < screen.height / 2) return 0;
+    final double top = (hub.dy - area.hubReach - gap - buttonHeight)
+        .clamp(0, screen.height - buttonHeight)
+        .toDouble();
+    return screen.height - top;
+  }
+
   @override
   Offset getOffset(ScaffoldPrelayoutGeometry scaffoldGeometry) {
     final Size screen = scaffoldGeometry.scaffoldSize;

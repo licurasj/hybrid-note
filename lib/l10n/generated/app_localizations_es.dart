@@ -162,7 +162,13 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String tickedCount(int count) {
-    return '$count marcados';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count marcados',
+      one: '$count marcado',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -340,7 +346,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get rules => 'Reglas';
 
   @override
-  String get ruleClearCompleted => 'Borrar completados';
+  String get ruleClearCompleted => 'Borrar marcados';
 
   @override
   String get ruleRecurOnClear => 'Repetir al borrar';
@@ -437,7 +443,13 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String itemsCount(String name, int count) {
-    return '$name, $count elementos';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count elementos',
+      one: '1 elemento',
+    );
+    return '$name, $_temp0';
   }
 
   @override
@@ -1166,13 +1178,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String get preferencesTicked => 'Elementos marcados';
 
   @override
-  String get preferencesTickedMove => 'Mover a Hecho';
+  String get preferencesTickedMove => 'Mover al final';
 
   @override
   String get preferencesTickedStay => 'Dejar en su sitio';
 
   @override
-  String get preferencesTickedHide => 'Ocultar';
+  String get preferencesTickedHide => 'Plegar al final';
 
   @override
   String get preferencesConfirmDelete => 'Confirmar antes de eliminar';
@@ -1282,4 +1294,192 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get preferencesHomeListOrderSame => 'Igual que el dial';
+
+  @override
+  String clearedBanner(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count borrados',
+      one: 'Borrado',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String noTickLine(String field) {
+    return 'Sin el campo $field, los elementos ya no se pueden marcar.';
+  }
+
+  @override
+  String noTickView(String view) {
+    return 'La lista de tareas se muestra como $view.';
+  }
+
+  @override
+  String noTickRules(String rules) {
+    return 'Se quitan estas reglas: $rules.';
+  }
+
+  @override
+  String get noTickCopies =>
+      'Copiar a la próxima vez solo puede volver a añadirlo la IA.';
+
+  @override
+  String get homeHide => 'Quitar del inicio';
+
+  @override
+  String get homeHiddenBanner => 'Oculto en el inicio';
+
+  @override
+  String get suggestOnHome => 'Sugerir en el inicio';
+
+  @override
+  String get suggestOnHomeOff =>
+      'Las sugerencias están desactivadas en Preferencias.';
+
+  @override
+  String get preferencesListsAndDial => 'Listas y dial';
+
+  @override
+  String get preferencesStartScreenLine => 'Lo que se abre al iniciar la app.';
+
+  @override
+  String get preferencesSuggestionsLine =>
+      'Completa el inicio hasta 3 tarjetas con listas que podrías querer.';
+
+  @override
+  String get preferencesOnlyWithCards =>
+      'Solo cuando el inicio muestra tarjetas de listas.';
+
+  @override
+  String get preferencesDialOrderLine => 'El orden de las listas en el dial.';
+
+  @override
+  String get preferencesHomeOrderSameLine =>
+      'Las tarjetas fijadas siguen el orden del dial.';
+
+  @override
+  String get preferencesHomeOrderLastUsedLine =>
+      'Las tarjetas fijadas en el orden en que las abriste por última vez.';
+
+  @override
+  String get preferencesHomeOrderAzLine => 'Las tarjetas fijadas por nombre.';
+
+  @override
+  String get preferencesHomeOrderMineLine =>
+      'El orden que organizaste en el inicio.';
+
+  @override
+  String get preferencesConfirmDeleteLine =>
+      'Pregunta antes de eliminar un elemento o una lista.';
+
+  @override
+  String get preferencesAiBarOffLine =>
+      'La barra de IA está oculta. Tus listas quedan como están.';
+
+  @override
+  String get preferencesWeekStartLine =>
+      'Lo usan los selectores de fecha y la IA.';
+
+  @override
+  String get preferencesTickedMoveLine =>
+      'Los elementos marcados van a un grupo Hecho abierto al final de cada lista.';
+
+  @override
+  String get preferencesTickedStayLine =>
+      'Los elementos marcados se quedan donde están, tachados.';
+
+  @override
+  String get preferencesTickedHideLine =>
+      'Los elementos marcados esperan en un grupo Hecho cerrado al final de cada lista. Tócalo para verlos.';
+
+  @override
+  String get preferencesSuggestionsOffLine =>
+      'El inicio muestra solo las listas que fijaste.';
+
+  @override
+  String get preferencesAiBarOnLine =>
+      'La barra de IA está junto al botón en cada pantalla.';
+
+  @override
+  String get preferencesTickedClear => 'Borrar en el acto';
+
+  @override
+  String get preferencesTickedClearLine =>
+      'Marcar borra un elemento al instante, con Deshacer. Las repeticiones y las copias para la próxima vez siguen ocurriendo.';
+
+  @override
+  String get preferencesListsOwn => 'Las listas pueden tener la suya';
+
+  @override
+  String preferencesListsOwnCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count listas tienen su propia opción.',
+      one: '1 lista tiene su propia opción.',
+      zero: 'Una lista puede elegir la suya en Editar lista.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get preferencesListsOwnOff => 'Todas las listas siguen este ajuste.';
+
+  @override
+  String get editorIconAndColour => 'Icono y color';
+
+  @override
+  String get editorHomeAndAi => 'Inicio e IA';
+
+  @override
+  String get editorFollowPreferences => 'Seguir Preferencias';
+
+  @override
+  String get editorNoTick => 'Esta lista no tiene marca.';
+
+  @override
+  String get editorEveryListFollows =>
+      'Preferencias hace que todas las listas sigan esto.';
+
+  @override
+  String get editorTickField => 'Marca';
+
+  @override
+  String get suggestOnHomeLine => 'Deja que el inicio sugiera esta lista.';
+
+  @override
+  String get allowAiLine => 'Deja que la IA vea y cambie esta lista.';
+
+  @override
+  String get ruleClearCompletedLine =>
+      'Añade una × a los elementos marcados y un botón Borrar marcados.';
+
+  @override
+  String get viewChecklistLine => 'Elementos con marca, primero los abiertos.';
+
+  @override
+  String get viewSectionedLine =>
+      'Elementos en secciones con nombre, con botones para moverlos.';
+
+  @override
+  String get viewTimelineLine => 'Elementos por fecha, los más nuevos primero.';
+
+  @override
+  String get viewGroupedLine =>
+      'Elementos agrupados por una opción o categoría.';
+
+  @override
+  String get viewTableLine => 'Un elemento por fila, los más nuevos primero.';
+
+  @override
+  String get viewCardsLine =>
+      'Un elemento por fila con sus detalles, los más nuevos primero.';
+
+  @override
+  String get preferencesHomeOrderFollowing => 'Sigue el orden del dial.';
+
+  @override
+  String get preferencesHomeOrderOwnLine => 'El inicio tiene su propio orden.';
 }

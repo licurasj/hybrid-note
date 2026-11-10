@@ -672,10 +672,8 @@ void main() {
         find.ancestor(of: banner, matching: find.byType(FadeTransition)),
         findsNothing,
       );
-      expect(
-        tester.getBottomLeft(banner).dy,
-        lessThan(tester.getTopLeft(_hub).dy),
-      );
+      // Never on the hub: beside it or above it (owner, 2026-11-09).
+      expect(tester.getRect(banner).overlaps(tester.getRect(_hub)), isFalse);
 
       await tester.tap(find.byKey(const ValueKey('app-banner-action')));
       await settle(tester);

@@ -751,7 +751,7 @@ abstract class AppLocalizations {
   /// No description provided for @ruleClearCompleted.
   ///
   /// In en, this message translates to:
-  /// **'Clear completed items'**
+  /// **'Clear ticked items'**
   String get ruleClearCompleted;
 
   /// No description provided for @ruleRecurOnClear.
@@ -937,7 +937,7 @@ abstract class AppLocalizations {
   /// No description provided for @itemsCount.
   ///
   /// In en, this message translates to:
-  /// **'{name}, {count} items'**
+  /// **'{name}, {count, plural, =1{1 item} other{{count} items}}'**
   String itemsCount(String name, int count);
 
   /// No description provided for @moveHub.
@@ -1985,7 +1985,7 @@ abstract class AppLocalizations {
   /// No description provided for @preferencesTickedMove.
   ///
   /// In en, this message translates to:
-  /// **'Move to Done'**
+  /// **'Move to the bottom'**
   String get preferencesTickedMove;
 
   /// No description provided for @preferencesTickedStay.
@@ -1997,7 +1997,7 @@ abstract class AppLocalizations {
   /// No description provided for @preferencesTickedHide.
   ///
   /// In en, this message translates to:
-  /// **'Hide'**
+  /// **'Fold away at the bottom'**
   String get preferencesTickedHide;
 
   /// No description provided for @preferencesConfirmDelete.
@@ -2209,6 +2209,294 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Same as dial'**
   String get preferencesHomeListOrderSame;
+
+  /// No description provided for @clearedBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Cleared} other{{count} cleared}}'**
+  String clearedBanner(int count);
+
+  /// No description provided for @noTickLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Without the {field} field, items can no longer be ticked.'**
+  String noTickLine(String field);
+
+  /// No description provided for @noTickView.
+  ///
+  /// In en, this message translates to:
+  /// **'The checklist shows as {view}.'**
+  String noTickView(String view);
+
+  /// No description provided for @noTickRules.
+  ///
+  /// In en, this message translates to:
+  /// **'These rules go: {rules}.'**
+  String noTickRules(String rules);
+
+  /// No description provided for @noTickCopies.
+  ///
+  /// In en, this message translates to:
+  /// **'Copying to Next time can only be added back by the AI.'**
+  String get noTickCopies;
+
+  /// No description provided for @homeHide.
+  ///
+  /// In en, this message translates to:
+  /// **'Take off home'**
+  String get homeHide;
+
+  /// No description provided for @homeHiddenBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden from home'**
+  String get homeHiddenBanner;
+
+  /// No description provided for @suggestOnHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggest on home'**
+  String get suggestOnHome;
+
+  /// No description provided for @suggestOnHomeOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggestions are off in Preferences.'**
+  String get suggestOnHomeOff;
+
+  /// No description provided for @preferencesListsAndDial.
+  ///
+  /// In en, this message translates to:
+  /// **'Lists and dial'**
+  String get preferencesListsAndDial;
+
+  /// No description provided for @preferencesStartScreenLine.
+  ///
+  /// In en, this message translates to:
+  /// **'What opens when you start the app.'**
+  String get preferencesStartScreenLine;
+
+  /// No description provided for @preferencesSuggestionsLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Fills home up to 3 cards with lists you may want.'**
+  String get preferencesSuggestionsLine;
+
+  /// No description provided for @preferencesOnlyWithCards.
+  ///
+  /// In en, this message translates to:
+  /// **'Only when home shows list cards.'**
+  String get preferencesOnlyWithCards;
+
+  /// No description provided for @preferencesDialOrderLine.
+  ///
+  /// In en, this message translates to:
+  /// **'The order of lists on the dial.'**
+  String get preferencesDialOrderLine;
+
+  /// No description provided for @preferencesHomeOrderSameLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned cards follow the dial\'s order.'**
+  String get preferencesHomeOrderSameLine;
+
+  /// No description provided for @preferencesHomeOrderLastUsedLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned cards in the order you last opened them.'**
+  String get preferencesHomeOrderLastUsedLine;
+
+  /// No description provided for @preferencesHomeOrderAzLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned cards by name.'**
+  String get preferencesHomeOrderAzLine;
+
+  /// No description provided for @preferencesHomeOrderMineLine.
+  ///
+  /// In en, this message translates to:
+  /// **'The order you arranged on home.'**
+  String get preferencesHomeOrderMineLine;
+
+  /// No description provided for @preferencesConfirmDeleteLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Asks before an item or a list is deleted.'**
+  String get preferencesConfirmDeleteLine;
+
+  /// No description provided for @preferencesAiBarOffLine.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI bar is hidden. Your lists stay as they are.'**
+  String get preferencesAiBarOffLine;
+
+  /// No description provided for @preferencesWeekStartLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Used by the date pickers and the AI.'**
+  String get preferencesWeekStartLine;
+
+  /// No description provided for @preferencesTickedMoveLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Ticked items go to an open Done group at the bottom of each list.'**
+  String get preferencesTickedMoveLine;
+
+  /// No description provided for @preferencesTickedStayLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Ticked items stay where they are, crossed out.'**
+  String get preferencesTickedStayLine;
+
+  /// No description provided for @preferencesTickedHideLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Ticked items wait in a closed Done group at the bottom of each list. Tap it to see them.'**
+  String get preferencesTickedHideLine;
+
+  /// No description provided for @preferencesSuggestionsOffLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Home shows only the lists you pinned.'**
+  String get preferencesSuggestionsOffLine;
+
+  /// No description provided for @preferencesAiBarOnLine.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI bar sits beside the hub on every screen.'**
+  String get preferencesAiBarOnLine;
+
+  /// No description provided for @preferencesTickedClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear straight away'**
+  String get preferencesTickedClear;
+
+  /// No description provided for @preferencesTickedClearLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Ticking clears an item at once, with Undo. Repeats and Next time copies still happen.'**
+  String get preferencesTickedClearLine;
+
+  /// No description provided for @preferencesListsOwn.
+  ///
+  /// In en, this message translates to:
+  /// **'Lists can have their own'**
+  String get preferencesListsOwn;
+
+  /// No description provided for @preferencesListsOwnCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{A list can pick its own in Edit list.} =1{1 list has its own choice.} other{{count} lists have their own choice.}}'**
+  String preferencesListsOwnCount(int count);
+
+  /// No description provided for @preferencesListsOwnOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Every list follows this setting.'**
+  String get preferencesListsOwnOff;
+
+  /// No description provided for @editorIconAndColour.
+  ///
+  /// In en, this message translates to:
+  /// **'Icon and colour'**
+  String get editorIconAndColour;
+
+  /// No description provided for @editorHomeAndAi.
+  ///
+  /// In en, this message translates to:
+  /// **'Home and AI'**
+  String get editorHomeAndAi;
+
+  /// No description provided for @editorFollowPreferences.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow Preferences'**
+  String get editorFollowPreferences;
+
+  /// No description provided for @editorNoTick.
+  ///
+  /// In en, this message translates to:
+  /// **'This list has no tick.'**
+  String get editorNoTick;
+
+  /// No description provided for @editorEveryListFollows.
+  ///
+  /// In en, this message translates to:
+  /// **'Preferences makes every list follow this.'**
+  String get editorEveryListFollows;
+
+  /// No description provided for @editorTickField.
+  ///
+  /// In en, this message translates to:
+  /// **'Tick'**
+  String get editorTickField;
+
+  /// No description provided for @suggestOnHomeLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Lets home suggest this list.'**
+  String get suggestOnHomeLine;
+
+  /// No description provided for @allowAiLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Lets the AI see and change this list.'**
+  String get allowAiLine;
+
+  /// No description provided for @ruleClearCompletedLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Adds a × on ticked items and a Clear ticked button.'**
+  String get ruleClearCompletedLine;
+
+  /// No description provided for @viewChecklistLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Items with a tick, open ones first.'**
+  String get viewChecklistLine;
+
+  /// No description provided for @viewSectionedLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Items in sections you name, with buttons to move them.'**
+  String get viewSectionedLine;
+
+  /// No description provided for @viewTimelineLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Items by date, newest first.'**
+  String get viewTimelineLine;
+
+  /// No description provided for @viewGroupedLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Items grouped by a choice or a category.'**
+  String get viewGroupedLine;
+
+  /// No description provided for @viewTableLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Items one per row, newest first.'**
+  String get viewTableLine;
+
+  /// No description provided for @viewCardsLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Items one per row with their details, newest first.'**
+  String get viewCardsLine;
+
+  /// No description provided for @preferencesHomeOrderFollowing.
+  ///
+  /// In en, this message translates to:
+  /// **'Following the dial\'s order.'**
+  String get preferencesHomeOrderFollowing;
+
+  /// No description provided for @preferencesHomeOrderOwnLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Home keeps its own order.'**
+  String get preferencesHomeOrderOwnLine;
 }
 
 class _AppLocalizationsDelegate

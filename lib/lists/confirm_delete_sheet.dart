@@ -5,11 +5,17 @@ import '../app/app_theme.dart';
 import '../app_colors.dart';
 import '../l10n/generated/app_localizations.dart';
 import 'generic_item_dialog.dart';
+import 'list_definition.dart';
 
-// Whether to go on with deleting [name]: at once, unless the user asked to be
-// asked (Q-50 c), then a slide-up sheet with Cancel and Delete.
-Future<bool> confirmDelete(BuildContext context, String name) async {
-  if (!context.accountPreferences.confirmDelete) {
+// Whether to go on with deleting [name] (an item of [list], or [list] itself):
+// at once, unless the user asked to be asked (Q-50 c), in Preferences or on
+// that list (Q-117), then a slide-up sheet with Cancel and Delete.
+Future<bool> confirmDelete(
+  BuildContext context,
+  String name, {
+  ListDefinition? list,
+}) async {
+  if (!context.accountPreferences.confirmDeleteFor(list)) {
     return true;
   }
   final bool? confirmed = await showSlideUpSheet<bool>(
@@ -83,8 +89,12 @@ class _ConfirmDeleteSheet extends StatelessWidget {
                       const SizedBox(width: 8),
                       TextButton(
                         key: const ValueKey('confirm-delete-yes'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: Theme.of(context).colorScheme.error,
+                        style: AppInk.pressless(
+                          TextButton.styleFrom(
+                            foregroundColor: Theme.of(
+                              context,
+                            ).colorScheme.error,
+                          ),
                         ),
                         onPressed: () => Navigator.of(context).pop(true),
                         child: Text(loc.delete),

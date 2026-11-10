@@ -114,9 +114,16 @@ class PromptBarGeometry {
 // built for the whole shell area; only the bar and its panel take touches.
 // A touch anywhere else leaves the bar and still does its own job.
 class PromptBar extends StatelessWidget {
-  const PromptBar({super.key, required this.controller, this.openList});
+  const PromptBar({
+    super.key,
+    required this.controller,
+    this.openList,
+    this.barKey,
+  });
 
   final AiBarController controller;
+  // On the bar and its panel, so the shell can tell the banner where it is.
+  final GlobalKey? barKey;
   // The list on screen, or null on the home.
   final ListDefinition? openList;
 
@@ -155,6 +162,7 @@ class PromptBar extends StatelessWidget {
                   ),
                   // Touches on the bar or its panel do not leave the bar.
                   child: TapRegion(
+                    key: barKey,
                     groupId: controller,
                     child: _BarColumn(
                       controller: controller,

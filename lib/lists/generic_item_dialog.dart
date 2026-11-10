@@ -375,6 +375,18 @@ class _GenericItemDialogState extends State<GenericItemDialog>
     Navigator.of(context).pop(result);
   }
 
+  // The pickers in this list's colour (Q-122 A).
+  Widget _inListColour(BuildContext context, Widget child) {
+    final ThemeData theme = Theme.of(context);
+    return Theme(
+      data: AppTheme.pickerTheme(
+        context,
+        listColor(widget.definition.color, brightness: theme.brightness),
+      ),
+      child: child,
+    );
+  }
+
   Future<void> _pickDate(FieldDefinition field) async {
     final Object? raw = _values[field.key];
     final DateTime current =
@@ -387,8 +399,10 @@ class _GenericItemDialogState extends State<GenericItemDialog>
       initialDate: current,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
-      builder: (context, child) =>
-          datePickerIn(preferences.weekStart, context, child),
+      builder: (context, child) => _inListColour(
+        context,
+        datePickerIn(preferences.weekStart, context, child),
+      ),
     );
     if (day == null || !mounted) {
       return;
@@ -399,8 +413,10 @@ class _GenericItemDialogState extends State<GenericItemDialog>
       final TimeOfDay? picked = await showTimePicker(
         context: context,
         initialTime: time,
-        builder: (context, child) =>
-            timePickerIn(preferences.timeFormat, context, child),
+        builder: (context, child) => _inListColour(
+          context,
+          timePickerIn(preferences.timeFormat, context, child),
+        ),
       );
       if (picked == null || !mounted) {
         return;
@@ -985,11 +1001,13 @@ class _GenericItemDialogState extends State<GenericItemDialog>
               ),
             TextButton.icon(
               key: ValueKey('field-${field.key}-add'),
-              style: TextButton.styleFrom(
-                foregroundColor: look.neutrals.muted,
-                textStyle: look.body,
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(0, 44),
+              style: AppInk.pressless(
+                TextButton.styleFrom(
+                  foregroundColor: look.neutrals.muted,
+                  textStyle: look.body,
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(0, 44),
+                ),
               ),
               icon: const Icon(Icons.add, size: 18),
               label: Text(labels.loc.addSubtask),
@@ -1177,10 +1195,14 @@ class _GenericItemDialogState extends State<GenericItemDialog>
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         TextButton(
-                          style: TextButton.styleFrom(
-                            foregroundColor: look.neutrals.text,
-                            minimumSize: const Size(0, 48),
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                          style: AppInk.pressless(
+                            TextButton.styleFrom(
+                              foregroundColor: look.neutrals.text,
+                              minimumSize: const Size(0, 48),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                            ),
                           ),
                           onPressed: () {
                             Navigator.of(context).pop();
@@ -1188,17 +1210,21 @@ class _GenericItemDialogState extends State<GenericItemDialog>
                           child: Text(loc.cancel),
                         ),
                         FilledButton(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: look.color,
-                            foregroundColor: look.onColor,
-                            disabledBackgroundColor: look.neutrals.surface,
-                            disabledForegroundColor: look.neutrals.muted,
-                            minimumSize: const Size(0, 52),
-                            padding: const EdgeInsets.symmetric(horizontal: 30),
-                            textStyle: look.label.copyWith(
-                              fontWeight: FontWeight.w600,
+                          style: AppInk.pressless(
+                            FilledButton.styleFrom(
+                              backgroundColor: look.color,
+                              foregroundColor: look.onColor,
+                              disabledBackgroundColor: look.neutrals.surface,
+                              disabledForegroundColor: look.neutrals.muted,
+                              minimumSize: const Size(0, 52),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 30,
+                              ),
+                              textStyle: look.label.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                              shape: AppShapes.pill,
                             ),
-                            shape: AppShapes.pill,
                           ),
                           onPressed: _requiredFieldsFilled ? _save : null,
                           child: Text(loc.save),

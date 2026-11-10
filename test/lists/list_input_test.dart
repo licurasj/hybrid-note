@@ -277,6 +277,18 @@ void main() {
           {'op': 'setListInfo', 'aiAllowed': false},
         ],
       }, {ListErrorCode.unknownArg}),
+      ("a list's own Ticked items", {
+        'listId': 'builtin.grocery',
+        'ops': [
+          {'op': 'setListInfo', 'tickedItems': 'hide'},
+        ],
+      }, {ListErrorCode.unknownArg}),
+      ("a list's own Confirm before deleting", {
+        'listId': 'builtin.grocery',
+        'ops': [
+          {'op': 'setListInfo', 'confirmDelete': false},
+        ],
+      }, {ListErrorCode.unknownArg}),
       ('a behavior entry without its field', {
         'listId': 'builtin.grocery',
         'ops': [

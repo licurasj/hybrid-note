@@ -434,8 +434,10 @@ void main() {
       for (final PatchOpKind kind in PatchOpKind.values) {
         final Map<String, dynamic> op = ops[kind.wire]!;
         final Set<String> arguments = (op['properties'] as Map<String, dynamic>).keys.toSet()..remove('op');
-        // The AI never changes whether a list may be sent to it.
-        final Set<String> dart = ListPatchOp.argTypes[kind]!.keys.toSet()..remove('aiAllowed');
+        // The AI never changes whether a list may be sent to it, nor the
+        // list's own Ticked items and Confirm before deleting (T-24).
+        final Set<String> dart = ListPatchOp.argTypes[kind]!.keys.toSet()
+          ..removeAll(['aiAllowed', 'tickedItems', 'confirmDelete']);
         expect(arguments, dart, reason: kind.wire);
         expect((op['required'] as List).toSet(), containsAll(ListPatchOp.requiredArgs[kind]!), reason: kind.wire);
         expect(op['description'], isNotEmpty, reason: kind.wire);

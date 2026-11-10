@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../app/settings_controls.dart';
 import '../l10n/generated/app_localizations.dart';
 import 'list_definition.dart';
 import 'list_editor_style.dart';
@@ -26,6 +27,7 @@ class ListEditorRules extends StatelessWidget {
     required this.labels,
     required this.onOp,
     this.extraRows = const [],
+    this.showLabel = true,
   });
 
   // The editor's current draft.
@@ -33,6 +35,8 @@ class ListEditorRules extends StatelessWidget {
   final ListLabels labels;
   final ValueChanged<ListPatchOp> onOp;
   final List<Widget> extraRows;
+  // Off inside the editor's folded Rules section, whose header names it.
+  final bool showLabel;
 
   static ListPatchOp addOp(BehaviorDefinition behavior) {
     return ListPatchOp(PatchOpKind.addBehavior, {'behavior': behavior.toJson()});
@@ -115,14 +119,19 @@ class ListEditorRules extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        look.sectionLabel(loc.rules),
+        if (showLabel) look.section(loc.rules),
         look.hairline(
           child: SwitchListTile(
             key: const ValueKey('rule-clearCompleted'),
             contentPadding: EdgeInsets.zero,
             title: Text(loc.ruleClearCompleted, style: look.label),
+            subtitle: Text(loc.ruleClearCompletedLine, style: look.type.meta),
             value: _has(BehaviorKind.clearCompleted),
-            onChanged: (on) => onOp(
+            // It needs a tick: without a Done field it cannot be turned on.
+            onChanged: definition.fieldWithRole(FieldRole.completion) == null &&
+                    !_has(BehaviorKind.clearCompleted)
+                ? null
+                : (on) => onOp(
               on
                   ? addOp(const BehaviorDefinition(kind: BehaviorKind.clearCompleted))
                   : removeOp(BehaviorKind.clearCompleted),
@@ -143,6 +152,7 @@ class ListEditorRules extends StatelessWidget {
                 key: ValueKey('remove-rule-${ids[index]}'),
                 tooltip: loc.delete,
                 color: look.neutrals.muted,
+                highlightColor: Colors.transparent,
                 icon: const Icon(Icons.delete_outline, size: 20),
                 onPressed: () => onOp(removeOp(behavior.kind)),
               ),
@@ -265,13 +275,16 @@ class _AddRuleDialogState extends State<_AddRuleDialog> {
       padding: const EdgeInsets.only(top: 12),
       child: KeyedSubtree(
         key: ValueKey('rule-$param'),
-        // The inner key resets the dropdown when the choice is made elsewhere.
-        child: DropdownButtonFormField<T>(
+        // The choices open in place, not as a drop-down (T-24). The inner
+        // key resets it when the choice is made elsewhere.
+        child: SettingFoldPicker<T>(
           key: ValueKey('rule-$param-$value-${items.length}'),
-          initialValue: items.any((item) => item.value == value) ? value : null,
-          isExpanded: true,
-          decoration: InputDecoration(labelText: label),
-          items: items,
+          label: label,
+          value: items.any((item) => item.value == value) ? value : null,
+          choices: [
+            for (final DropdownMenuItem<T> item in items)
+              (value: item.value as T, child: item.child),
+          ],
           onChanged: items.isEmpty ? null : onChanged,
         ),
       ),

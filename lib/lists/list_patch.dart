@@ -28,7 +28,8 @@ enum PatchOpKind implements WireName {
 }
 
 // One operation. Arguments by kind:
-//   setListInfo {name?, description?, icon?, color?, aiAllowed?}
+//   setListInfo {name?, description?, icon?, color?, aiAllowed?,
+//                tickedItems?, confirmDelete?}   (null: follow Preferences)
 //     (a blank description removes it)
 //   addField {field, index?}           removeField {key}
 //   renameField {key, label}           changeFieldType {key, type, options?}
@@ -51,6 +52,10 @@ class ListPatchOp {
       'icon': ArgType.string,
       'color': ArgType.string,
       'aiAllowed': ArgType.boolean,
+      // The list's own choice, or null to follow Preferences (Q-117). Not
+      // offered to the AI.
+      'tickedItems': ArgType.any,
+      'confirmDelete': ArgType.any,
     },
     PatchOpKind.addField: {'field': ArgType.object, 'index': ArgType.integer},
     PatchOpKind.removeField: {'key': ArgType.string},
@@ -245,6 +250,17 @@ class ListPatch {
       try {
         switch (op.kind) {
           case PatchOpKind.setListInfo:
+            final Object? ticked = op.args[ListDefinition.ownTickedItemsKey];
+            final Object? confirm = op.args[ListDefinition.ownConfirmDeleteKey];
+            if ((ticked != null &&
+                    !ListDefinition.tickedItemsWires.contains(ticked)) ||
+                confirm is! bool?) {
+              errors.add(ListError(
+                ListErrorCode.badOp,
+                {'op': op.kind.wire, 'detail': 'tickedItems must be one of ${ListDefinition.tickedItemsWires.join(', ')} and confirmDelete true or false, or null'},
+              ));
+              continue;
+            }
             info.addAll(op.args);
           case PatchOpKind.addField:
             final FieldDefinition field = FieldDefinition.fromJson(op.args['field']);
@@ -355,7 +371,14 @@ class ListPatch {
       behaviors: behaviors,
       aiAllowed: info['aiAllowed'] as bool? ?? definition.aiAllowed,
       updatedAt: ops.isEmpty ? definition.updatedAt : now,
-      extra: definition.extra,
+      extra: {
+        ...definition.extra,
+        for (final String key in const [
+          ListDefinition.ownTickedItemsKey,
+          ListDefinition.ownConfirmDeleteKey,
+        ])
+          if (info.containsKey(key) && info[key] != null) key: info[key],
+      }..removeWhere((key, value) => info.containsKey(key) && info[key] == null),
     );
     errors.addAll(patched.validate());
 
