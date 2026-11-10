@@ -1495,4 +1495,61 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get editorRemindMeLine =>
       'Klingelt zur Uhrzeit; ein Datum ohne Uhrzeit klingelt am Morgen.';
+
+  @override
+  String get preferencesReminders => 'Erinnerungen';
+
+  @override
+  String get preferencesReminderLeads => 'Wie früh';
+
+  @override
+  String get reminderLeadAtTime => 'Zur Uhrzeit';
+
+  @override
+  String get reminderLead5m => '5 Min.';
+
+  @override
+  String get reminderLead10m => '10 Min.';
+
+  @override
+  String get reminderLead30m => '30 Min.';
+
+  @override
+  String get reminderLead1h => '1 Stunde';
+
+  @override
+  String get reminderLead1d => '1 Tag';
+
+  @override
+  String get preferencesReminderLeadsLine =>
+      'Jede Auswahl klingelt für sich, so lange vor der Uhrzeit eines Eintrags.';
+
+  @override
+  String get preferencesReminderLeadsNone =>
+      'Nichts ausgewählt: keine Erinnerung klingelt.';
+
+  @override
+  String get preferencesReminderMorning => 'Morgenzeit';
+
+  @override
+  String get preferencesReminderMorningLine =>
+      'Wann ein Datum ohne Uhrzeit klingelt, mit 1 Tag auch am Morgen davor.';
+
+  @override
+  String get preferencesRingOnThisPhone => 'Auf diesem Telefon klingeln';
+
+  @override
+  String get preferencesRingOnThisPhoneLine =>
+      'Nur dieses Telefon; deine anderen Telefone haben ihren eigenen Schalter.';
+
+  @override
+  String get preferencesRingOnThisPhoneOffLine =>
+      'Dieses Telefon bleibt still; deine anderen Telefone klingeln weiter.';
+
+  @override
+  String get preferencesRemindersAndroidOnly =>
+      'Erinnerungen klingeln vorerst nur auf Android-Telefonen.';
+
+  @override
+  String get editorNoReminder => 'Diese Liste hat kein Datum mit Erinnern.';
 }

@@ -1087,5 +1087,22 @@
   "preferencesHomeOrderOwnLine": "Home keeps its own order.",
   "noTime": "No time",
   "editorRemindMe": "Remind me",
-  "editorRemindMeLine": "Rings at its time; a date with no time rings in the morning."
+  "editorRemindMeLine": "Rings at its time; a date with no time rings in the morning.",
+  "preferencesReminders": "Reminders",
+  "preferencesReminderLeads": "How early",
+  "reminderLeadAtTime": "At the time",
+  "reminderLead5m": "5 min",
+  "reminderLead10m": "10 min",
+  "reminderLead30m": "30 min",
+  "reminderLead1h": "1 hour",
+  "reminderLead1d": "1 day",
+  "preferencesReminderLeadsLine": "Each pick rings on its own, that long before an item's time.",
+  "preferencesReminderLeadsNone": "Nothing picked: no reminders ring.",
+  "preferencesReminderMorning": "Morning time",
+  "preferencesReminderMorningLine": "When a date with no time rings, and the morning before with 1 day.",
+  "preferencesRingOnThisPhone": "Ring on this phone",
+  "preferencesRingOnThisPhoneLine": "Only this phone; your other phones have their own switch.",
+  "preferencesRingOnThisPhoneOffLine": "This phone stays quiet; your other phones still ring.",
+  "preferencesRemindersAndroidOnly": "Reminders ring on Android phones only for now.",
+  "editorNoReminder": "This list has no date marked Remind me."
 }

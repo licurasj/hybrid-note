@@ -5,8 +5,9 @@ import 'package:uuid/uuid.dart';
 
 import '../app/account_preferences.dart';
 import '../app/app_theme.dart';
-import '../app/preferences_screen.dart' show tickedItemsChoices;
+import '../app/preferences_screen.dart' show reminderLeadChoices, tickedItemsChoices;
 import '../app/settings_controls.dart';
+import '../reminders/reminder_settings.dart';
 import '../app_colors.dart';
 import '../l10n/generated/app_localizations.dart';
 import 'confirm_delete_sheet.dart';
@@ -902,6 +903,19 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
     void set(String key, Object? value) =>
         _push(ListPatchOp(PatchOpKind.setListInfo, {key: value}));
 
+    // How early its reminders ring (T-13, Q-118), only for a list with a
+    // date marked Remind me.
+    final Set<ReminderLead>? ownLeads = ReminderLead.setOf(
+      draft.ownReminderLeads,
+    );
+    final bool leadsFollow = ownLeads == null;
+    final String? leadsReason =
+        draft.fieldWithRole(FieldRole.reminder) == null
+        ? loc.editorNoReminder
+        : !preferences.listsOwnReminderLeads
+        ? loc.editorEveryListFollows
+        : null;
+
     // Each setting with Follow Preferences as its sub-option (owner,
     // 2026-11-09), as Lists can have their own in Preferences.
     return [
@@ -924,6 +938,29 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
               : (follow) => set(
                   ListDefinition.ownTickedItemsKey,
                   follow ? null : preferences.tickedItems.wire,
+                ),
+        ),
+      ),
+      SettingPillsMulti<ReminderLead>(
+        key: const ValueKey('reminders-own'),
+        label: loc.preferencesReminderLeads,
+        selected: leadsFollow || leadsReason != null
+            ? preferences.reminderLeads
+            : ownLeads,
+        enabled: !leadsFollow && leadsReason == null,
+        choices: reminderLeadChoices(loc),
+        onChanged: (value) =>
+            set(ListDefinition.ownReminderLeadsKey, ReminderLead.wiresOf(value)),
+        sub: SettingSubSwitch(
+          key: const ValueKey('reminders-follow'),
+          label: loc.editorFollowPreferences,
+          value: leadsFollow,
+          line: leadsReason,
+          onChanged: leadsReason != null
+              ? null
+              : (follow) => set(
+                  ListDefinition.ownReminderLeadsKey,
+                  follow ? null : ReminderLead.wiresOf(preferences.reminderLeads),
                 ),
         ),
       ),

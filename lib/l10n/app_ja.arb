@@ -443,5 +443,22 @@
   "preferencesHomeOrderOwnLine": "ホームは独自の順番です。",
   "noTime": "時刻なし",
   "editorRemindMe": "通知する",
-  "editorRemindMeLine": "指定の時刻に通知します。時刻のない日付は朝に通知します。"
+  "editorRemindMeLine": "指定の時刻に通知します。時刻のない日付は朝に通知します。",
+  "preferencesReminders": "リマインダー",
+  "preferencesReminderLeads": "通知のタイミング",
+  "reminderLeadAtTime": "その時刻",
+  "reminderLead5m": "5分前",
+  "reminderLead10m": "10分前",
+  "reminderLead30m": "30分前",
+  "reminderLead1h": "1時間前",
+  "reminderLead1d": "1日前",
+  "preferencesReminderLeadsLine": "選んだものごとに、項目の時刻のその分だけ前に鳴ります。",
+  "preferencesReminderLeadsNone": "何も選んでいないので、リマインダーは鳴りません。",
+  "preferencesReminderMorning": "朝の時刻",
+  "preferencesReminderMorningLine": "時刻のない日付が鳴る時刻です。1日前を選ぶと前日の朝にも鳴ります。",
+  "preferencesRingOnThisPhone": "この端末で鳴らす",
+  "preferencesRingOnThisPhoneLine": "この端末だけの設定です。ほかの端末にはそれぞれのスイッチがあります。",
+  "preferencesRingOnThisPhoneOffLine": "この端末は鳴りません。ほかの端末では鳴ります。",
+  "preferencesRemindersAndroidOnly": "リマインダーは今のところAndroid端末でのみ鳴ります。",
+  "editorNoReminder": "このリストには「通知する」の日付がありません。"
 }

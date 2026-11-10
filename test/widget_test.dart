@@ -532,6 +532,9 @@ void main() {
     await tester.pump();
     await tester.longPress(find.byKey(ValueKey('launcher-note-$created')));
     await tester.pumpAndSettle();
+    // The editor's Items rows (T-13's how early too) push it down.
+    await tester.ensureVisible(find.byKey(const ValueKey('delete-list')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('delete-list')));
     await settle(tester);
     expect(store.current.definition(created), isNull);

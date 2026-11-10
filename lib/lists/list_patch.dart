@@ -59,6 +59,8 @@ class ListPatchOp {
       // offered to the AI.
       'tickedItems': ArgType.any,
       'confirmDelete': ArgType.any,
+      // How early its reminders ring (T-13, Q-118): ReminderLead wire values.
+      'reminderLeads': ArgType.any,
     },
     PatchOpKind.addField: {'field': ArgType.object, 'index': ArgType.integer},
     PatchOpKind.removeField: {'key': ArgType.string},
@@ -267,12 +269,18 @@ class ListPatch {
           case PatchOpKind.setListInfo:
             final Object? ticked = op.args[ListDefinition.ownTickedItemsKey];
             final Object? confirm = op.args[ListDefinition.ownConfirmDeleteKey];
+            final Object? leads = op.args[ListDefinition.ownReminderLeadsKey];
             if ((ticked != null &&
                     !ListDefinition.tickedItemsWires.contains(ticked)) ||
-                confirm is! bool?) {
+                confirm is! bool? ||
+                (leads != null &&
+                    (leads is! List ||
+                        !leads.every(
+                          ListDefinition.reminderLeadWires.contains,
+                        )))) {
               errors.add(ListError(
                 ListErrorCode.badOp,
-                {'op': op.kind.wire, 'detail': 'tickedItems must be one of ${ListDefinition.tickedItemsWires.join(', ')} and confirmDelete true or false, or null'},
+                {'op': op.kind.wire, 'detail': 'tickedItems must be one of ${ListDefinition.tickedItemsWires.join(', ')}, confirmDelete true or false, and reminderLeads a list of ${ListDefinition.reminderLeadWires.join(', ')}, or null'},
               ));
               continue;
             }
@@ -398,6 +406,7 @@ class ListPatch {
         for (final String key in const [
           ListDefinition.ownTickedItemsKey,
           ListDefinition.ownConfirmDeleteKey,
+          ListDefinition.ownReminderLeadsKey,
         ])
           if (info.containsKey(key) && info[key] != null) key: info[key],
       }..removeWhere((key, value) => info.containsKey(key) && info[key] == null),

@@ -443,5 +443,22 @@
   "preferencesHomeOrderOwnLine": "El inicio tiene su propio orden.",
   "noTime": "Sin hora",
   "editorRemindMe": "Recordarme",
-  "editorRemindMeLine": "Suena a su hora; una fecha sin hora suena por la mañana."
+  "editorRemindMeLine": "Suena a su hora; una fecha sin hora suena por la mañana.",
+  "preferencesReminders": "Recordatorios",
+  "preferencesReminderLeads": "Con cuánta antelación",
+  "reminderLeadAtTime": "A la hora",
+  "reminderLead5m": "5 min",
+  "reminderLead10m": "10 min",
+  "reminderLead30m": "30 min",
+  "reminderLead1h": "1 hora",
+  "reminderLead1d": "1 día",
+  "preferencesReminderLeadsLine": "Cada opción suena por separado, con esa antelación a la hora del elemento.",
+  "preferencesReminderLeadsNone": "Nada elegido: no suena ningún recordatorio.",
+  "preferencesReminderMorning": "Hora de la mañana",
+  "preferencesReminderMorningLine": "Cuándo suena una fecha sin hora, y la mañana anterior con 1 día.",
+  "preferencesRingOnThisPhone": "Sonar en este teléfono",
+  "preferencesRingOnThisPhoneLine": "Solo este teléfono; tus otros teléfonos tienen su propio interruptor.",
+  "preferencesRingOnThisPhoneOffLine": "Este teléfono queda en silencio; tus otros teléfonos siguen sonando.",
+  "preferencesRemindersAndroidOnly": "Por ahora los recordatorios solo suenan en teléfonos Android.",
+  "editorNoReminder": "Esta lista no tiene una fecha con Recordarme."
 }

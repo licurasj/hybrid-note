@@ -370,6 +370,18 @@ class ListDefinition {
   // changed through setListInfo.
   static const String ownTickedItemsKey = 'tickedItems';
   static const String ownConfirmDeleteKey = 'confirmDelete';
+  // How early its reminders ring (T-13, Q-118): a list of ReminderLead wire
+  // values (reminders/reminder_settings.dart), possibly empty for no rings.
+  static const String ownReminderLeadsKey = 'reminderLeads';
+  // The wire values of ReminderLead (reminders/reminder_settings.dart).
+  static const Set<String> reminderLeadWires = {
+    'atTime',
+    '5m',
+    '10m',
+    '30m',
+    '1h',
+    '1d',
+  };
   // The wire values of TickedItems (app/account_preferences.dart), which a
   // list's own Ticked items must be one of.
   static const Set<String> tickedItemsWires = {
@@ -383,6 +395,12 @@ class ListDefinition {
   String? get ownTickedItems {
     final Object? value = extra[ownTickedItemsKey];
     return value is String ? value : null;
+  }
+
+  // Its own reminder lead wire values, or null to follow.
+  List<String>? get ownReminderLeads {
+    final Object? value = extra[ownReminderLeadsKey];
+    return value is List ? List.unmodifiable(value.whereType<String>()) : null;
   }
 
   // Its own Confirm before deleting, or null to follow.

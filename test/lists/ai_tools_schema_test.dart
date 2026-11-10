@@ -437,7 +437,7 @@ void main() {
         // The AI never changes whether a list may be sent to it, nor the
         // list's own Ticked items and Confirm before deleting (T-24).
         final Set<String> dart = ListPatchOp.argTypes[kind]!.keys.toSet()
-          ..removeAll(['aiAllowed', 'tickedItems', 'confirmDelete']);
+          ..removeAll(['aiAllowed', 'tickedItems', 'confirmDelete', 'reminderLeads']);
         expect(arguments, dart, reason: kind.wire);
         expect((op['required'] as List).toSet(), containsAll(ListPatchOp.requiredArgs[kind]!), reason: kind.wire);
         expect(op['description'], isNotEmpty, reason: kind.wire);

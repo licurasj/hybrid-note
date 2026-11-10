@@ -1504,4 +1504,62 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get editorRemindMeLine =>
       'Sonne à l’heure prévue ; une date sans heure sonne le matin.';
+
+  @override
+  String get preferencesReminders => 'Rappels';
+
+  @override
+  String get preferencesReminderLeads => 'Combien de temps avant';
+
+  @override
+  String get reminderLeadAtTime => 'À l\'heure';
+
+  @override
+  String get reminderLead5m => '5 min';
+
+  @override
+  String get reminderLead10m => '10 min';
+
+  @override
+  String get reminderLead30m => '30 min';
+
+  @override
+  String get reminderLead1h => '1 heure';
+
+  @override
+  String get reminderLead1d => '1 jour';
+
+  @override
+  String get preferencesReminderLeadsLine =>
+      'Chaque choix sonne à part, ce temps avant l\'heure de l\'élément.';
+
+  @override
+  String get preferencesReminderLeadsNone =>
+      'Rien de choisi : aucun rappel ne sonne.';
+
+  @override
+  String get preferencesReminderMorning => 'Heure du matin';
+
+  @override
+  String get preferencesReminderMorningLine =>
+      'Quand sonne une date sans heure, et le matin d\'avant avec 1 jour.';
+
+  @override
+  String get preferencesRingOnThisPhone => 'Sonner sur ce téléphone';
+
+  @override
+  String get preferencesRingOnThisPhoneLine =>
+      'Ce téléphone seulement ; vos autres téléphones ont leur propre interrupteur.';
+
+  @override
+  String get preferencesRingOnThisPhoneOffLine =>
+      'Ce téléphone reste silencieux ; vos autres téléphones sonnent toujours.';
+
+  @override
+  String get preferencesRemindersAndroidOnly =>
+      'Pour l\'instant, les rappels ne sonnent que sur les téléphones Android.';
+
+  @override
+  String get editorNoReminder =>
+      'Cette liste n\'a pas de date marquée Me le rappeler.';
 }

@@ -275,12 +275,14 @@ class ListInput {
           continue;
         }
         // The AI never changes whether a list may be sent to it, nor the
-        // list's own Ticked items and Confirm before deleting (Q-117).
+        // list's own Ticked items, Confirm before deleting and reminder time
+        // (Q-117, Q-118).
         final String? notForAi = kind == PatchOpKind.setListInfo
             ? const [
                 'aiAllowed',
                 ListDefinition.ownTickedItemsKey,
                 ListDefinition.ownConfirmDeleteKey,
+                ListDefinition.ownReminderLeadsKey,
               ].where(json.containsKey).firstOrNull
             : null;
         if (notForAi != null) {

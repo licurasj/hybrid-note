@@ -17,7 +17,14 @@ void main() {
   };
   const Map<String, Set<String>> sameWord = {
     'de': {'journal', 'status', 'typeText', 'typeUrl', 'preferencesVibration'},
-    'es': {'listColor', 'preferencesGeneral'},
+    'es': {
+      'listColor',
+      'preferencesGeneral',
+      // "5 min" and the like read the same (T-13).
+      'reminderLead5m',
+      'reminderLead10m',
+      'reminderLead30m',
+    },
     'fr': {
       'journal',
       'notes',
@@ -27,6 +34,9 @@ void main() {
       'type',
       'viewSectioned',
       'preferencesVibration',
+      'reminderLead5m',
+      'reminderLead10m',
+      'reminderLead30m',
     },
     'ja': {'preferencesAi'},
     'zh': {'preferencesAi'},

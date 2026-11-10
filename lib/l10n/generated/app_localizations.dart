@@ -2515,6 +2515,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Rings at its time; a date with no time rings in the morning.'**
   String get editorRemindMeLine;
+
+  /// No description provided for @preferencesReminders.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders'**
+  String get preferencesReminders;
+
+  /// No description provided for @preferencesReminderLeads.
+  ///
+  /// In en, this message translates to:
+  /// **'How early'**
+  String get preferencesReminderLeads;
+
+  /// No description provided for @reminderLeadAtTime.
+  ///
+  /// In en, this message translates to:
+  /// **'At the time'**
+  String get reminderLeadAtTime;
+
+  /// No description provided for @reminderLead5m.
+  ///
+  /// In en, this message translates to:
+  /// **'5 min'**
+  String get reminderLead5m;
+
+  /// No description provided for @reminderLead10m.
+  ///
+  /// In en, this message translates to:
+  /// **'10 min'**
+  String get reminderLead10m;
+
+  /// No description provided for @reminderLead30m.
+  ///
+  /// In en, this message translates to:
+  /// **'30 min'**
+  String get reminderLead30m;
+
+  /// No description provided for @reminderLead1h.
+  ///
+  /// In en, this message translates to:
+  /// **'1 hour'**
+  String get reminderLead1h;
+
+  /// No description provided for @reminderLead1d.
+  ///
+  /// In en, this message translates to:
+  /// **'1 day'**
+  String get reminderLead1d;
+
+  /// No description provided for @preferencesReminderLeadsLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Each pick rings on its own, that long before an item\'s time.'**
+  String get preferencesReminderLeadsLine;
+
+  /// No description provided for @preferencesReminderLeadsNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing picked: no reminders ring.'**
+  String get preferencesReminderLeadsNone;
+
+  /// No description provided for @preferencesReminderMorning.
+  ///
+  /// In en, this message translates to:
+  /// **'Morning time'**
+  String get preferencesReminderMorning;
+
+  /// No description provided for @preferencesReminderMorningLine.
+  ///
+  /// In en, this message translates to:
+  /// **'When a date with no time rings, and the morning before with 1 day.'**
+  String get preferencesReminderMorningLine;
+
+  /// No description provided for @preferencesRingOnThisPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Ring on this phone'**
+  String get preferencesRingOnThisPhone;
+
+  /// No description provided for @preferencesRingOnThisPhoneLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Only this phone; your other phones have their own switch.'**
+  String get preferencesRingOnThisPhoneLine;
+
+  /// No description provided for @preferencesRingOnThisPhoneOffLine.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone stays quiet; your other phones still ring.'**
+  String get preferencesRingOnThisPhoneOffLine;
+
+  /// No description provided for @preferencesRemindersAndroidOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders ring on Android phones only for now.'**
+  String get preferencesRemindersAndroidOnly;
+
+  /// No description provided for @editorNoReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'This list has no date marked Remind me.'**
+  String get editorNoReminder;
 }
 
 class _AppLocalizationsDelegate

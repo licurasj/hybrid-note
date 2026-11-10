@@ -1492,4 +1492,62 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get editorRemindMeLine =>
       'Suena a su hora; una fecha sin hora suena por la mañana.';
+
+  @override
+  String get preferencesReminders => 'Recordatorios';
+
+  @override
+  String get preferencesReminderLeads => 'Con cuánta antelación';
+
+  @override
+  String get reminderLeadAtTime => 'A la hora';
+
+  @override
+  String get reminderLead5m => '5 min';
+
+  @override
+  String get reminderLead10m => '10 min';
+
+  @override
+  String get reminderLead30m => '30 min';
+
+  @override
+  String get reminderLead1h => '1 hora';
+
+  @override
+  String get reminderLead1d => '1 día';
+
+  @override
+  String get preferencesReminderLeadsLine =>
+      'Cada opción suena por separado, con esa antelación a la hora del elemento.';
+
+  @override
+  String get preferencesReminderLeadsNone =>
+      'Nada elegido: no suena ningún recordatorio.';
+
+  @override
+  String get preferencesReminderMorning => 'Hora de la mañana';
+
+  @override
+  String get preferencesReminderMorningLine =>
+      'Cuándo suena una fecha sin hora, y la mañana anterior con 1 día.';
+
+  @override
+  String get preferencesRingOnThisPhone => 'Sonar en este teléfono';
+
+  @override
+  String get preferencesRingOnThisPhoneLine =>
+      'Solo este teléfono; tus otros teléfonos tienen su propio interruptor.';
+
+  @override
+  String get preferencesRingOnThisPhoneOffLine =>
+      'Este teléfono queda en silencio; tus otros teléfonos siguen sonando.';
+
+  @override
+  String get preferencesRemindersAndroidOnly =>
+      'Por ahora los recordatorios solo suenan en teléfonos Android.';
+
+  @override
+  String get editorNoReminder =>
+      'Esta lista no tiene una fecha con Recordarme.';
 }

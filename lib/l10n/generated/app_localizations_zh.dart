@@ -1424,4 +1424,55 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get editorRemindMeLine => '到时间时提醒；没有时间的日期在早上提醒。';
+
+  @override
+  String get preferencesReminders => '提醒';
+
+  @override
+  String get preferencesReminderLeads => '提前多久';
+
+  @override
+  String get reminderLeadAtTime => '准时';
+
+  @override
+  String get reminderLead5m => '5 分钟';
+
+  @override
+  String get reminderLead10m => '10 分钟';
+
+  @override
+  String get reminderLead30m => '30 分钟';
+
+  @override
+  String get reminderLead1h => '1 小时';
+
+  @override
+  String get reminderLead1d => '1 天';
+
+  @override
+  String get preferencesReminderLeadsLine => '每个选项单独响铃，在条目时间之前这么久。';
+
+  @override
+  String get preferencesReminderLeadsNone => '未选择：不会响铃。';
+
+  @override
+  String get preferencesReminderMorning => '早上时间';
+
+  @override
+  String get preferencesReminderMorningLine => '没有时间的日期在此时响铃；选了 1 天时前一天早上也会响。';
+
+  @override
+  String get preferencesRingOnThisPhone => '在此手机上响铃';
+
+  @override
+  String get preferencesRingOnThisPhoneLine => '仅此手机；你的其他手机有各自的开关。';
+
+  @override
+  String get preferencesRingOnThisPhoneOffLine => '此手机保持安静；你的其他手机仍会响铃。';
+
+  @override
+  String get preferencesRemindersAndroidOnly => '目前提醒只在 Android 手机上响铃。';
+
+  @override
+  String get editorNoReminder => '此列表没有标记为提醒的日期。';
 }

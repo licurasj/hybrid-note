@@ -1430,4 +1430,57 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get editorRemindMeLine => '指定の時刻に通知します。時刻のない日付は朝に通知します。';
+
+  @override
+  String get preferencesReminders => 'リマインダー';
+
+  @override
+  String get preferencesReminderLeads => '通知のタイミング';
+
+  @override
+  String get reminderLeadAtTime => 'その時刻';
+
+  @override
+  String get reminderLead5m => '5分前';
+
+  @override
+  String get reminderLead10m => '10分前';
+
+  @override
+  String get reminderLead30m => '30分前';
+
+  @override
+  String get reminderLead1h => '1時間前';
+
+  @override
+  String get reminderLead1d => '1日前';
+
+  @override
+  String get preferencesReminderLeadsLine => '選んだものごとに、項目の時刻のその分だけ前に鳴ります。';
+
+  @override
+  String get preferencesReminderLeadsNone => '何も選んでいないので、リマインダーは鳴りません。';
+
+  @override
+  String get preferencesReminderMorning => '朝の時刻';
+
+  @override
+  String get preferencesReminderMorningLine =>
+      '時刻のない日付が鳴る時刻です。1日前を選ぶと前日の朝にも鳴ります。';
+
+  @override
+  String get preferencesRingOnThisPhone => 'この端末で鳴らす';
+
+  @override
+  String get preferencesRingOnThisPhoneLine =>
+      'この端末だけの設定です。ほかの端末にはそれぞれのスイッチがあります。';
+
+  @override
+  String get preferencesRingOnThisPhoneOffLine => 'この端末は鳴りません。ほかの端末では鳴ります。';
+
+  @override
+  String get preferencesRemindersAndroidOnly => 'リマインダーは今のところAndroid端末でのみ鳴ります。';
+
+  @override
+  String get editorNoReminder => 'このリストには「通知する」の日付がありません。';
 }
