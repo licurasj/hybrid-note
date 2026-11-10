@@ -2105,7 +2105,8 @@ class _SettingsSheet extends StatelessWidget {
                           onChanged: preferences.setAiAskLevel,
                         ),
                       ),
-                      hairline(),
+                      // No hairline between the two AI rows (owner,
+                      // 2026-11-10).
                       // One node for a screen reader: the switch with its name.
                       MergeSemantics(
                         child: row(
