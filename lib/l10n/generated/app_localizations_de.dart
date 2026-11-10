@@ -1407,7 +1407,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get preferencesTickedClearLine =>
-      'Abhaken entfernt einen Eintrag sofort, mit Rückgängig. Wiederholungen und Kopien für nächstes Mal gibt es weiterhin.';
+      'In einer Liste mit der Regel „Abgehakte entfernen“ entfernt Abhaken einen Eintrag sofort, mit Rückgängig. Wiederholungen und Kopien für nächstes Mal gibt es weiterhin.';
 
   @override
   String get preferencesListsOwn => 'Listen dürfen eigene Wahl haben';

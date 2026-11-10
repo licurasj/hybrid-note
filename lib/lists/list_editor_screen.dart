@@ -29,11 +29,13 @@ class ListEditorOutcome {
     this.ops,
     this.result, {
     this.hideFromHome = false,
+    this.suggestOnHome,
   }) : deleted = false;
   const ListEditorOutcome.deleted()
     : ops = const [],
       result = null,
       hideFromHome = false,
+      suggestOnHome = null,
       deleted = true;
 
   final List<ListPatchOp> ops;
@@ -42,6 +44,11 @@ class ListEditorOutcome {
   // A new list with Suggest on home off: the caller writes it to homeRemoved
   // once the list is created, so a failed create leaves no stray id there.
   final bool hideFromHome;
+  // An existing list's changed Suggest on home, saved with other list
+  // changes: the caller writes it only once those are saved (Codex review
+  // M3). Null when it did not change, or when it was the only change (the
+  // editor then saved it itself).
+  final bool? suggestOnHome;
 }
 
 // A blank list to start from: a title and a done checkbox.
@@ -994,7 +1001,12 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
             icon: const Icon(Icons.check, size: 26),
             onPressed: _canSave
                 ? () {
-                    _saveSuggest();
+                    // Alone, Suggest on home is saved here; with other list
+                    // changes, after them (M3).
+                    final bool alone = _ops.isEmpty;
+                    if (alone) {
+                      _saveSuggest();
+                    }
                     Navigator.of(
                       context,
                     ).pop(
@@ -1003,6 +1015,10 @@ class _ListEditorScreenState extends State<ListEditorScreen> {
                         _result,
                         hideFromHome:
                             widget.isNew && _suggestChanged && !_suggest!,
+                        suggestOnHome:
+                            !alone && !widget.isNew && _suggestChanged
+                            ? _suggest
+                            : null,
                       ),
                     );
                   }

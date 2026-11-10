@@ -113,13 +113,46 @@ class ClearWithUndo {
     final ClearUndo undo = ClearUndo.of(definition.id, items, changes);
     final Future<void> written = store.apply(changes);
 
-    if (banners != null && undo.count > 0) {
-      _offerUndo(store, banners, loc, undo);
+    // The banner belongs to this clear's own write (Codex review M5): if the
+    // write is refused, the banner goes and says so.
+    final _Offer? offer = banners != null && undo.count > 0
+        ? _offerUndo(store, banners, loc, undo)
+        : null;
+    try {
+      await written;
+    } on Object catch (error) {
+      developer.log('clear failed: $error', name: 'ClearWithUndo');
+      if (banners == null) {
+        rethrow;
+      }
+      offer?.fail();
+      banners.show(loc.listChangeNotSaved);
     }
-    await written;
   }
 
-  static void _offerUndo(
+  // Undo, checked against the server when online (Codex review H1): the
+  // list is still there, the cleared items still gone and the made ones
+  // unchanged, in one transaction. Offline, the phone's own copy decides,
+  // as before (Q-101), and the write queues.
+  static Future<void> _undo(ListStore store, ClearUndo undo) async {
+    try {
+      final bool? done = await store.undoClear(
+        undo.listId,
+        cleared: undo.cleared,
+        created: undo.created,
+      );
+      if (done != null) {
+        return;
+      }
+      if (undo.isCurrent(store.current.itemsOf(undo.listId))) {
+        await store.apply(undo.reverse());
+      }
+    } on Object catch (error) {
+      developer.log('undo clear failed: $error', name: 'ClearWithUndo');
+    }
+  }
+
+  static _Offer _offerUndo(
     ListStore store,
     AppBannerController banners,
     AppLocalizations loc,
@@ -132,45 +165,74 @@ class ClearWithUndo {
     // changed only after it was seen as it left things (as AI Undo does).
     bool seen = false;
     bool changed = false;
+    // Undo tapped before the clear showed: it runs once the clear shows
+    // (M5).
+    bool wanted = false;
     late final int serial;
+    // This offer's own watch: stopping it never touches a later clear's.
+    StreamSubscription<ListCatalog>? watch;
 
     void stop() {
-      _watch?.cancel();
-      _watch = null;
+      final StreamSubscription<ListCatalog>? own = watch;
+      watch = null;
+      own?.cancel();
+      if (identical(_watch, own)) {
+        _watch = null;
+      }
     }
 
     serial = banners.show(
       loc.clearedBanner(undo.count),
       actionLabel: loc.undo,
       onAction: () {
+        if (changed) {
+          stop();
+          return;
+        }
+        if (!seen) {
+          wanted = true;
+          return;
+        }
         stop();
         // The watch flags, and the store as it is now: a made item edited
         // before the watch saw the clear's own write must not be undone.
-        if (changed || !undo.isCurrent(store.current.itemsOf(undo.listId))) {
+        if (!undo.isCurrent(store.current.itemsOf(undo.listId))) {
           return;
         }
-        store.apply(undo.reverse()).catchError((Object error) {
-          developer.log('undo clear failed: $error', name: 'ClearWithUndo');
-        });
+        _undo(store, undo);
       },
     );
 
     // The banner goes by itself after a while, or another replaces it; the
-    // watch goes with it.
+    // watch goes with it, unless an early Undo still waits for the clear.
     late final VoidCallback onBanner;
     onBanner = () {
       if (!banners.isShowing(serial)) {
         banners.changes.removeListener(onBanner);
-        stop();
+        // After the banner's own action has run: Undo dismisses first.
+        scheduleMicrotask(() {
+          if (!wanted) {
+            stop();
+          }
+        });
       }
     };
     banners.changes.addListener(onBanner);
-    _watch = store.watch().listen((catalog) {
+    watch = store.watch().listen((catalog) {
+      final bool current = undo.isCurrent(catalog.itemsOf(undo.listId));
+      if (wanted) {
+        if (current) {
+          wanted = false;
+          stop();
+          _undo(store, undo);
+        }
+        return;
+      }
       if (!banners.isShowing(serial)) {
         stop();
         return;
       }
-      if (undo.isCurrent(catalog.itemsOf(undo.listId))) {
+      if (current) {
         seen = true;
       } else if (seen) {
         changed = true;
@@ -178,5 +240,18 @@ class ClearWithUndo {
         banners.dismissIf(serial);
       }
     });
+    _watch = watch;
+    return _Offer(() {
+      wanted = false;
+      stop();
+      banners.dismissIf(serial);
+    });
   }
+}
+
+// A shown Undo offer, so a refused clear can take it back.
+class _Offer {
+  const _Offer(this.fail);
+
+  final void Function() fail;
 }

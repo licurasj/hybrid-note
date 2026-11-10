@@ -34,6 +34,18 @@ void main() {
     }
   });
 
+  test('Clear straight away says it needs the Clear ticked rule '
+      '(Codex review L1)', () {
+    for (final String language in ['en', 'de', 'es', 'fr', 'ja', 'zh']) {
+      final AppLocalizations l = loc(language);
+      expect(
+        l.preferencesTickedClearLine,
+        contains(l.ruleClearCompleted),
+        reason: language,
+      );
+    }
+  });
+
   test('Japanese has different words for Items and Fields', () {
     expect(loc('ja').preferencesItems, isNot(loc('ja').fields));
   });

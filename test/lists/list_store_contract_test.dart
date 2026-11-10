@@ -726,6 +726,13 @@ class StaggeredListStore implements ListStore {
   Future<void> restoreList(DeletedList deleted) => inner.restoreList(deleted);
 
   @override
+  Future<bool?> undoClear(
+    String listId, {
+    required List<ListItem> cleared,
+    required List<ListItem> created,
+  }) => inner.undoClear(listId, cleared: cleared, created: created);
+
+  @override
   Future<List<ListError>> restoreSnapshot(ListSnapshot snapshot) => inner.restoreSnapshot(snapshot);
 
   @override

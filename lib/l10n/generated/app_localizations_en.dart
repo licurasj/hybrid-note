@@ -1391,7 +1391,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get preferencesTickedClearLine =>
-      'Ticking clears an item at once, with Undo. Repeats and Next time copies still happen.';
+      'On a list with the Clear ticked items rule, ticking clears an item at once, with Undo. Repeats and Next time copies still happen.';
 
   @override
   String get preferencesListsOwn => 'Lists can have their own';

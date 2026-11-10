@@ -820,6 +820,64 @@ void main() {
     expect(find.byType(ListEditorScreen), findsOneWidget);
   });
 
+  group('Suggest on home with other list changes (Codex review M3)', () {
+    Future<void> editGrocery(WidgetTester tester) async {
+      await tester.tap(_hub);
+      await tester.pump();
+      await tester.tap(
+        find.byKey(ValueKey('launcher-note-${BuiltinTemplates.groceryId}')),
+      );
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('edit-list')));
+      await settle(tester);
+      await tester.enterText(
+        find.byKey(const ValueKey('list-name')),
+        'Shopping',
+      );
+      final Finder suggest = find.byKey(const ValueKey('suggest-on-home'));
+      await tester.ensureVisible(suggest);
+      await settle(tester);
+      await tester.tap(suggest);
+      await settle(tester);
+    }
+
+    List<String> removed(WidgetTester tester) => tester
+        .element(find.byType(Scaffold).first)
+        .read<AccountPreferencesCubit>()
+        .state
+        .homeRemoved;
+
+    testWidgets('is saved once the list change is saved', (tester) async {
+      final FirestoreListStore store =
+          await _pumpApp(tester, FakeAuthService(user: testUser));
+      await editGrocery(tester);
+      // Not before the save.
+      expect(removed(tester), isNot(contains(BuiltinTemplates.groceryId)));
+      await tester.tap(find.byKey(const ValueKey('save-list')));
+      await settle(tester);
+      expect(
+        store.current.definition(BuiltinTemplates.groceryId)!.name,
+        'Shopping',
+      );
+      expect(removed(tester), contains(BuiltinTemplates.groceryId));
+    });
+
+    testWidgets('is not saved when the list change fails', (tester) async {
+      final FirestoreListStore store =
+          await _pumpApp(tester, FakeAuthService(user: testUser));
+      await editGrocery(tester);
+      // The list goes on another phone while the editor is open.
+      await tester.runAsync(() => store.deleteList(BuiltinTemplates.groceryId));
+      await tester.tap(find.byKey(const ValueKey('save-list')));
+      await settle(tester);
+      expect(removed(tester), isNot(contains(BuiltinTemplates.groceryId)));
+      expect(
+        find.text('A list change could not be saved and was undone.'),
+        findsOneWidget,
+      );
+    });
+  });
+
   for (final Size screen in const [Size(360, 780), Size(412, 915)]) {
     testWidgets('scrolled to the end, a list\'s last row clears the add button '
         '(${screen.width.toInt()} dp, T-24 unit 7 D1)', (

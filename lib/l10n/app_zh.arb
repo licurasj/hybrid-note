@@ -420,7 +420,7 @@
   "preferencesSuggestionsOffLine": "首页只显示你固定的列表。",
   "preferencesAiBarOnLine": "AI 栏在每个屏幕上都位于按钮旁边。",
   "preferencesTickedClear": "立即清除",
-  "preferencesTickedClearLine": "勾选后立即清除条目，可撤销。重复和“下次”副本照常生成。",
+  "preferencesTickedClearLine": "在启用“清除已勾选”规则的列表中，勾选后立即清除条目，可撤销。重复和“下次”副本照常生成。",
   "preferencesListsOwn": "列表可以有自己的设置",
   "preferencesListsOwnCount": "{count, plural, =0{每个列表都可以在“编辑列表”中选择自己的设置。} other{有 {count} 个列表使用自己的设置。}}",
   "preferencesListsOwnOff": "所有列表都遵循此设置。",

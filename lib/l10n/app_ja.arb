@@ -420,7 +420,7 @@
   "preferencesSuggestionsOffLine": "ホームにはピン留めしたリストだけを表示します。",
   "preferencesAiBarOnLine": "AIバーはどの画面でもボタンの横に表示されます。",
   "preferencesTickedClear": "すぐに消去",
-  "preferencesTickedClearLine": "チェックするとすぐに消去され、元に戻せます。繰り返しや次回へのコピーはそのまま行われます。",
+  "preferencesTickedClearLine": "「チェック済みを消去」ルールのあるリストでは、チェックするとすぐに消去され、元に戻せます。繰り返しや次回へのコピーはそのまま行われます。",
   "preferencesListsOwn": "リストごとに設定できる",
   "preferencesListsOwnCount": "{count, plural, =0{各リストは「リストを編集」で独自に選べます。} other{{count} 件のリストが独自の設定を使っています。}}",
   "preferencesListsOwnOff": "すべてのリストがこの設定に従います。",

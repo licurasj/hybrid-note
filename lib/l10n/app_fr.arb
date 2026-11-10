@@ -420,7 +420,7 @@
   "preferencesSuggestionsOffLine": "L'accueil ne montre que les listes épinglées.",
   "preferencesAiBarOnLine": "La barre IA se trouve à côté du bouton sur chaque écran.",
   "preferencesTickedClear": "Effacer tout de suite",
-  "preferencesTickedClearLine": "Cocher efface l'élément aussitôt, avec Annuler. Les répétitions et les copies pour la prochaine fois ont toujours lieu.",
+  "preferencesTickedClearLine": "Dans une liste avec la règle « Effacer les cochés », cocher efface l'élément aussitôt, avec Annuler. Les répétitions et les copies pour la prochaine fois ont toujours lieu.",
   "preferencesListsOwn": "Les listes peuvent avoir le leur",
   "preferencesListsOwnCount": "{count, plural, =0{Une liste peut choisir le sien dans Modifier la liste.} =1{1 liste a son propre choix.} other{{count} listes ont leur propre choix.}}",
   "preferencesListsOwnOff": "Chaque liste suit ce réglage.",

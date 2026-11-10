@@ -1,4 +1,7 @@
 // Clearing with Undo (T-23 unit 2, Q-101).
+import 'dart:async';
+
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -11,6 +14,7 @@ import 'package:hybrid_note/lists/list_catalog.dart';
 import 'package:hybrid_note/lists/list_definition.dart';
 import 'package:hybrid_note/lists/list_item.dart';
 import 'package:hybrid_note/lists/list_rules.dart';
+import 'package:hybrid_note/lists/list_store.dart';
 
 import '../support/firestore_store.dart';
 
@@ -39,6 +43,46 @@ final ListItem _eggs = _item(_grocery, 'eggs', {
   'done': false,
   'section': 'current',
 });
+
+// A store whose item writes can be held back or refused.
+class _Gate implements ListStore {
+  _Gate(this.inner);
+
+  final ListStore inner;
+  Completer<void>? hold;
+  Object? refuse;
+
+  @override
+  ListCatalog get current => inner.current;
+
+  @override
+  Stream<ListCatalog> watch() => inner.watch();
+
+  @override
+  Future<void> apply(ListChanges changes) async {
+    final Completer<void>? held = hold;
+    if (held != null) {
+      hold = null;
+      await held.future;
+    }
+    final Object? error = refuse;
+    if (error != null) {
+      refuse = null;
+      throw error;
+    }
+    return inner.apply(changes);
+  }
+
+  @override
+  Future<bool?> undoClear(
+    String listId, {
+    required List<ListItem> cleared,
+    required List<ListItem> created,
+  }) => inner.undoClear(listId, cleared: cleared, created: created);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 Future<ListCatalog> _when(
   FirestoreListStore store,
@@ -179,6 +223,143 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       expect(banners.showing, isFalse);
+    });
+
+    test('a refused clear takes its Undo away and says so (Codex review M5)',
+        () async {
+      final _Gate store = _Gate(await fakeFirestoreStore(items: [_milk]));
+      final AppBannerController banners = AppBannerController();
+      addTearDown(banners.dispose);
+      store.refuse = StateError('permission-denied');
+
+      await ClearWithUndo.run(
+        store: store,
+        definition: _grocery,
+        items: store.current.itemsOf(_grocery.id),
+        banners: banners,
+        loc: _loc,
+      );
+      expect(banners.text, _loc.listChangeNotSaved);
+      expect(banners.actionLabel, isNull);
+      expect(store.current.itemsOf(_grocery.id).single.id, 'milk');
+    });
+
+    test('Undo tapped before the clear shows runs once it shows (M5)',
+        () async {
+      final _Gate store = _Gate(await fakeFirestoreStore(items: [_milk, _eggs]));
+      final AppBannerController banners = AppBannerController();
+      addTearDown(banners.dispose);
+      final Completer<void> hold = Completer<void>();
+      store.hold = hold;
+
+      final Future<void> clearing = ClearWithUndo.run(
+        store: store,
+        definition: _grocery,
+        items: store.current.itemsOf(_grocery.id),
+        inScope: (item) => item.id == 'milk',
+        banners: banners,
+        loc: _loc,
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(banners.actionLabel, 'Undo');
+      // The clear is not on the phone yet.
+      expect(store.current.itemsOf(_grocery.id).any((i) => i.id == 'milk'), isTrue);
+      banners.act();
+      hold.complete();
+      await clearing;
+
+      final ListCatalog back = await _when(
+        store.inner as FirestoreListStore,
+        (items) =>
+            items.any((item) => item.id == 'milk') &&
+            items.length == 2 &&
+            items.every((item) => item['section'] != 'nextTime'),
+      );
+      expect(
+        back.itemsOf(_grocery.id).map((item) => item.id).toSet(),
+        {'milk', 'eggs'},
+      );
+    });
+  });
+
+  group('Undo checked on the server (Codex review H1)', () {
+    Future<(FirestoreListStore, ListChanges)> cleared(
+      FakeFirebaseFirestore firestore,
+    ) async {
+      final FirestoreListStore store = await fakeFirestoreStore(
+        firestore: firestore,
+        items: [_milk],
+      );
+      final ListChanges changes = ListRules.clearCompleted(
+        _grocery,
+        store.current.itemsOf(_grocery.id),
+        _t0,
+      );
+      await store.apply(changes);
+      await _when(store, (items) => items.length == 1 && items.single.id != 'milk');
+      return (store, changes);
+    }
+
+    test('undoes while the list is as the clear left it', () async {
+      final (FirestoreListStore store, ListChanges changes) =
+          await cleared(FakeFirebaseFirestore());
+      expect(
+        await store.undoClear(
+          _grocery.id,
+          cleared: [_milk],
+          created: changes.saved,
+        ),
+        isTrue,
+      );
+      await _when(store, (items) => items.length == 1 && items.single.id == 'milk');
+    });
+
+    test('refuses when a made item was edited, and writes nothing', () async {
+      final (FirestoreListStore store, ListChanges changes) =
+          await cleared(FakeFirebaseFirestore());
+      final ListItem copy = changes.saved.single;
+      await store.apply(
+        ListChanges(saved: [ListRules.withValues(copy, {'title': 'Oat milk'}, _t0)]),
+      );
+      await _when(store, (items) => items.single['title'] == 'Oat milk');
+      expect(
+        await store.undoClear(
+          _grocery.id,
+          cleared: [_milk],
+          created: changes.saved,
+        ),
+        isFalse,
+      );
+      final List<ListItem> items = store.current.itemsOf(_grocery.id);
+      expect(items.single.id, copy.id);
+      expect(items.single['title'], 'Oat milk');
+    });
+
+    test('refuses when the list is gone', () async {
+      final (FirestoreListStore store, ListChanges changes) =
+          await cleared(FakeFirebaseFirestore());
+      await store.deleteList(_grocery.id);
+      expect(
+        await store.undoClear(
+          _grocery.id,
+          cleared: [_milk],
+          created: changes.saved,
+        ),
+        isFalse,
+      );
+    });
+  });
+
+  group('a Next time copy (Codex review H2)', () {
+    test('has an id from its original, so two clears make one copy', () {
+      final ListChanges first = ListRules.clearCompleted(_grocery, [_milk], _t0);
+      final ListChanges second = ListRules.clearCompleted(
+        _grocery,
+        [_milk],
+        _t0.add(const Duration(minutes: 1)),
+      );
+      expect(first.saved.single.id, second.saved.single.id);
+      expect(first.saved.single.id, contains('milk'));
     });
   });
 }

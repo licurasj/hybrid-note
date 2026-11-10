@@ -75,6 +75,18 @@ abstract interface class ListStore {
   Future<DeletedList?> deleteList(String listId);
   Future<void> restoreList(DeletedList deleted);
 
+  // Undo of a clear (Codex review H1): puts [cleared] back and deletes
+  // [created] in one step, but only while the list still exists, no cleared
+  // item is back and every created item is as the clear made it, as checked
+  // against the server. Returns true when undone, false when the list had
+  // changed (nothing written), and null when the server could not be asked
+  // (offline): the caller then decides from its own copy.
+  Future<bool?> undoClear(
+    String listId, {
+    required List<ListItem> cleared,
+    required List<ListItem> created,
+  });
+
   // Undo of an AI change (Q-35 A): writes back the definition and the
   // touched items as they were before the change (an item the change added
   // is deleted again), in one step, but only while the list's definition and

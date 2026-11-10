@@ -1352,7 +1352,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get preferencesTickedClearLine =>
-      'チェックするとすぐに消去され、元に戻せます。繰り返しや次回へのコピーはそのまま行われます。';
+      '「チェック済みを消去」ルールのあるリストでは、チェックするとすぐに消去され、元に戻せます。繰り返しや次回へのコピーはそのまま行われます。';
 
   @override
   String get preferencesListsOwn => 'リストごとに設定できる';

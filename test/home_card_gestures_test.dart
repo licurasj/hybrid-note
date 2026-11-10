@@ -931,6 +931,31 @@ void main() {
       expect(_preferences(tester).homeListOrder, HomeListOrder.myOrder);
     });
 
+    testWidgets('leaving Rearrange mid-drag puts the cards back as at the '
+        'drag\'s start (Codex review M4)', (tester) async {
+      const List<String> pins = [_tasks, _grocery, _journal];
+      await _pumpApp(tester, pins: pins);
+      final List<String> before = onScreen(tester, pins);
+      await arrange(tester, before.first);
+      final TestGesture gesture = await tester.startGesture(
+        tester.getCenter(_card(before.first)),
+      );
+      await tester.pump(const Duration(milliseconds: 1));
+      for (int i = 0; i < 3; i++) {
+        await gesture.moveBy(const Offset(0, 100));
+        await tester.pump();
+      }
+      expect(onScreen(tester, pins), isNot(before));
+      // Back with the finger still down.
+      await tester.binding.handlePopRoute();
+      await settle(tester);
+      expect(isArranging(), isFalse);
+      await gesture.up();
+      await settle(tester);
+      expect(onScreen(tester, pins), before);
+      expect(_preferences(tester).homeListOrder, HomeListOrder.sameAsDial);
+    });
+
     testWidgets('a press that lifts without moving does nothing', (
       tester,
     ) async {
@@ -1116,6 +1141,43 @@ void main() {
       await settle(tester);
       expect(opacityOf(weekday), 1);
       expect(opacityOf(suggestion), 1);
+    });
+
+    testWidgets('a screen reader skips the Today rows while arranging '
+        '(Codex review L2)', (tester) async {
+      final SemanticsHandle handle = tester.ensureSemantics();
+      // Only on its Today row: Tasks is neither pinned nor suggested.
+      await _pumpApp(
+        tester,
+        pins: [_grocery, _watch],
+        preferences: {AccountPreferences.homeSuggestionsKey: false},
+        items: [
+          ..._items,
+          ListItem(
+            id: 'due-one',
+            listId: _tasks,
+            values: {
+              'title': 'Call the vet',
+              'done': false,
+              'reminderAt': _now
+                  .subtract(const Duration(minutes: 1))
+                  .toIso8601String(),
+            },
+            createdAt: _now,
+            updatedAt: _now,
+          ),
+        ],
+      );
+      final Finder row = find.bySemanticsLabel(RegExp('Call the vet'));
+      expect(row, findsWidgets);
+      await arrange(tester, _grocery);
+      expect(row, findsNothing);
+      // Done is there for it to end arranging.
+      expect(find.bySemanticsLabel(RegExp('Done')), findsWidgets);
+      await tester.tap(find.byKey(const ValueKey('home-arrange-done')));
+      await settle(tester);
+      expect(row, findsWidgets);
+      handle.dispose();
     });
 
     testWidgets('Back ends it and stays on home', (tester) async {

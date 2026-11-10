@@ -1,5 +1,3 @@
-import 'package:uuid/uuid.dart';
-
 import 'list_definition.dart';
 import 'list_item.dart';
 import 'list_vocabulary.dart';
@@ -168,7 +166,12 @@ class ListRules {
     bool Function(ListItem item)? inScope,
     String Function()? newId,
   }) {
-    final String Function() makeId = newId ?? () => const Uuid().v4();
+    // A copy's id comes from its original (Codex review H2), as a repeat's
+    // does: two phones clearing the same item write the same copy, not two.
+    // Older copies keep their random ids. [newId] is for tests.
+    final String Function(ListItem item) makeId = newId == null
+        ? (item) => 'copy-${item.id}'
+        : (_) => newId();
     final List<String> deletedIds = [];
     final List<ListItem> added = [];
 
@@ -219,7 +222,7 @@ class ListRules {
     ListItem item,
     List<ListItem> remaining,
     DateTime now,
-    String Function() makeId,
+    String Function(ListItem item) makeId,
   ) {
     final String? when = behavior.stringParam('when');
     if (when == null || item[when] != true) {
@@ -247,7 +250,7 @@ class ListRules {
 
     final FieldDefinition? completion = _completion(definition);
     return ListItem(
-      id: makeId(),
+      id: makeId(item),
       listId: item.listId,
       // A copy is a new row on home, even if the item was hidden there.
       values: {

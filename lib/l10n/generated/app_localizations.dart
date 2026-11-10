@@ -2375,7 +2375,7 @@ abstract class AppLocalizations {
   /// No description provided for @preferencesTickedClearLine.
   ///
   /// In en, this message translates to:
-  /// **'Ticking clears an item at once, with Undo. Repeats and Next time copies still happen.'**
+  /// **'On a list with the Clear ticked items rule, ticking clears an item at once, with Undo. Repeats and Next time copies still happen.'**
   String get preferencesTickedClearLine;
 
   /// No description provided for @preferencesListsOwn.

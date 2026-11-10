@@ -1233,6 +1233,65 @@ class FirestoreListStore implements ListStore {
   }
 
   @override
+  Future<bool?> undoClear(
+    String listId, {
+    required List<ListItem> cleared,
+    required List<ListItem> created,
+  }) async {
+    await _ready.future;
+    // From the cache only: the server cannot be asked, so the caller's own
+    // check decides (Q-101 offline Undo).
+    if (_fromCache) {
+      return null;
+    }
+    try {
+      return await _readingTransaction<bool>((transaction, read) async {
+        final Map<String, dynamic>? listData = await read(_lists.doc(listId));
+        if (listData == null) {
+          return false;
+        }
+        for (final ListItem item in cleared) {
+          if (await read(_itemsOf(listId).doc(item.id)) != null) {
+            return false;
+          }
+        }
+        for (final ListItem item in created) {
+          final Map<String, dynamic>? data = await read(
+            _itemsOf(item.listId).doc(item.id),
+          );
+          if (data == null ||
+              !ListSnapshot.sameJson(_itemFrom(data).values, item.values)) {
+            return false;
+          }
+        }
+        final ListDefinition definition = _definitionFrom(listData);
+        for (final ListItem item in cleared) {
+          transaction.set(
+            _itemsOf(listId).doc(item.id),
+            itemData(
+              _fit(definition, item) ?? item,
+              definition.schemaRevision,
+            ),
+          );
+        }
+        for (final ListItem item in created) {
+          transaction.delete(_itemsOf(item.listId).doc(item.id));
+        }
+        return true;
+      }).timeout(transactionTimeout);
+    } on FirebaseException catch (error) {
+      if (_offlineCodes.contains(error.code)) {
+        return null;
+      }
+      rethrow;
+    } on TimeoutException {
+      // Its writes are the same as the fallback's, so a late commit does no
+      // harm.
+      return null;
+    }
+  }
+
+  @override
   Future<void> restoreList(DeletedList deleted) async {
     await _ready.future;
     final String listId = deleted.definition.id;

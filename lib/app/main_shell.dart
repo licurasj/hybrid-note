@@ -342,11 +342,34 @@ class _MainShellState extends State<MainShell> {
     // failure is reported here rather than lost (T-17 F1).
     final AppLocalizations loc = AppLocalizations.of(context);
     final AppBannerController banners = context.read<AppBannerController>();
+    final AccountPreferencesCubit preferences = context
+        .read<AccountPreferencesCubit>();
+    ListPatchResult? result;
     try {
-      await store.patchList(listId, outcome.ops);
+      result = await store.patchList(listId, outcome.ops);
     } on Object catch (error) {
       developer.log('patch $listId failed: $error', name: 'MainShell');
       banners.show(loc.listChangeNotSaved);
+      return;
+    }
+    if (result == null || result.errors.isNotEmpty) {
+      developer.log('patch $listId refused', name: 'MainShell');
+      banners.show(loc.listChangeNotSaved);
+      return;
+    }
+    // Suggest on home changed with the rest: written only now that the list
+    // change is saved (M3). A failed write has its own banner.
+    final bool? suggest = outcome.suggestOnHome;
+    if (suggest == true) {
+      preferences.undoRemoveFromHome(listId);
+    } else if (suggest == false) {
+      preferences.removeFromHome(
+        listId,
+        existing: [
+          for (final ListDefinition list in store.current.definitions) list.id,
+          listId,
+        ],
+      );
     }
   }
 

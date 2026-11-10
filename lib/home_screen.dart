@@ -325,6 +325,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (_pinned != null &&
         _workedOutFrom == choices &&
         (_pinned!.isNotEmpty || _suggested.isNotEmpty)) {
+      _reconcilePins(catalog, preferences, labels);
       _topUp(catalog, preferences, now);
       return;
     }
@@ -342,6 +343,47 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     ];
     _unfilled.clear();
     _workedOutFrom = choices;
+  }
+
+  // A pin can arrive before its list (Codex review M2): once the list is
+  // there, its card joins the pinned ones at its place in the order, and
+  // leaves the suggestions if it was there. The other cards stay put.
+  void _reconcilePins(
+    ListCatalog catalog,
+    AccountPreferences preferences,
+    ListLabels labels,
+  ) {
+    final List<String> pinned = _pinned!;
+    final Set<String> existing = {
+      for (final ListDefinition list in catalog.definitions) list.id,
+    };
+    final Set<String> missing = {
+      for (final String id in preferences.homePins)
+        if (existing.contains(id) && !pinned.contains(id)) id,
+    };
+    if (missing.isEmpty) {
+      return;
+    }
+    final List<String> order = _shownOrder(catalog, preferences, labels);
+    final List<String> next = [...pinned];
+    for (final String id in order.where(missing.contains)) {
+      // After the nearest card before it in the order, or first.
+      final int at = order.indexOf(id);
+      int place = 0;
+      for (int i = at - 1; i >= 0; i--) {
+        final int shown = next.indexOf(order[i]);
+        if (shown >= 0) {
+          place = shown + 1;
+          break;
+        }
+      }
+      next.insert(place, id);
+    }
+    _pinned = next;
+    _suggested = [
+      for (final String id in _suggested)
+        if (!missing.contains(id)) id,
+    ];
   }
 
   // Fills free suggestion places (Q-70) at the bottom, leaving every card
@@ -364,7 +406,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       for (final ListDefinition list in chooseHomeCards(
         catalog,
         pinnedOrder: pinned,
-        removed: [...preferences.homeRemoved, ..._suggested],
+        // Account pins never come back as suggestions, even one whose card
+        // is not shown yet (M2).
+        removed: [
+          ...preferences.homeRemoved,
+          ..._suggested,
+          ...preferences.homePins,
+        ],
         showSuggestions: true,
         now: now,
       ).suggested.take(free))
@@ -818,7 +866,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (!_arranging || !mounted) {
       return;
     }
+    final List<String>? pinned = _pinned;
+    final List<String>? start = _dragStartOrder;
     setState(() {
+      // Left mid-drag (Back, the hub): the cards go back to the order at
+      // the drag's start, as on a cancel; nothing is saved (Codex review M4).
+      if (_dragId != null && pinned != null && start != null) {
+        pinned
+          ..clear()
+          ..addAll(start);
+        _slides.clear();
+      }
+      _dragStartOrder = null;
       _arranging = false;
       _selectedId = null;
       _dragId = null;
@@ -1683,8 +1742,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           if (preferences.homeContent.showsDue &&
                               due.isNotEmpty) ...[
                             const SizedBox(height: homeDueGap),
+                            // While arranging a screen reader skips them: their
+                            // actions do nothing then (Codex review L2); Done
+                            // ends arranging.
                             for (final HomeDueItem item in due)
-                              _dim(row(item, catalog)),
+                              _dim(
+                                ExcludeSemantics(
+                                  excluding: _arranging,
+                                  child: row(item, catalog),
+                                ),
+                              ),
                           ],
                           if (preferences.homeContent.showsCards &&
                               (pinned.isNotEmpty || _suggested.isNotEmpty)) ...[

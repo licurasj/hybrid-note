@@ -420,7 +420,7 @@
   "preferencesSuggestionsOffLine": "El inicio muestra solo las listas que fijaste.",
   "preferencesAiBarOnLine": "La barra de IA está junto al botón en cada pantalla.",
   "preferencesTickedClear": "Borrar en el acto",
-  "preferencesTickedClearLine": "Marcar borra un elemento al instante, con Deshacer. Las repeticiones y las copias para la próxima vez siguen ocurriendo.",
+  "preferencesTickedClearLine": "En una lista con la regla «Borrar marcados», marcar borra un elemento al instante, con Deshacer. Las repeticiones y las copias para la próxima vez siguen ocurriendo.",
   "preferencesListsOwn": "Las listas pueden tener la suya",
   "preferencesListsOwnCount": "{count, plural, =0{Una lista puede elegir la suya en Editar lista.} =1{1 lista tiene su propia opción.} other{{count} listas tienen su propia opción.}}",
   "preferencesListsOwnOff": "Todas las listas siguen este ajuste.",

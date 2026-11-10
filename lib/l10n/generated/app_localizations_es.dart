@@ -1407,7 +1407,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get preferencesTickedClearLine =>
-      'Marcar borra un elemento al instante, con Deshacer. Las repeticiones y las copias para la próxima vez siguen ocurriendo.';
+      'En una lista con la regla «Borrar marcados», marcar borra un elemento al instante, con Deshacer. Las repeticiones y las copias para la próxima vez siguen ocurriendo.';
 
   @override
   String get preferencesListsOwn => 'Las listas pueden tener la suya';

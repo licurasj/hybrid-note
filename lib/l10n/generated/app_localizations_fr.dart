@@ -1416,7 +1416,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get preferencesTickedClearLine =>
-      'Cocher efface l\'élément aussitôt, avec Annuler. Les répétitions et les copies pour la prochaine fois ont toujours lieu.';
+      'Dans une liste avec la règle « Effacer les cochés », cocher efface l\'élément aussitôt, avec Annuler. Les répétitions et les copies pour la prochaine fois ont toujours lieu.';
 
   @override
   String get preferencesListsOwn => 'Les listes peuvent avoir le leur';

@@ -372,6 +372,49 @@ void main() {
       await settle(tester);
       expect(_pin(BuiltinTemplates.groceryId), findsOneWidget);
     });
+
+    testWidgets('a pin arriving before its list shows as a pinned card once '
+        'the list comes (Codex review M2)', (tester) async {
+      final (
+        FirestoreListStore store,
+        ScriptedPreferencesSync sync,
+      ) = await _pumpApp(
+        tester,
+        preferences: {
+          AccountPreferences.homePinsKey: [BuiltinTemplates.tasksId],
+        },
+      );
+      expect(_pin(BuiltinTemplates.tasksId), findsOneWidget);
+      // Another phone made a list and pinned it; the pin comes first.
+      sync.send({
+        AccountPreferences.homePinsKey: [BuiltinTemplates.tasksId, 'new-list'],
+      });
+      await settle(tester);
+      expect(_card('new-list'), findsNothing);
+      final double tasksTop = tester
+          .getTopLeft(_card(BuiltinTemplates.tasksId))
+          .dy;
+      await tester.runAsync(
+        () => store.createList(
+          ListDefinition.fromJson({
+            ...BuiltinTemplates.tasks().toJson(),
+            'id': 'new-list',
+            'name': 'Trips',
+          }),
+          items: [_item('new-list', 'Pack')],
+        ),
+      );
+      await settle(tester);
+      // Pinned, after Tasks, not a suggestion; Tasks stays where it was.
+      expect(_card('new-list'), findsOneWidget);
+      expect(_pin('new-list'), findsOneWidget);
+      expect(tester.getTopLeft(_card(BuiltinTemplates.tasksId)).dy, tasksTop);
+      expect(tester.getTopLeft(_card('new-list')).dy, greaterThan(tasksTop));
+      expect(
+        tester.getTopLeft(_card('new-list')).dy,
+        lessThan(tester.getTopLeft(_card(BuiltinTemplates.groceryId)).dy),
+      );
+    });
   });
 
   group('the switches', () {

@@ -1345,7 +1345,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get preferencesTickedClear => '立即清除';
 
   @override
-  String get preferencesTickedClearLine => '勾选后立即清除条目，可撤销。重复和“下次”副本照常生成。';
+  String get preferencesTickedClearLine =>
+      '在启用“清除已勾选”规则的列表中，勾选后立即清除条目，可撤销。重复和“下次”副本照常生成。';
 
   @override
   String get preferencesListsOwn => '列表可以有自己的设置';
