@@ -196,28 +196,53 @@ Future<void> checkRingsInBackground() async {
   final SharedPreferences preferences = await SharedPreferences.getInstance();
   final AppLocalizations loc = reminderLocalizations(preferences);
   await prepareReminderText();
-  final RingBooker booker = RingBooker(
-    LocalRingPlatform(channelName: loc.preferencesReminders),
-    fence: StoredRingFence(preferences),
+  await checkRingsWith(
+    booker: RingBooker(
+      LocalRingPlatform(channelName: loc.preferencesReminders),
+      fence: StoredRingFence(preferences),
+    ),
+    preferences: preferences,
+    loc: loc,
+    signedIn: () async => (await _startFirebase(preferences))?.uid,
+    read: (uid) async {
+      final FirebaseFirestore firestore = FirebaseFirestore.instance;
+      final ListCatalog catalog = await FirestoreListStore.readOnce(
+        firestore,
+        uid,
+      );
+      final Map<String, dynamic>? data = (await firestore
+              .doc('users/$uid/settings/preferences')
+              .get())
+          .data();
+      return (
+        catalog: catalog,
+        account: data == null
+            ? const AccountPreferences()
+            : AccountPreferences.fromJson(data),
+      );
+    },
   );
+}
+
+// The background check with its sign-in and reads passed in (tests, F15).
+@visibleForTesting
+Future<void> checkRingsWith({
+  required RingBooker booker,
+  required SharedPreferences preferences,
+  required AppLocalizations loc,
+  required Future<String?> Function() signedIn,
+  required Future<({ListCatalog catalog, AccountPreferences account})>
+  Function(String uid)
+  read,
+  DateTime Function() now = DateTime.now,
+}) async {
   final RingTicket ticket = await booker.fence.begin();
-  final User? user = await _startFirebase(preferences);
-  if (user == null) {
+  final String? uid = await signedIn();
+  if (uid == null) {
     await booker.cancelAll();
     return;
   }
-  final FirebaseFirestore firestore = FirebaseFirestore.instance;
-  final ListCatalog catalog = await FirestoreListStore.readOnce(
-    firestore,
-    user.uid,
-  );
-  final Map<String, dynamic>? data = (await firestore
-          .doc('users/${user.uid}/settings/preferences')
-          .get())
-      .data();
-  final AccountPreferences account = data == null
-      ? const AccountPreferences()
-      : AccountPreferences.fromJson(data);
+  final (:ListCatalog catalog, :AccountPreferences account) = await read(uid);
   final bool ring =
       preferences.getBool(AppSettingsCubit.ringOnThisPhoneKey) ?? true;
   final ListLabels labels = ListLabels(loc);
@@ -226,7 +251,7 @@ Future<void> checkRingsInBackground() async {
       ? ReminderPlanner.plan(
           catalog: catalog,
           settings: account.reminders,
-          now: DateTime.now(),
+          now: now(),
           listName: labels.listName,
           late: ReminderPlanner.lateDelivery,
         )
@@ -239,7 +264,7 @@ Future<void> checkRingsInBackground() async {
       locale: locale,
       format: account.timeFormat,
     ),
-    account: user.uid,
+    account: uid,
     ticket: ticket,
   );
 }
