@@ -19,6 +19,7 @@ import 'firebase_options.dart';
 import 'reminders/local_ring_platform.dart';
 import 'reminders/reminder_background.dart';
 import 'reminders/ring_booker.dart';
+import 'reminders/ring_fence.dart';
 
 // The web App Check site key (Fraud Defense, formerly reCAPTCHA Enterprise;
 // the console no longer offers reCAPTCHA v3), set at build time with
@@ -80,6 +81,7 @@ RingBooker? _ringBooker(SharedPreferences preferences) {
     LocalRingPlatform(
       channelName: reminderLocalizations(preferences).preferencesReminders,
     ),
+    fence: StoredRingFence(preferences),
   );
 }
 

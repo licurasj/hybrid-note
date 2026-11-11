@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import 'reminder_planner.dart';
+import 'ring_fence.dart';
 
 // What the phone's notification system can do for the booker (T-13 unit 3).
 // On Android it is flutter_local_notifications (LocalRingPlatform); tests use
@@ -85,15 +86,21 @@ class RingPayload {
     required this.itemDate,
     required this.dueMs,
     required this.fingerprint,
+    this.account,
   });
 
-  factory RingPayload.of(PlannedRing ring, String fingerprint) => RingPayload(
+  factory RingPayload.of(
+    PlannedRing ring,
+    String fingerprint, {
+    String? account,
+  }) => RingPayload(
     key: ring.key,
     listId: ring.listId,
     itemId: ring.itemId,
     itemDate: ring.itemDate,
     dueMs: ring.due.millisecondsSinceEpoch,
     fingerprint: fingerprint,
+    account: account,
   );
 
   final String key;
@@ -104,6 +111,9 @@ class RingPayload {
   final int dueMs;
   // Everything the ring shows or how it rings; a change books it again.
   final String fingerprint;
+  // The signed-in account the ring was booked for (F2): Done does nothing
+  // for another. Null on rings booked before T-13 unit 10.
+  final String? account;
 
   String encode() => jsonEncode({
     'k': key,
@@ -112,6 +122,7 @@ class RingPayload {
     'd': itemDate,
     'u': dueMs,
     'f': fingerprint,
+    'a': ?account,
   });
 
   // Null for a payload this app did not write.
@@ -130,12 +141,14 @@ class RingPayload {
       final Object? itemDate = json['d'];
       final Object? dueMs = json['u'];
       final Object? fingerprint = json['f'];
+      final Object? account = json['a'];
       if (key is! String ||
           listId is! String ||
           itemId is! String ||
           itemDate is! String ||
           dueMs is! int ||
-          fingerprint is! String) {
+          fingerprint is! String ||
+          (account != null && account is! String)) {
         return null;
       }
       return RingPayload(
@@ -145,6 +158,7 @@ class RingPayload {
         itemDate: itemDate,
         dueMs: dueMs,
         fingerprint: fingerprint,
+        account: account as String?,
       );
     } on FormatException {
       return null;
@@ -188,29 +202,47 @@ class RingRequest {
 // the same ring keeps its id across plans and phones' restarts. One sync runs
 // at a time; a sync asked for meanwhile runs once after it, with the latest
 // plan.
+//
+// Each sync is a pass under [fence] (F2): a sign-out since the pass began
+// stops it before its next change, and it takes back what it booked, so a
+// pass in another isolate (the background check) cannot leave a signed-out
+// phone ringing.
 class RingBooker {
-  RingBooker(this.platform);
+  RingBooker(this.platform, {this.fence = RingFence.none});
 
   final RingPlatform platform;
+  final RingFence fence;
 
   Future<void>? _running;
   _SyncRequest? _next;
 
-  // Books [rings], each shown as [text] says.
+  // Books [rings] for the signed-in [account], each shown as [text] says.
+  // [ticket] is the pass's, when it began before the lists were read (the
+  // background check); else the pass begins now.
   Future<void> sync(
     List<PlannedRing> rings,
-    RingText Function(PlannedRing ring) text,
-  ) {
-    _next = _SyncRequest(rings, text);
+    RingText Function(PlannedRing ring) text, {
+    String? account,
+    RingTicket? ticket,
+  }) {
+    _next = _SyncRequest(rings, text, account, ticket);
     return _running ??= _drain();
   }
 
-  // Sign-out, or Ring on this phone off: nothing stays booked.
+  // Signed out (the background check finds no user): nothing stays booked.
   Future<void> cancelAll() async {
     _next = null;
     await _running;
     await platform.cancelAll();
     await platform.stopBackgroundCheck();
+  }
+
+  // Sign-out on this phone: fences every pass, here and in other isolates,
+  // then cancels every ring and the background check.
+  Future<void> signOut() async {
+    _next = null;
+    await fence.signOut();
+    await cancelAll();
   }
 
   Future<void> _drain() async {
@@ -226,6 +258,24 @@ class RingBooker {
   }
 
   Future<void> _sync(_SyncRequest request) async {
+    final RingTicket ticket = request.ticket ?? await fence.begin();
+    final List<int> bookedHere = [];
+    // False once this pass must stop; after a sign-out it first takes back
+    // what it booked.
+    Future<bool> mayGoOn() async {
+      if (await fence.check(ticket) != RingCheck.signedOut) {
+        return true;
+      }
+      for (final int id in bookedHere) {
+        try {
+          await platform.cancel(id);
+        } on Object catch (error) {
+          debugPrint('Reminder not taken back: $error');
+        }
+      }
+      return false;
+    }
+
     final RingPermissions permissions = await platform.permissions();
     final Map<int, BookedRing> booked = {
       for (final BookedRing ring in await platform.booked()) ring.id: ring,
@@ -248,12 +298,13 @@ class RingBooker {
         ring.itemDate,
         permissions.exact,
         platform.look,
+        request.account ?? '',
       ].join('\u0000');
       wanted[id] = RingRequest(
         id: id,
         at: ring.at,
         text: text,
-        payload: RingPayload.of(ring, fingerprint),
+        payload: RingPayload.of(ring, fingerprint, account: request.account),
         exact: permissions.exact,
       );
     }
@@ -263,6 +314,9 @@ class RingBooker {
       if (want == null ||
           ring.payload?.key != want.payload.key ||
           ring.payload?.fingerprint != want.payload.fingerprint) {
+        if (!await mayGoOn()) {
+          return;
+        }
         await platform.cancel(ring.id);
       }
     }
@@ -278,10 +332,18 @@ class RingBooker {
       if (!want.at.isAfter(now)) {
         continue;
       }
+      if (!await mayGoOn()) {
+        return;
+      }
       try {
         await platform.book(want);
+        bookedHere.add(want.id);
       } on Object catch (error) {
         debugPrint('Reminder not booked: $error');
+      }
+      // A sign-out while it was booked takes it back.
+      if (!await mayGoOn()) {
+        return;
       }
     }
   }
@@ -298,8 +360,10 @@ class RingBooker {
 }
 
 class _SyncRequest {
-  _SyncRequest(this.rings, this.text);
+  _SyncRequest(this.rings, this.text, this.account, this.ticket);
 
   final List<PlannedRing> rings;
   final RingText Function(PlannedRing ring) text;
+  final String? account;
+  final RingTicket? ticket;
 }

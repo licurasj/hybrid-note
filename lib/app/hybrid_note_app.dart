@@ -197,7 +197,7 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
     final bool cleared;
     try {
       // No ring of this account stays booked, nor its titles (T-13).
-      await widget.ringBooker?.cancelAll();
+      await widget.ringBooker?.signOut();
       await store?.close();
       await preferences?.close();
       cleared = await widget.auth.signOut();
@@ -262,7 +262,7 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
         onRetryCleanup: _cleanupFailed ? _retryCleanup : null,
       );
     } else {
-      home = const ReminderHost(child: MainShell());
+      home = ReminderHost(account: user.uid, child: const MainShell());
     }
 
     final Widget app = BlocBuilder<AppSettingsCubit, AppSettings>(

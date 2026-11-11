@@ -23,6 +23,7 @@ import 'reminder_done.dart';
 import 'reminder_planner.dart';
 import 'reminder_text.dart';
 import 'ring_booker.dart';
+import 'ring_fence.dart';
 
 // Reminder work with the app closed (T-13 unit 4): Done on a ring, and the
 // background check about every 15 minutes that books again what changed on
@@ -107,7 +108,8 @@ Future<void> onRingActionInBackground(NotificationResponse response) async {
   }
   final SharedPreferences preferences = await SharedPreferences.getInstance();
   final User? user = await _startFirebase(preferences);
-  if (user == null) {
+  // Only for the account the ring was booked for (F2).
+  if (user == null || payload.account != user.uid) {
     return;
   }
   await doneFromRing(FirebaseFirestore.instance, user.uid, payload);
@@ -180,14 +182,17 @@ void reminderCheckDispatcher() {
 }
 
 // Plans and books as the open app does (ReminderHost), from the lists read
-// once. Signed out, it cancels every ring.
+// once. Signed out, it cancels every ring. Its pass begins before anything
+// is read, so a sign-out or a newer pass meanwhile fences it (F2).
 Future<void> checkRingsInBackground() async {
   final SharedPreferences preferences = await SharedPreferences.getInstance();
   final AppLocalizations loc = reminderLocalizations(preferences);
   await prepareReminderText();
   final RingBooker booker = RingBooker(
     LocalRingPlatform(channelName: loc.preferencesReminders),
+    fence: StoredRingFence(preferences),
   );
+  final RingTicket ticket = await booker.fence.begin();
   final User? user = await _startFirebase(preferences);
   if (user == null) {
     await booker.cancelAll();
@@ -225,5 +230,7 @@ Future<void> checkRingsInBackground() async {
       locale: locale,
       format: account.timeFormat,
     ),
+    account: user.uid,
+    ticket: ticket,
   );
 }

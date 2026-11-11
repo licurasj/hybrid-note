@@ -8,6 +8,7 @@ import 'package:hybrid_note/l10n/generated/app_localizations.dart';
 import 'package:hybrid_note/reminders/reminder_planner.dart';
 import 'package:hybrid_note/reminders/reminder_text.dart';
 import 'package:hybrid_note/reminders/ring_booker.dart';
+import 'package:hybrid_note/reminders/ring_fence.dart';
 
 // T-13 unit 3: the booker books only the difference from what is booked.
 class FakeRingPlatform implements RingPlatform {
@@ -29,10 +30,14 @@ class FakeRingPlatform implements RingPlatform {
       ),
   ];
 
+  // Runs as each ring is booked (another isolate signing out meanwhile).
+  Future<void> Function(RingRequest request)? onBook;
+
   @override
   Future<void> book(RingRequest request) async {
     calls.add('book ${request.payload.key}');
     rings[request.id] = request;
+    await onBook?.call(request);
   }
 
   @override
@@ -247,5 +252,70 @@ void main() {
     // stored colour as the tint.
     expect(of(at(due)).subText, 'Tasks');
     expect(of(at(due)).color, 0xFFF5B800);
+  });
+
+  group('sign-out fence (T-13 unit 10, F2)', () {
+    test('a sign-out while a pass books stops it and takes back its rings', () async {
+      final FakeRingPlatform platform = FakeRingPlatform();
+      final MemoryRingFence fence = MemoryRingFence();
+      final RingBooker booker = RingBooker(platform, fence: fence);
+      platform.onBook = (_) async {
+        platform.onBook = null;
+        await fence.signOut();
+      };
+      await booker.sync(
+        [ring('a', at: soon), ring('b', at: later)],
+        text,
+        account: 'u1',
+      );
+      expect(platform.rings, isEmpty);
+      expect(platform.calls.where((call) => call.startsWith('book')), hasLength(1));
+    });
+
+    test('a pass begun before a sign-out (the background check) books nothing', () async {
+      final FakeRingPlatform platform = FakeRingPlatform();
+      final MemoryRingFence fence = MemoryRingFence();
+      final RingBooker worker = RingBooker(platform, fence: fence);
+      final RingTicket ticket = await fence.begin();
+      // The app signs out while the worker reads the lists.
+      await RingBooker(platform, fence: fence).signOut();
+      await worker.sync([ring('a', at: soon)], text, ticket: ticket);
+      expect(platform.rings, isEmpty);
+      expect(platform.calls, ['cancelAll']);
+    });
+
+    test('signOut cancels every ring and the background check', () async {
+      final FakeRingPlatform platform = FakeRingPlatform();
+      final MemoryRingFence fence = MemoryRingFence();
+      final RingBooker booker = RingBooker(platform, fence: fence);
+      platform.checking = true;
+      await booker.sync([ring('a', at: soon)], text, account: 'u1');
+      await booker.signOut();
+      expect(platform.rings, isEmpty);
+      expect(platform.checking, isFalse);
+      // Signed in again, passes book as before.
+      await booker.sync([ring('a', at: soon)], text, account: 'u2');
+      expect(platform.rings.values.single.payload.account, 'u2');
+    });
+
+    test('rings carry the account; a new account books them again', () async {
+      final FakeRingPlatform platform = FakeRingPlatform();
+      final RingBooker booker = RingBooker(platform);
+      await booker.sync([ring('a', at: soon)], text, account: 'u1');
+      platform.calls.clear();
+      await booker.sync([ring('a', at: soon)], text, account: 'u2');
+      expect(platform.calls, hasLength(2));
+      final RingPayload? back = RingPayload.decode(
+        platform.rings.values.single.payload.encode(),
+      );
+      expect(back?.account, 'u2');
+      // A payload from before T-13 unit 10 has no account.
+      expect(
+        RingPayload.decode(
+          RingPayload.of(ring('a', at: soon), 'f').encode(),
+        )?.account,
+        isNull,
+      );
+    });
   });
 }

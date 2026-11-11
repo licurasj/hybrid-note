@@ -23,8 +23,10 @@ import 'ring_booker.dart';
 // phone (Q-94): the system's notifications popup, then a short sheet that
 // opens the Alarms & reminders switch. Refusing either blocks nothing.
 class ReminderHost extends StatefulWidget {
-  const ReminderHost({super.key, required this.child});
+  const ReminderHost({super.key, required this.account, required this.child});
 
+  // The signed-in account's uid; each ring carries it (F2).
+  final String account;
   final Widget child;
 
   // How long changes settle before booking; a burst of snapshots books once.
@@ -133,6 +135,7 @@ class _ReminderHostState extends State<ReminderHost>
           locale: locale,
           format: preferences.timeFormat,
         ),
+        account: widget.account,
       );
     } on Object catch (error) {
       debugPrint('Reminders not booked: $error');
