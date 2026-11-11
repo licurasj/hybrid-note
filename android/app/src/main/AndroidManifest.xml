@@ -33,7 +33,8 @@
         <!-- flutter_local_notifications: booked rings, rebooked after a
              restart or an app update, and the Done action (T-13). -->
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
-        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+        <!-- In place of the plugin's boot receiver: drops rings missed while off, then calls it (T-13 unit 10, F6). -->
+        <receiver android:exported="false" android:name=".RingBootReceiver">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>

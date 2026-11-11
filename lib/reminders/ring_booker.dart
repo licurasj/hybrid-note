@@ -23,6 +23,11 @@ abstract class RingPlatform {
 
   Future<void> cancelAll();
 
+  // After a pass booked every planned ring with the current [look]: what
+  // older looks left behind may go (F6: the old channel is deleted only
+  // once no booked ring is on it).
+  Future<void> afterSync();
+
   Future<RingPermissions> permissions();
 
   // The system's notifications popup (Android 13 and later); true if allowed.
@@ -361,6 +366,13 @@ class RingBooker {
       // A sign-out while it was booked takes it back.
       if (!await mayGoOn()) {
         return;
+      }
+    }
+    if (await fence.check(ticket) == RingCheck.current) {
+      try {
+        await platform.afterSync();
+      } on Object catch (error) {
+        debugPrint('Reminders: not tidied: $error');
       }
     }
   }

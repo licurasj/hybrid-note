@@ -19,8 +19,11 @@ class LocalRingPlatform implements RingPlatform {
   LocalRingPlatform({required this.channelName});
 
   // Android 8 and later keep a channel's sound once it exists, so a new sound
-  // needs a new channel id. The ids before it are deleted on start; rings
-  // booked on them are booked again because [look] changed.
+  // needs a new channel id. Rings booked on an older one are booked again
+  // because [look] changed, and the older ids are deleted only after that
+  // (afterSync, F6): a ring still booked on a deleted channel would make it
+  // again when it rings. RingBootReceiver (android/) moves such rings at a
+  // reboot or an update.
   static const String channelId = 'reminders_chime';
   static const List<String> oldChannelIds = ['reminders'];
   static const String sound = 'reminder_chime';
@@ -55,10 +58,11 @@ class LocalRingPlatform implements RingPlatform {
         ),
         onDidReceiveNotificationResponse: _onResponse,
         onDidReceiveBackgroundNotificationResponse: onRingActionInBackground,
-      )
-      .then((_) => _deleteOldChannels());
+      );
 
-  Future<void> _deleteOldChannels() async {
+  @override
+  Future<void> afterSync() async {
+    await _init();
     for (final String id in oldChannelIds) {
       try {
         await _android?.deleteNotificationChannel(channelId: id);

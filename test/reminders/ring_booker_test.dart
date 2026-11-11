@@ -63,6 +63,11 @@ class FakeRingPlatform implements RingPlatform {
     rings.clear();
   }
 
+  int tidied = 0;
+
+  @override
+  Future<void> afterSync() async => tidied++;
+
   @override
   Future<RingPermissions> permissions() async => granted;
 
@@ -175,8 +180,11 @@ void main() {
     platform.calls.clear();
 
     platform.look = 'look-2';
+    platform.tidied = 0;
     await booker.sync(plan, text);
     expect(platform.calls.where((call) => call.startsWith('book')), hasLength(2));
+    // F6: the old look goes only after the rings were booked again.
+    expect(platform.tidied, 1);
 
     platform.calls.clear();
     await booker.sync(
@@ -293,6 +301,8 @@ void main() {
       await worker.sync([ring('a', at: soon)], text, ticket: ticket);
       expect(platform.rings, isEmpty);
       expect(platform.calls, ['cancelAll']);
+      // A stopped pass leaves the old look alone.
+      expect(platform.tidied, 0);
     });
 
     test('signOut cancels every ring and the background check', () async {
