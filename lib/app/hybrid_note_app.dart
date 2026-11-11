@@ -33,6 +33,9 @@ class SignedInAccount {
   final Future<void> Function() signOut;
 }
 
+// How long sign-out waits for the ring cleanup before going on (F3).
+const Duration ringCleanupTimeout = Duration(seconds: 5);
+
 // Signed out: the sign-in screen and nothing else (Q-21 A). Signed in: the
 // shell on a store for that user's uid, whatever the sign-in method (D-13).
 // The providers sit above MaterialApp so pushed pages see them, and the app
@@ -196,8 +199,15 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
     _watchWriteFailures();
     final bool cleared;
     try {
-      // No ring of this account stays booked, nor its titles (T-13).
-      await widget.ringBooker?.signOut();
+      // No ring of this account stays booked, nor its titles (T-13). A
+      // stuck or failing cleanup never holds the sign-out (F3): the fence
+      // is marked first, and the background check, signed out, cancels
+      // every ring on its next run.
+      try {
+        await widget.ringBooker?.signOut().timeout(ringCleanupTimeout);
+      } on Object catch (error) {
+        debugPrint('Rings not all cancelled at sign-out: $error');
+      }
       await store?.close();
       await preferences?.close();
       cleared = await widget.auth.signOut();

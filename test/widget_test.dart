@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:hybrid_note/app/account_preferences.dart';
 import 'package:hybrid_note/app/app_settings.dart';
+import 'package:hybrid_note/app/hybrid_note_app.dart' show ringCleanupTimeout;
 import 'package:hybrid_note/backend/auth_service.dart';
 import 'package:hybrid_note/backend/firestore_list_store.dart';
 import 'package:hybrid_note/backend/firestore_preferences.dart';
@@ -22,6 +23,10 @@ import 'package:hybrid_note/lists/list_editor_screen.dart';
 import 'package:hybrid_note/lists/list_item.dart';
 import 'package:hybrid_note/lists/list_patch.dart';
 import 'package:hybrid_note/lists/list_rules.dart';
+import 'package:hybrid_note/reminders/ring_booker.dart';
+import 'package:hybrid_note/reminders/ring_fence.dart';
+
+import 'reminders/ring_booker_test.dart' show FakeRingPlatform;
 
 import 'support/fake_auth.dart';
 import 'support/firestore_store.dart';
@@ -32,6 +37,7 @@ Future<FirestoreListStore> _pumpApp(
   FakeAuthService auth, {
   Map<String, Object> preferences = const {},
   VoidCallback? afterSignOut,
+  RingBooker? ringBooker,
 }) async {
   tester.view.physicalSize = const Size(800, 1600);
   tester.view.devicePixelRatio = 1;
@@ -44,6 +50,7 @@ Future<FirestoreListStore> _pumpApp(
       auth: auth,
       openStore: (_) => store,
       afterSignOut: afterSignOut,
+      ringBooker: ringBooker,
     ),
   );
   await settle(tester);
@@ -122,6 +129,45 @@ void main() {
     expect(_hub, findsNothing);
     expect(find.text('Grocery List'), findsNothing);
     expect(find.text('owner@example.com'), findsNothing);
+  });
+
+  group('rings at sign-out (T-13 unit 10, F3)', () {
+    Future<void> signOutWith(
+      WidgetTester tester,
+      FakeRingPlatform platform,
+    ) async {
+      final FakeAuthService auth = FakeAuthService(user: testUser);
+      final MemoryRingFence fence = MemoryRingFence();
+      await _pumpApp(
+        tester,
+        auth,
+        ringBooker: RingBooker(platform, fence: fence),
+      );
+      await _openSettings(tester);
+      await tester.tap(find.byKey(const ValueKey('sign-out')));
+      await tester.pump(ringCleanupTimeout + const Duration(seconds: 1));
+      await settle(tester);
+      expect(auth.calls, ['signOut', 'clearCache']);
+      expect(find.byKey(const ValueKey('sign-in')), findsOneWidget);
+      // The fence was marked before the cleanup: an older pass stops.
+      expect(
+        await fence.check(const RingTicket('0', '0')),
+        RingCheck.signedOut,
+      );
+    }
+
+    testWidgets('a failing ring cleanup still signs out', (tester) async {
+      await signOutWith(
+        tester,
+        FakeRingPlatform()..cancelAllError = StateError('plugin'),
+      );
+    });
+
+    testWidgets('a stuck ring cleanup signs out after a short wait', (
+      tester,
+    ) async {
+      await signOutWith(tester, FakeRingPlatform()..cancelAllHangs = true);
+    });
   });
 
   group('account preferences at the gate', () {

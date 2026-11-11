@@ -10,6 +10,7 @@ import 'package:hybrid_note/app/hybrid_note_app.dart';
 import 'package:hybrid_note/backend/auth_service.dart';
 import 'package:hybrid_note/backend/firestore_list_store.dart';
 import 'package:hybrid_note/backend/firestore_setup.dart';
+import 'package:hybrid_note/reminders/ring_booker.dart';
 
 import 'firestore_store.dart';
 
@@ -89,6 +90,7 @@ Future<Widget> testApp({
   StarterSeeding? starter,
   AccountPreferencesSync Function(AuthUser user)? openPreferences,
   VoidCallback? afterSignOut,
+  RingBooker? ringBooker,
 }) async {
   final SharedPreferences preferences = await SharedPreferences.getInstance();
   return BlocProvider(
@@ -101,6 +103,7 @@ Future<Widget> testApp({
       ),
       openPreferences: openPreferences,
       afterSignOut: afterSignOut,
+      ringBooker: ringBooker,
     ),
   );
 }

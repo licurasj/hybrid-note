@@ -46,9 +46,20 @@ class FakeRingPlatform implements RingPlatform {
     rings.remove(id);
   }
 
+  // A cleanup that fails, or one that never ends (F3).
+  Object? cancelAllError;
+  bool cancelAllHangs = false;
+
   @override
   Future<void> cancelAll() async {
     calls.add('cancelAll');
+    if (cancelAllHangs) {
+      await Completer<void>().future;
+    }
+    final Object? error = cancelAllError;
+    if (error != null) {
+      throw error;
+    }
     rings.clear();
   }
 
