@@ -39,9 +39,11 @@ class RingLogo {
         // How white the logo is here: 0 on the blue ground, 1 on the mark.
         final double white = ((logo[i] - _groundRed) / (0xFF - _groundRed))
             .clamp(0.0, 1.0);
-        out[i] = r;
-        out[i + 1] = g;
-        out[i + 2] = b;
+        // Raw rgba8888 pixels are read as premultiplied: colour times alpha,
+        // or a faded pixel turns white when encoded (owner, 1397344).
+        out[i] = (r * white).round();
+        out[i + 1] = (g * white).round();
+        out[i + 2] = (b * white).round();
         out[i + 3] = (white * 0xFF).round();
       }
     }

@@ -82,5 +82,30 @@ void main() {
     expect(at(0, 0) & 0xFF, 0);
     expect(at(RingLogo.size ~/ 2, 8) & 0xFF, 0);
     expect(at(60, 130), 0x00A63EFF);
+    // No white anywhere: every visible pixel, the logo's fade included, is
+    // the list colour; only its alpha changes (owner, 1397344 on the phone).
+    int faded = 0;
+    for (int y = 0; y < RingLogo.size; y++) {
+      for (int x = 0; x < RingLogo.size; x++) {
+        final int pixel = at(x, y);
+        final int alpha = pixel & 0xFF;
+        if (alpha < 24) {
+          continue;
+        }
+        if (alpha < 230) {
+          faded++;
+        }
+        final List<int> rgb = [
+          pixel >> 24 & 0xFF,
+          pixel >> 16 & 0xFF,
+          pixel >> 8 & 0xFF,
+        ];
+        expect(rgb, [
+          for (final int c in [0x00, 0xA6, 0x3E])
+            inInclusiveRange(c - 12, c + 12),
+        ], reason: 'pixel $x,$y alpha $alpha');
+      }
+    }
+    expect(faded, greaterThan(50));
   });
 }
