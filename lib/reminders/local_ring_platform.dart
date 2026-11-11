@@ -8,7 +8,7 @@ import 'package:workmanager/workmanager.dart';
 
 import 'reminder_background.dart';
 import 'ring_booker.dart';
-import 'ring_dot.dart';
+import 'ring_logo.dart';
 
 // Rings on Android through flutter_local_notifications (T-13 unit 3). One
 // channel, "Reminders", with the app's chime (res/raw/reminder_chime, T-13
@@ -166,12 +166,12 @@ class LocalRingPlatform implements RingPlatform {
   @override
   Future<void> book(RingRequest request) async {
     await _init();
-    Uint8List? dot;
+    Uint8List? logo;
     try {
-      dot = await RingDot.png(request.text.color);
+      logo = await RingLogo.png(request.text.color);
     } on Object catch (error) {
-      // The ring still rings without its dot.
-      debugPrint('Reminders: ring dot not drawn: $error');
+      // The ring still rings without its logo.
+      debugPrint('Reminders: ring logo not drawn: $error');
     }
     await _plugin.zonedSchedule(
       id: request.id,
@@ -180,7 +180,7 @@ class LocalRingPlatform implements RingPlatform {
       scheduledDate: tz.TZDateTime.from(request.at.toUtc(), tz.UTC),
       payload: request.payload.encode(),
       notificationDetails: NotificationDetails(
-        android: details(request.text, channelName: channelName, dot: dot),
+        android: details(request.text, channelName: channelName, logo: logo),
       ),
       androidScheduleMode: request.exact
           ? AndroidScheduleMode.exactAllowWhileIdle
@@ -189,14 +189,14 @@ class LocalRingPlatform implements RingPlatform {
   }
 
   // How one ring looks and sounds on Android (look Proposed in T-13 unit 9):
-  // the small icon and header tinted in the list's colour, the list's name
-  // beside the app's name, [dot] as the large icon, the app's chime, and only
-  // the Done button.
+  // the small icon (a plain disc) and header tinted in the list's colour, the
+  // list's name beside the app's name, [logo] (the app logo in the list's
+  // colour) as the large icon, the app's chime, and only the Done button.
   @visibleForTesting
   static AndroidNotificationDetails details(
     RingText text, {
     required String channelName,
-    Uint8List? dot,
+    Uint8List? logo,
   }) => AndroidNotificationDetails(
     channelId,
     channelName,
@@ -205,7 +205,7 @@ class LocalRingPlatform implements RingPlatform {
     category: AndroidNotificationCategory.reminder,
     color: Color(text.color),
     subText: text.subText,
-    largeIcon: dot == null ? null : ByteArrayAndroidBitmap(dot),
+    largeIcon: logo == null ? null : ByteArrayAndroidBitmap(logo),
     sound: const RawResourceAndroidNotificationSound(sound),
     // The body says the time; a day with no time has none to show.
     showWhen: false,
