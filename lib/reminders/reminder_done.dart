@@ -12,13 +12,16 @@ class ReminderDone {
   ReminderDone._();
 
   // Nothing when the item is ticked already or its date is no longer the one
-  // the ring was booked for (it moved, or a repeat came round since).
+  // the ring was booked for (it moved, or a repeat came round since). With
+  // [mayClear] false (offline, F1) it only ticks, even on a list that clears
+  // at once: a clear deletes and creates items, which needs the server.
   static ListChanges changes({
     required ListDefinition definition,
     required ListItem item,
     required String itemDate,
     required AccountPreferences preferences,
     required DateTime now,
+    bool mayClear = true,
   }) {
     final FieldDefinition? date = definition.fieldWithRole(FieldRole.reminder);
     final FieldDefinition? completion = definition.fieldWithRole(
@@ -31,6 +34,7 @@ class ReminderDone {
       return const ListChanges();
     }
     final bool clearsAtOnce =
+        mayClear &&
         definition.behaviors.any(
           (behavior) => behavior.kind == BehaviorKind.clearCompleted,
         ) &&

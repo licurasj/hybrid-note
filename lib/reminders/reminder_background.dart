@@ -150,6 +150,14 @@ Future<bool?> doneFromRing(
         preferences: preferences,
         now: DateTime.now().toUtc(),
       ),
+      offlineChange: (definition, item) => ReminderDone.changes(
+        definition: definition,
+        item: item,
+        itemDate: payload.itemDate,
+        preferences: preferences,
+        now: DateTime.now().toUtc(),
+        mayClear: false,
+      ),
     );
   } on Object catch (error) {
     debugPrint('Reminders: Done not written: $error');
