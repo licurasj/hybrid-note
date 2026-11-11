@@ -176,6 +176,7 @@ void reminderCheckDispatcher() {
 Future<void> checkRingsInBackground() async {
   final SharedPreferences preferences = await SharedPreferences.getInstance();
   final AppLocalizations loc = reminderLocalizations(preferences);
+  await prepareReminderText();
   final RingBooker booker = RingBooker(
     LocalRingPlatform(channelName: loc.preferencesReminders),
   );

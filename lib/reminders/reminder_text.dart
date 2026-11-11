@@ -1,3 +1,4 @@
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 
 import '../app/account_preferences.dart' show TimeFormat;
@@ -31,3 +32,8 @@ RingText reminderText(
     done: loc.reminderDone,
   );
 }
+
+// The open app gets intl's date data from Flutter's localizations; the
+// background check (its own isolate) must load it before reminderText,
+// or DateFormat throws LocaleDataException (T-13 unit 4 AVD check).
+Future<void> prepareReminderText() => initializeDateFormatting();
