@@ -273,6 +273,36 @@ void main() {
     expect(_plan([_task('c', '2026-03-10')]), isEmpty);
   });
 
+  test('with a late window, rings just passed stay planned (F5)', () {
+    final List<ListItem> items = [
+      _task('a', _at(DateTime(2026, 3, 10, 11, 30))),
+      _task('b', _at(DateTime(2026, 3, 10, 9, 30))),
+      _task('c', _at(DateTime(2026, 3, 10, 13))),
+    ];
+    final List<PlannedRing> rings = ReminderPlanner.plan(
+      catalog: ListCatalog(definitions: [_tasks], items: items),
+      settings: const ReminderSettings(),
+      now: _now,
+      listName: (list) => list.id,
+      late: const Duration(hours: 2),
+    );
+    expect(rings.map((ring) => ring.itemId), ['a', 'c']);
+    // The horizon still counts from now, not from the late window.
+    expect(
+      ReminderPlanner.plan(
+        catalog: ListCatalog(
+          definitions: [_tasks],
+          items: [_task('far', _at(DateTime(2026, 4, 9, 11, 30)))],
+        ),
+        settings: const ReminderSettings(),
+        now: _now,
+        listName: (list) => list.id,
+        late: const Duration(hours: 2),
+      ),
+      hasLength(1),
+    );
+  });
+
   test('at most the 200 soonest, and nothing past 30 days', () {
     final List<ListItem> items = [
       for (int i = 0; i < 300; i++)

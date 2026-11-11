@@ -220,6 +220,7 @@ Future<void> checkRingsInBackground() async {
           settings: account.reminders,
           now: DateTime.now(),
           listName: labels.listName,
+          late: ReminderPlanner.lateDelivery,
         )
       : const [];
   await booker.sync(

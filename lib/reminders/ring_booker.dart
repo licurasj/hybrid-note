@@ -214,10 +214,15 @@ class RingRequest {
 // after a newer one read what is booked; the next pass (a list change, the
 // next open or check) puts that right.
 class RingBooker {
-  RingBooker(this.platform, {this.fence = RingFence.none});
+  RingBooker(
+    this.platform, {
+    this.fence = RingFence.none,
+    DateTime Function()? clock,
+  }) : _clock = clock ?? DateTime.now;
 
   final RingPlatform platform;
   final RingFence fence;
+  final DateTime Function() _clock;
 
   Future<void>? _running;
   _SyncRequest? _next;
@@ -331,7 +336,7 @@ class RingBooker {
         await platform.cancel(ring.id);
       }
     }
-    final DateTime now = DateTime.now().toUtc();
+    final DateTime now = _clock().toUtc();
     for (final RingRequest want in wanted.values) {
       final BookedRing? ring = booked[want.id];
       if (ring != null &&
@@ -339,7 +344,8 @@ class RingBooker {
           ring.payload?.fingerprint == want.payload.fingerprint) {
         continue;
       }
-      // A time that passed while planning rings no more (no catch-up).
+      // A time already passed is never booked (no catch-up); one booked
+      // before stays above, while the plan has it (F5: late delivery).
       if (!want.at.isAfter(now)) {
         continue;
       }

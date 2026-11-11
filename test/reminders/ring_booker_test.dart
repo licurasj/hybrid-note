@@ -330,6 +330,25 @@ void main() {
     });
   });
 
+  test('a booked ring Android delivers late is kept, never booked anew '
+      '(T-13 unit 10, F5)', () async {
+    DateTime clock = DateTime.utc(2030, 1, 1, 8, 58);
+    final FakeRingPlatform platform = FakeRingPlatform();
+    final RingBooker booker = RingBooker(platform, clock: () => clock);
+    final DateTime nine = DateTime.utc(2030, 1, 1, 9);
+    await booker.sync([ring('a', at: nine)], text);
+    expect(platform.rings, hasLength(1));
+    platform.calls.clear();
+    // 09:03, the inexact ring still pending; the plan keeps it (late).
+    clock = DateTime.utc(2030, 1, 1, 9, 3);
+    await booker.sync([ring('a', at: nine), ring('b', at: nine)], text);
+    expect(platform.calls, isEmpty);
+    expect(platform.rings.values.single.payload.itemId, 'a');
+    // Out of the plan (past the late window, or ticked): cancelled.
+    await booker.sync(const [], text);
+    expect(platform.rings, isEmpty);
+  });
+
   group('one booking owner (T-13 unit 10, F4)', () {
     test('a pass planned from an older read changes nothing', () async {
       final FakeRingPlatform platform = FakeRingPlatform();

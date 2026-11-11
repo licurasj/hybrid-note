@@ -124,6 +124,7 @@ class _ReminderHostState extends State<ReminderHost>
             settings: preferences.reminders,
             now: DateTime.now(),
             listName: labels.listName,
+            late: ReminderPlanner.lateDelivery,
           )
         : const [];
     try {

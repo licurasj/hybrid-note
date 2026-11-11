@@ -88,9 +88,15 @@ class PlannedRing {
 //   item is there with its repeat on (Q-92). A ticked item's own date does
 //   not ring; nor does a ticked item without a repeat.
 // - Only times after [now] (no catch-up), at most [horizon] ahead and the
-//   [limit] soonest.
+//   [limit] soonest. With [late] it also plans the times up to [late] before
+//   [now] (F5): the booker never books those, but keeps one still booked, so
+//   an inexact ring Android delivers late is not cancelled first.
 class ReminderPlanner {
   static const Duration horizon = Duration(days: 30);
+
+  // How long a booked ring may be late and still ring (F5): inexact rings
+  // wait for the phone's idle windows.
+  static const Duration lateDelivery = Duration(hours: 2);
   static const int limit = 200;
 
   static List<PlannedRing> plan({
@@ -100,9 +106,10 @@ class ReminderPlanner {
     required String Function(ListDefinition list) listName,
     Duration horizon = ReminderPlanner.horizon,
     int limit = ReminderPlanner.limit,
+    Duration late = Duration.zero,
   }) {
-    final DateTime start = now.toUtc();
-    final DateTime end = start.add(horizon);
+    final DateTime start = now.toUtc().subtract(late);
+    final DateTime end = now.toUtc().add(horizon);
     final List<PlannedRing> rings = [];
 
     for (final ListDefinition list in catalog.definitions) {
