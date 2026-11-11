@@ -64,8 +64,8 @@ void main() {
     );
   });
 
-  test('the logo is a PNG in the list colour, white mark kept, one per '
-      'colour', () async {
+  test('the logo is a PNG of the mark in the list colour on a clear ground, '
+      'one per colour', () async {
     final Uint8List png = await RingLogo.png(0xFF00A63E);
     expect(png.sublist(0, 8), [137, 80, 78, 71, 13, 10, 26, 10]);
     expect(png.length, lessThan(40 * 1024));
@@ -78,10 +78,9 @@ void main() {
       format: ui.ImageByteFormat.rawStraightRgba,
     ))!;
     int at(int x, int y) => data.getUint32((y * RingLogo.size + x) * 4);
-    // A corner is outside the disc; the ground near the edge is the list
-    // colour; the note's middle is the logo's white.
+    // The logo's ground is clear; the note's middle is the list colour.
     expect(at(0, 0) & 0xFF, 0);
-    expect(at(RingLogo.size ~/ 2, 8), 0x00A63EFF);
-    expect(at(60, 130) >> 8, 0xFFFFFF);
+    expect(at(RingLogo.size ~/ 2, 8) & 0xFF, 0);
+    expect(at(60, 130), 0x00A63EFF);
   });
 }

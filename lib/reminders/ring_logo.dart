@@ -1,12 +1,11 @@
-import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-// A ring's large icon (T-13 unit 9, Proposed): the app logo (the owner's H
-// on a note, assets/app_icon.png, the launcher icon's source) with its app
-// blue swapped for the list's colour, cut to a disc. The logo's white stays
-// white, so the mark reads on light and dark shades alike. PNG bytes, kept
-// per colour.
+// A ring's large icon (T-13 unit 9, owner's pick): the app logo's mark (the
+// owner's H on a note with a pen, assets/app_icon.png, the launcher icon's
+// source) in the list's colour on a clear ground, so the shade's own
+// background shows around it and through the H, as with the small icon.
+// PNG bytes, kept per colour.
 class RingLogo {
   RingLogo._();
 
@@ -34,24 +33,16 @@ class RingLogo {
     final int g = (color >> 8) & 0xFF;
     final int b = color & 0xFF;
     final Uint8List out = Uint8List(size * size * 4);
-    final double half = size / 2;
     for (int y = 0; y < size; y++) {
       for (int x = 0; x < size; x++) {
         final int i = (y * size + x) * 4;
         // How white the logo is here: 0 on the blue ground, 1 on the mark.
         final double white = ((logo[i] - _groundRed) / (0xFF - _groundRed))
             .clamp(0.0, 1.0);
-        // Coverage of the disc, one pixel of soft edge.
-        final double dx = x + 0.5 - half;
-        final double dy = y + 0.5 - half;
-        final double edge = (half - math.sqrt(dx * dx + dy * dy) + 0.5).clamp(
-          0.0,
-          1.0,
-        );
-        out[i] = (r + (0xFF - r) * white).round();
-        out[i + 1] = (g + (0xFF - g) * white).round();
-        out[i + 2] = (b + (0xFF - b) * white).round();
-        out[i + 3] = (edge * 0xFF).round();
+        out[i] = r;
+        out[i + 1] = g;
+        out[i + 2] = b;
+        out[i + 3] = (white * 0xFF).round();
       }
     }
     final ui.ImmutableBuffer buffer = await ui.ImmutableBuffer.fromUint8List(
