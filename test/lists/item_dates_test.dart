@@ -64,4 +64,20 @@ void main() {
       expect(changes.saved.single['reminderAt'], '2026-11-16', reason: saved);
     }
   });
+
+  test('input dates are stored as the sheet stores them (F8)', () {
+    expect(
+      ItemDates.fromInput('2026-11-13T15:00', FieldType.dateTime),
+      DateTime(2026, 11, 13, 15).toUtc().toIso8601String(),
+    );
+    expect(
+      ItemDates.fromInput('2026-11-13T15:00+01:00', FieldType.dateTime),
+      '2026-11-13T14:00:00.000Z',
+    );
+    expect(ItemDates.fromInput(' 2026-11-13 ', FieldType.dateTime), '2026-11-13');
+    expect(ItemDates.fromInput('2026-11-13T15:00', FieldType.date), '2026-11-13');
+    expect(ItemDates.fromInput('2026-11-13T23:30:00Z', FieldType.date), '2026-11-13');
+    expect(ItemDates.fromInput('soon', FieldType.dateTime), 'soon');
+    expect(ItemDates.fromInput(null, FieldType.dateTime), isNull);
+  });
 }

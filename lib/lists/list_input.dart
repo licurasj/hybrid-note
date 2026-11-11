@@ -1,3 +1,4 @@
+import 'item_dates.dart';
 import 'list_catalog.dart';
 import 'list_definition.dart';
 import 'list_error.dart';
@@ -394,6 +395,9 @@ class ListInput {
           errors.add(ListError(ListErrorCode.unknownField, {'field': key, 'list': definition.id}));
         } else if (field.type == FieldType.checklist) {
           values[key] = _subItems(values[key], newId, now);
+        } else if (field.type == FieldType.date ||
+            field.type == FieldType.dateTime) {
+          values[key] = ItemDates.fromInput(values[key], field.type);
         }
       }
       if (entryErrors.isNotEmpty) {

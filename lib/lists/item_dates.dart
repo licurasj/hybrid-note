@@ -39,6 +39,34 @@ class ItemDates {
     return parsed.toLocal();
   }
 
+  // A date the AI (or any other input) gave, stored as the sheet stores it
+  // (T-13 unit 10, F8), worked out on the phone that makes the change: a
+  // day stays "YYYY-MM-DD"; a time with no zone ("2026-11-13T15:00") is this
+  // phone's wall clock and is stored as its UTC moment, so every phone rings
+  // at the same instant; a time with a zone is stored in UTC. A date field
+  // keeps only the day. A local time that does not exist (a spring-forward
+  // gap) or exists twice (autumn) is read as Dart's DateTime reads it on the
+  // phone: a gap moves on by its length (02:30 becomes 03:30), a doubled
+  // time is one of the two. Anything else is left for validation.
+  static Object? fromInput(Object? value, FieldType type) {
+    if (value is! String) {
+      return value;
+    }
+    final String text = value.trim();
+    if (isDayOnly(text)) {
+      return text;
+    }
+    final DateTime? parsed = DateTime.tryParse(text);
+    if (parsed == null) {
+      return value;
+    }
+    if (type == FieldType.date) {
+      // The day as written (in UTC when the text has a zone).
+      return dayValue(parsed);
+    }
+    return parsed.toUtc().toIso8601String();
+  }
+
   // A day as stored with No time.
   static String dayValue(DateTime day) =>
       '${day.year.toString().padLeft(4, '0')}-'

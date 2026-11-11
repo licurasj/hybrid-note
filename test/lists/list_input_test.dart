@@ -355,6 +355,32 @@ void main() {
       ]);
     });
 
+    test('an AI time is stored as its UTC moment, a day as a day (F8)', () {
+      final (ListChanges changes, List<ListError> errors) = upsert({
+        'listId': _tasks.id,
+        'items': [
+          for (final String value in [
+            '2026-11-13T15:00',
+            '2026-11-13T15:00:00Z',
+            '2026-11-13',
+          ])
+            {
+              'values': [
+                {'field': 'title', 'value': 'Call'},
+                {'field': 'reminderAt', 'value': value},
+              ],
+            },
+        ],
+      });
+      expect(errors, isEmpty);
+      expect(changes.saved.map((item) => item['reminderAt']), [
+        // No zone: this phone's wall clock.
+        DateTime(2026, 11, 13, 15).toUtc().toIso8601String(),
+        '2026-11-13T15:00:00.000Z',
+        '2026-11-13',
+      ]);
+    });
+
     test('checklist sub-items get ids and dates', () {
       final (ListChanges changes, List<ListError> errors) = upsert({
         'listId': _tasks.id,
