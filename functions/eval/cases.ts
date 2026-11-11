@@ -9,7 +9,7 @@ import type { ToolCall } from '../src/output';
 
 interface ExampleList {
   name: string;
-  fields: { key: string; type: string; label?: string; role?: string; options?: { value: string; label?: string }[] }[];
+  fields: { key: string; type: string; label?: string; role?: string; required?: boolean; options?: { value: string; label?: string }[] }[];
   [key: string]: unknown;
 }
 
@@ -33,6 +33,12 @@ const LISTS: Record<string, ExampleList> = {
   runs: design('runLog'),
   reading: { ...design('readingList'), name: 'Reading list' },
   watch: { ...design('watchRead'), name: 'Watch & read' },
+  // Tasks with its reminder field required (T-13 unit 10, F12).
+  appointments: {
+    ...design('tasks'),
+    name: 'Appointments',
+    fields: design('tasks').fields.map((f) => (f.role === 'reminder' ? { ...f, required: true } : f)),
+  },
 };
 
 const at = '2026-11-01T10:00:00.000Z';
@@ -49,6 +55,7 @@ const ITEMS: Record<string, ReturnType<typeof item>[]> = {
     item('t1', { title: 'Book dentist appointment', done: false, category: 'Health', reminderAt: '2026-11-05T10:00' }),
     item('t2', { title: 'Pay rent', done: false, category: 'Home' }),
   ],
+  appointments: [item('a1', { title: 'Dentist', done: false, reminderAt: '2026-11-05T10:00' })],
   runs: [item('r1', { title: 'River loop', day: '2026-10-30', km: 6.1, minutes: 33, effort: 3 })],
   reading: [item('b1', { title: 'Piranesi', author: 'Susanna Clarke', status: 'toRead' })],
 };
@@ -214,6 +221,18 @@ export const CASES: EvalCase[] = [
       if (items.length !== 1 || items[0].id !== 't1') return 'expected one change of t1';
       return JSON.stringify(valuesOf(calls, 'reminderAt')) === '[null]' ? null : 'expected reminderAt null';
     },
+  },
+  {
+    id: 'remind-clear-required',
+    category: 'items',
+    data: request("don't remind me about the dentist", 'appointments'),
+    rubric: 'The reminder field of Appointments is required: no null for reminderAt; a short reply that every entry needs a date (moving it is fine).',
+    check: (calls, d) =>
+      valuesOf(calls, 'reminderAt').includes(null)
+        ? 'cleared a required reminder field'
+        : only('reply')(calls, d) === null
+          ? null
+          : 'expected a reply',
   },
   {
     id: 'remind-not-supported-lead',

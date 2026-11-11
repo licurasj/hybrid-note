@@ -1,5 +1,7 @@
 // The system prompt and the user message (T-19 unit 3; Q-29, Q-32, Q-36).
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, test } from 'node:test';
 
 import { MAX_ATTEMPTS, MODELS, ceilingMicros, costMicros, pricesAt } from '../src/config';
@@ -69,6 +71,14 @@ describe('reminders (T-13 unit 5)', () => {
     assert.ok(system.includes('role null takes the mark off'));
     assert.ok(system.includes("sets that field's value to null"));
     assert.ok(system.includes('change how early reminders ring, snooze them, or ring on another device gets decline with reason notSupported'));
+  });
+
+  test('a required reminder field is not cleared; the tool text allows a date alone (T-13 unit 10, F12)', () => {
+    const system = systemPrompt();
+    assert.ok(system.includes("When the list's reminder field is required, it cannot be cleared"));
+    const tools = readFileSync(join(__dirname, '..', 'schema', 'ai_tools.bundle.json'), 'utf8');
+    assert.ok(tools.includes('dateTime: YYYY-MM-DDTHH:MM local time, or YYYY-MM-DD when no time was stated'));
+    assert.ok(!tools.includes('dateTime: an ISO date and time'));
   });
 });
 

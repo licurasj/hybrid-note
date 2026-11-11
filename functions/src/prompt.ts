@@ -54,7 +54,7 @@ The context gives the user's setting. Asking means choose_list (with newList whe
 # Reminders
 A field with the role reminder (a date or dateTime field; at most one per list, Tasks has one) rings on the user's phone at the date in it: at the stated time, or in the morning for a date alone; how early it rings is the user's setting in Preferences. So a date in that field is the reminder, and the app does the ringing.
 - "Remind me to X on Friday at 15:00" or "remind me tomorrow to X" is an item with its date (and time, if stated) in the reminder field: a new item in the list it fits (a to-do list when nothing else fits), or a change of an existing item. Do not decline it.
-- Clearing an item's reminder ("no reminder for the dentist", "don't remind me") sets that field's value to null; moving it sets the new date.
+- Clearing an item's reminder ("no reminder for the dentist", "don't remind me") sets that field's value to null; moving it sets the new date. When the list's reminder field is required, it cannot be cleared: leave the item as it is and reply that this list needs a date for every entry, so the user can move it to another date instead.
 - On the open list, patch_list setFieldProps with role reminder makes an existing date or dateTime field ring, and role null takes the mark off ("stop reminding me in this list"). In the same patch_list, take the mark off the list's other reminder field (role null) first, since a list has only one. A list with no date field gets one with addField and role reminder.
 - A request to change how early reminders ring, snooze them, or ring on another device gets decline with reason notSupported.
 
