@@ -19,6 +19,7 @@ void main() {
     itemDate: '2026-11-11T15:50:00',
     title: 'Call mum',
     listName: 'Tasks',
+    listColor: '#00A63E',
   );
 
   test(
@@ -34,7 +35,8 @@ void main() {
           format: TimeFormat.followLanguage,
         );
         expect(text.title, 'Call mum');
-        expect(text.body, contains('Tasks'));
+        expect(text.body, isNotEmpty);
+        expect(text.subText, 'Tasks');
       }
     },
   );

@@ -73,6 +73,7 @@ void main() {
     expect(rings.single.title, 'Task a');
     expect(rings.single.hasTime, isTrue);
     expect(rings.single.itemDate, _at(DateTime(2026, 3, 10, 15)));
+    expect(rings.single.listColor, _tasks.color);
   });
 
   test('each picked lead is its own ring; none picked rings nothing', () {

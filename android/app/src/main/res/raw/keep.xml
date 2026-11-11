@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Kept from resource shrinking: the reminder icon is named only at run
-     time (T-13). -->
+<!-- Kept from resource shrinking: the reminder icon and chime are named
+     only at run time (T-13). -->
 <resources xmlns:tools="http://schemas.android.com/tools"
-    tools:keep="@drawable/ic_stat_reminder" />
+    tools:keep="@drawable/ic_stat_reminder,@raw/reminder_chime" />

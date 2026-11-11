@@ -12,6 +12,8 @@ import 'package:hybrid_note/reminders/ring_booker.dart';
 // T-13 unit 3: the booker books only the difference from what is booked.
 class FakeRingPlatform implements RingPlatform {
   final Map<int, RingRequest> rings = {};
+  @override
+  String look = 'look-1';
   final List<String> calls = [];
   RingPermissions granted = const RingPermissions(
     notifications: true,
@@ -91,10 +93,16 @@ PlannedRing ring(
   itemDate: date,
   title: title,
   listName: 'Tasks',
+  listColor: '#00A63E',
 );
 
-RingText text(PlannedRing ring) =>
-    (title: ring.title, body: ring.listName, done: 'Done');
+RingText text(PlannedRing ring) => (
+  title: ring.title,
+  body: '10:00',
+  subText: ring.listName,
+  color: 0xFF00A63E,
+  done: 'Done',
+);
 
 void main() {
   final DateTime soon = DateTime.now().toUtc().add(const Duration(hours: 2));
@@ -140,6 +148,33 @@ void main() {
     platform.granted = const RingPermissions(notifications: true, exact: false);
     await booker.sync([ring('a', at: soon, date: '2030-01-02')], text);
     expect(platform.rings.values.single.exact, isFalse);
+  });
+
+  test('a changed list colour or platform look books every ring again '
+      '(T-13 unit 9: the new chime channel)', () async {
+    final FakeRingPlatform platform = FakeRingPlatform();
+    final RingBooker booker = RingBooker(platform);
+    final List<PlannedRing> plan = [ring('a', at: soon), ring('b', at: later)];
+    await booker.sync(plan, text);
+    platform.calls.clear();
+
+    platform.look = 'look-2';
+    await booker.sync(plan, text);
+    expect(platform.calls.where((call) => call.startsWith('book')), hasLength(2));
+
+    platform.calls.clear();
+    await booker.sync(
+      plan,
+      (planned) => (
+        title: planned.title,
+        body: '10:00',
+        subText: planned.listName,
+        color: 0xFFE5007E,
+        done: 'Done',
+      ),
+    );
+    expect(platform.calls.where((call) => call.startsWith('book')), hasLength(2));
+    expect(platform.rings.values.first.text.color, 0xFFE5007E);
   });
 
   test('a time already passed is not booked', () async {
@@ -196,16 +231,21 @@ void main() {
       itemDate: 'd',
       title: '',
       listName: 'Tasks',
+      listColor: '#F5B800',
     );
     RingText of(PlannedRing ring) =>
         reminderText(ring, loc: loc, locale: 'en', format: TimeFormat.h24);
 
-    expect(of(at(due)).body, 'Tasks · 15:30');
+    expect(of(at(due)).body, '15:30');
     expect(of(at(due)).title, 'Tasks');
     expect(
       of(at(due.subtract(const Duration(days: 1)))).body,
-      'Tasks · Tue, Mar 5 15:30',
+      'Tue, Mar 5 15:30',
     );
-    expect(of(at(due, hasTime: false)).body, 'Tasks · Tue, Mar 5');
+    expect(of(at(due, hasTime: false)).body, 'Tue, Mar 5');
+    // T-13 unit 9: the list's name beside the app's name, the list's
+    // stored colour as the tint.
+    expect(of(at(due)).subText, 'Tasks');
+    expect(of(at(due)).color, 0xFFF5B800);
   });
 }

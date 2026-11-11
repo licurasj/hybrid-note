@@ -9,6 +9,10 @@ import 'reminder_planner.dart';
 // On Android it is flutter_local_notifications (LocalRingPlatform); tests use
 // a fake. Off Android there is none and nothing is booked (Q-95).
 abstract class RingPlatform {
+  // How booked rings sound and look beyond their text, such as the channel
+  // they ring on (T-13 unit 9). When it changes, every ring is booked again.
+  String get look;
+
   // The rings booked now, with the payload each was booked with.
   Future<List<BookedRing>> booked();
 
@@ -148,9 +152,16 @@ class RingPayload {
   }
 }
 
-// What a ring shows: the item's title, then the list's name and the time.
-// [done] is the Done button's label (T-13 unit 4).
-typedef RingText = ({String title, String body, String done});
+// What a ring shows (T-13 unit 9): the item's title, the time under it and
+// the list's name in the header beside the app's name ([subText]), all tinted
+// in the list's [color] (ARGB). [done] is the Done button's label (T-13 unit 4).
+typedef RingText = ({
+  String title,
+  String body,
+  String subText,
+  int color,
+  String done,
+});
 
 // One ring to book.
 @immutable
@@ -231,9 +242,12 @@ class RingBooker {
         ring.at.millisecondsSinceEpoch,
         text.title,
         text.body,
+        text.subText,
+        text.color,
         text.done,
         ring.itemDate,
         permissions.exact,
+        platform.look,
       ].join('\u0000');
       wanted[id] = RingRequest(
         id: id,

@@ -23,6 +23,7 @@ class PlannedRing {
     required this.itemDate,
     required this.title,
     required this.listName,
+    required this.listColor,
   });
 
   final String key;
@@ -39,6 +40,9 @@ class PlannedRing {
   final String itemDate;
   final String title;
   final String listName;
+  // The list's stored colour, #RRGGBB (the light value): the ring's tint
+  // (T-13 unit 9).
+  final String listColor;
 
   @override
   bool operator ==(Object other) =>
@@ -51,7 +55,8 @@ class PlannedRing {
       other.hasTime == hasTime &&
       other.itemDate == itemDate &&
       other.title == title &&
-      other.listName == listName;
+      other.listName == listName &&
+      other.listColor == listColor;
 
   @override
   int get hashCode => Object.hash(
@@ -64,6 +69,7 @@ class PlannedRing {
     itemDate,
     title,
     listName,
+    listColor,
   );
 
   @override
@@ -183,6 +189,7 @@ class ReminderPlanner {
                 itemDate: raw,
                 title: title,
                 listName: name,
+                listColor: list.color,
               ),
             );
           }
