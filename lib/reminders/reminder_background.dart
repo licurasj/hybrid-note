@@ -112,8 +112,16 @@ Future<void> onRingActionInBackground(NotificationResponse response) async {
   if (user == null || payload.account != user.uid) {
     return;
   }
-  await doneFromRing(FirebaseFirestore.instance, user.uid, payload);
-  // Other rings of the same occurrence (another lead time) go too.
+  final bool? written = await doneFromRing(
+    FirebaseFirestore.instance,
+    user.uid,
+    payload,
+  );
+  // Other rings of the same occurrence (another lead time) go too, once the
+  // tick was written or queued (F9); otherwise they still ring.
+  if (written == false) {
+    return;
+  }
   final LocalRingPlatform platform = LocalRingPlatform(
     channelName: reminderLocalizations(preferences).preferencesReminders,
   );

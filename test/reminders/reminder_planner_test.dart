@@ -158,6 +158,22 @@ void main() {
     }
   });
 
+  test('a ring offers Done only on a list with a tick (F9)', () {
+    expect(_plan([_task('a', _at(DateTime(2026, 3, 10, 15)))]).single.canDone, isTrue);
+    final Map<String, dynamic> json = _tasks.toJson();
+    (json['fields'] as List).removeWhere((field) => (field as Map)['key'] == 'done');
+    (json['behaviors'] as List).clear();
+    final ListDefinition untickable = ListDefinition.fromJson(json);
+    final ListItem item = ListItem(
+      id: 'b',
+      listId: untickable.id,
+      values: {'title': 'Read', 'reminderAt': _at(DateTime(2026, 3, 10, 15))},
+      createdAt: _now.toUtc(),
+      updatedAt: _now.toUtc(),
+    );
+    expect(_plan([item], lists: [untickable]).single.canDone, isFalse);
+  });
+
   test('lists without a marked date ring nothing', () {
     final ListDefinition grocery = BuiltinTemplates.grocery();
     final ListDefinition unmarked = ListPatch.apply(_tasks, const [], [

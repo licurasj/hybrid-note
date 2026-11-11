@@ -7,6 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hybrid_note/reminders/local_ring_platform.dart';
 import 'package:hybrid_note/reminders/reminder_background.dart'
     show reminderDoneAction;
+import 'package:hybrid_note/reminders/reminder_planner.dart';
+import 'package:hybrid_note/reminders/reminder_settings.dart';
 import 'package:hybrid_note/reminders/ring_booker.dart';
 import 'package:hybrid_note/reminders/ring_logo.dart';
 
@@ -49,6 +51,45 @@ void main() {
     expect(
       LocalRingPlatform.details(text, channelName: 'Reminders').largeIcon,
       isNull,
+    );
+  });
+
+  test('a list with nothing to tick gets no Done (F9)', () {
+    final AndroidNotificationDetails details = LocalRingPlatform.details((
+      title: 'Read',
+      body: '15:30',
+      subText: 'Journal',
+      color: 0xFF00A63E,
+      done: null,
+    ), channelName: 'Reminders');
+    expect(details.actions, isEmpty);
+  });
+
+  test('Done cancels every lead of the occurrence by its id (F10)', () {
+    const RingPayload payload = RingPayload(
+      key: 'k',
+      listId: 'tasks',
+      itemId: 'a',
+      itemDate: 'd',
+      dueMs: 1000,
+      fingerprint: 'f',
+    );
+    final List<int> ids = LocalRingPlatform.occurrenceIds(payload);
+    for (final ReminderLead lead in ReminderLead.values) {
+      expect(
+        ids,
+        contains(RingBooker.idOf(PlannedRing.keyOf('tasks', 'a', 1000, lead))),
+      );
+    }
+    expect(
+      ids,
+      isNot(
+        contains(
+          RingBooker.idOf(
+            PlannedRing.keyOf('tasks', 'a', 2000, ReminderLead.atTime),
+          ),
+        ),
+      ),
     );
   });
 

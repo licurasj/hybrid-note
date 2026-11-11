@@ -24,7 +24,17 @@ class PlannedRing {
     required this.title,
     required this.listName,
     required this.listColor,
+    this.canDone = true,
   });
+
+  // A ring's key: its list, item, occurrence and lead. Done cancels the
+  // other leads of an occurrence by the ids of these keys (F10).
+  static String keyOf(
+    String listId,
+    String itemId,
+    int dueMs,
+    ReminderLead lead,
+  ) => '$listId|$itemId|$dueMs|${lead.wire}';
 
   final String key;
   final String listId;
@@ -43,6 +53,8 @@ class PlannedRing {
   // The list's stored colour, #RRGGBB (the light value): the ring's tint
   // (T-13 unit 9).
   final String listColor;
+  // The list has a tick to set, so the ring offers Done (F9).
+  final bool canDone;
 
   @override
   bool operator ==(Object other) =>
@@ -56,7 +68,8 @@ class PlannedRing {
       other.itemDate == itemDate &&
       other.title == title &&
       other.listName == listName &&
-      other.listColor == listColor;
+      other.listColor == listColor &&
+      other.canDone == canDone;
 
   @override
   int get hashCode => Object.hash(
@@ -70,6 +83,7 @@ class PlannedRing {
     title,
     listName,
     listColor,
+    canDone,
   );
 
   @override
@@ -130,6 +144,7 @@ class ReminderPlanner {
           )
           .firstOrNull;
       final String name = listName(list);
+      final bool canDone = list.fieldWithRole(FieldRole.completion) != null;
 
       for (final ListItem item in catalog.itemsOf(list.id)) {
         final Object? raw = item[field.key];
@@ -186,8 +201,12 @@ class ReminderPlanner {
             final DateTime due = occurrence.toUtc();
             rings.add(
               PlannedRing(
-                key:
-                    '${list.id}|${item.id}|${due.millisecondsSinceEpoch}|${lead.wire}',
+                key: PlannedRing.keyOf(
+                  list.id,
+                  item.id,
+                  due.millisecondsSinceEpoch,
+                  lead,
+                ),
                 listId: list.id,
                 itemId: item.id,
                 at: atUtc,
@@ -197,6 +216,7 @@ class ReminderPlanner {
                 title: title,
                 listName: name,
                 listColor: list.color,
+                canDone: canDone,
               ),
             );
           }

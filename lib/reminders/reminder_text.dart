@@ -36,7 +36,7 @@ RingText reminderText(
     // The stored (light) value: notifications have one colour for both
     // shades, and Android darkens or lightens a tint that would not read.
     color: listColor(ring.listColor).toARGB32(),
-    done: loc.reminderDone,
+    done: ring.canDone ? loc.reminderDone : null,
   );
 }
 

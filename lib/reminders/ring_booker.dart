@@ -173,13 +173,14 @@ class RingPayload {
 
 // What a ring shows (T-13 unit 9): the item's title, the time under it and
 // the list's name in the header beside the app's name ([subText]), all tinted
-// in the list's [color] (ARGB). [done] is the Done button's label (T-13 unit 4).
+// in the list's [color] (ARGB). [done] is the Done button's label (T-13 unit 4),
+// null for no Done: a list with nothing to tick (F9).
 typedef RingText = ({
   String title,
   String body,
   String subText,
   int color,
-  String done,
+  String? done,
 });
 
 // One ring to book.

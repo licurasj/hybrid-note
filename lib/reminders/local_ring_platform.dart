@@ -7,6 +7,8 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:workmanager/workmanager.dart';
 
 import 'reminder_background.dart';
+import 'reminder_planner.dart';
+import 'reminder_settings.dart';
 import 'ring_booker.dart';
 import 'ring_logo.dart';
 
@@ -104,31 +106,23 @@ class LocalRingPlatform implements RingPlatform {
   }
 
   // Cancels the rings, booked or showing, of [payload]'s occurrence: the
-  // same item and due time, any lead (Rules: Done details).
+  // same item and due time, any lead (Rules: Done details). By the ids of
+  // its leads' keys (F10): a showing ring's payload is not readable back.
   Future<void> cancelOccurrence(RingPayload payload) async {
     await _init();
-    bool same(String? raw) {
-      final RingPayload? other = RingPayload.decode(raw);
-      return other != null &&
-          other.listId == payload.listId &&
-          other.itemId == payload.itemId &&
-          other.dueMs == payload.dueMs;
-    }
-
-    for (final PendingNotificationRequest request
-        in await _plugin.pendingNotificationRequests()) {
-      if (same(request.payload)) {
-        await _plugin.cancel(id: request.id);
-      }
-    }
-    for (final ActiveNotification active
-        in await _android?.getActiveNotifications() ?? const []) {
-      final int? id = active.id;
-      if (id != null && same(active.payload)) {
-        await _plugin.cancel(id: id);
-      }
+    for (final int id in occurrenceIds(payload)) {
+      await _plugin.cancel(id: id);
     }
   }
+
+  // The notification ids every lead of [payload]'s occurrence would have.
+  @visibleForTesting
+  static List<int> occurrenceIds(RingPayload payload) => [
+    for (final ReminderLead lead in ReminderLead.values)
+      RingBooker.idOf(
+        PlannedRing.keyOf(payload.listId, payload.itemId, payload.dueMs, lead),
+      ),
+  ];
 
   // The background check about every 15 minutes (Q-93), while online;
   // Android may stretch it. Started again on each open, kept if running.
@@ -213,7 +207,10 @@ class LocalRingPlatform implements RingPlatform {
     sound: const RawResourceAndroidNotificationSound(sound),
     // The body says the time; a day with no time has none to show.
     showWhen: false,
-    actions: [AndroidNotificationAction(reminderDoneAction, text.done)],
+    actions: [
+      if (text.done case final String done)
+        AndroidNotificationAction(reminderDoneAction, done),
+    ],
   );
 
   @override
