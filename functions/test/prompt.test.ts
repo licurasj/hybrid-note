@@ -45,6 +45,33 @@ describe('the open list first (Q-45)', () => {
   });
 });
 
+describe('reminders (T-13 unit 5)', () => {
+  test('a date in the reminder field rings; the prompt no longer says reminders cannot be set', () => {
+    const system = systemPrompt();
+    assert.ok(system.includes('# Reminders'));
+    assert.ok(!system.includes('or set reminders and notifications'));
+    assert.ok(!/notSupported[^.]*\(deleting a list, reminders,/.test(system));
+    assert.ok(system.includes('A field with the role reminder (a date or dateTime field'));
+    assert.ok(system.includes('or in the morning for a date alone'));
+    assert.ok(system.includes('Do not decline it.'));
+  });
+
+  test('a stated time is saved in local clock time, a date alone stays a date', () => {
+    const system = systemPrompt();
+    assert.ok(system.includes("YYYY-MM-DDTHH:MM, in the user's own clock time with no time zone"));
+    assert.ok(system.includes('write the date alone (YYYY-MM-DD), also into a dateTime field; never make up a time'));
+    assert.ok(system.includes('"in 2 hours"'));
+  });
+
+  test('the mark is set and cleared with setFieldProps; clearing a reminder sets null; timing is not supported', () => {
+    const system = systemPrompt();
+    assert.ok(system.includes('patch_list setFieldProps with role reminder'));
+    assert.ok(system.includes('role null takes the mark off'));
+    assert.ok(system.includes("sets that field's value to null"));
+    assert.ok(system.includes('change how early reminders ring, snooze them, or ring on another device gets decline with reason notSupported'));
+  });
+});
+
 describe('user message', () => {
   test('a picked list is said to be final (Q-45 loop)', () => {
     const open = { definition: { id: 'grocery' }, items: [] };

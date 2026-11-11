@@ -60,6 +60,17 @@ void main() {
     openListId: openListId,
   );
 
+  test('a summary names field roles, so the AI knows which field rings (T-13 unit 5)', () {
+    final Map<Object?, Object?> tasks =
+        (of([BuiltinTemplates.tasks()]).toJson()['lists'] as List).single as Map;
+    final List<Object?> fields = tasks['fields'] as List<Object?>;
+    final Map<Object?, Object?> reminder =
+        fields.cast<Map<Object?, Object?>>().singleWhere((field) => field['key'] == 'reminderAt');
+
+    expect(reminder['role'], 'reminder');
+    expect(fields.cast<Map<Object?, Object?>>().singleWhere((field) => field['key'] == 'title').containsKey('role'), isFalse);
+  });
+
   test("an AI-off list's description is never sent (review M2)", () {
     final AiRequest request = of([
       _list('grocery', 'Grocery'),
