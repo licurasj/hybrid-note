@@ -7,6 +7,7 @@ import 'app/app_theme.dart';
 import 'app/home_cards.dart' show homePromptGap;
 import 'app_colors.dart';
 import 'l10n/generated/app_localizations.dart';
+import 'lists/item_dates.dart';
 import 'lists/list_definition.dart';
 import 'lists/list_icons.dart';
 import 'lists/list_item.dart';
@@ -60,7 +61,7 @@ class HomeListCard extends StatelessWidget {
         )
         .firstOrNull;
     final Object? raw = field == null ? null : item[field.key];
-    return raw is String ? DateTime.tryParse(raw)?.toLocal() : null;
+    return ItemDates.local(raw, field?.type);
   }
 
   static String _titleOf(ListDefinition definition, ListItem item) {

@@ -133,7 +133,7 @@ class ReminderPlanner {
 
       for (final ListItem item in catalog.itemsOf(list.id)) {
         final Object? raw = item[field.key];
-        final DateTime? local = ItemDates.local(raw);
+        final DateTime? local = ItemDates.local(raw, field.type);
         if (raw is! String || local == null) {
           continue;
         }

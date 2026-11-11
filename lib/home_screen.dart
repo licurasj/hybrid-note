@@ -91,9 +91,7 @@ List<HomeDueItem> homeDueItems(ListCatalog catalog, DateTime now) {
         continue;
       }
       final Object? raw = item[field.key];
-      final DateTime? date = raw is String
-          ? DateTime.tryParse(raw)?.toLocal()
-          : null;
+      final DateTime? date = ItemDates.local(raw, field.type);
       if (date == null || !date.isBefore(tomorrow)) {
         continue;
       }

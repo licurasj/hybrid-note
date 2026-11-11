@@ -390,9 +390,7 @@ class _GenericItemDialogState extends State<GenericItemDialog>
 
   Future<void> _pickDate(FieldDefinition field) async {
     final Object? raw = _values[field.key];
-    final DateTime current =
-        (raw is String ? DateTime.tryParse(raw) : null)?.toLocal() ??
-        DateTime.now();
+    final DateTime current = ItemDates.local(raw, field.type) ?? DateTime.now();
 
     final AccountPreferences preferences = context.accountPreferences;
     final DateTime? day = await showDatePicker(
@@ -446,11 +444,9 @@ class _GenericItemDialogState extends State<GenericItemDialog>
       value = DateTime(day.year, day.month, day.day, time.hour, time.minute)
           .toUtc()
           .toIso8601String();
-    } else if (field.type == FieldType.dateTime) {
-      value = ItemDates.dayValue(day);
     } else {
-      // A date field keeps the form it has always stored.
-      value = DateTime(day.year, day.month, day.day).toUtc().toIso8601String();
+      // No time, or a date field: the calendar day (F7).
+      value = ItemDates.dayValue(day);
     }
 
     setState(() {
@@ -881,9 +877,7 @@ class _GenericItemDialogState extends State<GenericItemDialog>
       case FieldType.date:
       case FieldType.dateTime:
         final Object? raw = _values[field.key];
-        final DateTime? date = raw is String
-            ? DateTime.tryParse(raw)?.toLocal()
-            : null;
+        final DateTime? date = ItemDates.local(raw, field.type);
         final String locale = Localizations.localeOf(context).toLanguageTag();
         final DateFormat format = ItemDates.hasTime(field.type, raw)
             ? dateTimeFormat(locale, context.watchAccountPreferences.timeFormat)

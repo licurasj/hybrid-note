@@ -460,7 +460,7 @@ class _GenericListScreenState extends State<GenericListScreen>
           }
         case FieldType.date:
         case FieldType.dateTime:
-          final DateTime? date = value is String ? DateTime.tryParse(value) : null;
+          final DateTime? date = ItemDates.local(value, field.type);
           if (date == null) {
             break;
           }
@@ -506,7 +506,10 @@ class _GenericListScreenState extends State<GenericListScreen>
       return item.updatedAt;
     }
     final Object? value = key == null ? null : item[key];
-    return value is String ? DateTime.tryParse(value) : null;
+    return ItemDates.local(
+      value,
+      key == null ? null : _definition.field(key)?.type,
+    );
   }
 
   // Collapsible parts (years, months, items with sub-items) whose state the
@@ -1199,7 +1202,7 @@ class _GenericListScreenState extends State<GenericListScreen>
         a.year == b.year && a.month == b.month && a.day == b.day;
     int bucket(ListItem item) {
       final Object? raw = item[bucketField.key];
-      final DateTime? date = raw is String ? DateTime.tryParse(raw)?.toLocal() : null;
+      final DateTime? date = ItemDates.local(raw, bucketField.type);
       if (date == null || sameDay(date, now)) {
         return 0;
       }
@@ -1253,7 +1256,10 @@ class _GenericListScreenState extends State<GenericListScreen>
     final String? dateKey = _definition.view.bucketBy;
     DateTime? dateOf(ListItem item) {
       final Object? raw = dateKey == null ? null : item[dateKey];
-      return raw is String ? DateTime.tryParse(raw) : null;
+      return ItemDates.local(
+        raw,
+        dateKey == null ? null : _definition.field(dateKey)?.type,
+      );
     }
 
     sorted.sort((a, b) {

@@ -135,11 +135,27 @@ void main() {
     final ListItem item = ListItem(
       id: 'a',
       listId: list.id,
-      values: {'title': 'Pay rent', 'day': _at(DateTime(2026, 3, 11))},
+      values: {'title': 'Pay rent', 'day': '2026-03-11'},
       createdAt: _now.toUtc(),
       updatedAt: _now.toUtc(),
     );
     expect(_times(_plan([item], lists: [list])), [DateTime(2026, 3, 11, 9)]);
+
+    // F7: a value saved before T-13 unit 10 (the picked day's midnight as a
+    // UTC moment) rings on its UTC date, in any zone.
+    for (final String legacy in [
+      '2026-03-11T08:00:00.000Z',
+      '2026-03-11T00:00:00.000Z',
+    ]) {
+      final ListItem old = ListItem(
+        id: 'b',
+        listId: list.id,
+        values: {'title': 'Pay rent', 'day': legacy},
+        createdAt: _now.toUtc(),
+        updatedAt: _now.toUtc(),
+      );
+      expect(_times(_plan([old], lists: [list])), [DateTime(2026, 3, 11, 9)]);
+    }
   });
 
   test('lists without a marked date ring nothing', () {

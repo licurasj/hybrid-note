@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' show Offset, Rect, Size;
 
+import '../lists/item_dates.dart';
 import '../lists/list_catalog.dart';
 import '../lists/list_definition.dart';
 import '../lists/list_item.dart';
@@ -60,7 +61,7 @@ List<ListItem> homeTopItems(ListDefinition definition, List<ListItem> items) {
   final FieldDefinition? field = definition.fieldWithRole(FieldRole.reminder);
   DateTime? dueOf(ListItem item) {
     final Object? raw = field == null ? null : item[field.key];
-    return raw is String ? DateTime.tryParse(raw) : null;
+    return ItemDates.local(raw, field?.type);
   }
 
   final List<ListItem> open = items
@@ -353,7 +354,7 @@ DateTime? _soonestDue(
   DateTime? soonest;
   for (final ListItem item in open) {
     final Object? raw = item[field.key];
-    final DateTime? date = raw is String ? DateTime.tryParse(raw) : null;
+    final DateTime? date = ItemDates.local(raw, field.type);
     if (date != null &&
         date.isBefore(horizon) &&
         (soonest == null || date.isBefore(soonest))) {

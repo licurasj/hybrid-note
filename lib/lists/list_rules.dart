@@ -282,7 +282,8 @@ class ListRules {
       return null;
     }
 
-    final DateTime? date = DateTime.tryParse(rawDate);
+    final FieldType? dateType = definition.field(dateField)?.type;
+    final DateTime? date = ItemDates.local(rawDate, dateType);
     final RecurrenceFrequency? frequency = enumFromWire(
       RecurrenceFrequency.values,
       recurrence['frequency'],
@@ -292,8 +293,8 @@ class ListRules {
     }
 
     // A day with no time stays one (Q-91); a date field's day too.
-    final bool dayOnly = ItemDates.isDayOnly(rawDate) ||
-        definition.field(dateField)?.type == FieldType.date;
+    final bool dayOnly =
+        ItemDates.isDayOnly(rawDate) || dateType == FieldType.date;
     final DateTime? next = nextOccurrence(
       date,
       frequency,
@@ -312,7 +313,7 @@ class ListRules {
     // The next one shows on home even if this one was hidden there.
     final Map<String, dynamic> values = {
       ...item.values,
-      dateField: ItemDates.isDayOnly(rawDate)
+      dateField: dayOnly
           ? ItemDates.dayValue(next.toLocal())
           : next.toIso8601String(),
       if (completion != null) completion.key: false,
