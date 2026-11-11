@@ -329,4 +329,32 @@ void main() {
       );
     });
   });
+
+  group('one booking owner (T-13 unit 10, F4)', () {
+    test('a pass planned from an older read changes nothing', () async {
+      final FakeRingPlatform platform = FakeRingPlatform();
+      final MemoryRingFence fence = MemoryRingFence();
+      final RingBooker worker = RingBooker(platform, fence: fence);
+      final RingBooker app = RingBooker(platform, fence: fence);
+      // The background check begins and reads the old date...
+      final RingTicket old = await fence.begin();
+      // ...while the open app books the new one.
+      await app.sync([ring('a', at: later, date: 'new')], text);
+      await worker.sync([ring('a', at: soon, date: 'old')], text, ticket: old);
+      expect(platform.rings.values.single.payload.itemDate, 'new');
+    });
+
+    test('a newer pass stops an older one between changes', () async {
+      final FakeRingPlatform platform = FakeRingPlatform();
+      final MemoryRingFence fence = MemoryRingFence();
+      final RingBooker worker = RingBooker(platform, fence: fence);
+      platform.onBook = (_) async {
+        platform.onBook = null;
+        await fence.begin();
+      };
+      await worker.sync([ring('a', at: soon), ring('b', at: later)], text);
+      // It stopped after its first booking and kept it (no sign-out).
+      expect(platform.rings, hasLength(1));
+    });
+  });
 }

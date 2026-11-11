@@ -203,10 +203,16 @@ class RingRequest {
 // at a time; a sync asked for meanwhile runs once after it, with the latest
 // plan.
 //
-// Each sync is a pass under [fence] (F2): a sign-out since the pass began
-// stops it before its next change, and it takes back what it booked, so a
-// pass in another isolate (the background check) cannot leave a signed-out
-// phone ringing.
+// Each sync is a pass under [fence] (F2, F4): a sign-out since the pass
+// began stops it before its next change, and it takes back what it booked,
+// so a pass in another isolate (the background check) cannot leave a
+// signed-out phone ringing. A pass begun later, here or in another isolate,
+// planned from a newer read, so it stops the older one, which leaves the
+// rest to it.
+//
+// A pass checks between changes, so an older pass may still make one change
+// after a newer one read what is booked; the next pass (a list change, the
+// next open or check) puts that right.
 class RingBooker {
   RingBooker(this.platform, {this.fence = RingFence.none});
 
@@ -238,7 +244,8 @@ class RingBooker {
   }
 
   // Sign-out on this phone: fences every pass, here and in other isolates,
-  // then cancels every ring and the background check.
+  // then cancels every ring and the background check. A pass running here
+  // stops at its next change, so the wait for it is short.
   Future<void> signOut() async {
     _next = null;
     await fence.signOut();
@@ -263,8 +270,12 @@ class RingBooker {
     // False once this pass must stop; after a sign-out it first takes back
     // what it booked.
     Future<bool> mayGoOn() async {
-      if (await fence.check(ticket) != RingCheck.signedOut) {
+      final RingCheck check = await fence.check(ticket);
+      if (check == RingCheck.current) {
         return true;
+      }
+      if (check == RingCheck.superseded) {
+        return false;
       }
       for (final int id in bookedHere) {
         try {
