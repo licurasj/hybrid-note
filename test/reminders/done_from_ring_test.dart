@@ -1,6 +1,8 @@
 // T-13 unit 10, F1: Done on a ring writes through a server-checked
 // transaction, and offline only queues the fields it changed, so it never
 // brings back an item another phone deleted or puts back a date it moved.
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,6 +26,8 @@ final DateTime _t0 = DateTime.utc(2026, 3, 1);
 // first) before it commits. The ops each batch queued are recorded.
 class _OfflineFirestore extends FakeFirebaseFirestore {
   bool offline = true;
+  // A transaction that never answers (its outcome unknown, X5).
+  bool stalls = false;
   Future<void> Function()? beforeCommit;
   final List<String> ops = [];
   Future<void>? commit;
@@ -34,6 +38,9 @@ class _OfflineFirestore extends FakeFirebaseFirestore {
     Duration timeout = const Duration(seconds: 30),
     int maxAttempts = 5,
   }) {
+    if (stalls) {
+      return Completer<T>().future;
+    }
     if (offline) {
       throw FirebaseException(plugin: 'test', code: 'unavailable');
     }
@@ -163,6 +170,35 @@ void main() {
     expect(values['done'], isTrue);
   });
 
+  // T-13 unit 14, G6 (R4, X5): a transaction that times out goes on as
+  // offline. A move on another phone that the cache has not seen keeps its
+  // date and title, but the item is ticked too: last writer wins, accepted
+  // until occurrence-specific Done (T-28 Sync safety).
+  test('a timed-out Done with a remote move: the move stays, the tick '
+      'lands too', () async {
+    final _OfflineFirestore firestore = await _seeded()..stalls = true;
+    firestore.beforeCommit = () => _itemRef(firestore).update({
+      'values.reminderAt': '2026-03-12T15:00:00.000Z',
+      'values.title': 'Call Bo',
+    });
+    final bool? written = await FirestoreListStore.applyFresh(
+      firestore,
+      _uid,
+      listId: _tasks.id,
+      itemId: 'a',
+      change: (definition, item) =>
+          ListRules.setCompleted(definition, item, true, _t0),
+      timeout: const Duration(milliseconds: 20),
+    );
+    expect(written, isNull);
+    await firestore.commit;
+    expect(firestore.ops.single, startsWith('update a '));
+    final Map<String, dynamic> values = (await _stored(firestore))!['values'];
+    expect(values['reminderAt'], '2026-03-12T15:00:00.000Z');
+    expect(values['title'], 'Call Bo');
+    expect(values['done'], isTrue);
+  });
+
   test('offline, an item deleted on another phone stays deleted', () async {
     final _OfflineFirestore firestore = await _seeded();
     firestore.beforeCommit = () => _itemRef(firestore).delete();
@@ -238,6 +274,39 @@ void main() {
       expect(fields.keys, isNot(contains('values.reminderAt')));
       expect(fields.keys, isNot(contains('values.title')));
       expect(fields['values.done'], isTrue);
+    });
+
+    // T-13 unit 14, G5 (X4): a cached item not yet fitted to its list (an
+    // old revision, a value still to convert) queues Done's fields only, not
+    // the conversion, `_legacy` or the revision.
+    test('an unfitted cached item queues only Done\'s fields', () {
+      final Map<String, dynamic> old = {
+        ...stored,
+        '_rev': _tasks.schemaRevision - 1,
+        'values': {...stored['values'] as Map, 'title': 42},
+      };
+      final ListItem cached = ListItem(
+        id: 'a',
+        listId: _tasks.id,
+        values: {..._task().values, 'title': 42},
+        createdAt: _t0,
+        updatedAt: _t0,
+      );
+      final Map<String, Object?> fields = FirestoreListStore.offlineFields(
+        _tasks,
+        'a',
+        old,
+        ListRules.setCompleted(
+          _tasks,
+          cached,
+          true,
+          _t0.add(const Duration(hours: 1)),
+        ),
+      )!;
+      expect(fields.keys, contains('values.done'));
+      expect(fields.keys, isNot(contains('values.title')));
+      expect(fields.keys, isNot(contains('values._legacy')));
+      expect(fields.keys, isNot(contains('_rev')));
     });
 
     test('a removed field is deleted', () {

@@ -1341,8 +1341,12 @@ class FirestoreListStore implements ListStore {
   // deleted the item meanwhile, so it never brings it back, and it leaves
   // every field it did not change, such as a date moved on another phone, as
   // that phone wrote it. Changes that create or delete documents (a clear)
-  // are not made offline. A late commit of a timed-out transaction and the
-  // queued update write the same fields, so both landing does no harm.
+  // are not made offline. A transaction that timed out goes on as offline
+  // (T-13 unit 14, G6): it may still land after the queued update, and the
+  // cache may not have a change another phone made meanwhile, so a date
+  // moved there can end up ticked, and a repeat or clear-at-once item can be
+  // ticked or advanced twice. Last writer wins there until Done is tied to
+  // its occurrence (T-28 Sync safety).
   static Future<bool?> applyFresh(
     FirebaseFirestore firestore,
     String uid, {
@@ -1409,8 +1413,8 @@ class FirestoreListStore implements ListStore {
         rethrow;
       }
     } on TimeoutException {
-      // The outcome is unknown: the transaction may still land. The offline
-      // update below changes only the same fields, so both landing is fine.
+      // The outcome is unknown: the transaction may still land, on its own
+      // or after the offline update below (see above: not always harmless).
     }
 
     const GetOptions cache = GetOptions(source: Source.cache);
@@ -1461,9 +1465,11 @@ class FirestoreListStore implements ListStore {
   // for an offline `update` (applyFresh, F1): each changed or new field with
   // its new value, each removed one as a delete; a field's value as a path
   // into `values` ("values.done"), so the item's other values stay as the
-  // server has them. Null when [changes] does anything else (another
-  // document saved, anything deleted) or a key cannot be a plain path; that
-  // is not written offline at all.
+  // server has them. Both sides are fitted to [definition] first (T-13 unit
+  // 14, G5), so a conversion still pending on the cached copy is not written
+  // with Done. Null when [changes] does anything else (another document
+  // saved, anything deleted) or a key cannot be a plain path; that is not
+  // written offline at all.
   @visibleForTesting
   static Map<String, Object?>? offlineFields(
     ListDefinition definition,
@@ -1479,6 +1485,11 @@ class FirestoreListStore implements ListStore {
     final ListItem item = changes.saved.single;
     final Map<String, dynamic> next = itemData(
       _fit(definition, item) ?? item,
+      definition.schemaRevision,
+    );
+    final ListItem cached = _itemFrom(stored);
+    final Map<String, dynamic> before = itemData(
+      _fit(definition, cached) ?? cached,
       definition.schemaRevision,
     );
     final Map<String, Object?> fields = {};
@@ -1500,13 +1511,13 @@ class FirestoreListStore implements ListStore {
       }
     }
 
-    final Object? beforeValues = stored['values'];
+    final Object? beforeValues = before['values'];
     final Object? afterValues = next['values'];
     if (beforeValues is Map && afterValues is Map) {
       diff('values.', beforeValues, afterValues);
-      diff('', {...stored}..remove('values'), {...next}..remove('values'));
+      diff('', {...before}..remove('values'), {...next}..remove('values'));
     } else {
-      diff('', stored, next);
+      diff('', before, next);
     }
     final RegExp plain = RegExp(r'^[A-Za-z_][A-Za-z_0-9]*$');
     if (fields.keys.any(
