@@ -295,10 +295,10 @@ void main() {
       final FakeRingPlatform platform = FakeRingPlatform();
       final MemoryRingFence fence = MemoryRingFence();
       final RingBooker worker = RingBooker(platform, fence: fence);
-      final RingTicket ticket = await fence.begin();
+      final RingTicket entered = await fence.enter();
       // The app signs out while the worker reads the lists.
       await RingBooker(platform, fence: fence).signOut();
-      await worker.sync([ring('a', at: soon)], text, ticket: ticket);
+      await worker.sync([ring('a', at: soon)], text, entered: entered);
       expect(platform.rings, isEmpty);
       expect(platform.calls, ['cancelAll']);
       // A stopped pass leaves the old look alone.
@@ -314,8 +314,52 @@ void main() {
       await booker.signOut();
       expect(platform.rings, isEmpty);
       expect(platform.checking, isFalse);
+      // Until an account starts again, no pass books (T-13 unit 14, G3).
+      await booker.sync([ring('a', at: soon)], text, account: 'u1');
+      expect(platform.rings, isEmpty);
       // Signed in again, passes book as before.
+      await booker.signIn();
       await booker.sync([ring('a', at: soon)], text, account: 'u2');
+      expect(platform.rings.values.single.payload.account, 'u2');
+    });
+
+    test('a sign-out cleanup stuck behind a pass: cancelNow cancels at once, '
+        'and a later end of the cleanup leaves a new account\'s rings '
+        '(T-13 unit 14, G3)', () async {
+      final FakeRingPlatform platform = FakeRingPlatform();
+      final MemoryRingFence fence = MemoryRingFence();
+      final RingBooker booker = RingBooker(platform, fence: fence);
+      platform.checking = true;
+      final Completer<void> stuck = Completer<void>();
+      platform.onBook = (_) async {
+        platform.onBook = null;
+        await stuck.future;
+      };
+      final Future<void> pass = booker.sync(
+        [ring('a', at: soon)],
+        text,
+        account: 'u1',
+      );
+      await pumpEventQueue();
+      final Future<void> cleanup = booker.signOut();
+      await expectLater(
+        cleanup.timeout(const Duration(milliseconds: 10)),
+        throwsA(isA<TimeoutException>()),
+      );
+      await booker.cancelNow();
+      expect(platform.rings, isEmpty);
+      expect(platform.checking, isFalse);
+      // The next account starts and books; then the stuck pass ends.
+      await booker.signIn();
+      final Future<void> next = booker.sync(
+        [ring('b', at: soon)],
+        text,
+        account: 'u2',
+      );
+      stuck.complete();
+      await pass;
+      await next;
+      await cleanup;
       expect(platform.rings.values.single.payload.account, 'u2');
     });
 
@@ -365,11 +409,11 @@ void main() {
       final MemoryRingFence fence = MemoryRingFence();
       final RingBooker worker = RingBooker(platform, fence: fence);
       final RingBooker app = RingBooker(platform, fence: fence);
-      // The background check begins and reads the old date...
-      final RingTicket old = await fence.begin();
+      // The background check enters and reads the old date...
+      final RingTicket old = await fence.enter();
       // ...while the open app books the new one.
       await app.sync([ring('a', at: later, date: 'new')], text);
-      await worker.sync([ring('a', at: soon, date: 'old')], text, ticket: old);
+      await worker.sync([ring('a', at: soon, date: 'old')], text, entered: old);
       expect(platform.rings.values.single.payload.itemDate, 'new');
     });
 

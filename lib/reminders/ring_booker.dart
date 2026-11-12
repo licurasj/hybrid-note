@@ -23,9 +23,9 @@ abstract class RingPlatform {
 
   Future<void> cancelAll();
 
-  // After a pass booked every planned ring with the current [look]: what
-  // older looks left behind may go (F6: the old channel is deleted only
-  // once no booked ring is on it).
+  // After a pass that was not stopped: what older looks left behind may go
+  // (F6: the old channel). Every ring booked on it was cancelled and booked
+  // again in that pass, as its fingerprint holds [look] (T-13 unit 14, G16).
   Future<void> afterSync();
 
   Future<RingPermissions> permissions();
@@ -232,17 +232,21 @@ class RingBooker {
 
   Future<void>? _running;
   _SyncRequest? _next;
+  // Counts [signIn]s; [_signedIn] is the latest, awaited before a pass.
+  int _session = 0;
+  Future<void>? _signedIn;
 
   // Books [rings] for the signed-in [account], each shown as [text] says.
-  // [ticket] is the pass's, when it began before the lists were read (the
-  // background check); else the pass begins now.
+  // [entered] is from [RingFence.enter], when the pass took its marks before
+  // the lists were read (the background check); the pass begins when it
+  // runs, after the read.
   Future<void> sync(
     List<PlannedRing> rings,
     RingText Function(PlannedRing ring) text, {
     String? account,
-    RingTicket? ticket,
+    RingTicket? entered,
   }) {
-    _next = _SyncRequest(rings, text, account, ticket);
+    _next = _SyncRequest(rings, text, account, entered);
     return _running ??= _drain();
   }
 
@@ -250,17 +254,38 @@ class RingBooker {
   Future<void> cancelAll() async {
     _next = null;
     await _running;
+    await cancelNow();
+  }
+
+  // Cancels every ring and the background check without waiting for a pass
+  // here (T-13 unit 14, G3: after a sign-out cleanup that timed out).
+  Future<void> cancelNow() async {
+    _next = null;
     await platform.cancelAll();
     await platform.stopBackgroundCheck();
   }
 
+  // An account starts on this phone (ReminderHost): passes may book again
+  // after a sign-out (G3).
+  Future<void> signIn() {
+    _session++;
+    return _signedIn = fence.signIn();
+  }
+
   // Sign-out on this phone: fences every pass, here and in other isolates,
   // then cancels every ring and the background check. A pass running here
-  // stops at its next change, so the wait for it is short.
+  // stops at its next change, so the wait for it is short. If an account
+  // started before that wait ended (a sign-out cleanup that timed out), its
+  // rings stay.
   Future<void> signOut() async {
     _next = null;
+    final int session = _session;
     await fence.signOut();
-    await cancelAll();
+    await _running;
+    if (session != _session) {
+      return;
+    }
+    await cancelNow();
   }
 
   Future<void> _drain() async {
@@ -276,7 +301,8 @@ class RingBooker {
   }
 
   Future<void> _sync(_SyncRequest request) async {
-    final RingTicket ticket = request.ticket ?? await fence.begin();
+    await _signedIn;
+    final RingTicket ticket = await fence.begin(entered: request.entered);
     final List<int> bookedHere = [];
     // False once this pass must stop; after a sign-out it first takes back
     // what it booked.
@@ -390,10 +416,10 @@ class RingBooker {
 }
 
 class _SyncRequest {
-  _SyncRequest(this.rings, this.text, this.account, this.ticket);
+  _SyncRequest(this.rings, this.text, this.account, this.entered);
 
   final List<PlannedRing> rings;
   final RingText Function(PlannedRing ring) text;
   final String? account;
-  final RingTicket? ticket;
+  final RingTicket? entered;
 }

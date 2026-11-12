@@ -36,6 +36,10 @@ class SignedInAccount {
 // How long sign-out waits for the ring cleanup before going on (F3).
 const Duration ringCleanupTimeout = Duration(seconds: 5);
 
+// Then how long it waits for cancelling without that cleanup (T-13 unit 14,
+// G3).
+const Duration ringCancelTimeout = Duration(seconds: 2);
+
 // Signed out: the sign-in screen and nothing else (Q-21 A). Signed in: the
 // shell on a store for that user's uid, whatever the sign-in method (D-13).
 // The providers sit above MaterialApp so pushed pages see them, and the app
@@ -205,6 +209,14 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
       // every ring on its next run.
       try {
         await widget.ringBooker?.signOut().timeout(ringCleanupTimeout);
+      } on TimeoutException catch (error) {
+        // A pass here is stuck: cancel without waiting for it (G3).
+        debugPrint('Ring cleanup slow at sign-out: $error');
+        try {
+          await widget.ringBooker?.cancelNow().timeout(ringCancelTimeout);
+        } on Object catch (error) {
+          debugPrint('Rings not all cancelled at sign-out: $error');
+        }
       } on Object catch (error) {
         debugPrint('Rings not all cancelled at sign-out: $error');
       }

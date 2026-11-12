@@ -190,8 +190,9 @@ void reminderCheckDispatcher() {
 }
 
 // Plans and books as the open app does (ReminderHost), from the lists read
-// once. Signed out, it cancels every ring. Its pass begins before anything
-// is read, so a sign-out or a newer pass meanwhile fences it (F2).
+// once. Signed out, it cancels every ring. It takes the fence's marks before
+// anything is read, so a sign-out or a newer pass meanwhile fences it (F2,
+// F4); its pass begins only after the read (T-13 unit 14, G11).
 Future<void> checkRingsInBackground() async {
   final SharedPreferences preferences = await SharedPreferences.getInstance();
   final AppLocalizations loc = reminderLocalizations(preferences);
@@ -236,13 +237,18 @@ Future<void> checkRingsWith({
   read,
   DateTime Function() now = DateTime.now,
 }) async {
-  final RingTicket ticket = await booker.fence.begin();
+  final RingTicket entered = await booker.fence.enter();
   final String? uid = await signedIn();
   if (uid == null) {
     await booker.cancelAll();
     return;
   }
   final (:ListCatalog catalog, :AccountPreferences account) = await read(uid);
+  // Still the same account after the read (G3): a sign-out meanwhile may not
+  // have reached Firebase yet; the fence stops the pass then too.
+  if (await signedIn() != uid) {
+    return;
+  }
   final bool ring =
       preferences.getBool(AppSettingsCubit.ringOnThisPhoneKey) ?? true;
   final ListLabels labels = ListLabels(loc);
@@ -265,6 +271,6 @@ Future<void> checkRingsWith({
       format: account.timeFormat,
     ),
     account: uid,
-    ticket: ticket,
+    entered: entered,
   );
 }

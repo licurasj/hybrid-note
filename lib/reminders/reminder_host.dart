@@ -55,6 +55,8 @@ class _ReminderHostState extends State<ReminderHost>
       return;
     }
     WidgetsBinding.instance.addObserver(this);
+    // This account may book again after a sign-out (T-13 unit 14, G3).
+    unawaited(_booker!.signIn());
     unawaited(_booker!.platform.startBackgroundCheck());
     final ListStore store = context.read<ListStore>();
     _catalog = store.current;

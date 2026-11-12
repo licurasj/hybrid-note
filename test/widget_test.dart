@@ -9,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:hybrid_note/app/account_preferences.dart';
 import 'package:hybrid_note/app/app_settings.dart';
-import 'package:hybrid_note/app/hybrid_note_app.dart' show ringCleanupTimeout;
+import 'package:hybrid_note/app/hybrid_note_app.dart' show ringCancelTimeout, ringCleanupTimeout;
 import 'package:hybrid_note/backend/auth_service.dart';
 import 'package:hybrid_note/backend/firestore_list_store.dart';
 import 'package:hybrid_note/backend/firestore_preferences.dart';
@@ -145,7 +145,9 @@ void main() {
       );
       await _openSettings(tester);
       await tester.tap(find.byKey(const ValueKey('sign-out')));
-      await tester.pump(ringCleanupTimeout + const Duration(seconds: 1));
+      await tester.pump(
+        ringCleanupTimeout + ringCancelTimeout + const Duration(seconds: 1),
+      );
       await settle(tester);
       expect(auth.calls, ['signOut', 'clearCache']);
       expect(find.byKey(const ValueKey('sign-in')), findsOneWidget);
@@ -166,7 +168,12 @@ void main() {
     testWidgets('a stuck ring cleanup signs out after a short wait', (
       tester,
     ) async {
-      await signOutWith(tester, FakeRingPlatform()..cancelAllHangs = true);
+      final FakeRingPlatform platform = FakeRingPlatform()
+        ..cancelAllHangs = true;
+      await signOutWith(tester, platform);
+      // After the timeout it cancels again without waiting (T-13 unit 14,
+      // G3).
+      expect(platform.calls.where((call) => call == 'cancelAll'), hasLength(2));
     });
   });
 

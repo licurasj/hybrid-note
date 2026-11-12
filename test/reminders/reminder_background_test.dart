@@ -52,15 +52,17 @@ void main() {
 
   Future<void> check({
     String? uid = 'owner',
+    String? Function()? signedIn,
     Map<String, Object> stored = const {},
     Future<void> Function()? whileReading,
+    RingBooker? by,
   }) async {
     SharedPreferences.setMockInitialValues(stored);
     await checkRingsWith(
-      booker: booker,
+      booker: by ?? booker,
       preferences: await SharedPreferences.getInstance(),
       loc: loc,
-      signedIn: () async => uid,
+      signedIn: () async => signedIn != null ? signedIn() : uid,
       read: (_) async {
         await whileReading?.call();
         return (catalog: catalog, account: const AccountPreferences());
@@ -108,5 +110,51 @@ void main() {
     final List<String> before = [...platform.calls];
     await check(whileReading: () async => fence.begin());
     expect(platform.calls, before);
+  });
+
+  // T-13 unit 14, G3 (Codex X1).
+  test('a check that enters after a sign-out, while Firebase still reports '
+      'the departing user, books nothing until an account starts', () async {
+    await fence.signOut();
+    await check();
+    expect(platform.rings, isEmpty);
+    await booker.signIn();
+    await check();
+    expect(platform.rings.values.single.payload.account, 'owner');
+  });
+
+  test('a check whose account changed during the read books nothing (G3)', () async {
+    int asked = 0;
+    await check(signedIn: () => ++asked == 1 ? 'owner' : null);
+    expect(platform.rings, isEmpty);
+  });
+
+  // T-13 unit 14, G11 (internal R2).
+  test('a check whose read fails does not stop the open app\'s pass', () async {
+    final RingBooker app = RingBooker(platform, fence: fence, clock: () => now);
+    platform.onBook = (_) async {
+      platform.onBook = null;
+      SharedPreferences.setMockInitialValues(const {});
+      await expectLater(
+        checkRingsWith(
+          booker: booker,
+          preferences: await SharedPreferences.getInstance(),
+          loc: loc,
+          signedIn: () async => 'owner',
+          read: (_) async => throw StateError('offline'),
+          now: () => now,
+        ),
+        throwsStateError,
+      );
+    };
+    await app.sync(
+      [
+        ring('a', at: now.add(const Duration(hours: 1))),
+        ring('b', at: now.add(const Duration(hours: 2))),
+      ],
+      text,
+      account: 'owner',
+    );
+    expect(platform.rings, hasLength(2));
   });
 }
