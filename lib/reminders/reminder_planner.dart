@@ -104,7 +104,9 @@ class PlannedRing {
 // - Only times after [now] (no catch-up), at most [horizon] ahead and the
 //   [limit] soonest. With [late] it also plans the times up to [late] before
 //   [now] (F5): the booker never books those, but keeps one still booked, so
-//   an inexact ring Android delivers late is not cancelled first.
+//   an inexact ring Android delivers late is not cancelled first. Those do
+//   not count toward [limit] (T-13 unit 14, G9), so they never push a ring
+//   still to come out of the plan.
 class ReminderPlanner {
   static const Duration horizon = Duration(days: 30);
 
@@ -228,7 +230,10 @@ class ReminderPlanner {
       final int byTime = a.at.compareTo(b.at);
       return byTime != 0 ? byTime : a.key.compareTo(b.key);
     });
-    return rings.length > limit ? rings.sublist(0, limit) : rings;
+    final int past = rings.where((ring) => !ring.at.isAfter(now)).length;
+    return rings.length > past + limit
+        ? rings.sublist(0, past + limit)
+        : rings;
   }
 
   // The item's repeat, or null for none (or no repeat rule on the list).

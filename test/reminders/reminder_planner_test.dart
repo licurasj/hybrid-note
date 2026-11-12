@@ -349,6 +349,33 @@ void main() {
     expect(_plan(items, limit: 5), hasLength(5));
   });
 
+  test('times in the late window do not count toward the limit '
+      '(T-13 unit 14, G9)', () {
+    final List<ListItem> items = [
+      for (int i = 1; i <= 7; i++)
+        _task('past$i', _at(_now.subtract(Duration(minutes: i)))),
+      for (int i = 1; i <= 3; i++)
+        _task('next$i', _at(_now.add(Duration(hours: i)))),
+    ];
+    final List<PlannedRing> rings = ReminderPlanner.plan(
+      catalog: ListCatalog(definitions: [_tasks], items: items),
+      settings: const ReminderSettings(
+        leads: {ReminderLead.atTime},
+        morningMinutes: 9 * 60,
+        listsOwnLeads: true,
+      ),
+      now: _now,
+      listName: (list) => list.id,
+      limit: 2,
+      late: const Duration(hours: 2),
+    );
+    expect(rings.where((ring) => ring.itemId.startsWith('past')), hasLength(7));
+    expect(
+      rings.where((ring) => ring.itemId.startsWith('next')).map((r) => r.itemId),
+      ['next1', 'next2'],
+    );
+  });
+
   test('a list with its own how early, while lists may have their own', () {
     final ListDefinition own = ListPatch.apply(_tasks, const [], [
       const ListPatchOp(PatchOpKind.setListInfo, {
