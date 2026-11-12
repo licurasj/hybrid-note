@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ring_missed_channel">見逃したリマインダー</string>
+    <string name="ring_missed_title">電話の電源が切れている間に見逃しました</string>
+    <plurals name="ring_missed_count">
+        <item quantity="other">リマインダー %d 件</item>
+    </plurals>
+</resources>

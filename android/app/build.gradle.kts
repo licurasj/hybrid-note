@@ -53,4 +53,6 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // RingBootPlanTest (T-13 unit 12): ./gradlew :app:testDebugUnitTest
+    testImplementation("junit:junit:4.13.2")
 }

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ring_missed_channel">Verpasste Erinnerungen</string>
+    <string name="ring_missed_title">Verpasst, während dein Telefon aus war</string>
+    <plurals name="ring_missed_count">
+        <item quantity="one">%d Erinnerung</item>
+        <item quantity="other">%d Erinnerungen</item>
+    </plurals>
+</resources>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shown by RingBootReceiver for reminders missed while the phone was off (T-13 unit 12).
+     One file per app language, as lib/l10n. -->
+<resources>
+    <string name="ring_missed_channel">Missed reminders</string>
+    <string name="ring_missed_title">Missed while your phone was off</string>
+    <plurals name="ring_missed_count">
+        <item quantity="one">%d reminder</item>
+        <item quantity="other">%d reminders</item>
+    </plurals>
+</resources>

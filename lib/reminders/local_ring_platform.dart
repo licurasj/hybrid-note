@@ -31,6 +31,12 @@ class LocalRingPlatform implements RingPlatform {
   static const String sound = 'reminder_chime';
   static const String smallIcon = 'ic_stat_reminder';
 
+  // Rings missed while the phone was off are shown quietly by
+  // RingBootReceiver (android/, T-13 unit 12) in this group, under a summary
+  // with this id when there are two or more.
+  static const String missedGroup = 'com.yonghao.hybridnote.MISSED';
+  static const int missedSummaryId = -1;
+
   @override
   String get look => channelId;
 
@@ -65,6 +71,7 @@ class LocalRingPlatform implements RingPlatform {
   @override
   Future<void> afterSync() async {
     await _init();
+    await _dropLoneMissedSummary();
     for (final String id in oldChannelIds) {
       try {
         await _android?.deleteNotificationChannel(channelId: id);
@@ -110,10 +117,39 @@ class LocalRingPlatform implements RingPlatform {
   // its leads' keys (F10): a showing ring's payload is not readable back.
   Future<void> cancelOccurrence(RingPayload payload) async {
     await _init();
-    for (final int id in occurrenceIds(payload)) {
+    final List<int> ids = occurrenceIds(payload);
+    for (final int id in ids) {
       await _plugin.cancel(id: id);
     }
+    await _dropLoneMissedSummary(cancelled: ids);
   }
+
+  // Android keeps a group's summary when its last notification goes (Done,
+  // a tap or a swipe), so it is taken away here: after Done, and after each
+  // sync for the rest.
+  Future<void> _dropLoneMissedSummary({List<int> cancelled = const []}) async {
+    try {
+      final List<ActiveNotification> active =
+          await _android?.getActiveNotifications() ?? const [];
+      if (loneMissedSummary([
+        for (final ActiveNotification notification in active)
+          if (!cancelled.contains(notification.id))
+            (id: notification.id, group: notification.groupKey),
+      ])) {
+        await _plugin.cancel(id: missedSummaryId);
+      }
+    } on Object catch (error) {
+      debugPrint('Reminders: missed summary not checked: $error');
+    }
+  }
+
+  // Whether [showing] holds the missed rings' summary and none of its rings.
+  @visibleForTesting
+  static bool loneMissedSummary(List<({int? id, String? group})> showing) =>
+      showing.any((shown) => shown.id == missedSummaryId) &&
+      !showing.any(
+        (shown) => shown.id != missedSummaryId && shown.group == missedGroup,
+      );
 
   // The notification ids every lead of [payload]'s occurrence would have.
   @visibleForTesting

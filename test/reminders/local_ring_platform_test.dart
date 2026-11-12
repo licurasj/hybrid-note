@@ -149,4 +149,38 @@ void main() {
     }
     expect(faded, greaterThan(50));
   });
+  // T-13 unit 12: the summary of rings missed while the phone was off goes
+  // with its last ring.
+  group('loneMissedSummary', () {
+    const int summary = LocalRingPlatform.missedSummaryId;
+    const String missed = LocalRingPlatform.missedGroup;
+
+    test('a summary with no missed ring left is lone', () {
+      expect(
+        LocalRingPlatform.loneMissedSummary([
+          (id: summary, group: missed),
+          (id: 7, group: null), // a normal ring
+        ]),
+        isTrue,
+      );
+    });
+
+    test('a summary with a missed ring left stays', () {
+      expect(
+        LocalRingPlatform.loneMissedSummary([
+          (id: summary, group: missed),
+          (id: 8, group: missed),
+        ]),
+        isFalse,
+      );
+    });
+
+    test('no summary, nothing to drop', () {
+      expect(
+        LocalRingPlatform.loneMissedSummary([(id: 8, group: missed)]),
+        isFalse,
+      );
+      expect(LocalRingPlatform.loneMissedSummary(const []), isFalse);
+    });
+  });
 }
