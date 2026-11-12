@@ -28,6 +28,12 @@ abstract class RingPlatform {
   // again in that pass, as its fingerprint holds [look] (T-13 unit 14, G16).
   Future<void> afterSync();
 
+  // When the phone last started, while RingBootReceiver (android/) has not
+  // yet handled that start; null once it has, or when unknown (T-13 unit 14,
+  // G2). Until then the rings stored from before it are the receiver's, to
+  // show as missed: a pass leaves them booked.
+  Future<DateTime?> bootNotHandled();
+
   Future<RingPermissions> permissions();
 
   // The system's notifications popup (Android 13 and later); true if allowed.
@@ -129,6 +135,10 @@ class RingPayload {
     'f': fingerprint,
     'a': ?account,
   });
+
+  // The time the ring was booked for: the first part of [fingerprint]
+  // (RingBooker); null if unreadable.
+  int? get atMs => int.tryParse(fingerprint.split('\u0000').first);
 
   // Null for a payload this app did not write.
   static RingPayload? decode(String? raw) {
@@ -357,7 +367,16 @@ class RingBooker {
       );
     }
 
+    // Before the boot receiver ran (BOOT_COMPLETED can come minutes after
+    // the app opens), the rings from before the boot are left to it (G2).
+    final DateTime? boot = await _bootNotHandled();
     for (final BookedRing ring in booked.values) {
+      final int? atMs = ring.payload?.atMs;
+      if (boot != null &&
+          atMs != null &&
+          atMs < boot.millisecondsSinceEpoch) {
+        continue;
+      }
       final RingRequest? want = wanted[ring.id];
       if (want == null ||
           ring.payload?.key != want.payload.key ||
@@ -401,6 +420,15 @@ class RingBooker {
       } on Object catch (error) {
         debugPrint('Reminders: not tidied: $error');
       }
+    }
+  }
+
+  Future<DateTime?> _bootNotHandled() async {
+    try {
+      return await platform.bootNotHandled();
+    } on Object catch (error) {
+      debugPrint('Reminders: boot not known: $error');
+      return null;
     }
   }
 

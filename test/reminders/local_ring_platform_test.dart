@@ -14,6 +14,20 @@ import 'package:hybrid_note/reminders/ring_logo.dart';
 
 // T-13 unit 9: how a ring looks and sounds on Android.
 void main() {
+  test('the boot counts as handled when the receiver noted about the same '
+      'time (T-13 unit 14, G2)', () {
+    final DateTime boot = DateTime.utc(2030, 1, 2, 7);
+    final int ms = boot.millisecondsSinceEpoch;
+    expect(LocalRingPlatform.bootHandled(boot, null), isFalse);
+    expect(LocalRingPlatform.bootHandled(boot, ms + 900), isTrue);
+    expect(LocalRingPlatform.bootHandled(boot, ms - 59 * 1000), isTrue);
+    // A boot noted before this one.
+    expect(
+      LocalRingPlatform.bootHandled(boot, ms - 3 * 60 * 60 * 1000),
+      isFalse,
+    );
+  });
+
   const RingText text = (
     title: 'Call Ann',
     body: '15:30',

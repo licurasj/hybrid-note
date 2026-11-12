@@ -1,10 +1,11 @@
 package com.yonghao.hybridnote
 
+import android.app.AlarmManager
+import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
-import android.content.res.Resources
 import android.os.SystemClock
 import android.util.Log
 import com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver
@@ -29,31 +30,85 @@ import java.util.Locale
 // - due earlier: shown now without sound or vibration on the quiet
 //   [MISSED_CHANNEL], one notification per item (its latest time) with its
 //   Done button, grouped under a summary when there are two or more.
+// After an app update (T-13 unit 14, G4) the phone did not restart, so only
+// rings due in the last [GRACE_MS] ring; older ones show quietly.
 // Rings booked on an old channel move to the current one, with its chime, so
 // Android never makes the old channel again. Then the plugin's receiver books
 // what is left, and the passed rings are shown through the plugin's own
 // receiver, as if their alarm went off.
+//
+// No passed ring is lost on a failure (G1): everything is worked out before
+// the store is rewritten, and if that fails or the store is not written, the
+// store stays as it was and the plugin books its passed rings again, which
+// ring at once. Once written, the passed rings are shown whatever the
+// plugin's rebooking does, and a quiet one that cannot be shown is shown as
+// it was booked.
+//
+// Then it notes the boot it handled (G2): until then the app keeps the rings
+// that passed before this boot in the store for it (RingBooker).
 class RingBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        var late: List<JSONObject> = emptyList()
+        val nowMs = System.currentTimeMillis()
+        val booted = intent.action != Intent.ACTION_MY_PACKAGE_REPLACED
+        val bootMs = nowMs - SystemClock.elapsedRealtime()
+        var shown: List<Shown> = emptyList()
         try {
-            val nowMs = System.currentTimeMillis()
-            late = tidy(context, nowMs, nowMs - SystemClock.elapsedRealtime())
+            shown = tidy(context, nowMs, if (booted) bootMs else nowMs)
         } catch (error: Exception) {
             Log.e(TAG, "Stored rings not tidied", error)
         }
-        ScheduledNotificationBootReceiver().onReceive(context, intent)
-        for (ring in late) {
+        try {
+            ScheduledNotificationBootReceiver().onReceive(context, intent)
+        } catch (error: Exception) {
+            Log.e(TAG, "Rings not booked again", error)
+        }
+        for (ring in shown) {
+            show(context, ring)
+        }
+        if (booted) {
+            context.getSharedPreferences(FLUTTER_PREFERENCES, Context.MODE_PRIVATE)
+                .edit()
+                .putLong(BOOT_HANDLED_KEY, bootMs)
+                .apply()
+        }
+    }
+
+    // Shows [ring] as if its alarm went off; its alarm, if one is still set
+    // (an update keeps them), goes (G4).
+    private fun show(context: Context, ring: Shown) {
+        val id = ring.ring.optInt("id", MISSED_SUMMARY_ID)
+        if (id != MISSED_SUMMARY_ID) {
+            try {
+                cancelAlarm(context, id)
+            } catch (error: Exception) {
+                Log.e(TAG, "Passed ring's alarm not cancelled", error)
+            }
+        }
+        for (details in listOfNotNull(ring.ring, ring.plain)) {
             try {
                 ScheduledNotificationReceiver().onReceive(
                     context,
                     Intent(context, ScheduledNotificationReceiver::class.java)
-                        .putExtra(DETAILS, ring.toString()),
+                        .putExtra(DETAILS, details.toString()),
                 )
+                return
             } catch (error: Exception) {
                 Log.e(TAG, "Passed ring not shown", error)
             }
         }
+    }
+
+    // The plugin's alarm for [id], matched as the plugin makes it (its
+    // cancelNotification): same receiver, same request code.
+    private fun cancelAlarm(context: Context, id: Int) {
+        val alarm = PendingIntent.getBroadcast(
+            context,
+            id,
+            Intent(context, ScheduledNotificationReceiver::class.java),
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE,
+        ) ?: return
+        context.getSystemService(AlarmManager::class.java)?.cancel(alarm)
+        alarm.cancel()
     }
 
     // What to do with one stored ring after a restart.
@@ -62,6 +117,21 @@ class RingBootReceiver : BroadcastReceiver() {
     // A stored ring as [plan] sees it: [item] is its list and item (null when
     // unknown), [atMs] its time (null when unreadable).
     data class Stored(val item: String?, val atMs: Long?, val oneShot: Boolean)
+
+    // A passed ring to show: [ring] as worked out, and [plain], the same ring
+    // as it was booked, shown if [ring] cannot be (null for the summary and
+    // for loud rings, which are shown as booked).
+    data class Shown(val ring: JSONObject, val plain: JSONObject?)
+
+    // The store as it is to be written, and the passed rings to show.
+    data class Sorted(val kept: String, val shown: List<Shown>)
+
+    // The texts of the quiet rings, in the app's language.
+    interface Words {
+        fun channel(): String
+        fun title(): String
+        fun count(count: Int): String
+    }
 
     companion object {
         private const val TAG = "RingBootReceiver"
@@ -87,10 +157,12 @@ class RingBootReceiver : BroadcastReceiver() {
         // rings as normal: it came due during the restart itself.
         const val GRACE_MS = 10 * 60 * 1000L
 
-        // The app's language (AppSettingsCubit.localeKey, through
-        // shared_preferences).
+        // The app's language (AppSettingsCubit.localeKey) and the boot this
+        // receiver handled (LocalRingPlatform.bootHandledKey), through
+        // shared_preferences.
         private const val FLUTTER_PREFERENCES = "FlutterSharedPreferences"
         private const val LOCALE_KEY = "flutter.settings.locale"
+        private const val BOOT_HANDLED_KEY = "flutter.reminders.bootHandled"
 
         private val REPEATS = listOf(
             "repeatInterval",
@@ -129,11 +201,24 @@ class RingBootReceiver : BroadcastReceiver() {
             return fates
         }
 
-        // Rewrites the store with the rings still to book; returns the
-        // passed rings to show now, quiet ones (and their summary) first.
-        fun tidy(context: Context, nowMs: Long, bootMs: Long): List<JSONObject> {
+        // Rewrites the store with the rings still to book, written last and
+        // only once everything else is worked out; returns the passed rings
+        // to show now, quiet ones (and their summary) first. Nothing to show
+        // when the store was not written.
+        fun tidy(context: Context, nowMs: Long, bootMs: Long): List<Shown> {
             val preferences = context.getSharedPreferences(STORE, Context.MODE_PRIVATE)
             val json = preferences.getString(STORE, null) ?: return emptyList()
+            val sorted = sort(json, nowMs, bootMs) { words(context) }
+            if (!preferences.edit().putString(STORE, sorted.kept).commit()) {
+                Log.e(TAG, "Stored rings not rewritten")
+                return emptyList()
+            }
+            return sorted.shown
+        }
+
+        // [tidy]'s work on the store's JSON, with nothing written. [words] is
+        // asked only when a ring shows quietly.
+        fun sort(json: String, nowMs: Long, bootMs: Long, words: () -> Words): Sorted {
             val stored = JSONArray(json)
             val rings = (0 until stored.length()).map { stored.getJSONObject(it) }
             val fates = plan(
@@ -144,7 +229,7 @@ class RingBootReceiver : BroadcastReceiver() {
                 bootMs,
             )
             val kept = JSONArray()
-            val loud = ArrayList<JSONObject>()
+            val loud = ArrayList<Shown>()
             val quiet = ArrayList<JSONObject>()
             for ((i, ring) in rings.withIndex()) {
                 if (ring.optString("channelId") in OLD_CHANNELS) {
@@ -155,28 +240,30 @@ class RingBootReceiver : BroadcastReceiver() {
                 }
                 when (fates[i]) {
                     Fate.BOOK -> kept.put(ring)
-                    Fate.RING -> loud.add(ring)
+                    Fate.RING -> loud.add(Shown(ring, null))
                     Fate.QUIET -> quiet.add(ring)
                     Fate.DROP -> {}
                 }
             }
-            preferences.edit().putString(STORE, kept.toString()).commit()
             if (quiet.isEmpty()) {
-                return loud
+                return Sorted(kept.toString(), loud)
             }
-            val strings = strings(context)
+            val texts = words()
+            val shown = ArrayList<Shown>()
             for (ring in quiet) {
-                quieten(ring, strings)
+                val plain = JSONObject(ring.toString())
+                quieten(ring, texts)
+                shown.add(Shown(ring, plain))
             }
             if (quiet.size > 1) {
-                quiet.add(summary(quiet.first(), quiet.size, strings))
+                shown.add(Shown(summary(quiet.first(), quiet.size, texts), null))
             }
-            return quiet + loud
+            return Sorted(kept.toString(), shown + loud)
         }
 
-        private fun quieten(ring: JSONObject, strings: Resources) {
+        private fun quieten(ring: JSONObject, words: Words) {
             ring.put("channelId", MISSED_CHANNEL)
-            ring.put("channelName", strings.getString(R.string.ring_missed_channel))
+            ring.put("channelName", words.channel())
             ring.put("channelDescription", JSONObject.NULL)
             ring.put("importance", 2) // NotificationManager.IMPORTANCE_LOW
             ring.put("priority", -1) // NotificationCompat.PRIORITY_LOW
@@ -191,14 +278,11 @@ class RingBootReceiver : BroadcastReceiver() {
 
         // The group's summary, shaped like one of its rings (small icon,
         // channel) but with no item: a tap opens the app.
-        private fun summary(ring: JSONObject, count: Int, strings: Resources): JSONObject {
+        private fun summary(ring: JSONObject, count: Int, words: Words): JSONObject {
             val summary = JSONObject(ring.toString())
             summary.put("id", MISSED_SUMMARY_ID)
-            summary.put("title", strings.getString(R.string.ring_missed_title))
-            summary.put(
-                "body",
-                strings.getQuantityString(R.plurals.ring_missed_count, count, count),
-            )
+            summary.put("title", words.title())
+            summary.put("body", words.count(count))
             summary.put("setAsGroupSummary", true)
             for (key in listOf(
                 "payload", "actions", "subText", "color", "largeIcon",
@@ -211,13 +295,23 @@ class RingBootReceiver : BroadcastReceiver() {
 
         // The app's strings in the app's language (as reminderLocalizations
         // picks it), else the phone's.
-        private fun strings(context: Context): Resources {
+        private fun words(context: Context): Words {
             val code = context
                 .getSharedPreferences(FLUTTER_PREFERENCES, Context.MODE_PRIVATE)
-                .getString(LOCALE_KEY, null) ?: return context.resources
-            val configuration = Configuration(context.resources.configuration)
-            configuration.setLocale(Locale(code))
-            return context.createConfigurationContext(configuration).resources
+                .getString(LOCALE_KEY, null)
+            val strings = if (code == null) {
+                context.resources
+            } else {
+                val configuration = Configuration(context.resources.configuration)
+                configuration.setLocale(Locale(code))
+                context.createConfigurationContext(configuration).resources
+            }
+            return object : Words {
+                override fun channel() = strings.getString(R.string.ring_missed_channel)
+                override fun title() = strings.getString(R.string.ring_missed_title)
+                override fun count(count: Int) =
+                    strings.getQuantityString(R.plurals.ring_missed_count, count, count)
+            }
         }
 
         private fun itemOf(ring: JSONObject): String? {

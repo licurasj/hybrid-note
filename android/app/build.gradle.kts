@@ -55,4 +55,6 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     // RingBootPlanTest (T-13 unit 12): ./gradlew :app:testDebugUnitTest
     testImplementation("junit:junit:4.13.2")
+    // RingBootSortTest (T-13 unit 14, G1): the real org.json, as android.jar's is a stub.
+    testImplementation("org.json:json:20240303")
 }

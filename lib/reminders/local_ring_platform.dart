@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui' show Color;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:workmanager/workmanager.dart';
 
@@ -37,8 +39,40 @@ class LocalRingPlatform implements RingPlatform {
   static const String missedGroup = 'com.yonghao.hybridnote.MISSED';
   static const int missedSummaryId = -1;
 
+  // Where RingBootReceiver notes the boot it handled (ms since the epoch),
+  // in shared_preferences' file (T-13 unit 14, G2).
+  static const String bootHandledKey = 'reminders.bootHandled';
+
+  // Two readings of one boot time differ by less than this: the receiver's
+  // and this one's, each now minus the time since boot.
+  static const Duration bootSlack = Duration(minutes: 1);
+
   @override
   String get look => channelId;
+
+  // The boot time from the kernel's time since boot (/proc/uptime, which
+  // counts sleep as Android's elapsedRealtime does).
+  @override
+  Future<DateTime?> bootNotHandled() async {
+    final double? uptime = double.tryParse(
+      (await File('/proc/uptime').readAsString()).split(' ').first,
+    );
+    if (uptime == null) {
+      return null;
+    }
+    final DateTime boot = DateTime.now().subtract(
+      Duration(milliseconds: (uptime * 1000).round()),
+    );
+    final SharedPreferences preferences = await SharedPreferences.getInstance();
+    await preferences.reload();
+    return bootHandled(boot, preferences.getInt(bootHandledKey)) ? null : boot;
+  }
+
+  // Whether the receiver noted [boot] ([handledMs] is what it noted).
+  @visibleForTesting
+  static bool bootHandled(DateTime boot, int? handledMs) =>
+      handledMs != null &&
+      (boot.millisecondsSinceEpoch - handledMs).abs() < bootSlack.inMilliseconds;
 
   // The channel's name in the phone's settings, in the app's language when
   // the channel was first made.

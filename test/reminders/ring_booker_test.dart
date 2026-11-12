@@ -65,6 +65,12 @@ class FakeRingPlatform implements RingPlatform {
 
   int tidied = 0;
 
+  // The boot RingBootReceiver has not handled yet (G2).
+  DateTime? boot;
+
+  @override
+  Future<DateTime?> bootNotHandled() async => boot;
+
   @override
   Future<void> afterSync() async => tidied++;
 
@@ -401,6 +407,38 @@ void main() {
     // Out of the plan (past the late window, or ticked): cancelled.
     await booker.sync(const [], text);
     expect(platform.rings, isEmpty);
+  });
+
+  test('before the boot receiver ran, rings from before the boot stay for it '
+      '(T-13 unit 14, G2)', () async {
+    final DateTime booted = DateTime.utc(2030, 1, 2, 7);
+    DateTime clock = DateTime.utc(2030, 1, 1, 20);
+    final FakeRingPlatform platform = FakeRingPlatform();
+    final RingBooker booker = RingBooker(platform, clock: () => clock);
+    await booker.sync([
+      ring('night', at: DateTime.utc(2030, 1, 1, 23)),
+      ring('gap', at: DateTime.utc(2030, 1, 2, 7, 1)),
+    ], text);
+    // The phone was off over night; back on at 07:00, the app opens at 07:02
+    // before BOOT_COMPLETED. Neither is planned any more (23:00 is past the
+    // late window; the item of 07:01 was ticked on another phone).
+    clock = DateTime.utc(2030, 1, 2, 7, 2);
+    platform.boot = booted;
+    await booker.sync(const [], text);
+    expect(platform.rings.values.map((r) => r.payload.itemId), ['night']);
+    // Once the receiver ran, the next pass tidies as before.
+    platform.boot = null;
+    await booker.sync(const [], text);
+    expect(platform.rings, isEmpty);
+  });
+
+  test('a payload reads its booked time back from the fingerprint', () {
+    final DateTime at = DateTime.utc(2030, 1, 1, 9);
+    expect(
+      RingPayload.of(ring('a', at: at), '${at.millisecondsSinceEpoch}\u0000x').atMs,
+      at.millisecondsSinceEpoch,
+    );
+    expect(RingPayload.of(ring('a', at: at), 'old').atMs, isNull);
   });
 
   group('one booking owner (T-13 unit 10, F4)', () {
