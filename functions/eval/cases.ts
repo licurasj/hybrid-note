@@ -70,6 +70,8 @@ function summary(id: string) {
       type: f.type,
       ...(f.label ? { label: f.label } : {}),
       ...(f.role ? { role: f.role } : {}),
+      // As the app sends it (T-13 unit 14, G7).
+      ...(f.required ? { required: true } : {}),
       ...(f.options ? { options: f.options.map((o) => o.value) } : {}),
     })),
   };
@@ -227,6 +229,21 @@ export const CASES: EvalCase[] = [
     category: 'items',
     data: request("don't remind me about the dentist", 'appointments'),
     rubric: 'The reminder field of Appointments is required: no null for reminderAt; a short reply that every entry needs a date (moving it is fine).',
+    check: (calls, d) =>
+      valuesOf(calls, 'reminderAt').includes(null)
+        ? 'cleared a required reminder field'
+        : only('reply')(calls, d) === null
+          ? null
+          : 'expected a reply',
+  },
+  {
+    // The same with Appointments closed: only its summary says the field is
+    // required (T-13 unit 14, G7).
+    id: 'remind-clear-required-closed',
+    category: 'items',
+    data: request("don't remind me about the dentist in Appointments", null),
+    rubric:
+      'Appointments is not open; its summary marks reminderAt required: no null for reminderAt; a short reply that every entry needs a date (moving it is fine).',
     check: (calls, d) =>
       valuesOf(calls, 'reminderAt').includes(null)
         ? 'cleared a required reminder field'
