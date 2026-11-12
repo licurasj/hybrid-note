@@ -1,8 +1,7 @@
 import 'dart:async';
-import 'dart:io';
-import 'dart:ui' show Color;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -50,19 +49,21 @@ class LocalRingPlatform implements RingPlatform {
   @override
   String get look => channelId;
 
-  // The boot time from the kernel's time since boot (/proc/uptime, which
-  // counts sleep as Android's elapsedRealtime does).
+  // MainActivity's channel for the boot time (now minus elapsedRealtime, as
+  // RingBootReceiver reads it). Apps may not read /proc/uptime (SELinux).
+  // Only the app's engine has it: in the background check the call fails
+  // and RingBooker tidies as before.
+  static const MethodChannel bootChannel = MethodChannel(
+    'com.yonghao.hybridnote/boot',
+  );
+
   @override
   Future<DateTime?> bootNotHandled() async {
-    final double? uptime = double.tryParse(
-      (await File('/proc/uptime').readAsString()).split(' ').first,
-    );
-    if (uptime == null) {
+    final int? bootMs = await bootChannel.invokeMethod<int>('bootMs');
+    if (bootMs == null) {
       return null;
     }
-    final DateTime boot = DateTime.now().subtract(
-      Duration(milliseconds: (uptime * 1000).round()),
-    );
+    final DateTime boot = DateTime.fromMillisecondsSinceEpoch(bootMs);
     final SharedPreferences preferences = await SharedPreferences.getInstance();
     await preferences.reload();
     return bootHandled(boot, preferences.getInt(bootHandledKey)) ? null : boot;
