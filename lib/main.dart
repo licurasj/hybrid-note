@@ -16,6 +16,10 @@ import 'backend/auth_service.dart';
 import 'backend/firestore_preferences.dart';
 import 'backend/firestore_setup.dart';
 import 'firebase_options.dart';
+import 'reminders/local_ring_platform.dart';
+import 'reminders/reminder_background.dart';
+import 'reminders/ring_booker.dart';
+import 'reminders/ring_fence.dart';
 
 // The web App Check site key (Fraud Defense, formerly reCAPTCHA Enterprise;
 // the console no longer offers reCAPTCHA v3), set at build time with
@@ -60,9 +64,24 @@ Future<void> startApp({
           openPreferences: (user) =>
               FirestorePreferencesSync(FirebaseFirestore.instance, user.uid),
           afterSignOut: setup.reloadAfterClear ? reloadPage : null,
+          ringBooker: _ringBooker(preferences),
         ),
       ),
     ),
+  );
+}
+
+// Reminders ring on Android only for now (Q-95); elsewhere nothing is booked.
+// The channel takes its name in the app's language as first set.
+RingBooker? _ringBooker(SharedPreferences preferences) {
+  if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+    return null;
+  }
+  return RingBooker(
+    LocalRingPlatform(
+      channelName: reminderLocalizations(preferences).preferencesReminders,
+    ),
+    fence: StoredRingFence(preferences),
   );
 }
 

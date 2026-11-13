@@ -9,6 +9,8 @@ import '../backend/firestore_list_store.dart';
 import '../backend/firestore_setup.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../lists/list_store.dart';
+import '../reminders/reminder_host.dart';
+import '../reminders/ring_booker.dart';
 import 'account_preferences.dart';
 import 'app_banner.dart';
 import 'app_settings.dart';
@@ -31,6 +33,13 @@ class SignedInAccount {
   final Future<void> Function() signOut;
 }
 
+// How long sign-out waits for the ring cleanup before going on (F3).
+const Duration ringCleanupTimeout = Duration(seconds: 5);
+
+// Then how long it waits for cancelling without that cleanup (T-13 unit 14,
+// G3).
+const Duration ringCancelTimeout = Duration(seconds: 2);
+
 // Signed out: the sign-in screen and nothing else (Q-21 A). Signed in: the
 // shell on a store for that user's uid, whatever the sign-in method (D-13).
 // The providers sit above MaterialApp so pushed pages see them, and the app
@@ -43,6 +52,7 @@ class HybridNoteApp extends StatefulWidget {
     required this.openStore,
     this.openPreferences,
     this.afterSignOut,
+    this.ringBooker,
   });
 
   final AuthService auth;
@@ -56,6 +66,9 @@ class HybridNoteApp extends StatefulWidget {
   // When it is set, the gate opens no store after a sign-out: the restarted
   // app does.
   final VoidCallback? afterSignOut;
+  // Books reminders on this phone (Android); null elsewhere and in tests,
+  // where nothing rings (T-13, Q-95).
+  final RingBooker? ringBooker;
 
   @override
   State<HybridNoteApp> createState() => _HybridNoteAppState();
@@ -190,6 +203,23 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
     _watchWriteFailures();
     final bool cleared;
     try {
+      // No ring of this account stays booked, nor its titles (T-13). A
+      // stuck or failing cleanup never holds the sign-out (F3): the fence
+      // is marked first, and the background check, signed out, cancels
+      // every ring on its next run.
+      try {
+        await widget.ringBooker?.signOut().timeout(ringCleanupTimeout);
+      } on TimeoutException catch (error) {
+        // A pass here is stuck: cancel without waiting for it (G3).
+        debugPrint('Ring cleanup slow at sign-out: $error');
+        try {
+          await widget.ringBooker?.cancelNow().timeout(ringCancelTimeout);
+        } on Object catch (error) {
+          debugPrint('Rings not all cancelled at sign-out: $error');
+        }
+      } on Object catch (error) {
+        debugPrint('Rings not all cancelled at sign-out: $error');
+      }
       await store?.close();
       await preferences?.close();
       cleared = await widget.auth.signOut();
@@ -254,7 +284,7 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
         onRetryCleanup: _cleanupFailed ? _retryCleanup : null,
       );
     } else {
-      home = const MainShell();
+      home = ReminderHost(account: user.uid, child: const MainShell());
     }
 
     final Widget app = BlocBuilder<AppSettingsCubit, AppSettings>(
@@ -294,6 +324,8 @@ class _HybridNoteAppState extends State<HybridNoteApp> {
         RepositoryProvider<StarterSeeding>.value(
           value: _starter ?? StarterSeeding.done(),
         ),
+        if (widget.ringBooker != null)
+          RepositoryProvider<RingBooker>.value(value: widget.ringBooker!),
         RepositoryProvider<SignedInAccount>.value(
           value: SignedInAccount(user: user, signOut: _signOut),
         ),

@@ -1482,4 +1482,111 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get preferencesHomeOrderOwnLine => 'El inicio tiene su propio orden.';
+
+  @override
+  String get noTime => 'Sin hora';
+
+  @override
+  String get editorRemindMe => 'Recordarme';
+
+  @override
+  String get editorRemindMeLine =>
+      'Suena a su hora; una fecha sin hora suena por la mañana.';
+
+  @override
+  String get preferencesReminders => 'Recordatorios';
+
+  @override
+  String get preferencesReminderLeads => 'Con cuánta antelación';
+
+  @override
+  String get reminderLeadAtTime => 'A la hora';
+
+  @override
+  String get reminderLead5m => '5 min';
+
+  @override
+  String get reminderLead10m => '10 min';
+
+  @override
+  String get reminderLead30m => '30 min';
+
+  @override
+  String get reminderLead1h => '1 hora';
+
+  @override
+  String get reminderLead1d => '1 día';
+
+  @override
+  String get preferencesReminderLeadsLine =>
+      'Cada opción suena por separado, con esa antelación a la hora del elemento.';
+
+  @override
+  String get preferencesReminderLeadsNone =>
+      'Nada elegido: no suena ningún recordatorio.';
+
+  @override
+  String get preferencesReminderMorning => 'Hora de la mañana';
+
+  @override
+  String get preferencesReminderMorningLine =>
+      'Cuándo suena una fecha sin hora, y la mañana anterior con 1 día.';
+
+  @override
+  String get preferencesRingOnThisPhone => 'Sonar en este teléfono';
+
+  @override
+  String get preferencesRingOnThisPhoneLine =>
+      'Solo este teléfono; tus otros teléfonos tienen su propio interruptor.';
+
+  @override
+  String get preferencesRingOnThisPhoneOffLine =>
+      'Este teléfono queda en silencio; tus otros teléfonos siguen sonando.';
+
+  @override
+  String get preferencesRemindersAndroidOnly =>
+      'Por ahora los recordatorios solo suenan en teléfonos Android.';
+
+  @override
+  String get editorNoReminder =>
+      'Esta lista no tiene una fecha con Recordarme.';
+
+  @override
+  String reminderBody(String list, String when) {
+    return '$list · $when';
+  }
+
+  @override
+  String get reminderExactTitle => 'Sonar a tiempo';
+
+  @override
+  String get reminderExactText =>
+      'Los recordatorios suenan en su minuto solo con Alarmas y recordatorios activado para Hybrid Note. Sin ello suenan igual, pero pueden llegar tarde.';
+
+  @override
+  String get reminderExactOpen => 'Abrir ajustes';
+
+  @override
+  String get reminderExactLater => 'Ahora no';
+
+  @override
+  String get preferencesReminderPermission => 'Permiso';
+
+  @override
+  String get preferencesReminderPermissionOk =>
+      'Las notificaciones y Alarmas y recordatorios están activados: los recordatorios suenan a tiempo.';
+
+  @override
+  String get preferencesReminderNotificationsOff =>
+      'Las notificaciones están desactivadas para Hybrid Note, así que nada suena.';
+
+  @override
+  String get preferencesReminderExactOff =>
+      'Alarmas y recordatorios está desactivado: los recordatorios suenan, pero pueden llegar tarde.';
+
+  @override
+  String get preferencesReminderAllow => 'Activar';
+
+  @override
+  String get reminderDone => 'Hecho';
 }

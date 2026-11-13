@@ -1485,4 +1485,110 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get preferencesHomeOrderOwnLine =>
       'Die Startseite hat ihre eigene Reihenfolge.';
+
+  @override
+  String get noTime => 'Keine Uhrzeit';
+
+  @override
+  String get editorRemindMe => 'Erinnern';
+
+  @override
+  String get editorRemindMeLine =>
+      'Klingelt zur Uhrzeit; ein Datum ohne Uhrzeit klingelt am Morgen.';
+
+  @override
+  String get preferencesReminders => 'Erinnerungen';
+
+  @override
+  String get preferencesReminderLeads => 'Wie früh';
+
+  @override
+  String get reminderLeadAtTime => 'Zur Uhrzeit';
+
+  @override
+  String get reminderLead5m => '5 Min.';
+
+  @override
+  String get reminderLead10m => '10 Min.';
+
+  @override
+  String get reminderLead30m => '30 Min.';
+
+  @override
+  String get reminderLead1h => '1 Stunde';
+
+  @override
+  String get reminderLead1d => '1 Tag';
+
+  @override
+  String get preferencesReminderLeadsLine =>
+      'Jede Auswahl klingelt für sich, so lange vor der Uhrzeit eines Eintrags.';
+
+  @override
+  String get preferencesReminderLeadsNone =>
+      'Nichts ausgewählt: keine Erinnerung klingelt.';
+
+  @override
+  String get preferencesReminderMorning => 'Morgenzeit';
+
+  @override
+  String get preferencesReminderMorningLine =>
+      'Wann ein Datum ohne Uhrzeit klingelt, mit 1 Tag auch am Morgen davor.';
+
+  @override
+  String get preferencesRingOnThisPhone => 'Auf diesem Telefon klingeln';
+
+  @override
+  String get preferencesRingOnThisPhoneLine =>
+      'Nur dieses Telefon; deine anderen Telefone haben ihren eigenen Schalter.';
+
+  @override
+  String get preferencesRingOnThisPhoneOffLine =>
+      'Dieses Telefon bleibt still; deine anderen Telefone klingeln weiter.';
+
+  @override
+  String get preferencesRemindersAndroidOnly =>
+      'Erinnerungen klingeln vorerst nur auf Android-Telefonen.';
+
+  @override
+  String get editorNoReminder => 'Diese Liste hat kein Datum mit Erinnern.';
+
+  @override
+  String reminderBody(String list, String when) {
+    return '$list · $when';
+  }
+
+  @override
+  String get reminderExactTitle => 'Pünktlich klingeln';
+
+  @override
+  String get reminderExactText =>
+      'Erinnerungen klingeln nur dann auf die Minute, wenn „Wecker und Erinnerungen“ für Hybrid Note an ist. Sonst klingeln sie trotzdem, aber vielleicht später.';
+
+  @override
+  String get reminderExactOpen => 'Einstellungen öffnen';
+
+  @override
+  String get reminderExactLater => 'Nicht jetzt';
+
+  @override
+  String get preferencesReminderPermission => 'Berechtigung';
+
+  @override
+  String get preferencesReminderPermissionOk =>
+      'Benachrichtigungen und „Wecker und Erinnerungen“ sind an: Erinnerungen klingeln pünktlich.';
+
+  @override
+  String get preferencesReminderNotificationsOff =>
+      'Benachrichtigungen sind für Hybrid Note aus, daher klingelt nichts.';
+
+  @override
+  String get preferencesReminderExactOff =>
+      '„Wecker und Erinnerungen“ ist aus: Erinnerungen klingeln, aber vielleicht später.';
+
+  @override
+  String get preferencesReminderAllow => 'Einschalten';
+
+  @override
+  String get reminderDone => 'Erledigt';
 }

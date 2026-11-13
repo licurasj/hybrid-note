@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ring_missed_channel">Recordatorios perdidos</string>
+    <string name="ring_missed_title">Perdidos mientras tu teléfono estaba apagado</string>
+    <plurals name="ring_missed_count">
+        <item quantity="one">%d recordatorio</item>
+        <item quantity="many">%d recordatorios</item>
+        <item quantity="other">%d recordatorios</item>
+    </plurals>
+</resources>

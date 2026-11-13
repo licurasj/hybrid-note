@@ -370,6 +370,18 @@ class ListDefinition {
   // changed through setListInfo.
   static const String ownTickedItemsKey = 'tickedItems';
   static const String ownConfirmDeleteKey = 'confirmDelete';
+  // How early its reminders ring (T-13, Q-118): a list of ReminderLead wire
+  // values (reminders/reminder_settings.dart), possibly empty for no rings.
+  static const String ownReminderLeadsKey = 'reminderLeads';
+  // The wire values of ReminderLead (reminders/reminder_settings.dart).
+  static const Set<String> reminderLeadWires = {
+    'atTime',
+    '5m',
+    '10m',
+    '30m',
+    '1h',
+    '1d',
+  };
   // The wire values of TickedItems (app/account_preferences.dart), which a
   // list's own Ticked items must be one of.
   static const Set<String> tickedItemsWires = {
@@ -383,6 +395,12 @@ class ListDefinition {
   String? get ownTickedItems {
     final Object? value = extra[ownTickedItemsKey];
     return value is String ? value : null;
+  }
+
+  // Its own reminder lead wire values, or null to follow.
+  List<String>? get ownReminderLeads {
+    final Object? value = extra[ownReminderLeadsKey];
+    return value is List ? List.unmodifiable(value.whereType<String>()) : null;
   }
 
   // Its own Confirm before deleting, or null to follow.
@@ -587,11 +605,11 @@ class ListDefinition {
         }
       }
 
-      final FieldType? roleType = _roleType(field.role);
-      if (roleType != null && field.type != roleType) {
+      final Set<FieldType> roleTypes = roleFieldTypes(field.role);
+      if (roleTypes.isNotEmpty && !roleTypes.contains(field.type)) {
         fieldError(
           ListErrorCode.roleNeedsType,
-          {'role': field.role!.wire, 'type': roleType.wire},
+          {'role': field.role!.wire, 'type': _typeWires(roleTypes)},
         );
       }
     }
@@ -619,20 +637,21 @@ class ListDefinition {
     return errors;
   }
 
-  // The field type a role needs.
-  static FieldType? _roleType(FieldRole? role) {
+  // The field types a role fits; empty for no role. A reminder rings on a
+  // date (in the morning) or a date and time (T-13, Q-96).
+  static Set<FieldType> roleFieldTypes(FieldRole? role) {
     switch (role) {
       case null:
-        return null;
+        return const {};
       case FieldRole.completion:
-        return FieldType.checkbox;
+        return const {FieldType.checkbox};
       case FieldRole.reminder:
-        return FieldType.dateTime;
+        return const {FieldType.date, FieldType.dateTime};
       case FieldRole.status:
       case FieldRole.section:
-        return FieldType.choice;
+        return const {FieldType.choice};
       case FieldRole.category:
-        return FieldType.category;
+        return const {FieldType.category};
     }
   }
 

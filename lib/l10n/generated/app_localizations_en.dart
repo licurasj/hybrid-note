@@ -1465,4 +1465,110 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get preferencesHomeOrderOwnLine => 'Home keeps its own order.';
+
+  @override
+  String get noTime => 'No time';
+
+  @override
+  String get editorRemindMe => 'Remind me';
+
+  @override
+  String get editorRemindMeLine =>
+      'Rings at its time; a date with no time rings in the morning.';
+
+  @override
+  String get preferencesReminders => 'Reminders';
+
+  @override
+  String get preferencesReminderLeads => 'How early';
+
+  @override
+  String get reminderLeadAtTime => 'At the time';
+
+  @override
+  String get reminderLead5m => '5 min';
+
+  @override
+  String get reminderLead10m => '10 min';
+
+  @override
+  String get reminderLead30m => '30 min';
+
+  @override
+  String get reminderLead1h => '1 hour';
+
+  @override
+  String get reminderLead1d => '1 day';
+
+  @override
+  String get preferencesReminderLeadsLine =>
+      'Each pick rings on its own, that long before an item\'s time.';
+
+  @override
+  String get preferencesReminderLeadsNone =>
+      'Nothing picked: no reminders ring.';
+
+  @override
+  String get preferencesReminderMorning => 'Morning time';
+
+  @override
+  String get preferencesReminderMorningLine =>
+      'When a date with no time rings, and the morning before with 1 day.';
+
+  @override
+  String get preferencesRingOnThisPhone => 'Ring on this phone';
+
+  @override
+  String get preferencesRingOnThisPhoneLine =>
+      'Only this phone; your other phones have their own switch.';
+
+  @override
+  String get preferencesRingOnThisPhoneOffLine =>
+      'This phone stays quiet; your other phones still ring.';
+
+  @override
+  String get preferencesRemindersAndroidOnly =>
+      'Reminders ring on Android phones only for now.';
+
+  @override
+  String get editorNoReminder => 'This list has no date marked Remind me.';
+
+  @override
+  String reminderBody(String list, String when) {
+    return '$list · $when';
+  }
+
+  @override
+  String get reminderExactTitle => 'Ring on time';
+
+  @override
+  String get reminderExactText =>
+      'Reminders ring at their minute only with Alarms & reminders on for Hybrid Note. Without it they still ring, but may come late.';
+
+  @override
+  String get reminderExactOpen => 'Open settings';
+
+  @override
+  String get reminderExactLater => 'Not now';
+
+  @override
+  String get preferencesReminderPermission => 'Permission';
+
+  @override
+  String get preferencesReminderPermissionOk =>
+      'Notifications and Alarms & reminders are on: reminders ring on time.';
+
+  @override
+  String get preferencesReminderNotificationsOff =>
+      'Notifications are off for Hybrid Note, so nothing rings.';
+
+  @override
+  String get preferencesReminderExactOff =>
+      'Alarms & reminders is off: reminders ring, but may come late.';
+
+  @override
+  String get preferencesReminderAllow => 'Turn on';
+
+  @override
+  String get reminderDone => 'Done';
 }

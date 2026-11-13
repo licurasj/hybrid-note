@@ -33,7 +33,10 @@ enum PatchOpKind implements WireName {
 //     (a blank description removes it)
 //   addField {field, index?}           removeField {key}
 //   renameField {key, label}           changeFieldType {key, type, options?}
-//   setFieldProps {key, required?}     setOptions {key, options}
+//   setFieldProps {key, required?, role?, default?, min?, max?,
+//                  visibleWhen?}       setOptions {key, options}
+//     (absent: unchanged, null: removed; not on the title field. One edit
+//     for every detail of an existing field, also for the AI: Q-128, Q-129)
 //   moveField {key, index}             setView {view}
 //   addBehavior {behavior}             removeBehavior {kind}
 class ListPatchOp {
@@ -56,6 +59,8 @@ class ListPatchOp {
       // offered to the AI.
       'tickedItems': ArgType.any,
       'confirmDelete': ArgType.any,
+      // How early its reminders ring (T-13, Q-118): ReminderLead wire values.
+      'reminderLeads': ArgType.any,
     },
     PatchOpKind.addField: {'field': ArgType.object, 'index': ArgType.integer},
     PatchOpKind.removeField: {'key': ArgType.string},
@@ -65,7 +70,16 @@ class ListPatchOp {
       'type': ArgType.string,
       'options': ArgType.list,
     },
-    PatchOpKind.setFieldProps: {'key': ArgType.string, 'required': ArgType.boolean},
+    PatchOpKind.setFieldProps: {
+      'key': ArgType.string,
+      'required': ArgType.boolean,
+      // A role's wire name, or null for none.
+      'role': ArgType.any,
+      'default': ArgType.any,
+      'min': ArgType.any,
+      'max': ArgType.any,
+      'visibleWhen': ArgType.any,
+    },
     PatchOpKind.setOptions: {'key': ArgType.string, 'options': ArgType.list},
     PatchOpKind.moveField: {'key': ArgType.string, 'index': ArgType.integer},
     PatchOpKind.setView: {'view': ArgType.object},
@@ -112,6 +126,9 @@ class ListPatchOp {
       }
     }
     errors.addAll(ListInput.unknownKeys(args['field'], InputShape.field, op, 'field'));
+    if (kind == PatchOpKind.setFieldProps) {
+      errors.addAll(ListInput.unknownKeys(args['visibleWhen'], InputShape.visibleWhen, op, 'visibleWhen'));
+    }
     errors.addAll(ListInput.unknownKeys(args['view'], InputShape.view, op, 'view'));
     errors.addAll(ListInput.unknownKeys(args['behavior'], InputShape.behavior, op, 'behavior'));
     return errors;
@@ -252,12 +269,18 @@ class ListPatch {
           case PatchOpKind.setListInfo:
             final Object? ticked = op.args[ListDefinition.ownTickedItemsKey];
             final Object? confirm = op.args[ListDefinition.ownConfirmDeleteKey];
+            final Object? leads = op.args[ListDefinition.ownReminderLeadsKey];
             if ((ticked != null &&
                     !ListDefinition.tickedItemsWires.contains(ticked)) ||
-                confirm is! bool?) {
+                confirm is! bool? ||
+                (leads != null &&
+                    (leads is! List ||
+                        !leads.every(
+                          ListDefinition.reminderLeadWires.contains,
+                        )))) {
               errors.add(ListError(
                 ListErrorCode.badOp,
-                {'op': op.kind.wire, 'detail': 'tickedItems must be one of ${ListDefinition.tickedItemsWires.join(', ')} and confirmDelete true or false, or null'},
+                {'op': op.kind.wire, 'detail': 'tickedItems must be one of ${ListDefinition.tickedItemsWires.join(', ')}, confirmDelete true or false, and reminderLeads a list of ${ListDefinition.reminderLeadWires.join(', ')}, or null'},
               ));
               continue;
             }
@@ -277,8 +300,15 @@ class ListPatch {
             final FieldDefinition field = fields[index];
             fields[index] = _copy(field, label: op.args['label'] as String?, clearLabelKey: true);
           case PatchOpKind.setFieldProps:
-            final FieldDefinition field = fields[index];
-            fields[index] = _copy(field, required: op.args['required'] as bool?);
+            final FieldDefinition? next = _withProps(fields[index], op);
+            if (next == null) {
+              errors.add(ListError(
+                ListErrorCode.badOp,
+                {'op': op.kind.wire, 'detail': 'the title field keeps its details; role must be a role or null, min and max numbers or null, and default a value of the field type'},
+              ));
+              continue;
+            }
+            fields[index] = next;
           case PatchOpKind.moveField:
             final FieldDefinition field = fields.removeAt(index);
             final int to = (op.args['index'] as int? ?? fields.length).clamp(0, fields.length);
@@ -376,6 +406,7 @@ class ListPatch {
         for (final String key in const [
           ListDefinition.ownTickedItemsKey,
           ListDefinition.ownConfirmDeleteKey,
+          ListDefinition.ownReminderLeadsKey,
         ])
           if (info.containsKey(key) && info[key] != null) key: info[key],
       }..removeWhere((key, value) => info.containsKey(key) && info[key] == null),
@@ -509,20 +540,64 @@ class ListPatch {
     return trimmed.isEmpty ? null : trimmed;
   }
 
-  static bool _roleFits(FieldRole? role, FieldType type) {
-    switch (role) {
-      case null:
-        return true;
-      case FieldRole.completion:
-        return type == FieldType.checkbox;
-      case FieldRole.reminder:
-        return type == FieldType.dateTime;
-      case FieldRole.status:
-      case FieldRole.section:
-        return type == FieldType.choice;
-      case FieldRole.category:
-        return type == FieldType.category;
+  static bool _roleFits(FieldRole? role, FieldType type) =>
+      role == null || ListDefinition.roleFieldTypes(role).contains(type);
+
+  // The field with the details setFieldProps names; null when an argument
+  // does not fit. FieldCondition.fromJson throws a FormatException for a bad
+  // visibleWhen, reported as badOp like other ops' bad objects.
+  static FieldDefinition? _withProps(FieldDefinition field, ListPatchOp op) {
+    final Map<String, dynamic> args = op.args;
+    if (field.primary) {
+      return null;
     }
+    FieldRole? role = field.role;
+    if (args.containsKey('role')) {
+      final Object? wire = args['role'];
+      role = wire == null ? null : enumFromWire(FieldRole.values, wire);
+      if (wire != null && role == null) {
+        return null;
+      }
+    }
+    num? limit(String name, num? current) =>
+        args.containsKey(name) ? args[name] as num? : current;
+    for (final String name in const ['min', 'max']) {
+      if (args.containsKey(name) && args[name] is! num?) {
+        return null;
+      }
+    }
+    Object? defaultValue = field.defaultValue;
+    if (args.containsKey('default')) {
+      final Object? value = args['default'];
+      if (value == null) {
+        defaultValue = null;
+      } else {
+        final (bool ok, Object? converted) = convertValue(value, field);
+        if (!ok) {
+          return null;
+        }
+        defaultValue = converted;
+      }
+    }
+    final Object? condition = args['visibleWhen'];
+    return FieldDefinition(
+      key: field.key,
+      type: field.type,
+      label: field.label,
+      labelKey: field.labelKey,
+      required: args['required'] as bool? ?? field.required,
+      primary: field.primary,
+      role: role,
+      options: field.options,
+      defaultValue: defaultValue,
+      min: limit('min', field.min),
+      max: limit('max', field.max),
+      visibleWhen: !args.containsKey('visibleWhen')
+          ? field.visibleWhen
+          : condition == null
+          ? null
+          : FieldCondition.fromJson(condition),
+    );
   }
 
   static FieldDefinition _copy(

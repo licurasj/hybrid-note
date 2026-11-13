@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ring_missed_channel">错过的提醒</string>
+    <string name="ring_missed_title">手机关机期间错过</string>
+    <plurals name="ring_missed_count">
+        <item quantity="other">%d 条提醒</item>
+    </plurals>
+</resources>

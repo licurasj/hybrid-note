@@ -10,6 +10,7 @@ import 'package:hybrid_note/backend/firestore_list_store.dart';
 import 'package:hybrid_note/home_screen.dart';
 import 'package:hybrid_note/lists/builtin_templates.dart';
 import 'package:hybrid_note/lists/list_patch.dart';
+import 'package:hybrid_note/reminders/reminder_settings.dart';
 
 import '../support/fake_auth.dart';
 import '../support/firestore_store.dart';
@@ -64,6 +65,7 @@ const List<String> _sections = [
   'home',
   'lists-and-dial',
   'items',
+  'reminders',
   'ai',
   'general',
 ];
@@ -639,5 +641,41 @@ void main() {
         await tester.pumpWidget(const SizedBox());
       }
     });
+  });
+
+  // T-13 unit 2: Preferences > Reminders.
+  testWidgets('Reminders: how early is pick-any, the morning time and Ring '
+      'on this phone', (tester) async {
+    await _pumpApp(tester);
+    await _openPreferences(tester);
+    final BuildContext context = tester.element(find.byType(PreferencesScreen));
+    final AccountPreferencesCubit cubit = context.read<AccountPreferencesCubit>();
+    final AppSettingsCubit settings = context.read<AppSettingsCubit>();
+    expect(cubit.state.reminderLeads, {ReminderLead.atTime});
+
+    Future<void> tap(Finder finder) async {
+      await tester.ensureVisible(finder);
+      await tester.pumpAndSettle();
+      await tester.tap(finder);
+      await tester.pumpAndSettle();
+    }
+
+    final Finder leads = find.byKey(const ValueKey('preferences-reminder-leads'));
+    await tap(find.descendant(of: leads, matching: find.byKey(const ValueKey('choice-ReminderLead.minutes10'))));
+    expect(cubit.state.reminderLeads, {ReminderLead.atTime, ReminderLead.minutes10});
+    await tap(find.descendant(of: leads, matching: find.byKey(const ValueKey('choice-ReminderLead.atTime'))));
+    await tap(find.descendant(of: leads, matching: find.byKey(const ValueKey('choice-ReminderLead.minutes10'))));
+    expect(cubit.state.reminderLeads, isEmpty);
+    expect(find.text('Nothing picked: no reminders ring.'), findsOneWidget);
+
+    await tap(find.byKey(const ValueKey('preferences-reminder-morning')));
+    await tap(find.textContaining('7:30').last);
+    expect(cubit.state.reminderMorning, 7 * 60 + 30);
+
+    expect(settings.state.ringOnThisPhone, isTrue);
+    await tap(find.descendant(of: find.byKey(const ValueKey('preferences-ring-on-this-phone')), matching: find.byType(Switch)));
+    expect(settings.state.ringOnThisPhone, isFalse);
+    final SharedPreferences stored = await SharedPreferences.getInstance();
+    expect(stored.getBool(AppSettingsCubit.ringOnThisPhoneKey), isFalse);
   });
 }

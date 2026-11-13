@@ -2497,6 +2497,192 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Home keeps its own order.'**
   String get preferencesHomeOrderOwnLine;
+
+  /// No description provided for @noTime.
+  ///
+  /// In en, this message translates to:
+  /// **'No time'**
+  String get noTime;
+
+  /// No description provided for @editorRemindMe.
+  ///
+  /// In en, this message translates to:
+  /// **'Remind me'**
+  String get editorRemindMe;
+
+  /// No description provided for @editorRemindMeLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Rings at its time; a date with no time rings in the morning.'**
+  String get editorRemindMeLine;
+
+  /// No description provided for @preferencesReminders.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders'**
+  String get preferencesReminders;
+
+  /// No description provided for @preferencesReminderLeads.
+  ///
+  /// In en, this message translates to:
+  /// **'How early'**
+  String get preferencesReminderLeads;
+
+  /// No description provided for @reminderLeadAtTime.
+  ///
+  /// In en, this message translates to:
+  /// **'At the time'**
+  String get reminderLeadAtTime;
+
+  /// No description provided for @reminderLead5m.
+  ///
+  /// In en, this message translates to:
+  /// **'5 min'**
+  String get reminderLead5m;
+
+  /// No description provided for @reminderLead10m.
+  ///
+  /// In en, this message translates to:
+  /// **'10 min'**
+  String get reminderLead10m;
+
+  /// No description provided for @reminderLead30m.
+  ///
+  /// In en, this message translates to:
+  /// **'30 min'**
+  String get reminderLead30m;
+
+  /// No description provided for @reminderLead1h.
+  ///
+  /// In en, this message translates to:
+  /// **'1 hour'**
+  String get reminderLead1h;
+
+  /// No description provided for @reminderLead1d.
+  ///
+  /// In en, this message translates to:
+  /// **'1 day'**
+  String get reminderLead1d;
+
+  /// No description provided for @preferencesReminderLeadsLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Each pick rings on its own, that long before an item\'s time.'**
+  String get preferencesReminderLeadsLine;
+
+  /// No description provided for @preferencesReminderLeadsNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing picked: no reminders ring.'**
+  String get preferencesReminderLeadsNone;
+
+  /// No description provided for @preferencesReminderMorning.
+  ///
+  /// In en, this message translates to:
+  /// **'Morning time'**
+  String get preferencesReminderMorning;
+
+  /// No description provided for @preferencesReminderMorningLine.
+  ///
+  /// In en, this message translates to:
+  /// **'When a date with no time rings, and the morning before with 1 day.'**
+  String get preferencesReminderMorningLine;
+
+  /// No description provided for @preferencesRingOnThisPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Ring on this phone'**
+  String get preferencesRingOnThisPhone;
+
+  /// No description provided for @preferencesRingOnThisPhoneLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Only this phone; your other phones have their own switch.'**
+  String get preferencesRingOnThisPhoneLine;
+
+  /// No description provided for @preferencesRingOnThisPhoneOffLine.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone stays quiet; your other phones still ring.'**
+  String get preferencesRingOnThisPhoneOffLine;
+
+  /// No description provided for @preferencesRemindersAndroidOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders ring on Android phones only for now.'**
+  String get preferencesRemindersAndroidOnly;
+
+  /// No description provided for @editorNoReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'This list has no date marked Remind me.'**
+  String get editorNoReminder;
+
+  /// A ring's text under the item's title: the list's name and the time.
+  ///
+  /// In en, this message translates to:
+  /// **'{list} · {when}'**
+  String reminderBody(String list, String when);
+
+  /// No description provided for @reminderExactTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Ring on time'**
+  String get reminderExactTitle;
+
+  /// No description provided for @reminderExactText.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders ring at their minute only with Alarms & reminders on for Hybrid Note. Without it they still ring, but may come late.'**
+  String get reminderExactText;
+
+  /// No description provided for @reminderExactOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open settings'**
+  String get reminderExactOpen;
+
+  /// No description provided for @reminderExactLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get reminderExactLater;
+
+  /// No description provided for @preferencesReminderPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission'**
+  String get preferencesReminderPermission;
+
+  /// No description provided for @preferencesReminderPermissionOk.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications and Alarms & reminders are on: reminders ring on time.'**
+  String get preferencesReminderPermissionOk;
+
+  /// No description provided for @preferencesReminderNotificationsOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications are off for Hybrid Note, so nothing rings.'**
+  String get preferencesReminderNotificationsOff;
+
+  /// No description provided for @preferencesReminderExactOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Alarms & reminders is off: reminders ring, but may come late.'**
+  String get preferencesReminderExactOff;
+
+  /// No description provided for @preferencesReminderAllow.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on'**
+  String get preferencesReminderAllow;
+
+  /// The button on a reminder notification that ticks the item without opening the app.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get reminderDone;
 }
 
 class _AppLocalizationsDelegate

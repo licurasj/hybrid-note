@@ -15,6 +15,7 @@ import '../launcher/dial_launcher.dart';
 import '../launcher/launcher_hub_area.dart';
 import '../launcher/radial_launcher.dart';
 import '../lists/generic_list_host.dart';
+import '../reminders/ring_booker.dart';
 import '../lists/generic_list_screen.dart' show ListEditAction;
 import '../lists/list_catalog.dart';
 import '../lists/list_catalog_builder.dart';
@@ -70,6 +71,7 @@ class _MainShellState extends State<MainShell> {
   bool _startChecked = false;
   bool _catalogLoaded = false;
   StreamSubscription<ListCatalog>? _catalogLoad;
+  StreamSubscription<RingPayload>? _ringTaps;
   StarterSeeding? _starter;
 
   final GlobalKey<NavigatorState> _content = GlobalKey<NavigatorState>();
@@ -110,6 +112,17 @@ class _MainShellState extends State<MainShell> {
   void initState() {
     super.initState();
     _top.route.addListener(_onTopRoute);
+    final RingPlatform? rings = context.read<RingBooker?>()?.platform;
+    if (rings != null) {
+      _ringTaps = rings.taps.listen(_openRing);
+      unawaited(
+        rings.launchTap().then((ring) {
+          if (ring != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) => _openRing(ring));
+          }
+        }),
+      );
+    }
     _recent.addAll(
       context.read<AppSettingsCubit>().recentLists(
         context.read<SignedInAccount>().user.uid,
@@ -165,6 +178,7 @@ class _MainShellState extends State<MainShell> {
   @override
   void dispose() {
     _catalogLoad?.cancel();
+    _ringTaps?.cancel();
     _starter?.changes.removeListener(_recheckStartList);
     _ai?.dispose();
     _top.dispose();
@@ -205,7 +219,17 @@ class _MainShellState extends State<MainShell> {
     _content.currentState?.popUntil((route) => route.isFirst);
   }
 
-  void _openList(String listId) {
+  // A tap on a ring (T-13 unit 4, Q-97) opens its list with the item's
+  // sheet, the list opened afresh even when it is the one showing.
+  void _openRing(RingPayload ring) {
+    if (mounted) {
+      // The last open list (start screen) no longer goes home over it.
+      _startChecked = true;
+      _openList(ring.listId, itemId: ring.itemId);
+    }
+  }
+
+  void _openList(String listId, {String? itemId}) {
     setState(() {
       _recent
         ..remove(listId)
@@ -214,12 +238,12 @@ class _MainShellState extends State<MainShell> {
     _saveRecent();
     final NavigatorState? content = _content.currentState;
     final String? open = _openListId;
-    if (content == null || open == listId) {
+    if (content == null || (open == listId && itemId == null)) {
       return;
     }
     final Route<void> route = MaterialPageRoute<void>(
       settings: RouteSettings(name: '$_listRoute$listId'),
-      builder: (_) => GenericListHost(listId: listId),
+      builder: (_) => GenericListHost(listId: listId, openItemId: itemId),
     );
     if (open == null) {
       content.push(route);

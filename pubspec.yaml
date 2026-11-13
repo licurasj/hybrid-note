@@ -47,6 +47,9 @@ dependencies:
   shared_preferences: ^2.5.6
   cloud_functions: ^7.0.1
   firebase_app_check: ^0.5.1
+  flutter_local_notifications: ^22.3.3
+  timezone: ^0.11.2
+  workmanager: ^0.10.10
 
 dev_dependencies:
   flutter_test:
@@ -92,9 +95,9 @@ flutter:
           weight: 600
         - asset: assets/fonts/geist/Geist-Bold.ttf
           weight: 700
-  # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
+  # The app logo, also drawn in a list's colour on its reminders (T-13 unit 9).
+  assets:
+    - assets/app_icon.png
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

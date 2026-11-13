@@ -174,7 +174,7 @@
     },
     "aiItemValue": {
       "type": "object",
-      "description": "The value of one field of an item; null clears it. text, longText, url, category: a string; enum: one option value; checkbox, toggle: true or false; number: a number; counter, rating: a whole number; date: YYYY-MM-DD; dateTime: an ISO date and time; tags: a list of strings; checklist: a list of sub-steps; recurrence: {frequency, customDays}.",
+      "description": "The value of one field of an item; null clears it. text, longText, url, category: a string; enum: one option value; checkbox, toggle: true or false; number: a number; counter, rating: a whole number; date: YYYY-MM-DD; dateTime: YYYY-MM-DDTHH:MM local time, or YYYY-MM-DD when no time was stated; tags: a list of strings; checklist: a list of sub-steps; recurrence: {frequency, customDays}.",
       "required": ["field", "value"],
       "additionalProperties": false,
       "properties": {
@@ -270,13 +270,18 @@
     },
     "opSetFieldProps": {
       "type": "object",
-      "description": "Makes a field required or optional.",
-      "required": ["op", "key", "required"],
+      "description": "Changes details of an existing field other than the title, in one edit: required or optional; role reminder makes a date or dateTime field ring as a reminder, null takes the mark off; default value; min and max of a number, counter or rating field; visibleWhen. Give only the details that change; null removes a default, min, max or visibleWhen.",
+      "required": ["op", "key"],
       "additionalProperties": false,
       "properties": {
         "op": { "const": "setFieldProps" },
         "key": { "$ref": "#/$defs/aiFieldKey" },
-        "required": { "type": "boolean" }
+        "required": { "type": "boolean" },
+        "role": { "enum": ["reminder", null] },
+        "default": { "anyOf": [{ "$ref": "#/$defs/scalar" }, { "type": "null" }] },
+        "min": { "anyOf": [{ "type": "number" }, { "type": "null" }] },
+        "max": { "anyOf": [{ "type": "number" }, { "type": "null" }] },
+        "visibleWhen": { "anyOf": [{ "$ref": "#/$defs/aiVisibleWhen" }, { "type": "null" }] }
       }
     },
     "opSetOptions": {

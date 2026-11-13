@@ -1415,4 +1415,101 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get preferencesHomeOrderOwnLine => '首页保持自己的顺序。';
+
+  @override
+  String get noTime => '不设时间';
+
+  @override
+  String get editorRemindMe => '提醒我';
+
+  @override
+  String get editorRemindMeLine => '到时间时提醒；没有时间的日期在早上提醒。';
+
+  @override
+  String get preferencesReminders => '提醒';
+
+  @override
+  String get preferencesReminderLeads => '提前多久';
+
+  @override
+  String get reminderLeadAtTime => '准时';
+
+  @override
+  String get reminderLead5m => '5 分钟';
+
+  @override
+  String get reminderLead10m => '10 分钟';
+
+  @override
+  String get reminderLead30m => '30 分钟';
+
+  @override
+  String get reminderLead1h => '1 小时';
+
+  @override
+  String get reminderLead1d => '1 天';
+
+  @override
+  String get preferencesReminderLeadsLine => '每个选项单独响铃，在条目时间之前这么久。';
+
+  @override
+  String get preferencesReminderLeadsNone => '未选择：不会响铃。';
+
+  @override
+  String get preferencesReminderMorning => '早上时间';
+
+  @override
+  String get preferencesReminderMorningLine => '没有时间的日期在此时响铃；选了 1 天时前一天早上也会响。';
+
+  @override
+  String get preferencesRingOnThisPhone => '在此手机上响铃';
+
+  @override
+  String get preferencesRingOnThisPhoneLine => '仅此手机；你的其他手机有各自的开关。';
+
+  @override
+  String get preferencesRingOnThisPhoneOffLine => '此手机保持安静；你的其他手机仍会响铃。';
+
+  @override
+  String get preferencesRemindersAndroidOnly => '目前提醒只在 Android 手机上响铃。';
+
+  @override
+  String get editorNoReminder => '此列表没有标记为提醒的日期。';
+
+  @override
+  String reminderBody(String list, String when) {
+    return '$list · $when';
+  }
+
+  @override
+  String get reminderExactTitle => '准时提醒';
+
+  @override
+  String get reminderExactText =>
+      '只有为 Hybrid Note 打开“闹钟和提醒”，提醒才会准时到分钟。不打开也会提醒，但可能会晚。';
+
+  @override
+  String get reminderExactOpen => '打开设置';
+
+  @override
+  String get reminderExactLater => '以后再说';
+
+  @override
+  String get preferencesReminderPermission => '权限';
+
+  @override
+  String get preferencesReminderPermissionOk => '通知和“闹钟和提醒”都已打开：提醒会准时响起。';
+
+  @override
+  String get preferencesReminderNotificationsOff =>
+      'Hybrid Note 的通知已关闭，因此不会有提醒。';
+
+  @override
+  String get preferencesReminderExactOff => '“闹钟和提醒”已关闭：提醒仍会响起，但可能会晚。';
+
+  @override
+  String get preferencesReminderAllow => '打开';
+
+  @override
+  String get reminderDone => '完成';
 }

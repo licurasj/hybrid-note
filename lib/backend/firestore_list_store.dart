@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import '../lists/list_catalog.dart';
 import '../lists/list_definition.dart';
@@ -250,6 +251,39 @@ class FirestoreListStore implements ListStore {
 
   static ListDefinition _definitionFrom(Map<String, dynamic> data) {
     return ListDefinition.fromJson(_decode(data)..remove(createdAtKey));
+  }
+
+  // The account's lists read once, from the server when online, else from
+  // the cache, with no store open (the background check, T-13 unit 4).
+  // Malformed documents are skipped, as the store skips them.
+  static Future<ListCatalog> readOnce(
+    FirebaseFirestore firestore,
+    String uid,
+  ) async {
+    final QuerySnapshot<Map<String, dynamic>> lists = await firestore
+        .collection('users')
+        .doc(uid)
+        .collection('lists')
+        .get();
+    final List<ListDefinition> definitions = [];
+    final List<ListItem> items = [];
+    for (final QueryDocumentSnapshot<Map<String, dynamic>> list in lists.docs) {
+      try {
+        definitions.add(_definitionFrom(list.data()));
+      } on Object catch (error) {
+        developer.log('skipped ${list.reference.path}: $error');
+        continue;
+      }
+      for (final QueryDocumentSnapshot<Map<String, dynamic>> item
+          in (await list.reference.collection('items').get()).docs) {
+        try {
+          items.add(_itemFrom(item.data()));
+        } on Object catch (error) {
+          developer.log('skipped ${item.reference.path}: $error');
+        }
+      }
+    }
+    return ListCatalog(definitions: definitions, items: items);
   }
 
   static DateTime? _createdAtOf(Map<String, dynamic> data) {
@@ -1289,6 +1323,230 @@ class FirestoreListStore implements ListStore {
       // harm.
       return null;
     }
+  }
+
+  // Done on a ring (T-13 unit 4, plan's Sync safety for Done): [change] works
+  // out the tick from a fresh copy of the item and its list, read from the
+  // server in a transaction, so a ring booked before a change elsewhere ticks
+  // what is there now. It needs no open store, so a background isolate can
+  // call it. Returns true when written with the server, false when nothing
+  // was written (the list or item is gone, or [change] gave nothing), and
+  // null when offline or when the transaction's outcome is unknown (it timed
+  // out and may still land).
+  //
+  // Offline (T-13 unit 10, F1) the cached copies decide, but nothing is ever
+  // written whole from the cache: [offlineChange] (default [change]) may only
+  // change fields of the item itself, and only the fields it changed are
+  // queued, as an `update`. An update fails on the server when another phone
+  // deleted the item meanwhile, so it never brings it back, and it leaves
+  // every field it did not change, such as a date moved on another phone, as
+  // that phone wrote it. Changes that create or delete documents (a clear)
+  // are not made offline. A transaction that timed out goes on as offline
+  // (T-13 unit 14, G6): it may still land after the queued update, and the
+  // cache may not have a change another phone made meanwhile, so a date
+  // moved there can end up ticked, and a repeat or clear-at-once item can be
+  // ticked or advanced twice. Last writer wins there until Done is tied to
+  // its occurrence (T-28 Sync safety).
+  static Future<bool?> applyFresh(
+    FirebaseFirestore firestore,
+    String uid, {
+    required String listId,
+    required String itemId,
+    required ListChanges Function(ListDefinition definition, ListItem item)
+    change,
+    ListChanges Function(ListDefinition definition, ListItem item)?
+    offlineChange,
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    final DocumentReference<Map<String, dynamic>> listRef = firestore
+        .collection('users')
+        .doc(uid)
+        .collection('lists')
+        .doc(listId);
+    final DocumentReference<Map<String, dynamic>> itemRef = listRef
+        .collection('items')
+        .doc(itemId);
+    void write(
+      ListDefinition definition,
+      ListChanges changes,
+      void Function(DocumentReference<Map<String, dynamic>> ref, Object data)
+      set,
+      void Function(DocumentReference<Map<String, dynamic>> ref) delete,
+    ) {
+      for (final ListItem item in changes.saved) {
+        set(
+          listRef.parent.doc(item.listId).collection('items').doc(item.id),
+          itemData(_fit(definition, item) ?? item, definition.schemaRevision),
+        );
+      }
+      for (final String id in changes.deletedIds) {
+        delete(listRef.collection('items').doc(id));
+      }
+    }
+
+    try {
+      return await firestore.runTransaction<bool>((transaction) async {
+        final Map<String, dynamic>? listData = (await transaction.get(
+          listRef,
+        )).data();
+        final Map<String, dynamic>? data = (await transaction.get(
+          itemRef,
+        )).data();
+        if (listData == null || data == null) {
+          return false;
+        }
+        final ListDefinition definition = _definitionFrom(listData);
+        final ListChanges changes = change(definition, _itemFrom(data));
+        if (changes.isEmpty) {
+          return false;
+        }
+        write(
+          definition,
+          changes,
+          (ref, data) => transaction.set(ref, data as Map<String, dynamic>),
+          transaction.delete,
+        );
+        return true;
+      }).timeout(timeout);
+    } on FirebaseException catch (error) {
+      if (!_offlineCodes.contains(error.code)) {
+        rethrow;
+      }
+    } on TimeoutException {
+      // The outcome is unknown: the transaction may still land, on its own
+      // or after the offline update below (see above: not always harmless).
+    }
+
+    const GetOptions cache = GetOptions(source: Source.cache);
+    final Map<String, dynamic>? listData;
+    final Map<String, dynamic>? data;
+    try {
+      listData = (await listRef.get(cache)).data();
+      data = (await itemRef.get(cache)).data();
+    } on FirebaseException {
+      // Not in the cache: nothing to go on.
+      return false;
+    }
+    if (listData == null || data == null) {
+      return false;
+    }
+    final ListDefinition definition = _definitionFrom(listData);
+    final ListChanges changes = (offlineChange ?? change)(
+      definition,
+      _itemFrom(data),
+    );
+    final Map<String, Object?>? fields = offlineFields(
+      definition,
+      itemId,
+      data,
+      changes,
+    );
+    if (fields == null || fields.isEmpty) {
+      return false;
+    }
+    // Offline the commit completes only when the server has it; the write is
+    // in the cache at once, which a cache read after it waits for. A deleted
+    // item makes the server refuse it, and the cache drops it again.
+    final WriteBatch batch = firestore.batch()..update(itemRef, fields);
+    unawaited(
+      batch.commit().catchError(
+        (Object error) => developer.log('Done not synced: $error'),
+      ),
+    );
+    try {
+      await itemRef.get(cache);
+    } on FirebaseException {
+      // The write is queued either way.
+    }
+    return null;
+  }
+
+  // The fields [changes] changes on the stored item [stored] (id [itemId]),
+  // for an offline `update` (applyFresh, F1): each changed or new field with
+  // its new value, each removed one as a delete; a field's value as a path
+  // into `values` ("values.done"), so the item's other values stay as the
+  // server has them. Both sides are fitted to [definition] first (T-13 unit
+  // 14, G5), so a conversion still pending on the cached copy is not written
+  // with Done. Null when [changes] does anything else (another document
+  // saved, anything deleted) or a key cannot be a plain path; that is not
+  // written offline at all.
+  @visibleForTesting
+  static Map<String, Object?>? offlineFields(
+    ListDefinition definition,
+    String itemId,
+    Map<String, dynamic> stored,
+    ListChanges changes,
+  ) {
+    if (changes.deletedIds.isNotEmpty ||
+        changes.saved.length != 1 ||
+        changes.saved.single.id != itemId) {
+      return null;
+    }
+    final ListItem item = changes.saved.single;
+    final Map<String, dynamic> next = itemData(
+      _fit(definition, item) ?? item,
+      definition.schemaRevision,
+    );
+    final ListItem cached = _itemFrom(stored);
+    final Map<String, dynamic> before = itemData(
+      _fit(definition, cached) ?? cached,
+      definition.schemaRevision,
+    );
+    final Map<String, Object?> fields = {};
+    void diff(
+      String prefix,
+      Map<Object?, Object?> before,
+      Map<Object?, Object?> after,
+    ) {
+      for (final MapEntry<Object?, Object?> entry in after.entries) {
+        if (!before.containsKey(entry.key) ||
+            !_sameValue(before[entry.key], entry.value)) {
+          fields['$prefix${entry.key}'] = entry.value;
+        }
+      }
+      for (final Object? key in before.keys) {
+        if (!after.containsKey(key)) {
+          fields['$prefix$key'] = FieldValue.delete();
+        }
+      }
+    }
+
+    final Object? beforeValues = before['values'];
+    final Object? afterValues = next['values'];
+    if (beforeValues is Map && afterValues is Map) {
+      diff('values.', beforeValues, afterValues);
+      diff('', {...before}..remove('values'), {...next}..remove('values'));
+    } else {
+      diff('', before, next);
+    }
+    final RegExp plain = RegExp(r'^[A-Za-z_][A-Za-z_0-9]*$');
+    if (fields.keys.any(
+      (path) => path.split('.').any((part) => !plain.hasMatch(part)),
+    )) {
+      return null;
+    }
+    return fields;
+  }
+
+  static bool _sameValue(Object? a, Object? b) {
+    if (a is Map && b is Map) {
+      return a.length == b.length &&
+          a.keys.every(
+            (key) => b.containsKey(key) && _sameValue(a[key], b[key]),
+          );
+    }
+    if (a is List && b is List) {
+      if (a.length != b.length) {
+        return false;
+      }
+      for (int i = 0; i < a.length; i++) {
+        if (!_sameValue(a[i], b[i])) {
+          return false;
+        }
+      }
+      return true;
+    }
+    return a == b;
   }
 
   @override

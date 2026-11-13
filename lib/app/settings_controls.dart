@@ -131,6 +131,108 @@ class SettingButtonsRow<T> extends StatelessWidget {
   }
 }
 
+// A label with choices to pick any of, as pill buttons under it, three to a
+// line, each picked one filled (T-13: how early a reminder rings, Q-90). A tap
+// adds or takes away that one; picking none is allowed.
+class SettingPillsMulti<T> extends StatelessWidget {
+  const SettingPillsMulti({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.choices,
+    required this.onChanged,
+    this.line,
+    this.enabled = true,
+    this.perLine = 3,
+    this.sub,
+  });
+
+  final String label;
+  final Set<T> selected;
+  final List<SettingChoice<T>> choices;
+  final ValueChanged<Set<T>>? onChanged;
+  final String? line;
+  final bool enabled;
+  final int perLine;
+  final Widget? sub;
+
+  @override
+  Widget build(BuildContext context) {
+    final EditorLook look = EditorLook.of(context);
+    final AppNeutrals n = look.neutrals;
+    const double gap = 6;
+    return look.hairline(
+      child: Padding(
+        padding: const EdgeInsets.only(top: 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _greyed(
+              enabled,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(label, style: look.type.row),
+                  const SizedBox(height: 10),
+                  Semantics(
+                    label: label,
+                    explicitChildNodes: true,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final double width =
+                            (constraints.maxWidth - gap * (perLine - 1)) /
+                            perLine;
+                        return Wrap(
+                          spacing: gap,
+                          runSpacing: gap,
+                          children: [
+                            for (final SettingChoice<T> c in choices)
+                              SizedBox(
+                                width: width,
+                                child: Semantics(
+                                  checked: selected.contains(c.value),
+                                  enabled: onChanged != null && enabled,
+                                  child: _Pill(
+                                    key: ValueKey('choice-${c.value}'),
+                                    text: c.label,
+                                    picked: selected.contains(c.value),
+                                    neutrals: n,
+                                    style: look.type.meta.copyWith(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    onTap: onChanged == null || !enabled
+                                        ? null
+                                        : () => onChanged!(
+                                            selected.contains(c.value)
+                                                ? ({...selected}
+                                                    ..remove(c.value))
+                                                : {...selected, c.value},
+                                          ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (line != null)
+              SettingLine(line!)
+            else
+              const SizedBox(height: 6),
+            ?sub,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _Pill extends StatelessWidget {
   const _Pill({
     super.key,
@@ -480,7 +582,7 @@ class _SettingFoldPickerState<T> extends State<SettingFoldPicker<T>> {
               child: Row(
                 children: [
                   if (widget.label != null) ...[
-                    Text(widget.label!, style: look.label),
+                    Flexible(child: Text(widget.label!, style: look.label)),
                     const SizedBox(width: 16),
                   ],
                   Expanded(

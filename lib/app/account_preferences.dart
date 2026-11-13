@@ -8,6 +8,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../lists/list_definition.dart';
+import '../reminders/reminder_settings.dart';
 import 'home_cards.dart';
 
 // How the home and launcher order the lists (Q-49).
@@ -184,6 +185,9 @@ class AccountPreferences {
     this.homeListOrder = HomeListOrder.sameAsDial,
     this.listsOwnTickedItems = true,
     this.listsOwnConfirmDelete = true,
+    this.reminderLeads = ReminderLead.defaults,
+    this.reminderMorning = ReminderSettings.defaultMorningMinutes,
+    this.listsOwnReminderLeads = true,
   });
 
   static const String listOrderKey = 'listOrder';
@@ -207,6 +211,12 @@ class AccountPreferences {
   static const String homeListOrderKey = 'homeListOrder';
   static const String listsOwnTickedItemsKey = 'listsOwnTickedItems';
   static const String listsOwnConfirmDeleteKey = 'listsOwnConfirmDelete';
+  // T-13: how early reminders ring (a list of ReminderLead wire values; empty
+  // means no rings), the morning time of a day with no time ("HH:mm"), and
+  // whether a list's own how early counts (Q-117, Q-118).
+  static const String reminderLeadsKey = 'reminderLeads';
+  static const String reminderMorningKey = 'reminderMorning';
+  static const String listsOwnReminderLeadsKey = 'listsOwnReminderLeads';
   // Before Q-108: which orders had been arranged by hand (Q-75). Read only to
   // work out homeListOrder on an account that has none yet.
   static const String homeArrangedKey = 'homeArranged';
@@ -248,6 +258,34 @@ class AccountPreferences {
   // own choices for when it is on again.
   final bool listsOwnTickedItems;
   final bool listsOwnConfirmDelete;
+  final Set<ReminderLead> reminderLeads;
+  // Minutes after midnight.
+  final int reminderMorning;
+  final bool listsOwnReminderLeads;
+
+  ReminderSettings get reminders => ReminderSettings(
+    leads: reminderLeads,
+    morningMinutes: reminderMorning,
+    listsOwnLeads: listsOwnReminderLeads,
+  );
+
+  // "HH:mm" for [minutes] after midnight, and back; null for anything else.
+  static String morningWire(int minutes) =>
+      '${(minutes ~/ 60).toString().padLeft(2, '0')}:'
+      '${(minutes % 60).toString().padLeft(2, '0')}';
+
+  static int? morningOf(Object? wire) {
+    if (wire is! String) {
+      return null;
+    }
+    final RegExpMatch? match = RegExp(r'^(\d{2}):(\d{2})$').firstMatch(wire);
+    if (match == null) {
+      return null;
+    }
+    final int hour = int.parse(match.group(1)!);
+    final int minute = int.parse(match.group(2)!);
+    return hour < 24 && minute < 60 ? hour * 60 + minute : null;
+  }
 
   // What [list] uses: its own choice while lists may have their own, else the
   // general one (Q-117).
@@ -316,6 +354,13 @@ class AccountPreferences {
       homeListOrder: homeListOrder,
       listsOwnTickedItems: flag(listsOwnTickedItemsKey, true),
       listsOwnConfirmDelete: flag(listsOwnConfirmDeleteKey, true),
+      reminderLeads: Set.unmodifiable(
+        ReminderLead.setOf(json[reminderLeadsKey]) ?? ReminderLead.defaults,
+      ),
+      reminderMorning:
+          morningOf(json[reminderMorningKey]) ??
+          ReminderSettings.defaultMorningMinutes,
+      listsOwnReminderLeads: flag(listsOwnReminderLeadsKey, true),
     );
   }
 
@@ -341,6 +386,9 @@ class AccountPreferences {
     homeListOrderKey: homeListOrder.wire,
     listsOwnTickedItemsKey: listsOwnTickedItems,
     listsOwnConfirmDeleteKey: listsOwnConfirmDelete,
+    reminderLeadsKey: ReminderLead.wiresOf(reminderLeads),
+    reminderMorningKey: morningWire(reminderMorning),
+    listsOwnReminderLeadsKey: listsOwnReminderLeads,
   };
 
   @override
@@ -366,7 +414,10 @@ class AccountPreferences {
       listEquals(other.homeOrder, homeOrder) &&
       other.homeListOrder == homeListOrder &&
       other.listsOwnTickedItems == listsOwnTickedItems &&
-      other.listsOwnConfirmDelete == listsOwnConfirmDelete;
+      other.listsOwnConfirmDelete == listsOwnConfirmDelete &&
+      setEquals(other.reminderLeads, reminderLeads) &&
+      other.reminderMorning == reminderMorning &&
+      other.listsOwnReminderLeads == listsOwnReminderLeads;
 
   @override
   int get hashCode => Object.hashAll([
@@ -391,6 +442,9 @@ class AccountPreferences {
     homeListOrder,
     listsOwnTickedItems,
     listsOwnConfirmDelete,
+    Object.hashAllUnordered(reminderLeads),
+    reminderMorning,
+    listsOwnReminderLeads,
   ]);
 }
 
@@ -888,6 +942,19 @@ class AccountPreferencesCubit extends Cubit<AccountPreferences> {
 
   Future<void> setConfirmDelete(bool value) =>
       _change(AccountPreferences.confirmDeleteKey, value);
+
+  Future<void> setReminderLeads(Set<ReminderLead> leads) => _change(
+    AccountPreferences.reminderLeadsKey,
+    ReminderLead.wiresOf(leads),
+  );
+
+  Future<void> setReminderMorning(int minutes) => _change(
+    AccountPreferences.reminderMorningKey,
+    AccountPreferences.morningWire(minutes),
+  );
+
+  Future<void> setListsOwnReminderLeads(bool value) =>
+      _change(AccountPreferences.listsOwnReminderLeadsKey, value);
 
   Future<void> setListsOwnTickedItems(bool value) =>
       _change(AccountPreferences.listsOwnTickedItemsKey, value);

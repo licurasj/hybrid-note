@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart' show DateFormat;
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../app_colors.dart';
@@ -11,7 +13,11 @@ import '../lists/list_definition.dart';
 import '../lists/list_editor_style.dart';
 import '../lists/list_store.dart';
 import '../lists/list_vocabulary.dart';
+import '../reminders/reminder_permission_row.dart';
+import '../reminders/reminder_settings.dart';
 import 'account_preferences.dart';
+import 'app_settings.dart';
+import 'date_preferences.dart';
 import 'list_order.dart';
 import 'app_theme.dart';
 import 'settings_controls.dart';
@@ -373,6 +379,7 @@ class PreferencesScreen extends StatelessWidget {
                 ),
               ],
             ),
+            _remindersSection(context, loc, preferences, cubit, lists),
             FoldSection(
               key: const ValueKey('preferences-section-ai'),
               title: loc.preferencesAi,
@@ -430,6 +437,137 @@ class PreferencesScreen extends StatelessWidget {
                 ),
               ],
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Preferences > Reminders (T-13 unit 2): how early and the morning time
+// follow the account; Ring on this phone is this phone's own (AMENDMENTS).
+Widget _remindersSection(
+  BuildContext context,
+  AppLocalizations loc,
+  AccountPreferences preferences,
+  AccountPreferencesCubit cubit,
+  List<ListDefinition> lists,
+) {
+  final AppSettingsCubit? settings = context.watch<AppSettingsCubit?>();
+  final bool ringOn = settings?.state.ringOnThisPhone ?? true;
+  final bool android =
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+  final String locale = Localizations.localeOf(context).toString();
+  return FoldSection(
+    key: const ValueKey('preferences-section-reminders'),
+    title: loc.preferencesReminders,
+    children: [
+      SettingPillsMulti<ReminderLead>(
+        key: const ValueKey('preferences-reminder-leads'),
+        label: loc.preferencesReminderLeads,
+        selected: preferences.reminderLeads,
+        choices: reminderLeadChoices(loc),
+        line: preferences.reminderLeads.isEmpty
+            ? loc.preferencesReminderLeadsNone
+            : loc.preferencesReminderLeadsLine,
+        onChanged: cubit.setReminderLeads,
+        sub: SettingSubSwitch(
+          key: const ValueKey('preferences-lists-own-reminders'),
+          label: loc.preferencesListsOwn,
+          value: preferences.listsOwnReminderLeads,
+          line: preferences.listsOwnReminderLeads
+              ? loc.preferencesListsOwnCount(
+                  lists
+                      .where(
+                        (list) =>
+                            list.ownReminderLeads != null &&
+                            list.fieldWithRole(FieldRole.reminder) != null,
+                      )
+                      .length,
+                )
+              : loc.preferencesListsOwnOff,
+          onChanged: cubit.setListsOwnReminderLeads,
+        ),
+      ),
+      ReminderMorningRow(
+        minutes: preferences.reminderMorning,
+        format: timeFormat(locale, preferences.timeFormat),
+        onChanged: cubit.setReminderMorning,
+      ),
+      SettingSwitchRow(
+        key: const ValueKey('preferences-ring-on-this-phone'),
+        label: loc.preferencesRingOnThisPhone,
+        value: ringOn,
+        line: !android
+            ? loc.preferencesRemindersAndroidOnly
+            : ringOn
+            ? loc.preferencesRingOnThisPhoneLine
+            : loc.preferencesRingOnThisPhoneOffLine,
+        onChanged: android && settings != null
+            ? settings.setRingOnThisPhone
+            : null,
+      ),
+      if (android) const ReminderPermissionRow(),
+    ],
+  );
+}
+
+// How early a reminder rings, for Preferences and the list editor.
+List<SettingChoice<ReminderLead>> reminderLeadChoices(AppLocalizations loc) => [
+  choice(ReminderLead.atTime, loc.reminderLeadAtTime),
+  choice(ReminderLead.minutes5, loc.reminderLead5m),
+  choice(ReminderLead.minutes10, loc.reminderLead10m),
+  choice(ReminderLead.minutes30, loc.reminderLead30m),
+  choice(ReminderLead.hour1, loc.reminderLead1h),
+  choice(ReminderLead.day1, loc.reminderLead1d),
+];
+
+// The morning time of a day with no time (Q-91): its choices open in place
+// under the row (Q-112), every half hour from 05:00 to 12:00. A time stored
+// by another way that is not on the half hour shows as well.
+class ReminderMorningRow extends StatelessWidget {
+  const ReminderMorningRow({
+    super.key,
+    required this.minutes,
+    required this.format,
+    required this.onChanged,
+  });
+
+  final int minutes;
+  final DateFormat format;
+  final ValueChanged<int> onChanged;
+
+  static final List<int> choices = [
+    for (int m = 5 * 60; m <= 12 * 60; m += 30) m,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations loc = AppLocalizations.of(context);
+    final EditorLook look = EditorLook.of(context);
+    String shown(int m) => format.format(DateTime(2000, 1, 1, m ~/ 60, m % 60));
+    return look.hairline(
+      child: Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SettingFoldPicker<int>(
+              key: const ValueKey('preferences-reminder-morning'),
+              label: loc.preferencesReminderMorning,
+              value: minutes,
+              style: look.type.row,
+              choices: [
+                for (final int m in {...choices, minutes}.toList()..sort())
+                  (value: m, child: Text(shown(m))),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  onChanged(value);
+                }
+              },
+            ),
+            SettingLine(loc.preferencesReminderMorningLine),
           ],
         ),
       ),

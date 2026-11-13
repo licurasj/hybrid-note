@@ -27,6 +27,21 @@ describe('eval cases', () => {
     assert.ok(routing.filter((c) => c.id.includes('ambiguous')).length >= 2);
   });
 
+  test('the summary of a closed list says its reminder field is required (T-13 unit 14, G7)', () => {
+    const c = CASES.find((x) => x.id === 'remind-clear-required-closed');
+    assert.ok(c !== undefined);
+    assert.equal(c.data.openList, null);
+    const parsed = parseRequest(c.data, TIERS.owner);
+    const appointments = parsed.lists.find((list) => list.id === 'appointments') as unknown as {
+      fields: { key: string; required?: boolean }[];
+    };
+    assert.equal(appointments.fields.find((f) => f.key === 'reminderAt')?.required, true);
+    const tasks = parsed.lists.find((list) => list.id === 'tasks') as unknown as {
+      fields: { key: string; required?: boolean }[];
+    };
+    assert.equal(tasks.fields.find((f) => f.key === 'reminderAt')?.required, undefined);
+  });
+
   test('every case is a request aiCommand accepts under the owner limits', () => {
     for (const c of CASES) assert.doesNotThrow(() => parseRequest(c.data, TIERS.owner), c.id);
   });

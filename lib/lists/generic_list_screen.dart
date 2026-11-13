@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -14,6 +16,7 @@ import '../launcher/launcher_hub_area.dart';
 import 'clear_with_undo.dart';
 import 'confirm_delete_sheet.dart';
 import 'generic_item_dialog.dart';
+import 'item_dates.dart';
 import 'list_definition.dart';
 import 'list_icons.dart';
 import 'list_item.dart';
@@ -67,12 +70,17 @@ class GenericListScreen extends StatefulWidget {
     required this.items,
     required this.store,
     required this.texts,
+    this.openItemId,
   });
 
   final ListDefinition definition;
   final List<ListItem> items;
   final ListStore store;
   final GenericListTexts texts;
+
+  // An item whose sheet opens once the list shows it (a tap on its ring,
+  // T-13 unit 4). A gone item opens nothing.
+  final String? openItemId;
 
   @override
   State<GenericListScreen> createState() {
@@ -115,6 +123,39 @@ class _GenericListScreenState extends State<GenericListScreen>
   );
 
   ListDefinition get _definition => widget.definition;
+
+  bool _itemOpened = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _openRingItem();
+  }
+
+  @override
+  void didUpdateWidget(GenericListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _openRingItem();
+  }
+
+  void _openRingItem() {
+    final String? id = widget.openItemId;
+    if (id == null || _itemOpened) {
+      return;
+    }
+    final ListItem? item = widget.items
+        .where((candidate) => candidate.id == id)
+        .firstOrNull;
+    if (item == null) {
+      return;
+    }
+    _itemOpened = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        unawaited(_showItemDialog(item: item));
+      }
+    });
+  }
 
   bool get _addShown => _pageArrived && !_pageLeaving;
 
@@ -345,9 +386,10 @@ class _GenericListScreenState extends State<GenericListScreen>
     );
   }
 
-  String _formatDate(FieldType type, DateTime date) {
+  // A day with No time shows no time (Q-91).
+  String _formatDate(bool hasTime, DateTime date) {
     final String locale = Localizations.localeOf(context).toLanguageTag();
-    final DateFormat format = type == FieldType.dateTime
+    final DateFormat format = hasTime
         ? dateTimeFormat(locale, context.watchAccountPreferences.timeFormat)
         : DateFormat.yMMMd(locale);
     return format.format(date.toLocal());
@@ -418,11 +460,14 @@ class _GenericListScreenState extends State<GenericListScreen>
           }
         case FieldType.date:
         case FieldType.dateTime:
-          final DateTime? date = value is String ? DateTime.tryParse(value) : null;
+          final DateTime? date = ItemDates.local(value, field.type);
           if (date == null) {
             break;
           }
-          final String text = _formatDate(field.type, date);
+          final String text = _formatDate(
+            ItemDates.hasTime(field.type, value),
+            date,
+          );
           final FieldDefinition? recurrenceField = _recurrenceFor(field.key);
           final Object? recurrence =
               recurrenceField == null ? null : item[recurrenceField.key];
@@ -461,7 +506,10 @@ class _GenericListScreenState extends State<GenericListScreen>
       return item.updatedAt;
     }
     final Object? value = key == null ? null : item[key];
-    return value is String ? DateTime.tryParse(value) : null;
+    return ItemDates.local(
+      value,
+      key == null ? null : _definition.field(key)?.type,
+    );
   }
 
   // Collapsible parts (years, months, items with sub-items) whose state the
@@ -1154,7 +1202,7 @@ class _GenericListScreenState extends State<GenericListScreen>
         a.year == b.year && a.month == b.month && a.day == b.day;
     int bucket(ListItem item) {
       final Object? raw = item[bucketField.key];
-      final DateTime? date = raw is String ? DateTime.tryParse(raw)?.toLocal() : null;
+      final DateTime? date = ItemDates.local(raw, bucketField.type);
       if (date == null || sameDay(date, now)) {
         return 0;
       }
@@ -1208,7 +1256,10 @@ class _GenericListScreenState extends State<GenericListScreen>
     final String? dateKey = _definition.view.bucketBy;
     DateTime? dateOf(ListItem item) {
       final Object? raw = dateKey == null ? null : item[dateKey];
-      return raw is String ? DateTime.tryParse(raw) : null;
+      return ItemDates.local(
+        raw,
+        dateKey == null ? null : _definition.field(dateKey)?.type,
+      );
     }
 
     sorted.sort((a, b) {

@@ -1,3 +1,4 @@
+import 'item_dates.dart';
 import 'list_catalog.dart';
 import 'list_definition.dart';
 import 'list_error.dart';
@@ -275,12 +276,14 @@ class ListInput {
           continue;
         }
         // The AI never changes whether a list may be sent to it, nor the
-        // list's own Ticked items and Confirm before deleting (Q-117).
+        // list's own Ticked items, Confirm before deleting and reminder time
+        // (Q-117, Q-118).
         final String? notForAi = kind == PatchOpKind.setListInfo
             ? const [
                 'aiAllowed',
                 ListDefinition.ownTickedItemsKey,
                 ListDefinition.ownConfirmDeleteKey,
+                ListDefinition.ownReminderLeadsKey,
               ].where(json.containsKey).firstOrNull
             : null;
         if (notForAi != null) {
@@ -392,6 +395,9 @@ class ListInput {
           errors.add(ListError(ListErrorCode.unknownField, {'field': key, 'list': definition.id}));
         } else if (field.type == FieldType.checklist) {
           values[key] = _subItems(values[key], newId, now);
+        } else if (field.type == FieldType.date ||
+            field.type == FieldType.dateTime) {
+          values[key] = ItemDates.fromInput(values[key], field.type);
         }
       }
       if (entryErrors.isNotEmpty) {

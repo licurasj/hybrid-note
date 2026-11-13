@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The reminder's small icon (T-13 unit 9, owner's pick): the H of the app
+     logo (assets/app_icon.png), tilted as in the logo, built from rounded
+     rectangles (round-ended stems, the crossbar's ends inside them), filled in
+     one colour as Android's status bar wants. The ring tints it in the list's
+     colour. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <group
+        android:pivotX="12"
+        android:pivotY="12"
+        android:rotation="-25.4">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M6.57,4.02H6.57A1.86,1.86 0,0 1,8.43,5.88V18.12A1.86,1.86 0,0 1,6.57,19.98H6.57A1.86,1.86 0,0 1,4.71,18.12V5.88A1.86,1.86 0,0 1,6.57,4.02ZM17.43,4.02H17.43A1.86,1.86 0,0 1,19.29,5.88V18.12A1.86,1.86 0,0 1,17.43,19.98H17.43A1.86,1.86 0,0 1,15.57,18.12V5.88A1.86,1.86 0,0 1,17.43,4.02ZM8.43,10.14H15.57A1.86,1.86 0,0 1,17.43,12.00V12.00A1.86,1.86 0,0 1,15.57,13.86H8.43A1.86,1.86 0,0 1,6.57,12.00V12.00A1.86,1.86 0,0 1,8.43,10.14Z" />
+    </group>
+</vector>

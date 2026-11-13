@@ -150,7 +150,7 @@
         },
         "aiItemValue": {
           "type": "object",
-          "description": "The value of one field of an item; null clears it. text, longText, url, category: a string; enum: one option value; checkbox, toggle: true or false; number: a number; counter, rating: a whole number; date: YYYY-MM-DD; dateTime: an ISO date and time; tags: a list of strings; checklist: a list of sub-steps; recurrence: {frequency, customDays}.",
+          "description": "The value of one field of an item; null clears it. text, longText, url, category: a string; enum: one option value; checkbox, toggle: true or false; number: a number; counter, rating: a whole number; date: YYYY-MM-DD; dateTime: YYYY-MM-DDTHH:MM local time, or YYYY-MM-DD when no time was stated; tags: a list of strings; checklist: a list of sub-steps; recurrence: {frequency, customDays}.",
           "required": [
             "field",
             "value"
@@ -378,7 +378,7 @@
           ]
         },
         "fieldRole": {
-          "description": "What the app uses a field for; each role at most once per list. Use when: completion = the checkbox that marks an item done (needed by the checklist view and by every behavior except moveAll); reminder = the dateTime field of a reminder; status = the enum field that holds an item's progress (planned, in progress, done); section = the enum field the sectioned view splits the list by; category = the category field used for filter chips.",
+          "description": "What the app uses a field for; each role at most once per list. Use when: completion = the checkbox that marks an item done (needed by the checklist view and by every behavior except moveAll); reminder = the date or dateTime field that rings as a reminder (a date alone rings in the morning); status = the enum field that holds an item's progress (planned, in progress, done); section = the enum field the sectioned view splits the list by; category = the category field used for filter chips.",
           "enum": [
             "completion",
             "reminder",
@@ -720,7 +720,7 @@
           ]
         },
         "fieldRole": {
-          "description": "What the app uses a field for; each role at most once per list. Use when: completion = the checkbox that marks an item done (needed by the checklist view and by every behavior except moveAll); reminder = the dateTime field of a reminder; status = the enum field that holds an item's progress (planned, in progress, done); section = the enum field the sectioned view splits the list by; category = the category field used for filter chips.",
+          "description": "What the app uses a field for; each role at most once per list. Use when: completion = the checkbox that marks an item done (needed by the checklist view and by every behavior except moveAll); reminder = the date or dateTime field that rings as a reminder (a date alone rings in the morning); status = the enum field that holds an item's progress (planned, in progress, done); section = the enum field the sectioned view splits the list by; category = the category field used for filter chips.",
           "enum": [
             "completion",
             "reminder",
@@ -898,11 +898,10 @@
         },
         "opSetFieldProps": {
           "type": "object",
-          "description": "Makes a field required or optional.",
+          "description": "Changes details of an existing field other than the title, in one edit: required or optional; role reminder makes a date or dateTime field ring as a reminder, null takes the mark off; default value; min and max of a number, counter or rating field; visibleWhen. Give only the details that change; null removes a default, min, max or visibleWhen.",
           "required": [
             "op",
-            "key",
-            "required"
+            "key"
           ],
           "additionalProperties": false,
           "properties": {
@@ -914,6 +913,52 @@
             },
             "required": {
               "type": "boolean"
+            },
+            "role": {
+              "enum": [
+                "reminder",
+                null
+              ]
+            },
+            "default": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/scalar"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "min": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "max": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "visibleWhen": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/aiVisibleWhen"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           }
         },
@@ -1074,7 +1119,7 @@
         },
         "aiItemValue": {
           "type": "object",
-          "description": "The value of one field of an item; null clears it. text, longText, url, category: a string; enum: one option value; checkbox, toggle: true or false; number: a number; counter, rating: a whole number; date: YYYY-MM-DD; dateTime: an ISO date and time; tags: a list of strings; checklist: a list of sub-steps; recurrence: {frequency, customDays}.",
+          "description": "The value of one field of an item; null clears it. text, longText, url, category: a string; enum: one option value; checkbox, toggle: true or false; number: a number; counter, rating: a whole number; date: YYYY-MM-DD; dateTime: YYYY-MM-DDTHH:MM local time, or YYYY-MM-DD when no time was stated; tags: a list of strings; checklist: a list of sub-steps; recurrence: {frequency, customDays}.",
           "required": [
             "field",
             "value"
@@ -1319,7 +1364,7 @@
         },
         "aiItemValue": {
           "type": "object",
-          "description": "The value of one field of an item; null clears it. text, longText, url, category: a string; enum: one option value; checkbox, toggle: true or false; number: a number; counter, rating: a whole number; date: YYYY-MM-DD; dateTime: an ISO date and time; tags: a list of strings; checklist: a list of sub-steps; recurrence: {frequency, customDays}.",
+          "description": "The value of one field of an item; null clears it. text, longText, url, category: a string; enum: one option value; checkbox, toggle: true or false; number: a number; counter, rating: a whole number; date: YYYY-MM-DD; dateTime: YYYY-MM-DDTHH:MM local time, or YYYY-MM-DD when no time was stated; tags: a list of strings; checklist: a list of sub-steps; recurrence: {frequency, customDays}.",
           "required": [
             "field",
             "value"

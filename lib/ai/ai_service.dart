@@ -211,6 +211,12 @@ class AiRequest {
                 'key': field.key,
                 'type': field.type.wire,
                 'label': labels.field(field),
+                // Which field rings (T-13 unit 5): roles of lists that are
+                // not open, too.
+                if (field.role != null) 'role': field.role!.wire,
+                // A required field cannot be cleared (T-13 unit 14, G7):
+                // also on lists that are not open.
+                if (field.required) 'required': true,
                 if (field.options.isNotEmpty)
                   'options': [
                     for (final FieldOption option in field.options)

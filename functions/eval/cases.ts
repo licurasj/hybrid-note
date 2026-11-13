@@ -9,7 +9,7 @@ import type { ToolCall } from '../src/output';
 
 interface ExampleList {
   name: string;
-  fields: { key: string; type: string; label?: string; role?: string; options?: { value: string; label?: string }[] }[];
+  fields: { key: string; type: string; label?: string; role?: string; required?: boolean; options?: { value: string; label?: string }[] }[];
   [key: string]: unknown;
 }
 
@@ -33,6 +33,12 @@ const LISTS: Record<string, ExampleList> = {
   runs: design('runLog'),
   reading: { ...design('readingList'), name: 'Reading list' },
   watch: { ...design('watchRead'), name: 'Watch & read' },
+  // Tasks with its reminder field required (T-13 unit 10, F12).
+  appointments: {
+    ...design('tasks'),
+    name: 'Appointments',
+    fields: design('tasks').fields.map((f) => (f.role === 'reminder' ? { ...f, required: true } : f)),
+  },
 };
 
 const at = '2026-11-01T10:00:00.000Z';
@@ -46,9 +52,10 @@ const ITEMS: Record<string, ReturnType<typeof item>[]> = {
     item('g3', { title: 'Coffee', done: false, section: 'nextTime', autoAddToNext: true }),
   ],
   tasks: [
-    item('t1', { title: 'Book dentist appointment', done: false, category: 'Health' }),
+    item('t1', { title: 'Book dentist appointment', done: false, category: 'Health', reminderAt: '2026-11-05T10:00' }),
     item('t2', { title: 'Pay rent', done: false, category: 'Home' }),
   ],
+  appointments: [item('a1', { title: 'Dentist', done: false, reminderAt: '2026-11-05T10:00' })],
   runs: [item('r1', { title: 'River loop', day: '2026-10-30', km: 6.1, minutes: 33, effort: 3 })],
   reading: [item('b1', { title: 'Piranesi', author: 'Susanna Clarke', status: 'toRead' })],
 };
@@ -62,6 +69,9 @@ function summary(id: string) {
       key: f.key,
       type: f.type,
       ...(f.label ? { label: f.label } : {}),
+      ...(f.role ? { role: f.role } : {}),
+      // As the app sends it (T-13 unit 14, G7).
+      ...(f.required ? { required: true } : {}),
       ...(f.options ? { options: f.options.map((o) => o.value) } : {}),
     })),
   };
@@ -116,6 +126,13 @@ const asks = (candidates: string[]) => (calls: ToolCall[], declined?: string) =>
 };
 const itemCount = (calls: ToolCall[]) =>
   calls.reduce((n, c) => n + ((c.args.items as unknown[] | undefined)?.length ?? 0), 0);
+/** The value an answer gives a field, over all its items (T-13 unit 5). */
+const valuesOf = (calls: ToolCall[], field: string) =>
+  calls.flatMap((c) =>
+    ((c.args.items as { values?: { field: string; value: unknown }[] }[] | undefined) ?? []).flatMap((i) =>
+      (i.values ?? []).filter((v) => v.field === field).map((v) => v.value),
+    ),
+  );
 
 const DESIGN_RUBRIC =
   'Design rubric (1-5 each): useful fields for what is recorded; right types (date, number with unit, ' +
@@ -175,6 +192,72 @@ export const CASES: EvalCase[] = [
     rubric: 'One run: title like "Canal", day 2026-11-03, km 8.2, minutes 41, effort high (4-5), maybe a note.',
     check: (calls, d) => on('upsert_items', 'runs')(calls, d) ?? (itemCount(calls) === 1 ? null : 'expected 1 item'),
   },
+  // Reminders (T-13 unit 5): a date in the reminder field rings.
+  {
+    id: 'remind-time',
+    category: 'items',
+    data: request('remind me to call mum on Friday at 15:00', 'tasks'),
+    rubric: 'One task "Call mum" with reminderAt 2026-11-06T15:00 (local, no time zone); no decline.',
+    check: (calls, d) =>
+      on('upsert_items', 'tasks')(calls, d) ??
+      (JSON.stringify(valuesOf(calls, 'reminderAt')) === '["2026-11-06T15:00"]' ? null : `reminderAt ${JSON.stringify(valuesOf(calls, 'reminderAt'))}`),
+  },
+  {
+    id: 'remind-day-only',
+    category: 'items',
+    data: request('remind me tomorrow to water the plants', null),
+    rubric: 'Adds "Water the plants" to Tasks with reminderAt 2026-11-04 and no made-up time; no decline.',
+    check: (calls, d) =>
+      on('upsert_items', 'tasks')(calls, d) ??
+      (JSON.stringify(valuesOf(calls, 'reminderAt')) === '["2026-11-04"]' ? null : `reminderAt ${JSON.stringify(valuesOf(calls, 'reminderAt'))}`),
+  },
+  {
+    id: 'remind-clear',
+    category: 'items',
+    data: request("don't remind me about the dentist", 'tasks'),
+    rubric: 'Changes t1 only: reminderAt null. No delete, no new item.',
+    check: (calls, d) => {
+      const fail = on('upsert_items', 'tasks')(calls, d);
+      if (fail) return fail;
+      const items = calls.flatMap((c) => c.args.items as { id?: string }[]);
+      if (items.length !== 1 || items[0].id !== 't1') return 'expected one change of t1';
+      return JSON.stringify(valuesOf(calls, 'reminderAt')) === '[null]' ? null : 'expected reminderAt null';
+    },
+  },
+  {
+    id: 'remind-clear-required',
+    category: 'items',
+    data: request("don't remind me about the dentist", 'appointments'),
+    rubric: 'The reminder field of Appointments is required: no null for reminderAt; a short reply that every entry needs a date (moving it is fine).',
+    check: (calls, d) =>
+      valuesOf(calls, 'reminderAt').includes(null)
+        ? 'cleared a required reminder field'
+        : only('reply')(calls, d) === null
+          ? null
+          : 'expected a reply',
+  },
+  {
+    // The same with Appointments closed: only its summary says the field is
+    // required (T-13 unit 14, G7).
+    id: 'remind-clear-required-closed',
+    category: 'items',
+    data: request("don't remind me about the dentist in Appointments", null),
+    rubric:
+      'Appointments is not open; its summary marks reminderAt required: no null for reminderAt; a short reply that every entry needs a date (moving it is fine).',
+    check: (calls, d) =>
+      valuesOf(calls, 'reminderAt').includes(null)
+        ? 'cleared a required reminder field'
+        : only('reply')(calls, d) === null
+          ? null
+          : 'expected a reply',
+  },
+  {
+    id: 'remind-not-supported-lead',
+    category: 'offTopic',
+    data: request('ring my reminders 10 minutes earlier from now on', 'tasks'),
+    rubric: 'decline notSupported (how early is a Preferences setting); no item changes.',
+    check: declines('notSupported'),
+  },
   // Structure changes.
   {
     id: 'struct-price',
@@ -203,6 +286,20 @@ export const CASES: EvalCase[] = [
     data: request('add a priority field to my tasks list', 'grocery'),
     rubric: 'Tasks is not open: decline notSupported (or a reply saying to open Tasks). No change to grocery.',
     check: (calls, d) => (d === 'notSupported' || only('reply')(calls, d) === null ? null : 'expected notSupported or a reply'),
+  },
+  {
+    id: 'struct-remind-mark',
+    category: 'structure',
+    data: request('make the day of my runs ring as a reminder', 'runs'),
+    rubric: 'patch_list on runs: setFieldProps key day, role reminder; nothing else changed.',
+    check: (calls, d) => {
+      const fail = on('patch_list', 'runs')(calls, d);
+      if (fail) return fail;
+      const ops = calls.flatMap((c) => c.args.ops as { op: string; key?: string; role?: unknown }[]);
+      return ops.some((o) => o.op === 'setFieldProps' && o.key === 'day' && o.role === 'reminder')
+        ? null
+        : 'expected setFieldProps day role reminder';
+    },
   },
   // List design (Q-32).
   {

@@ -60,6 +60,32 @@ void main() {
     openListId: openListId,
   );
 
+  test('a summary names field roles, so the AI knows which field rings (T-13 unit 5)', () {
+    final Map<Object?, Object?> tasks =
+        (of([BuiltinTemplates.tasks()]).toJson()['lists'] as List).single as Map;
+    final List<Object?> fields = tasks['fields'] as List<Object?>;
+    final Map<Object?, Object?> reminder =
+        fields.cast<Map<Object?, Object?>>().singleWhere((field) => field['key'] == 'reminderAt');
+
+    expect(reminder['role'], 'reminder');
+    expect(fields.cast<Map<Object?, Object?>>().singleWhere((field) => field['key'] == 'title').containsKey('role'), isFalse);
+  });
+
+  test('a summary marks required fields, on a list that is not open '
+      '(T-13 unit 14, G7)', () {
+    final ListDefinition tasks = BuiltinTemplates.tasks();
+    final Map<Object?, Object?> summary =
+        (of([tasks]).toJson()['lists'] as List).single as Map;
+    final List<Map<Object?, Object?>> fields =
+        (summary['fields'] as List).cast<Map<Object?, Object?>>();
+    expect(tasks.fields.any((field) => field.required), isTrue);
+    for (final FieldDefinition field in tasks.fields) {
+      final Map<Object?, Object?> sent =
+          fields.singleWhere((entry) => entry['key'] == field.key);
+      expect(sent['required'], field.required ? isTrue : isNull, reason: field.key);
+    }
+  });
+
   test("an AI-off list's description is never sent (review M2)", () {
     final AiRequest request = of([
       _list('grocery', 'Grocery'),
