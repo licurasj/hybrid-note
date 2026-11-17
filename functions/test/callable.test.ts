@@ -6,7 +6,19 @@ import assert from 'node:assert/strict';
 import { beforeEach, describe, test } from 'node:test';
 
 import { MODELS, ceilingMicros } from '../src/config';
-import { GROCERY, TODO, allow, callAi, clearFirestore, db, newUser, request, today, type EmulatorUser } from './helpers';
+import {
+  GROCERY,
+  TODO,
+  allow,
+  callAi,
+  clearFirestore,
+  db,
+  newAnonymousUser,
+  newUser,
+  request,
+  today,
+  type EmulatorUser,
+} from './helpers';
 
 const CEILING = ceilingMicros(MODELS.fake);
 const BUDGET = 1_000_000;
@@ -69,7 +81,7 @@ describe('refusals', () => {
     assert.deepEqual([r.status, r.reason], ['INVALID_ARGUMENT', 'contextTooLarge']);
   });
 
-  test('the owner is past no daily count and no $1 stop (Q-63)', async () => {
+  test('the owner is past no daily count and no pool stop (Q-63)', async () => {
     await userDoc(user.uid).set({ count: 5000 });
     await poolDoc().set({ spentMicros: BUDGET, reservedMicros: 0 });
     const r = await call(request('eggs'));
@@ -83,6 +95,38 @@ describe('refusals', () => {
     assert.deepEqual([r.status, r.reason], ['UNAVAILABLE', 'provider']);
     assert.equal((await userDoc(user.uid).get()).get('spentMicros'), CEILING);
     assert.equal((await poolDoc().get()).exists, false);
+  });
+});
+
+describe('the demo tier end to end (T-18)', () => {
+  test('an anonymous user gets tier demo from the verified token, with no allowlist entry', async () => {
+    const visitor = await newAnonymousUser();
+    const r = await callAi(request('eggs'), { idToken: visitor.idToken });
+    assert.equal(r.ok, true);
+    const usage = await userDoc(visitor.uid).get();
+    assert.deepEqual([usage.get('tier'), usage.get('count')], ['demo', 1]);
+    assert.equal((await poolDoc().get()).get('count'), 1);
+  });
+
+  test('an anonymous user on web still needs App Check', async () => {
+    const visitor = await newAnonymousUser();
+    const r = await callAi(request('eggs', { platform: 'web' }), { idToken: visitor.idToken });
+    assert.deepEqual([r.status, r.reason], ['PERMISSION_DENIED', 'appCheck']);
+    assert.equal((await userDoc(visitor.uid).get()).exists, false);
+  });
+
+  test("the 21st call of a visitor's day is refused dailyCount", async () => {
+    const visitor = await newAnonymousUser();
+    await userDoc(visitor.uid).set({ count: 20 });
+    const r = await callAi(request('eggs'), { idToken: visitor.idToken });
+    assert.deepEqual([r.status, r.reason], ['RESOURCE_EXHAUSTED', 'dailyCount']);
+  });
+
+  test('past the $0.30 pool an anonymous user is refused globalBudget', async () => {
+    const visitor = await newAnonymousUser();
+    await poolDoc().set({ spentMicros: 300_000 - CEILING + 1, reservedMicros: 0 });
+    const r = await callAi(request('eggs'), { idToken: visitor.idToken });
+    assert.deepEqual([r.status, r.reason], ['RESOURCE_EXHAUSTED', 'globalBudget']);
   });
 });
 
