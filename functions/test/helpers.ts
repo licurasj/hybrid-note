@@ -11,6 +11,7 @@ const AUTH = process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9099';
 const FUNCTIONS = process.env.FUNCTIONS_EMULATOR_HOST ?? '127.0.0.1:5001';
 
 process.env.FIRESTORE_EMULATOR_HOST = FIRESTORE;
+process.env.FIREBASE_AUTH_EMULATOR_HOST = AUTH;
 process.env.GCLOUD_PROJECT = PROJECT_ID;
 
 export function db(): Firestore {
@@ -29,6 +30,12 @@ export async function clearFirestore(): Promise<void> {
     { method: 'DELETE' },
   );
   if (!response.ok) throw new Error(`clearing Firestore failed: ${response.status}`);
+}
+
+/** Deletes every account in the Auth emulator for this project. */
+export async function clearAuth(): Promise<void> {
+  const response = await fetch(`http://${AUTH}/emulator/v1/projects/${PROJECT_ID}/accounts`, { method: 'DELETE' });
+  if (!response.ok) throw new Error(`clearing Auth failed: ${response.status}`);
 }
 
 export interface EmulatorUser {
@@ -55,6 +62,21 @@ export async function newUser(): Promise<EmulatorUser> {
   );
   const body = (await response.json()) as { localId: string; idToken: string };
   if (!response.ok) throw new Error(`sign-up failed: ${JSON.stringify(body)}`);
+  return { uid: body.localId, idToken: body.idToken };
+}
+
+/** Signs in a new anonymous Auth emulator user, as the demo build does (T-18). */
+export async function newAnonymousUser(): Promise<EmulatorUser> {
+  const response = await fetch(
+    `http://${AUTH}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake-api-key`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ returnSecureToken: true }),
+    },
+  );
+  const body = (await response.json()) as { localId: string; idToken: string };
+  if (!response.ok) throw new Error(`anonymous sign-in failed: ${JSON.stringify(body)}`);
   return { uid: body.localId, idToken: body.idToken };
 }
 

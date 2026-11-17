@@ -1,7 +1,8 @@
 rules_version = '2';
 
 // Q-8 B: each signed-in user reads and writes only their own users/{uid}
-// tree, with light shape checks. Reading in the app stays tolerant (a
+// tree, with light shape checks. Anonymous users read and write nothing
+// (Q-139, T-18). Reading in the app stays tolerant (a
 // malformed document is skipped), so these checks guard against writes that
 // are clearly wrong, not against every invalid list.
 //
@@ -23,8 +24,12 @@ rules_version = '2';
 // not look inside `values`, so that encoding passes as it is.
 service cloud.firestore {
   match /databases/{database}/documents {
+    // An anonymous account (the portfolio demo, T-18) owns nothing: the demo
+    // keeps its lists in memory and uses only aiCommand, so Firestore refuses
+    // it everywhere (Q-139). A token without the provider claim is refused too.
     function isOwner(uid) {
-      return request.auth != null && request.auth.uid == uid;
+      return request.auth != null && request.auth.uid == uid
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
     }
 
     function isId(value) {

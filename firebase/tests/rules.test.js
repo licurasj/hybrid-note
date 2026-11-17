@@ -355,11 +355,12 @@ describe('starter-lists marker', () => {
     await assertFails(deleteDoc(ref(other())));
   });
 
-  test('an anonymous user has their own marker (T-18)', async () => {
+  test('an anonymous user cannot create even their own marker (Q-139, T-18)', async () => {
     const anon = env
       .authenticatedContext('anon-uid', { firebase: { sign_in_provider: 'anonymous' } })
       .firestore();
-    await assertSucceeds(setDoc(ref(anon, 'anon-uid'), marker));
+    await assertFails(setDoc(ref(anon, 'anon-uid'), marker));
+    await assertFails(getDoc(ref(anon, 'anon-uid')));
     await assertFails(getDoc(ref(anon)));
   });
 });
@@ -490,5 +491,78 @@ describe('account preferences (T-21, Q-48 A)', () => {
   test('no other document under settings', async () => {
     await assertFails(setDoc(doc(owner(), `users/${OWNER}/settings/other`), values));
     await assertFails(getDoc(doc(owner(), `users/${OWNER}/settings/other`)));
+  });
+});
+
+// Q-139 (T-18): the portfolio demo signs visitors in anonymously for aiCommand
+// only; Firestore refuses them everywhere, their own uid's tree included.
+// Google users keep everything above.
+describe('anonymous users (Q-139, T-18)', () => {
+  const ANON = 'anon-uid';
+  const anon = () =>
+    env.authenticatedContext(ANON, { firebase: { sign_in_provider: 'anonymous' } }).firestore();
+  const google = () =>
+    env.authenticatedContext(OWNER, { firebase: { sign_in_provider: 'google.com' } }).firestore();
+
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, `users/${ANON}`), { starterSeededAt: '2026-11-17T00:00:00.000Z' });
+      await setDoc(doc(db, `users/${ANON}/settings/preferences`), { listOrder: 'myOrder' });
+      await setDoc(doc(db, `users/${ANON}/lists/plants`), list('plants'));
+      await setDoc(doc(db, `users/${ANON}/lists/plants/items/fern`), item('fern', 'plants'));
+    });
+  });
+
+  test('cannot read their own tree: user document, preferences, lists, items, queries', async () => {
+    const db = anon();
+    await assertFails(getDoc(doc(db, `users/${ANON}`)));
+    await assertFails(getDoc(doc(db, `users/${ANON}/settings/preferences`)));
+    await assertFails(getDoc(doc(db, `users/${ANON}/lists/plants`)));
+    await assertFails(getDocs(collection(db, `users/${ANON}/lists`)));
+    await assertFails(getDoc(doc(db, `users/${ANON}/lists/plants/items/fern`)));
+    await assertFails(getDocs(collection(db, `users/${ANON}/lists/plants/items`)));
+  });
+
+  test('cannot create, update or delete anything in their own tree', async () => {
+    const db = anon();
+    await assertFails(setDoc(doc(db, `users/${ANON}/lists/books`), list('books')));
+    await assertFails(setDoc(doc(db, `users/${ANON}/lists/plants`), list('plants', { name: 'Herbs' })));
+    await assertFails(deleteDoc(doc(db, `users/${ANON}/lists/plants`)));
+    await assertFails(setDoc(doc(db, `users/${ANON}/lists/plants/items/moss`), item('moss', 'plants')));
+    await assertFails(deleteDoc(doc(db, `users/${ANON}/lists/plants/items/fern`)));
+    await assertFails(setDoc(doc(db, `users/${ANON}/settings/preferences`), { listOrder: 'alphabetical' }));
+    await assertFails(setDoc(doc(db, 'users/anon-new'), { starterSeededAt: '2026-11-17T00:00:00.000Z' }));
+  });
+
+  test("cannot read or write another user's tree", async () => {
+    const db = anon();
+    await assertFails(getDoc(doc(db, `users/${OWNER}/lists/plants`)));
+    await assertFails(setDoc(doc(db, `users/${OWNER}/lists/books`), list('books')));
+  });
+
+  test('cannot touch the server-only AI collections', async () => {
+    const db = anon();
+    for (const path of ['aiAllowlist/anon-uid', 'aiUsageUser/anon-uid_2026-11-17', 'aiUsagePool/global_2026-11-17', 'aiPromptLog/r1']) {
+      await assertFails(getDoc(doc(db, path)));
+      await assertFails(setDoc(doc(db, path), { count: 0 }));
+    }
+  });
+
+  test('a token without the sign-in provider claim is refused too', async () => {
+    const db = env.authenticatedContext(OWNER, { firebase: {} }).firestore();
+    await assertFails(getDoc(doc(db, `users/${OWNER}/lists/plants`)));
+  });
+
+  test('a Google user is unchanged: reads and writes their own tree', async () => {
+    const db = google();
+    await assertSucceeds(getDoc(doc(db, `users/${OWNER}/lists/plants`)));
+    await assertSucceeds(getDocs(collection(db, `users/${OWNER}/lists/plants/items`)));
+    await assertSucceeds(setDoc(doc(db, `users/${OWNER}/lists/books`), list('books')));
+    await assertSucceeds(setDoc(doc(db, `users/${OWNER}/lists/plants/items/moss`), item('moss', 'plants')));
+    await assertSucceeds(deleteDoc(doc(db, `users/${OWNER}/lists/plants/items/fern`)));
+    await assertSucceeds(setDoc(doc(db, `users/${OWNER}/settings/preferences`), { listOrder: 'myOrder' }));
+    await assertSucceeds(setDoc(doc(db, `users/${OWNER}`), { starterSeededAt: '2026-11-17T00:00:00.000Z' }));
+    await assertFails(getDoc(doc(db, `users/${OTHER}/lists/plants`)));
   });
 });

@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { beforeEach, describe, test } from 'node:test';
 
-import { MODELS, TIERS, ceilingMicros, type TierLimits } from '../src/config';
+import { MODELS, POOLS, TIERS, ceilingMicros, type TierLimits } from '../src/config';
 import { reasonOf } from '../src/errors';
 import { handleAiCommand, type AiResponse } from '../src/handler';
 import { FakeProvider } from '../src/provider/fake';
@@ -12,7 +12,7 @@ import { allow, clearFirestore, db, today } from './helpers';
 const UID = 'limited-test-uid';
 const model = MODELS.fake;
 const CEILING = ceilingMicros(model);
-const BUDGET = 1_000_000;
+const BUDGET = Math.round(POOLS.global.usdPerDay * 1e6);
 const limits: TierLimits = { ...TIERS.owner, requestsPerDay: 100, pools: ['global'] };
 
 const userDoc = () => db().collection('aiUsageUser').doc(`${UID}_${today()}`);
