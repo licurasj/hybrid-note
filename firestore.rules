@@ -106,7 +106,7 @@ service cloud.firestore {
     }
 
     // aiCommand's server-only documents (T-19): the allowlist, the cap
-    // counters and the 7-day prompt log. Only the function (Admin SDK, which
+    // counters, the 7-day prompt log and the demo's retired marks. Only the function (Admin SDK, which
     // bypasses rules) touches them; no client may read or write them. Rules
     // deny anything unmatched anyway; these blocks make it explicit.
     match /aiAllowlist/{doc=**} {
@@ -119,6 +119,10 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /aiPromptLog/{doc=**} {
+      allow read, write: if false;
+    }
+    // Demo accounts the clean-up job is removing (T-18 M3).
+    match /aiDemoRetired/{doc=**} {
       allow read, write: if false;
     }
 

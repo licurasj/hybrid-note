@@ -67,6 +67,13 @@ export async function reserve(
   return inTransaction<Reservation>(db, async (tx) => {
     const user = await tx.get(userRef(db, uid, day));
     const pools = await Promise.all(limits.pools.map((pool) => tx.get(poolRef(db, pool, day))));
+    // A demo account the clean-up job is removing gets no new call, so its
+    // kept count is never bypassed and a still-valid token of a deleted account
+    // cannot start a fresh one (T-18 M3). `signIn` makes the demo sign in again.
+    // Other tiers are never retired and read nothing more.
+    if (tier === 'demo' && (await tx.get(db.collection(COLLECTIONS.retired).doc(uid))).exists) {
+      throw refuse('signIn', 'this demo account is being removed, sign in again');
+    }
 
     if ((user.get('count') ?? 0) >= limits.requestsPerDay) {
       throw refuse('dailyCount', 'daily request limit reached');

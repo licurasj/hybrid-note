@@ -214,10 +214,21 @@ export const COLLECTIONS = {
   userUsage: 'aiUsageUser',
   poolUsage: 'aiUsagePool',
   promptLog: 'aiPromptLog',
+  /** Anonymous accounts the clean-up job is removing; `reserve` refuses them (T-18 M3). */
+  retired: 'aiDemoRetired',
 } as const;
 
 /** Anonymous Auth accounts older than this are deleted with their usage documents (T-18 clean-up). */
 export const ANONYMOUS_MAX_AGE_HOURS = 24;
+
+/**
+ * Hours a deleted anonymous account's usage documents stay before the
+ * clean-up removes them: an ID token lives up to 1 hour after the account is
+ * gone (the callable framework does not check revocation) and a call up to
+ * 120 s, so after 2 hours no request of that account can still count or
+ * settle (T-18 M3).
+ */
+export const RETIRED_DRAIN_HOURS = 2;
 
 /** Token counts of one or more provider calls. `inputTokens` excludes cache reads and writes. */
 export interface Usage {

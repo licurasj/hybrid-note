@@ -543,7 +543,7 @@ describe('anonymous users (Q-139, T-18)', () => {
 
   test('cannot touch the server-only AI collections', async () => {
     const db = anon();
-    for (const path of ['aiAllowlist/anon-uid', 'aiUsageUser/anon-uid_2026-11-17', 'aiUsagePool/global_2026-11-17', 'aiPromptLog/r1']) {
+    for (const path of ['aiAllowlist/anon-uid', 'aiUsageUser/anon-uid_2026-11-17', 'aiUsagePool/global_2026-11-17', 'aiPromptLog/r1', 'aiDemoRetired/anon-uid']) {
       await assertFails(getDoc(doc(db, path)));
       await assertFails(setDoc(doc(db, path), { count: 0 }));
     }

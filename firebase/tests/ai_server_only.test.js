@@ -30,6 +30,7 @@ const DOCS = {
   [`aiUsageUser/${OWNER}_${DAY}`]: { day: DAY, tier: 'owner', count: 3, spentMicros: 900 },
   [`aiUsagePool/global_${DAY}`]: { day: DAY, pool: 'global', count: 3, reservedMicros: 0, spentMicros: 900 },
   'aiPromptLog/req-1': { requestId: 'req-1', uidHash: 'abc', prompt: 'add milk' },
+  [`aiDemoRetired/${OWNER}`]: { retiredAt: '2026-11-03T00:00:00.000Z' },
 };
 
 let env;

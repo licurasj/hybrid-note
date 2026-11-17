@@ -106,8 +106,10 @@ export const aiCommand = onCall(
 
 /**
  * The demo's clean-up (T-18): every 6 hours, anonymous accounts older than
- * 24 hours go with their aiUsageUser documents (cleanup.ts), so an account
- * lives at most about 30 hours. Counts only in the log, never a uid.
+ * 24 hours are retired and deleted, so an account lives at most about 30
+ * hours; their aiUsageUser documents go at a later run, once no token of the
+ * account is valid (cleanup.ts). One run is bounded and the next carries on.
+ * Counts only in the log, never a uid.
  */
 export const cleanUpDemoAccounts = onSchedule(
   { schedule: 'every 6 hours', timeZone: 'Etc/UTC', region: 'us-central1', memory: '256MiB', timeoutSeconds: 540 },
