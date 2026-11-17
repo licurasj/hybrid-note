@@ -18,20 +18,25 @@ import '../backend/starter_lists.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../lists/builtin_templates.dart';
 import '../lists/list_store.dart';
+import 'demo_ai.dart';
 import 'demo_build.dart';
 import 'memory_list_store.dart';
 import 'sample_items.dart';
 
 // The demo's start (T-18): no Firebase, no sign-in. Preferences are kept in
 // memory too (Q-135), so nothing is written to the browser's storage, which
-// the demo shares with the portfolio page around it.
+// the demo shares with the portfolio page around it. Firebase starts only
+// at the first AI request, after the AI notice (LazyAiService).
 Future<void> startDemo() async {
   WidgetsFlutterBinding.ensureInitialized();
   final SharedPreferences preferences = await demoPreferences();
   runApp(
     BlocProvider(
       create: (_) => AppSettingsCubit(preferences),
-      child: DemoApp(store: demoStore(DateTime.now())),
+      child: DemoApp(
+        store: demoStore(DateTime.now()),
+        aiService: LazyAiService(FirebaseDemoAiBackend()),
+      ),
     ),
   );
 }
@@ -70,8 +75,8 @@ const Color demoBackdrop = Color(0xFF05070A);
 
 // The demo's root, in place of HybridNoteApp: the shell on [store] with local
 // preferences, a local account and no reminders. Expects an AppSettingsCubit
-// above it. Without [aiService] there is no AI bar; T-18 unit 2b gives the
-// demo its own.
+// above it. Without [aiService] there is no AI bar; startDemo gives the
+// lazy one (T-18 unit 2b).
 class DemoApp extends StatefulWidget {
   const DemoApp({super.key, required this.store, this.aiService});
 

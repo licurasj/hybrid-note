@@ -46,7 +46,7 @@ dependencies:
   cloud_firestore: ^7.1.0
   shared_preferences: ^2.5.6
   # The demo keeps preferences in memory (T-18, Q-135).
-  shared_preferences_platform_interface: ^2.4.2
+  shared_preferences_platform_interface: ^2.4.1
   cloud_functions: ^7.0.1
   firebase_app_check: ^0.5.1
   flutter_local_notifications: ^22.3.3

@@ -46,7 +46,7 @@ Future<void> startApp({
 }) async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await _activateAppCheck();
+  await activateAppCheck();
   // Cache settings before anything touches Firestore (Q-25 A).
   final FirestoreSetup setup = FirestoreSetup(FirebaseFirestore.instance)
     ..configure();
@@ -95,8 +95,8 @@ RingBooker? _ringBooker(SharedPreferences preferences) {
 // App Check for the AI function (Q-34 1): Play Integrity on Android (the
 // debug provider in debug builds) and Fraud Defense on web. The function
 // decides per app whether a missing token is refused; a failure here never
-// stops the app.
-Future<void> _activateAppCheck() async {
+// stops the app. The demo's AI starts it the same way (T-18 unit 2b).
+Future<void> activateAppCheck() async {
   if (kIsWeb && _recaptchaSiteKey.isEmpty) {
     return;
   }

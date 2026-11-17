@@ -34,8 +34,10 @@ Future<MemoryListStore> _pumpDemo(WidgetTester tester, Size size) async {
 }
 
 void main() {
-  test('the real build is not the demo', () {
-    expect(demoBuild, isFalse);
+  // `flutter test` runs the real build; the demo tests also run with
+  // --dart-define=DEMO_BUILD=true (T-18 unit 2b).
+  test('the flag follows DEMO_BUILD', () {
+    expect(demoBuild, const bool.fromEnvironment('DEMO_BUILD'));
   });
 
   group('demoStore', () {

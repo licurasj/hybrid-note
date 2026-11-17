@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
 
 import 'package:hybrid_note/demo/demo_app.dart';
+import 'package:hybrid_note/demo/demo_build.dart';
 import 'package:hybrid_note/main.dart';
 
 // Which start runs (T-18 unit 2a, Q-140): the real app unless DEMO_BUILD,
@@ -10,8 +11,13 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('without DEMO_BUILD main() starts the real app', () {
-    expect(entryPoint(), same(startApp));
+    expect(entryPoint(demo: false), same(startApp));
     expect(entryPoint(demo: true), same(startDemo));
+  });
+
+  // Run with --dart-define=DEMO_BUILD=true to check the demo build's start.
+  test('main() starts the build it was compiled as', () {
+    expect(entryPoint(), same(demoBuild ? startDemo : startApp));
   });
 
   test('the real path leaves the preferences store alone', () async {
