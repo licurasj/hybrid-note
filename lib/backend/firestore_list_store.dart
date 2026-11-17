@@ -472,48 +472,8 @@ class FirestoreListStore implements ListStore {
     );
   }
 
-  // The item with its values fitted to the definition's fields, or null
-  // when they already fit. Values that cannot be converted are hidden in
-  // `_legacy` (D-10), as ListPatch does when a field changes type.
-  static ListItem? _fit(ListDefinition definition, ListItem item) {
-    final Map<String, dynamic> values = Map<String, dynamic>.from(item.values);
-    bool changed = false;
-    for (final FieldDefinition field in definition.fields) {
-      final Object? value = values[field.key];
-      if (value == null) {
-        continue;
-      }
-      final (bool ok, Object? converted) = ListPatch.convertValue(value, field);
-      if (!ok) {
-        final Map<String, dynamic> legacy = Map<String, dynamic>.from(
-          values[ListPatch.legacyKey] as Map? ?? const {},
-        );
-        legacy[field.key] = [
-          ...ListPatch.archivedValues(legacy, field.key),
-          values.remove(field.key),
-        ];
-        values[ListPatch.legacyKey] = legacy;
-        changed = true;
-      } else if (converted != value) {
-        if (converted == null) {
-          values.remove(field.key);
-        } else {
-          values[field.key] = converted;
-        }
-        changed = true;
-      }
-    }
-    if (!changed) {
-      return null;
-    }
-    return ListItem(
-      id: item.id,
-      listId: item.listId,
-      values: values,
-      createdAt: item.createdAt,
-      updatedAt: item.updatedAt,
-    );
-  }
+  static ListItem? _fit(ListDefinition definition, ListItem item) =>
+      ListPatch.fitItem(definition, item);
 
   // The lists by creation time, then id; a list without `_createdAt` comes
   // first.

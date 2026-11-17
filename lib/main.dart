@@ -15,6 +15,8 @@ import 'app/page_reload.dart';
 import 'backend/auth_service.dart';
 import 'backend/firestore_preferences.dart';
 import 'backend/firestore_setup.dart';
+import 'demo/demo_app.dart';
+import 'demo/demo_build.dart';
 import 'firebase_options.dart';
 import 'reminders/local_ring_platform.dart';
 import 'reminders/reminder_background.dart';
@@ -28,7 +30,12 @@ import 'reminders/ring_fence.dart';
 // Check token and the function refuses web requests (web is on "enforce").
 const String _recaptchaSiteKey = String.fromEnvironment('RECAPTCHA_SITE_KEY');
 
-Future<void> main() => startApp();
+Future<void> main() => entryPoint()();
+
+// The start main() runs: the portfolio demo's (T-18), without Firebase, when
+// built with DEMO_BUILD; the real app's otherwise.
+Future<void> Function() entryPoint({bool demo = demoBuild}) =>
+    demo ? startDemo : startApp;
 
 // [afterInit] runs after Firebase is set up and before the app starts (the
 // emulator entry points use it); [aiService] replaces the deployed AI
