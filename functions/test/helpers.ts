@@ -111,6 +111,16 @@ export async function callAi(
   return { ok: true, result: body.result };
 }
 
+/**
+ * An unsigned App Check token naming `appId`. The Functions emulator runs with
+ * skipTokenVerification, so it reads the app id without checking the
+ * signature; a real project would refuse it. Emulator tests only.
+ */
+export function appCheckToken(appId: string): string {
+  const part = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
+  return `${part({ alg: 'none', typ: 'JWT' })}.${part({ sub: appId, exp: Math.floor(Date.now() / 1000) + 3600 })}.`;
+}
+
 export const GROCERY = 'grocery';
 export const TODO = 'todo';
 

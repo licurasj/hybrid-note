@@ -65,3 +65,35 @@ describe('turning Android to enforce is a settings change only', () => {
     assert.equal(d.allow, true);
   });
 });
+
+describe('an anonymous caller (the demo, T-18 M1) always needs a verified token', () => {
+  test('no token or an invalid one is refused on both declared platforms, and on none', () => {
+    for (const declaredPlatform of ['android', 'web', undefined]) {
+      for (const tokenPresent of [false, true]) {
+        const d = decideAppCheck({ tokenPresent, declaredPlatform, requireToken: true });
+        assert.equal(d.allow, false, `${String(declaredPlatform)} ${tokenPresent}`);
+        assert.equal(d.mode, 'enforce');
+        assert.equal(d.verdict, tokenPresent ? 'invalid' : 'missing');
+      }
+    }
+  });
+
+  test('a verified token of a configured app passes, whatever is declared', () => {
+    for (const verifiedAppId of [WEB, ANDROID]) {
+      for (const declaredPlatform of ['android', 'web']) {
+        const d = decideAppCheck({ verifiedAppId, tokenPresent: true, declaredPlatform, requireToken: true });
+        assert.equal(d.allow, true);
+        assert.equal(d.verdict, 'valid');
+      }
+    }
+  });
+
+  test('a verified token of an unknown app is refused', () => {
+    const d = decideAppCheck({ verifiedAppId: '1:9:web:other', tokenPresent: true, declaredPlatform: 'android', requireToken: true });
+    assert.equal(d.allow, false);
+  });
+
+  test('without requireToken the owner policy is unchanged: Android on monitor still passes', () => {
+    assert.equal(decideAppCheck({ tokenPresent: false, declaredPlatform: 'android', requireToken: false }).allow, true);
+  });
+});

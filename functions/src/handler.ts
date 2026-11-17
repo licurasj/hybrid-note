@@ -295,6 +295,9 @@ export async function handleAiCommand(input: CallInput, deps: Deps): Promise<AiR
       verifiedAppId: input.verifiedAppId,
       tokenPresent: input.appCheckTokenPresent,
       declaredPlatform: (input.data as { platform?: unknown } | null)?.platform,
+      // Anonymous (demo) callers always need a verified token: Android's
+      // "monitor" is for the owner's phone only (T-18 M1).
+      requireToken: input.signInProvider === 'anonymous',
     });
     meta.appCheck = { verdict: appCheck.verdict, platform: appCheck.platform, mode: appCheck.mode };
     if (!appCheck.allow) throw refuse('appCheck', 'App Check token missing or invalid');
