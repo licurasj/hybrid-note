@@ -114,6 +114,7 @@ class FirebaseDemoAiBackend implements DemoAiBackend {
     if (_emulatorHost.isEmpty) {
       await Firebase.initializeApp(options: options);
       await activateAppCheck();
+      await _restored();
       return;
     }
     await Firebase.initializeApp(
@@ -124,7 +125,13 @@ class FirebaseDemoAiBackend implements DemoAiBackend {
     FirebaseFunctions.instanceFor(
       region: 'us-central1',
     ).useFunctionsEmulator(_emulatorHost, _functionsPort);
+    await _restored();
   }
+
+  // On web the account saved by an earlier visit loads after initializeApp;
+  // the first auth state is the restored one (or none), so [signedIn] is
+  // read only after it and a late restore makes no second account (T-18 M8).
+  Future<void> _restored() => _auth.authStateChanges().first;
 
   @override
   bool get signedIn => _auth.currentUser != null;

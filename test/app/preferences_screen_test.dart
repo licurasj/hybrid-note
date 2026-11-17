@@ -7,6 +7,7 @@ import 'package:hybrid_note/app/account_preferences.dart';
 import 'package:hybrid_note/app/app_settings.dart';
 import 'package:hybrid_note/app/preferences_screen.dart';
 import 'package:hybrid_note/backend/firestore_list_store.dart';
+import 'package:hybrid_note/demo/demo_build.dart' show DemoMode;
 import 'package:hybrid_note/home_screen.dart';
 import 'package:hybrid_note/lists/builtin_templates.dart';
 import 'package:hybrid_note/lists/list_patch.dart';
@@ -677,5 +678,33 @@ void main() {
     expect(settings.state.ringOnThisPhone, isFalse);
     final SharedPreferences stored = await SharedPreferences.getInstance();
     expect(stored.getBool(AppSettingsCubit.ringOnThisPhoneKey), isFalse);
+  });
+
+  // The real root has no DemoMode, so the rows the demo hides stay (T-18 M5).
+  testWidgets('the real app keeps the account rows, the Reminders section and '
+      'the account line', (tester) async {
+    await _pumpApp(tester);
+    expect(
+      tester.element(find.byType(HomeScreen)).read<DemoMode?>(),
+      isNull,
+    );
+    await _openSettings(tester);
+    expect(find.byKey(const ValueKey('sign-out')), findsOneWidget);
+    expect(find.text('owner@example.com'), findsOneWidget);
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('settings-preferences')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('settings-preferences')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('These follow your account to every phone.'),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('preferences-section-reminders')),
+      findsOneWidget,
+    );
   });
 }

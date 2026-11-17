@@ -140,6 +140,11 @@ void main() {
       find.byKey(const ValueKey('preferences-section-reminders')),
       findsNothing,
     );
+    // No account, nothing syncs: the line saying so is not shown (T-18 M7).
+    expect(
+      find.text('These follow your account to every phone.'),
+      findsNothing,
+    );
   });
 
   testWidgets('a wide frame shows the phone layout centred', (tester) async {

@@ -20,7 +20,10 @@ void main() {
     expect(entryPoint(), same(demoBuild ? startDemo : startApp));
   });
 
-  test('the real path leaves the preferences store alone', () async {
+  // This only checks the demo's swap. startApp itself needs Firebase and is
+  // not run here; the real root without DemoMode, with its account rows,
+  // Reminders section and account line, is in preferences_screen_test.dart.
+  test('the demo start swaps in the in-memory preferences store', () async {
     final SharedPreferencesStorePlatform before =
         SharedPreferencesStorePlatform.instance;
     expect(before, isNot(isA<InMemorySharedPreferencesStore>()));
