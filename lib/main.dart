@@ -51,7 +51,7 @@ Future<void> startApp({
   final FirestoreSetup setup = FirestoreSetup(FirebaseFirestore.instance)
     ..configure();
   await afterInit?.call();
-  final SharedPreferences preferences = await SharedPreferences.getInstance();
+  final SharedPreferences preferences = await realPreferences();
 
   runApp(
     MultiRepositoryProvider(
@@ -77,6 +77,10 @@ Future<void> startApp({
     ),
   );
 }
+
+// The real app's preferences: the platform store as it is, never replaced
+// (only the demo's start swaps in an in-memory one, T-18 M5).
+Future<SharedPreferences> realPreferences() => SharedPreferences.getInstance();
 
 // Reminders ring on Android only for now (Q-95); elsewhere nothing is booked.
 // The channel takes its name in the app's language as first set.
