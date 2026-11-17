@@ -21,6 +21,7 @@ import 'date_preferences.dart';
 import 'list_order.dart';
 import 'app_theme.dart';
 import 'settings_controls.dart';
+import '../demo/demo_build.dart' show DemoMode;
 
 // Opens [title]'s choices as a slide-up sheet with [selected] marked, and gives
 // back the one tapped (null when the sheet is dismissed).
@@ -193,7 +194,10 @@ class PreferencesScreen extends StatelessWidget {
           children: [
             Text(loc.preferences, style: look.type.screenTitle),
             const SizedBox(height: 4),
-            Text(loc.preferencesHint, style: look.type.meta),
+            // Nothing follows an account in the demo: it has none and nothing
+            // syncs (T-18 M7).
+            if (context.read<DemoMode?>() == null)
+              Text(loc.preferencesHint, style: look.type.meta),
             // T-24 (Q-111): grouped by where in the app a setting acts. Every
             // row is always there; one that does not apply now is greyed with
             // a line saying why (Q-113), so nothing below it moves. Each group
@@ -379,7 +383,9 @@ class PreferencesScreen extends StatelessWidget {
                 ),
               ],
             ),
-            _remindersSection(context, loc, preferences, cubit, lists),
+            // Nothing rings in the demo (Q-133).
+            if (context.read<DemoMode?>() == null)
+              _remindersSection(context, loc, preferences, cubit, lists),
             FoldSection(
               key: const ValueKey('preferences-section-ai'),
               title: loc.preferencesAi,

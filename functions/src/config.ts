@@ -2,8 +2,8 @@
 // an App Check decision depends on lives here, so changing a limit or turning
 // Android App Check to "enforce" is a function redeploy, never an app release.
 
-/** A caller's tier. T-19 has the owner only; T-18 adds an anonymous demo tier. */
-export type TierName = 'owner';
+/** A caller's tier: `owner` from the allowlist, `demo` for anonymous portfolio visitors (T-18). */
+export type TierName = 'owner' | 'demo';
 
 /** A shared daily dollar budget. Every call reserves from each pool of its tier. */
 export type PoolName = 'global';
@@ -42,10 +42,27 @@ export const TIERS: Record<TierName, TierLimits> = {
     maxItems: 20,
     pools: [],
   },
+  // The portfolio demo (T-18, Q-83 A): every anonymous visitor, by the verified
+  // token's sign-in provider, never the allowlist. The daily count is a soft
+  // guard per visitor (a new anonymous account starts at 0); the pool is the
+  // real stop. Prompt 1,000 as the prompt bar (Q-132). Context: the largest
+  // starter-list request measured 10,949 bytes (Tasks open with 20 filled
+  // sample items, T-18 unit 1, 2026-11-17); 16,000 leaves room for an English
+  // follow-up and a few lists of the visitor's own.
+  demo: {
+    requestsPerDay: 20,
+    promptMaxChars: 1000,
+    replyMaxChars: 500,
+    contextMaxBytes: 16000,
+    maxLists: 100,
+    maxItems: 20,
+    pools: ['global'],
+  },
 };
 
 export const POOLS: Record<PoolName, PoolLimits> = {
-  global: { usdPerDay: 1 },
+  // Holds only the demo's spend since Q-63; $0.30 per UTC day (Q-83 A).
+  global: { usdPerDay: 0.3 },
 };
 
 /** US dollars per million tokens. `cacheWrite` is the 5-minute cache write; no premium means = input. */
@@ -197,7 +214,21 @@ export const COLLECTIONS = {
   userUsage: 'aiUsageUser',
   poolUsage: 'aiUsagePool',
   promptLog: 'aiPromptLog',
+  /** Anonymous accounts the clean-up job is removing; `reserve` refuses them (T-18 M3). */
+  retired: 'aiDemoRetired',
 } as const;
+
+/** Anonymous Auth accounts older than this are deleted with their usage documents (T-18 clean-up). */
+export const ANONYMOUS_MAX_AGE_HOURS = 24;
+
+/**
+ * Hours a deleted anonymous account's usage documents stay before the
+ * clean-up removes them: an ID token lives up to 1 hour after the account is
+ * gone (the callable framework does not check revocation) and a call up to
+ * 120 s, so after 2 hours no request of that account can still count or
+ * settle (T-18 M3).
+ */
+export const RETIRED_DRAIN_HOURS = 2;
 
 /** Token counts of one or more provider calls. `inputTokens` excludes cache reads and writes. */
 export interface Usage {

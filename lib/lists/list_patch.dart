@@ -196,6 +196,50 @@ class ListPatch {
   // Key under which unconvertible values are kept on an item.
   static const String legacyKey = '_legacy';
 
+  // The item with its values fitted to the definition's fields, or null
+  // when they already fit. Values that cannot be converted are hidden in
+  // `_legacy` (D-10), as apply does when a field changes type. Both
+  // ListStores fit items with it.
+  static ListItem? fitItem(ListDefinition definition, ListItem item) {
+    final Map<String, dynamic> values = Map<String, dynamic>.from(item.values);
+    bool changed = false;
+    for (final FieldDefinition field in definition.fields) {
+      final Object? value = values[field.key];
+      if (value == null) {
+        continue;
+      }
+      final (bool ok, Object? converted) = convertValue(value, field);
+      if (!ok) {
+        final Map<String, dynamic> legacy = Map<String, dynamic>.from(
+          values[legacyKey] as Map? ?? const {},
+        );
+        legacy[field.key] = [
+          ...archivedValues(legacy, field.key),
+          values.remove(field.key),
+        ];
+        values[legacyKey] = legacy;
+        changed = true;
+      } else if (converted != value) {
+        if (converted == null) {
+          values.remove(field.key);
+        } else {
+          values[field.key] = converted;
+        }
+        changed = true;
+      }
+    }
+    if (!changed) {
+      return null;
+    }
+    return ListItem(
+      id: item.id,
+      listId: item.listId,
+      values: values,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    );
+  }
+
   // The values archived for one field in an item's `_legacy` map, oldest
   // first (D-10). Older data kept a single value there, which reads as a
   // one-entry list; a List is taken as the list of archived values, so an

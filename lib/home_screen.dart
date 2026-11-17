@@ -40,6 +40,7 @@ import 'lists/list_labels.dart';
 import 'lists/list_rules.dart';
 import 'lists/list_store.dart';
 import 'lists/list_vocabulary.dart';
+import 'demo/demo_build.dart' show DemoMode;
 
 // One item whose reminder date is today or earlier: open, or ticked and not
 // yet cleared.
@@ -2025,6 +2026,7 @@ class _SettingsSheet extends StatelessWidget {
     final AppNeutrals neutrals = AppColors.neutrals(brightness);
     final AppTypography type = AppTypography.of(context);
     final SignedInAccount account = context.read<SignedInAccount>();
+    final bool demo = context.read<DemoMode?>() != null;
 
     String themeLabel(ThemeMode mode) => switch (mode) {
       ThemeMode.system => loc.themeFollowPhone,
@@ -2209,41 +2211,44 @@ class _SettingsSheet extends StatelessWidget {
                             ),
                       ),
                       hairline(),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                          AppShapes.sideMargin,
-                          26,
-                          AppShapes.sideMargin,
-                          8,
+                      // The demo has no account to show or leave (T-18).
+                      if (!demo) ...[
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppShapes.sideMargin,
+                            26,
+                            AppShapes.sideMargin,
+                            8,
+                          ),
+                          child: Text(
+                            loc.account.toUpperCase(),
+                            style: type.sectionLabel,
+                          ),
                         ),
-                        child: Text(
-                          loc.account.toUpperCase(),
-                          style: type.sectionLabel,
+                        hairline(),
+                        row(
+                          key: const ValueKey('settings-account'),
+                          icon: Icons.account_circle_outlined,
+                          label: Text(
+                            account.user.email ?? loc.account,
+                            key: const ValueKey('account-email'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: type.row,
+                          ),
+                          trailing: TextButton(
+                            key: const ValueKey('sign-out'),
+                            onPressed: () {
+                              // Close the sheet first; signing out replaces the
+                              // whole app with the sign-in screen.
+                              Navigator.of(context).pop();
+                              account.signOut();
+                            },
+                            child: Text(loc.logOut),
+                          ),
                         ),
-                      ),
-                      hairline(),
-                      row(
-                        key: const ValueKey('settings-account'),
-                        icon: Icons.account_circle_outlined,
-                        label: Text(
-                          account.user.email ?? loc.account,
-                          key: const ValueKey('account-email'),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: type.row,
-                        ),
-                        trailing: TextButton(
-                          key: const ValueKey('sign-out'),
-                          onPressed: () {
-                            // Close the sheet first; signing out replaces the
-                            // whole app with the sign-in screen.
-                            Navigator.of(context).pop();
-                            account.signOut();
-                          },
-                          child: Text(loc.logOut),
-                        ),
-                      ),
-                      hairline(),
+                        hairline(),
+                      ],
                     ],
                   ),
                 ),

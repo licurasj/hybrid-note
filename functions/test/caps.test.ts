@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { beforeEach, describe, test } from 'node:test';
 
 import { countOnly, dayOf, reserve, settle } from '../src/caps';
-import { MODELS, TIERS, ceilingMicros, type TierLimits } from '../src/config';
+import { MODELS, POOLS, TIERS, ceilingMicros, type TierLimits } from '../src/config';
 import { reasonOf } from '../src/errors';
 import { clearFirestore, db } from './helpers';
 
@@ -13,7 +13,7 @@ const model = MODELS.fake;
 // has none since Q-63.
 const limits: TierLimits = { ...TIERS.owner, requestsPerDay: 100, pools: ['global'] };
 const CEILING = ceilingMicros(model);
-const BUDGET = 1_000_000; // $1 in microdollars
+const BUDGET = Math.round(POOLS.global.usdPerDay * 1e6); // $0.30 since T-18 (Q-83 A)
 const now = new Date();
 const day = dayOf(now);
 
@@ -88,7 +88,7 @@ describe('per-user daily count', () => {
   });
 });
 
-describe('global $1/day stop', () => {
+describe('global daily stop (POOLS.global)', () => {
   test('20 parallel calls with room for 3 ceilings: exactly 3 pass, no overshoot', async () => {
     await poolDoc().set({ day, pool: 'global', spentMicros: BUDGET - 3 * CEILING, reservedMicros: 0 });
     const { ok, reasons } = await settled(
@@ -108,7 +108,7 @@ describe('global $1/day stop', () => {
     assert.ok(after.get('spentMicros') <= BUDGET);
   });
 
-  test('reserve, call and settle in parallel up to the stop: spent never passes $1', async () => {
+  test('reserve, call and settle in parallel up to the stop: spent never passes the stop', async () => {
     await poolDoc().set({ day, pool: 'global', spentMicros: BUDGET - 10 * CEILING, reservedMicros: 0 });
     // Each call costs its full ceiling, the worst case.
     const { ok } = await settled(

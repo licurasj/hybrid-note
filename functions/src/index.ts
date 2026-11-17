@@ -1,9 +1,14 @@
 import { randomUUID } from 'node:crypto';
 
 import { initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
+import * as logger from 'firebase-functions/logger';
 import { defineSecret } from 'firebase-functions/params';
 import { onCall } from 'firebase-functions/v2/https';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
+
+import { cleanUpAnonymous } from './cleanup';
 
 import { ACTIVE_MODEL, MODELS, type ModelConfig } from './config';
 import { refuse } from './errors';
@@ -79,6 +84,8 @@ export const aiCommand = onCall(
     return handleAiCommand(
       {
         uid: request.auth?.uid,
+        // From the verified ID token: "anonymous" selects the demo tier (T-18).
+        signInProvider: request.auth?.token.firebase?.sign_in_provider,
         verifiedAppId: request.app?.appId,
         appCheckTokenPresent: Boolean(request.rawRequest.header('X-Firebase-AppCheck')),
         data: request.data,
@@ -94,5 +101,20 @@ export const aiCommand = onCall(
         newRequestId: randomUUID,
       },
     );
+  },
+);
+
+/**
+ * The demo's clean-up (T-18): every 6 hours, anonymous accounts older than
+ * 24 hours are retired and deleted, so an account lives at most about 30
+ * hours; their aiUsageUser documents go at a later run, once no token of the
+ * account is valid (cleanup.ts). One run is bounded and the next carries on.
+ * Counts only in the log, never a uid.
+ */
+export const cleanUpDemoAccounts = onSchedule(
+  { schedule: 'every 6 hours', timeZone: 'Etc/UTC', region: 'us-central1', memory: '256MiB', timeoutSeconds: 540 },
+  async () => {
+    const result = await cleanUpAnonymous(getAuth(), getFirestore(), new Date());
+    logger.info('cleanUpDemoAccounts', result);
   },
 );

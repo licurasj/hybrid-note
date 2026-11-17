@@ -70,34 +70,27 @@ class StarterLists {
         return false;
       }
       transaction.set(markerRef, {seededAtKey: seededAt.toIso8601String()});
-      for (int index = 0; index < sources.length; index++) {
-        final ListDefinition template = sources[index];
-        final ListDefinition copy = template.copyWith(
-          id: 'list-${const Uuid().v4()}',
-          updatedAt: seededAt,
-        );
+      final List<StarterCopy> copies = StarterLists.copies(
+        sources,
+        sampleItems: sampleItems,
+        now: seededAt,
+      );
+      for (int index = 0; index < copies.length; index++) {
+        final StarterCopy copy = copies[index];
         final DocumentReference<Map<String, dynamic>> listRef = firestore.doc(
-          'users/$uid/lists/${copy.id}',
+          'users/$uid/lists/${copy.definition.id}',
         );
         transaction.set(
           listRef,
           FirestoreListStore.definitionData(
-            copy,
+            copy.definition,
             createdAt: seededAt.add(Duration(milliseconds: index)),
           ),
         );
-        for (final ListItem sample
-            in sampleItems[template.templateId ?? template.id] ?? const []) {
-          final ListItem item = ListItem(
-            id: const Uuid().v4(),
-            listId: copy.id,
-            values: sample.values,
-            createdAt: sample.createdAt,
-            updatedAt: sample.updatedAt,
-          );
+        for (final ListItem item in copy.items) {
           transaction.set(
             listRef.collection('items').doc(item.id),
-            FirestoreListStore.itemData(item, copy.schemaRevision),
+            FirestoreListStore.itemData(item, copy.definition.schemaRevision),
           );
         }
       }
@@ -113,4 +106,46 @@ class StarterLists {
     }
     return seeded;
   }
+
+  // The starter copies of [templates] with their sample items, in template
+  // order, with fresh list and item ids; the demo's in-memory store (T-18)
+  // starts from them too.
+  static List<StarterCopy> copies(
+    List<ListDefinition> templates, {
+    Map<String, List<ListItem>> sampleItems = const {},
+    required DateTime now,
+  }) {
+    return [
+      for (final ListDefinition template in templates)
+        _copy(template, sampleItems, now),
+    ];
+  }
+
+  static StarterCopy _copy(
+    ListDefinition template,
+    Map<String, List<ListItem>> sampleItems,
+    DateTime now,
+  ) {
+    final ListDefinition copy = template.copyWith(
+      id: 'list-${const Uuid().v4()}',
+      updatedAt: now,
+    );
+    return (
+      definition: copy,
+      items: [
+        for (final ListItem sample
+            in sampleItems[template.templateId ?? template.id] ?? const [])
+          ListItem(
+            id: const Uuid().v4(),
+            listId: copy.id,
+            values: sample.values,
+            createdAt: sample.createdAt,
+            updatedAt: sample.updatedAt,
+          ),
+      ],
+    );
+  }
 }
+
+// One starter list and its sample items.
+typedef StarterCopy = ({ListDefinition definition, List<ListItem> items});

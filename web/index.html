@@ -31,6 +31,12 @@
 
   <title>Hybrid Note</title>
   <link rel="manifest" href="manifest.json">
+  <!-- Dark until Flutter paints its first frame, so the page does not flash
+       white; #05070a is the portfolio's background, around the demo's frame
+       (T-18). -->
+  <style>
+    html, body { margin: 0; background: #05070a; }
+  </style>
 </head>
 <body>
   <!--

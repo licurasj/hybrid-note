@@ -15,6 +15,8 @@ import 'app/page_reload.dart';
 import 'backend/auth_service.dart';
 import 'backend/firestore_preferences.dart';
 import 'backend/firestore_setup.dart';
+import 'demo/demo_app.dart';
+import 'demo/demo_build.dart';
 import 'firebase_options.dart';
 import 'reminders/local_ring_platform.dart';
 import 'reminders/reminder_background.dart';
@@ -28,7 +30,12 @@ import 'reminders/ring_fence.dart';
 // Check token and the function refuses web requests (web is on "enforce").
 const String _recaptchaSiteKey = String.fromEnvironment('RECAPTCHA_SITE_KEY');
 
-Future<void> main() => startApp();
+Future<void> main() => entryPoint()();
+
+// The start main() runs: the portfolio demo's (T-18), without Firebase, when
+// built with DEMO_BUILD; the real app's otherwise.
+Future<void> Function() entryPoint({bool demo = demoBuild}) =>
+    demo ? startDemo : startApp;
 
 // [afterInit] runs after Firebase is set up and before the app starts (the
 // emulator entry points use it); [aiService] replaces the deployed AI
@@ -39,12 +46,12 @@ Future<void> startApp({
 }) async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await _activateAppCheck();
+  await activateAppCheck();
   // Cache settings before anything touches Firestore (Q-25 A).
   final FirestoreSetup setup = FirestoreSetup(FirebaseFirestore.instance)
     ..configure();
   await afterInit?.call();
-  final SharedPreferences preferences = await SharedPreferences.getInstance();
+  final SharedPreferences preferences = await realPreferences();
 
   runApp(
     MultiRepositoryProvider(
@@ -71,6 +78,10 @@ Future<void> startApp({
   );
 }
 
+// The real app's preferences: the platform store as it is, never replaced
+// (only the demo's start swaps in an in-memory one, T-18 M5).
+Future<SharedPreferences> realPreferences() => SharedPreferences.getInstance();
+
 // Reminders ring on Android only for now (Q-95); elsewhere nothing is booked.
 // The channel takes its name in the app's language as first set.
 RingBooker? _ringBooker(SharedPreferences preferences) {
@@ -88,8 +99,8 @@ RingBooker? _ringBooker(SharedPreferences preferences) {
 // App Check for the AI function (Q-34 1): Play Integrity on Android (the
 // debug provider in debug builds) and Fraud Defense on web. The function
 // decides per app whether a missing token is refused; a failure here never
-// stops the app.
-Future<void> _activateAppCheck() async {
+// stops the app. The demo's AI starts it the same way (T-18 unit 2b).
+Future<void> activateAppCheck() async {
   if (kIsWeb && _recaptchaSiteKey.isEmpty) {
     return;
   }

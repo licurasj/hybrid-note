@@ -34,6 +34,11 @@ import { loadTools, schemaErrors } from './schemas';
 
 export interface CallInput {
   uid?: string;
+  /**
+   * The verified ID token's `firebase.sign_in_provider` ("anonymous",
+   * "google.com", ...), as the framework decoded it; absent without sign-in.
+   */
+  signInProvider?: string;
   /** `request.app.appId`: present only when the framework verified the token. */
   verifiedAppId?: string;
   appCheckTokenPresent: boolean;
@@ -246,8 +251,13 @@ export function runCost(model: ModelConfig, usage: Usage, started: Date, ended: 
   return Math.max(costMicros(model, usage, started), costMicros(model, usage, ended));
 }
 
-/** Finds the caller's tier on the server-only allowlist; T-18 adds the demo tier here. */
-export async function resolveTier(db: Firestore, uid: string): Promise<TierName | null> {
+/**
+ * The caller's tier. An anonymous account is a portfolio visitor: tier `demo`
+ * from the verified token alone, with no allowlist read (T-18). Any other
+ * account needs its entry on the server-only allowlist.
+ */
+export async function resolveTier(db: Firestore, uid: string, signInProvider?: string): Promise<TierName | null> {
+  if (signInProvider === 'anonymous') return 'demo';
   const entry = await db.collection(COLLECTIONS.allowlist).doc(uid).get();
   const tier = entry.get('tier');
   return typeof tier === 'string' && Object.hasOwn(TIERS, tier) ? (tier as TierName) : null;
@@ -285,11 +295,14 @@ export async function handleAiCommand(input: CallInput, deps: Deps): Promise<AiR
       verifiedAppId: input.verifiedAppId,
       tokenPresent: input.appCheckTokenPresent,
       declaredPlatform: (input.data as { platform?: unknown } | null)?.platform,
+      // Anonymous (demo) callers always need a verified token: Android's
+      // "monitor" is for the owner's phone only (T-18 M1).
+      requireToken: input.signInProvider === 'anonymous',
     });
     meta.appCheck = { verdict: appCheck.verdict, platform: appCheck.platform, mode: appCheck.mode };
     if (!appCheck.allow) throw refuse('appCheck', 'App Check token missing or invalid');
 
-    const tier = await resolveTier(deps.db, uid);
+    const tier = await resolveTier(deps.db, uid, input.signInProvider);
     if (tier === null) throw refuse('notAllowed', 'this account may not use AI');
     meta.tier = tier;
     const limits = deps.limits ?? TIERS[tier];
