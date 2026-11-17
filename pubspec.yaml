@@ -97,6 +97,11 @@ flutter:
           weight: 600
         - asset: assets/fonts/geist/Geist-Bold.ttf
           weight: 700
+    # Bundled so the web engine does not fetch its default font from
+    # fonts.gstatic.com (T-18, Q-143); Apache-2.0, LICENSE.txt beside it.
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/roboto/Roboto-Regular.ttf
   # The app logo, also drawn in a list's colour on its reminders (T-13 unit 9).
   assets:
     - assets/app_icon.png
