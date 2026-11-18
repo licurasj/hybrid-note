@@ -1,0 +1,29 @@
+# Do-nothing web half of google_sign_in for the portfolio demo build only
+# (T-18 PX-2, Q-144). tool/build_demo_web.ps1 points google_sign_in_web here
+# through a temporary pubspec_overrides.yaml, so the demo never loads
+# accounts.google.com/gsi/client. Real builds use the pub.dev package.
+# Keep the name, the plugin block and the version in step with the
+# google_sign_in_web in pubspec.lock.
+name: google_sign_in_web
+description: Do-nothing stand-in for google_sign_in_web in the demo build.
+publish_to: 'none'
+version: 0.12.4+4
+
+environment:
+  sdk: ^3.4.0
+  flutter: ">=3.22.0"
+
+flutter:
+  plugin:
+    implements: google_sign_in
+    platforms:
+      web:
+        pluginClass: GoogleSignInPlugin
+        fileName: google_sign_in_web.dart
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
+  google_sign_in_platform_interface: ^2.5.0
