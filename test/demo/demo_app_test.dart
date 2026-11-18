@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,6 +9,7 @@ import 'package:hybrid_note/app/app_settings.dart';
 import 'package:hybrid_note/demo/demo_app.dart';
 import 'package:hybrid_note/demo/demo_build.dart';
 import 'package:hybrid_note/demo/memory_list_store.dart';
+import 'package:hybrid_note/demo/page_probe.dart';
 import 'package:hybrid_note/lists/builtin_templates.dart';
 import 'package:hybrid_note/lists/list_catalog.dart';
 import 'package:hybrid_note/lists/list_definition.dart';
@@ -16,7 +19,11 @@ import 'package:hybrid_note/lists/list_definition.dart';
 // layout centred in a wide frame (Q-133, Q-136, Q-137).
 final Finder _hub = find.byKey(const ValueKey('launcher-hub'));
 
-Future<MemoryListStore> _pumpDemo(WidgetTester tester, Size size) async {
+Future<MemoryListStore> _pumpDemo(
+  WidgetTester tester,
+  Size size, {
+  double topInset = 0,
+}) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -26,7 +33,7 @@ Future<MemoryListStore> _pumpDemo(WidgetTester tester, Size size) async {
   await tester.pumpWidget(
     BlocProvider(
       create: (_) => AppSettingsCubit(preferences),
-      child: DemoApp(store: store),
+      child: DemoApp(store: store, topInset: topInset),
     ),
   );
   await tester.pumpAndSettle();
@@ -169,5 +176,131 @@ void main() {
     );
     expect(row.left, greaterThanOrEqualTo(rect.left));
     expect(row.right, lessThanOrEqualTo(rect.right));
+  });
+
+  group('top inset for the portfolio close button (Q-145)', () {
+    test('only with embed=1 and a coarse pointer', () {
+      expect(
+        demoTopInset(query: '?embed=1', coarsePointer: true),
+        embedTouchInset,
+      );
+      expect(demoTopInset(query: 'embed=1', coarsePointer: true), 56);
+      expect(demoTopInset(query: '?a=b&embed=1', coarsePointer: true), 56);
+      expect(demoTopInset(query: '?embed=1', coarsePointer: false), 0);
+      expect(demoTopInset(query: '', coarsePointer: true), 0);
+      expect(demoTopInset(query: '?embed=0', coarsePointer: true), 0);
+      expect(demoTopInset(query: '?embedded=1', coarsePointer: true), 0);
+      expect(demoTopInset(query: '?embed=%', coarsePointer: true), 0);
+    });
+
+    test('off the web the page probe reports no URL and a fine pointer', () {
+      expect(pageQuery(), '');
+      expect(coarsePointer(), isFalse);
+    });
+
+    // The portfolio's close button on a 390 wide touch frame: 12 from the
+    // top and right edges, about 60 by 36.
+    final Rect closeButton = Rect.fromLTWH(390 - 12 - 60, 12, 60, 36);
+
+    void expectBelowInset(WidgetTester tester, Finder finder) {
+      for (final Element element in finder.evaluate()) {
+        final Rect rect = tester.getRect(find.byWidget(element.widget));
+        expect(rect.top, greaterThanOrEqualTo(56), reason: '$rect');
+        expect(rect.overlaps(closeButton), isFalse, reason: '$rect');
+      }
+    }
+
+    testWidgets('with the inset every screen, sheet and dialog sits below '
+        'a dark band', (tester) async {
+      await _pumpDemo(tester, const Size(390, 844), topInset: 56);
+      final Finder band = find.byKey(const ValueKey('demo-top-inset'));
+      expect(band, findsOneWidget);
+      expect(tester.widget<ColoredBox>(band).color, demoInsetBand);
+      expect(tester.getRect(band), const Rect.fromLTWH(0, 0, 390, 844));
+      // The screens see the room below the band as the screen.
+      expect(MediaQuery.sizeOf(tester.element(_hub)), const Size(390, 788));
+      expect(tester.getRect(find.byType(Scaffold).first).top, 56);
+      expectBelowInset(tester, find.byKey(const ValueKey('settings')));
+      expectBelowInset(tester, find.byType(IconButton));
+
+      // The settings sheet.
+      await tester.tap(find.byKey(const ValueKey('settings')));
+      await tester.pumpAndSettle();
+      expectBelowInset(
+        tester,
+        find.byKey(const ValueKey('settings-preferences')),
+      );
+      expect(
+        tester.getRect(find.byType(BottomSheet)).top,
+        greaterThanOrEqualTo(56),
+      );
+
+      // Preferences, a full page.
+      await tester.tap(find.byKey(const ValueKey('settings-preferences')));
+      await tester.pumpAndSettle();
+      expect(tester.getRect(find.byType(AppBar).last).top, 56);
+      expectBelowInset(tester, find.byType(IconButton));
+      // Back twice: to the sheet, then home.
+      for (var i = 0; i < 2; i++) {
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+      }
+      expect(_hub, findsOneWidget);
+
+      // A full-height sheet and a dialog stay below the band too.
+      final BuildContext context = tester.element(_hub);
+      unawaited(
+        showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => const SizedBox.expand(key: ValueKey('tall-sheet')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      // Material keeps a full-height sheet a little below the top too.
+      expect(
+        tester.getRect(find.byKey(const ValueKey('tall-sheet'))).top,
+        greaterThanOrEqualTo(56),
+      );
+      Navigator.of(context).pop();
+      await tester.pumpAndSettle();
+      unawaited(
+        showDialog<void>(
+          context: context,
+          builder: (_) => const AlertDialog(
+            title: Text('Dialog'),
+            actions: [TextButton(onPressed: null, child: Text('OK'))],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expectBelowInset(tester, find.byType(AlertDialog));
+      expect(
+        tester.getRect(find.byType(ModalBarrier).last).top,
+        56,
+        reason: 'the barrier covers only the room below the band',
+      );
+    });
+
+    testWidgets('without the inset nothing changes', (tester) async {
+      await _pumpDemo(tester, const Size(390, 844));
+      expect(find.byKey(const ValueKey('demo-top-inset')), findsNothing);
+      expect(MediaQuery.sizeOf(tester.element(_hub)), const Size(390, 844));
+      expect(tester.getRect(find.byType(Scaffold).first).top, 0);
+    });
+
+    testWidgets('a wide touch frame keeps the centred column below the band', (
+      tester,
+    ) async {
+      await _pumpDemo(tester, const Size(1280, 800), topInset: 56);
+      final Rect column = tester.getRect(
+        find.byKey(const ValueKey('demo-phone-column')),
+      );
+      expect(column, const Rect.fromLTWH(425, 56, demoPhoneWidth, 744));
+      expect(
+        MediaQuery.sizeOf(tester.element(_hub)),
+        const Size(demoPhoneWidth, 744),
+      );
+    });
   });
 }
