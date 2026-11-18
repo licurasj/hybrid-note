@@ -1,10 +1,13 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
 
+import 'package:hybrid_note/ai/ai_service.dart';
 import 'package:hybrid_note/app/app_settings.dart';
 import 'package:hybrid_note/demo/demo_app.dart';
 import 'package:hybrid_note/demo/demo_build.dart';
@@ -23,6 +26,8 @@ Future<MemoryListStore> _pumpDemo(
   WidgetTester tester,
   Size size, {
   double topInset = 0,
+  AiService? aiService,
+  ValueListenable<double>? keyboardInset,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -33,12 +38,25 @@ Future<MemoryListStore> _pumpDemo(
   await tester.pumpWidget(
     BlocProvider(
       create: (_) => AppSettingsCubit(preferences),
-      child: DemoApp(store: store, topInset: topInset),
+      child: DemoApp(
+        store: store,
+        topInset: topInset,
+        aiService: aiService,
+        keyboardInset: keyboardInset,
+      ),
     ),
   );
   await tester.pumpAndSettle();
   return store;
 }
+
+// Never asked here: the keyboard tests only focus the bar.
+class _NoAi implements AiService {
+  @override
+  Future<AiAnswer> send(AiRequest request) => throw UnimplementedError();
+}
+
+final Finder _bar = find.byKey(const ValueKey('ai-bar'));
 
 void main() {
   // `flutter test` runs the real build; the demo tests also run with
@@ -300,6 +318,133 @@ void main() {
       expect(
         MediaQuery.sizeOf(tester.element(_hub)),
         const Size(demoPhoneWidth, 744),
+      );
+    });
+  });
+
+  // T-18 unit 5 (Q-146): the demo starts light even on a dark system.
+  group('light by default', () {
+    late SharedPreferencesStorePlatform original;
+
+    setUp(() => original = SharedPreferencesStorePlatform.instance);
+    tearDown(() {
+      SharedPreferencesStorePlatform.instance = original;
+      SharedPreferences.resetStatic();
+    });
+
+    testWidgets('the demo start is light on a dark system; without its '
+        'preferences the root follows the system', (tester) async {
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+      // Without the demo's preferences: follows the system, so dark.
+      await _pumpDemo(tester, const Size(390, 844));
+      expect(Theme.of(tester.element(_hub)).brightness, Brightness.dark);
+
+      SharedPreferences.resetStatic();
+      final SharedPreferences preferences =
+          await tester.runAsync(demoPreferences) as SharedPreferences;
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(
+        BlocProvider(
+          create: (_) => AppSettingsCubit(preferences),
+          child: DemoApp(store: demoStore(DateTime.now())),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(Theme.of(tester.element(_hub)).brightness, Brightness.light);
+    });
+  });
+
+  // T-18 unit 5 (Q-147): the portfolio page's keyboard over the frame.
+  group('keyboard from the parent page', () {
+    testWidgets('the AI bar rises above the covered part and comes back', (
+      tester,
+    ) async {
+      final ValueNotifier<double> keyboard = ValueNotifier<double>(0);
+      await _pumpDemo(
+        tester,
+        const Size(390, 844),
+        aiService: _NoAi(),
+        keyboardInset: keyboard,
+      );
+      final double restBottom = tester.getRect(_bar).bottom;
+      expect(restBottom, lessThanOrEqualTo(844));
+
+      await tester.tap(_bar);
+      await tester.pumpAndSettle();
+      final Finder field = find.byKey(const ValueKey('ai-bar-field'));
+      final FocusNode focus = tester
+          .widget<TextField>(
+            find.descendant(
+              of: field,
+              matching: find.byType(TextField),
+              matchRoot: true,
+            ),
+          )
+          .focusNode!;
+      expect(focus.hasFocus, isTrue);
+      keyboard.value = 320;
+      await tester.pumpAndSettle();
+      // The field keeps its focus (and the keyboard stays up).
+      expect(focus.hasFocus, isTrue);
+      expect(
+        MediaQuery.viewInsetsOf(
+          tester.element(find.byType(Scaffold).first),
+        ).bottom,
+        320,
+      );
+      expect(tester.getRect(_bar).bottom, lessThanOrEqualTo(844 - 320));
+      expect(tester.getRect(_hub).bottom, lessThanOrEqualTo(844 - 320));
+
+      keyboard.value = 0;
+      await tester.pumpAndSettle();
+      expect(
+        MediaQuery.viewInsetsOf(
+          tester.element(find.byType(Scaffold).first),
+        ).bottom,
+        0,
+      );
+      expect(tester.getRect(_bar).bottom, greaterThan(844 - 320));
+    });
+
+    testWidgets('with the top inset too, and never below the own keyboard', (
+      tester,
+    ) async {
+      final ValueNotifier<double> keyboard = ValueNotifier<double>(300);
+      await _pumpDemo(
+        tester,
+        const Size(390, 844),
+        topInset: 56,
+        aiService: _NoAi(),
+        keyboardInset: keyboard,
+      );
+      expect(
+        MediaQuery.viewInsetsOf(
+          tester.element(find.byType(Scaffold).first),
+        ).bottom,
+        300,
+      );
+      expect(tester.getRect(_bar).bottom, lessThanOrEqualTo(844 - 300));
+      expect(tester.getRect(_bar).top, greaterThanOrEqualTo(56));
+
+      // The demo's own keyboard (outside a frame) wins when it is larger.
+      tester.view.viewInsets = const FakeViewPadding(bottom: 400);
+      await tester.pumpAndSettle();
+      expect(
+        MediaQuery.viewInsetsOf(
+          tester.element(find.byType(Scaffold).first),
+        ).bottom,
+        400,
+      );
+    });
+
+    testWidgets('without a parent nothing changes', (tester) async {
+      await _pumpDemo(tester, const Size(390, 844), aiService: _NoAi());
+      expect(
+        MediaQuery.viewInsetsOf(
+          tester.element(find.byType(Scaffold).first),
+        ).bottom,
+        0,
       );
     });
   });

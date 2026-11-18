@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -43,17 +44,25 @@ Future<void> startDemo() async {
           query: pageQuery(),
           coarsePointer: coarsePointer(),
         ),
+        keyboardInset: frameKeyboardInset(),
       ),
     ),
   );
 }
 
 // Preferences that live in this page's memory only. Only the demo's start
-// calls it; the real app keeps the platform's store.
-Future<SharedPreferences> demoPreferences() {
+// calls it; the real app keeps the platform's store. The demo starts light
+// instead of following the system (T-18 unit 5, Q-146); the visitor can
+// still switch in Preferences, until the next reload.
+Future<SharedPreferences> demoPreferences() async {
   SharedPreferencesStorePlatform.instance =
       InMemorySharedPreferencesStore.empty();
-  return SharedPreferences.getInstance();
+  final SharedPreferences preferences = await SharedPreferences.getInstance();
+  await preferences.setString(
+    AppSettingsCubit.themeModeKey,
+    ThemeMode.light.name,
+  );
+  return preferences;
 }
 
 // The starter lists with the sample items (Q-87), fresh on every start.
@@ -117,6 +126,7 @@ class DemoApp extends StatefulWidget {
     required this.store,
     this.aiService,
     this.topInset = 0,
+    this.keyboardInset,
   });
 
   final ListStore store;
@@ -124,6 +134,10 @@ class DemoApp extends StatefulWidget {
 
   // Space kept clear above every screen, sheet and dialog (demoTopInset).
   final double topInset;
+
+  // How much of the frame the parent page's keyboard covers (Q-147), from
+  // frameKeyboardInset; null outside a same-origin parent.
+  final ValueListenable<double>? keyboardInset;
 
   @override
   State<DemoApp> createState() => _DemoAppState();
@@ -170,10 +184,25 @@ class _DemoAppState extends State<DemoApp> {
               onGenerateTitle: (context) =>
                   AppLocalizations.of(context).appTitle,
               debugShowCheckedModeBanner: false,
-              builder: (context, child) => DemoFrame(
-                topInset: widget.topInset,
-                child: AppBannerHost(controller: _banners, child: child!),
-              ),
+              builder: (context, child) {
+                final Widget banners = AppBannerHost(
+                  controller: _banners,
+                  child: child!,
+                );
+                final ValueListenable<double>? keyboard = widget.keyboardInset;
+                if (keyboard == null) {
+                  return DemoFrame(topInset: widget.topInset, child: banners);
+                }
+                return ValueListenableBuilder<double>(
+                  valueListenable: keyboard,
+                  child: banners,
+                  builder: (context, bottom, kept) => DemoFrame(
+                    topInset: widget.topInset,
+                    bottomInset: bottom,
+                    child: kept!,
+                  ),
+                );
+              },
               locale: settings.localeCode == null
                   ? null
                   : Locale(settings.localeCode!),
@@ -194,16 +223,36 @@ class _DemoAppState extends State<DemoApp> {
 // The phone layout, centred in a frame wider than [demoPhoneWidth] (Q-137),
 // below a dark band [topInset] tall (Q-145). The screens below see the
 // column's size as the screen's, so their own layout is the phone's; pages,
-// sheets and dialogs open inside the column, under the band.
+// sheets and dialogs open inside the column, under the band. A keyboard
+// over the frame's bottom from outside it ([bottomInset], Q-147) counts as
+// the screens' own keyboard (viewInsets), so the AI bar and sheets rise
+// above it as they do outside a frame.
 class DemoFrame extends StatelessWidget {
-  const DemoFrame({super.key, required this.child, this.topInset = 0});
+  const DemoFrame({
+    super.key,
+    required this.child,
+    this.topInset = 0,
+    this.bottomInset = 0,
+  });
 
   final Widget child;
   final double topInset;
+  final double bottomInset;
 
   @override
   Widget build(BuildContext context) {
-    final MediaQueryData media = MediaQuery.of(context);
+    final MediaQueryData outer = MediaQuery.of(context);
+    // Always wrapped, so the tree below keeps its state (and the field its
+    // focus) when the keyboard comes or goes.
+    final MediaQueryData media = outer.copyWith(
+      viewInsets: outer.viewInsets.copyWith(
+        bottom: math.max(outer.viewInsets.bottom, bottomInset),
+      ),
+    );
+    return MediaQuery(data: media, child: _framed(media));
+  }
+
+  Widget _framed(MediaQueryData media) {
     if (topInset <= 0) {
       return _column(media);
     }

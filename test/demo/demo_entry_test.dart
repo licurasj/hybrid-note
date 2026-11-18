@@ -1,7 +1,9 @@
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
 
+import 'package:hybrid_note/app/app_settings.dart';
 import 'package:hybrid_note/demo/demo_app.dart';
 import 'package:hybrid_note/demo/demo_build.dart';
 import 'package:hybrid_note/main.dart';
@@ -58,6 +60,22 @@ void main() {
         isA<InMemorySharedPreferencesStore>(),
       );
       expect(preferences.getString('saved'), isNull);
+    });
+
+    // T-18 unit 5 (Q-146): the demo starts light; the real app keeps
+    // following the system unless the phone saved a choice.
+    test('the demo starts light, the real app follows the system', () async {
+      final SharedPreferences real = await realPreferences();
+      expect(AppSettingsCubit(real).state.themeMode, ThemeMode.system);
+      SharedPreferences.resetStatic();
+      final SharedPreferences demo = await demoPreferences();
+      expect(AppSettingsCubit(demo).state.themeMode, ThemeMode.light);
+      // The visitor can still switch, in memory only.
+      final AppSettingsCubit settings = AppSettingsCubit(demo);
+      await settings.setThemeMode(ThemeMode.dark);
+      expect(settings.state.themeMode, ThemeMode.dark);
+      expect(phone, isNot(same(SharedPreferencesStorePlatform.instance)));
+      expect((await phone.getAll()).keys, ['flutter.saved']);
     });
   });
 }
